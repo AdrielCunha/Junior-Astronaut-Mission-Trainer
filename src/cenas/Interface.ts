@@ -3,10 +3,10 @@
 // and the morning / night / end panels that run the chapter rules (../regras.ts).
 import Phaser from 'phaser';
 import lua from '../dados/lua.json';
-import { REGRAS as R, fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, type Estado } from '../regras';
+import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, type Estado } from '../regras';
 import { TIPOS } from '../engine/construcao';
 import { suprimentoDoDia } from '../engine/suprimentos';
-import { sessao, fonte, dataBonita, U_INICIAL, COR, dadosTerreno, type Fase } from './sessao';
+import { sessao, fonte, dataBonita, U_INICIAL, COR, dadosTerreno, LUA as R, type Fase } from './sessao';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 const NIVEIS = ['CALM', 'RISING', 'HIGH', 'EXTREME'];
@@ -154,7 +154,7 @@ export class Interface extends Phaser.Scene {
     // Batteries and the to-do line.
     const d = sessao.entregas;
     this.textos.baterias.setText(sessao.fase === 'dia'
-      ? `Batteries at habitat ${sessao.noHabitat} · carrying ${sessao.carregando}\nLife ${d.suporte} · Shield ${d.blindagem} · Rocket ${d.oficina}`
+      ? `Batteries at habitat ${sessao.noHabitat} · carrying ${sessao.carregando}\nLife ${d.oxigenio} · Shield ${d.blindagem} · Rocket ${d.meta}`
       : '');
     this.textos.tarefa.setText(sessao.fase === 'dia'
       ? (sessao.noHabitat ? 'Walk to the Habitat to pick up today\'s batteries.' : sessao.carregando ? 'Click a room (or press E next to it) to give it a battery.' : 'All batteries used. Press "End day".')
@@ -188,7 +188,7 @@ export class Interface extends Phaser.Scene {
     if (sessao.fase === 'inicio') { this.irPara('manha'); return; }
     if (sessao.fase !== 'dia') return;
     const antes = sessao.estado;
-    sessao.estado = fimDoDia(antes, sessao.entregas, { nivel: sessao.dia.nivel });
+    sessao.estado = fimDoDia(antes, sessao.entregas, { nivel: sessao.dia.nivel }, R);
     this.ultimoDia = { antes, entregas: { ...sessao.entregas }, nivel: sessao.dia.nivel, fato: sessao.dia.fato };
     sessao.carregando = 0;
     sessao.noHabitat = 0;
@@ -211,7 +211,7 @@ export class Interface extends Phaser.Scene {
       ], [{ texto: 'Explore the base', acao: () => this.fecharPainel() }, { texto: 'Start mission', acao: () => this.irPara('manha'), principal: true }]);
     } else if (f === 'manha') {
       const d = sessao.dia;
-      const n = bateriasDoDia(sessao.estado);
+      const n = bateriasDoDia(sessao.estado, R);
       const enf = naEnfermaria(sessao.estado);
       const sup = suprimentoDoDia(sessao.estado.dia);
       this.abrirPainel(`Day ${sessao.estado.dia} · ${dataBonita(sessao.data)}`, [
@@ -229,16 +229,16 @@ export class Interface extends Phaser.Scene {
       const e = sessao.estado;
       const delta = (a: number, b: number) => `${b - a >= 0 ? '+' : ''}${Math.round(b - a)}`;
       const desprotegido = Math.max(0, u.nivel - u.entregas.blindagem);
-      const r = resultado(e);
+      const r = resultado(e, R);
       this.abrirPainel('Night report', [
-        `Oxygen ${Math.round(e.oxigenio)}% (${delta(u.antes.oxigenio, e.oxigenio)}): ${u.entregas.suporte} batteries made oxygen, the crew breathed ${R.oxigenioPorNoite}.`,
+        `Oxygen ${Math.round(e.oxigenio)}% (${delta(u.antes.oxigenio, e.oxigenio)}): ${u.entregas.oxigenio} batteries made oxygen, the crew breathed ${R.oxigenioPorNoite}.`,
         `Radiation dose ${Math.round(e.dose)}% (${delta(u.antes.dose, e.dose)})${desprotegido ? `: the shield was ${desprotegido} batteries short of the storm.` : ': the shield held.'}`,
         `Rocket ${Math.round(e.meta)}% (${delta(u.antes.meta, e.meta)}).`,
         { texto: u.fato, cor: '#86efac' },
       ], [{ texto: r ? 'See the result' : 'Next morning', acao: () => this.irPara(r ? 'fim' : 'manha'), principal: true }]);
     } else if (f === 'fim') {
       const e = sessao.estado;
-      const r = resultado(e);
+      const r = resultado(e, R);
       const titulo = r === 'vitoria' ? 'Launch! To Mars!' : r === 'sem-oxigenio' ? 'Out of oxygen' : r === 'radiacao' ? 'Too much radiation' : 'The rocket was not ready';
       this.abrirPainel(titulo, [
         `Score: ${pontuacao(e)}  (oxygen ${Math.round(e.oxigenio)} + health ${Math.round(100 - e.dose)} + rocket ${Math.round(e.meta)})`,

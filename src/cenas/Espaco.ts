@@ -69,7 +69,8 @@ export class Espaco extends Phaser.Scene {
     const chave = (i: number) => `voo${i}`;
     if (this.textures.exists(chave(voo.quadros - 1))) sessao.filmePronto = true;
     else {
-      for (let i = 0; i < voo.quadros; i++) this.load.image(chave(i), `lua/voo/f${String(i).padStart(2, '0')}.webp`);
+      // A restart (resize) mid-load keeps the frames already in: load only the rest.
+      for (let i = 0; i < voo.quadros; i++) if (!this.textures.exists(chave(i))) this.load.image(chave(i), `lua/voo/f${String(i).padStart(2, '0')}.webp`);
       this.load.once('complete', () => this.aquecer());
       this.load.start();
     }

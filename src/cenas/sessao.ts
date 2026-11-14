@@ -8,7 +8,11 @@ import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { Grade, TIPOS, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
 import voo from '../dados/voo.json';
-import { estadoInicial, bateriasDoDia, type Alocacao, type Estado } from '../regras';
+import { inicioDoCapitulo, nenhuma, bateriasDoDia, type Alocacao, type Efeito, type Estado } from '../regras';
+import { CAPITULOS } from '../capitulos';
+
+// This engine plays chapter 1 (the Moon) with the same rules as the classic scene.
+export const LUA = CAPITULOS[0].config;
 
 export type Fase = 'inicio' | 'manha' | 'dia' | 'noite' | 'fim';
 
@@ -66,10 +70,13 @@ class Sessao {
   readonly sinais = new Phaser.Events.EventEmitter();
 
   fase: Fase = 'inicio';
-  estado: Estado = estadoInicial();
-  entregas: Alocacao = { suporte: 0, blindagem: 0, oficina: 0 };
+  estado: Estado = inicioDoCapitulo(LUA);
+  entregas: Alocacao = nenhuma();
   carregando = 0;           // batteries in the commander's hands
   noHabitat = 0;            // batteries still waiting at the habitat today
+  tarefasHoje = new Set<Efeito>();                    // rooms that already had their task today
+  ultimaTarefa: Partial<Record<Efeito, string>> = {}; // so the bank does not repeat itself
+  emTarefa = false;         // a task overlay is open: the map and zoom wait
   vista: Vista = 'chao';
   u = U_INICIAL;            // zoom shown this frame
   alvo = U_INICIAL;         // zoom asked for on the ground; u glides to it
@@ -86,10 +93,13 @@ class Sessao {
   reiniciar() {
     this.grade = new Grade(this.terreno);
     this.fase = 'inicio';
-    this.estado = estadoInicial();
-    this.entregas = { suporte: 0, blindagem: 0, oficina: 0 };
+    this.estado = inicioDoCapitulo(LUA);
+    this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = 0;
+    this.tarefasHoje.clear();
+    this.ultimaTarefa = {};
+    this.emTarefa = false;
     this.vista = 'chao';
     this.u = this.alvo = U_INICIAL;
     this.ancora = null;
@@ -125,7 +135,7 @@ class Sessao {
 
   // Wheel / pinch: d e-folds (positive = out) around a screen point.
   zoom(d: number, ancora: { x: number; y: number } | null = null) {
-    if (this.voo) return;
+    if (this.voo || this.emTarefa) return;
     if (this.vista === 'chao') {
       const borda = Math.max(U_CHAO, this.uFilme);
       const novo = this.alvo + d;
@@ -199,9 +209,10 @@ class Sessao {
   }
 
   novoDia() {
-    this.entregas = { suporte: 0, blindagem: 0, oficina: 0 };
+    this.entregas = nenhuma();
     this.carregando = 0;
-    this.noHabitat = bateriasDoDia(this.estado);
+    this.noHabitat = bateriasDoDia(this.estado, LUA);
+    this.tarefasHoje.clear();
   }
 
   emitir<K extends keyof Eventos>(nome: K, ...args: Eventos[K]) {

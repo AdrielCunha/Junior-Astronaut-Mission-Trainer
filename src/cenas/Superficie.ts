@@ -12,6 +12,8 @@ import { TIPOS, montarBasePadrao, type Construcao, type TipoId } from '../engine
 import { empuxoDePouso, suprimentoDoDia } from '../engine/suprimentos';
 import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte } from './sessao';
 import { fundacao, baseDe, sombraECarga } from './desenho';
+import { sortear } from '../tarefas';
+import type { DadosTarefa } from './Tarefa';
 import voo from '../dados/voo.json';
 import modelos from '../dados/modulos.json';
 import sprite from '../dados/astronauta.json';
@@ -153,7 +155,7 @@ export class Superficie extends Phaser.Scene {
       this.mapa.setAlpha(sessao.vista === 'chao' ? 1 : 0);
     }
     this.mapa.setVisible(this.mapa.alpha > 0.001);
-    this.input.enabled = sessao.vista === 'chao' && !sessao.voo;
+    this.input.enabled = sessao.vista === 'chao' && !sessao.voo && !sessao.emTarefa;
   }
 
   // ---------- input ----------
@@ -210,6 +212,7 @@ export class Superficie extends Phaser.Scene {
   }
 
   private usar(c: Construcao) {
+    if (sessao.emTarefa) return;
     if (!c.tipo.sala && c.tipo.id !== 'habitat') {
       sessao.emitir('mensagem', `${c.tipo.nome}: ${c.tipo.papel}`);
       return;
@@ -225,10 +228,27 @@ export class Superficie extends Phaser.Scene {
       sessao.emitir('mensagem', `You picked up ${sessao.carregando} batteries. Take them to the rooms.`, '#86efac');
     } else if (c.tipo.sala) {
       if (!sessao.carregando) { sessao.emitir('mensagem', 'Your hands are empty. Pick up batteries at the habitat.'); return; }
-      sessao.carregando--;
-      sessao.entregas[c.tipo.sala]++;
-      sessao.emitir('mensagem', `+1 battery to ${c.tipo.nome}.`, '#86efac');
+      // The first battery a room gets each day comes with a task from the bank (../tarefas).
+      const sala = c.tipo.sala;
+      const tarefa = sessao.tarefasHoje.has(sala) ? undefined : sortear(sala, sessao.ultimaTarefa[sala]);
+      sessao.tarefasHoje.add(sala);
+      if (tarefa) {
+        sessao.ultimaTarefa[sala] = tarefa.id;
+        sessao.emTarefa = true;
+        const dados: DadosTarefa = { tarefa, aoTerminar: () => { sessao.emTarefa = false; this.entregar(c); } };
+        this.scene.launch('Tarefa', dados);
+        return;
+      }
+      this.entregar(c);
+      return;
     }
+    sessao.emitir('estado');
+  }
+
+  private entregar(c: Construcao) {
+    sessao.carregando--;
+    sessao.entregas[c.tipo.sala!]++;
+    sessao.emitir('mensagem', `+1 battery to ${c.tipo.nome}.`, '#86efac');
     sessao.emitir('estado');
   }
 
