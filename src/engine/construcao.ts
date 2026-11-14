@@ -21,11 +21,11 @@ export type Tipo = {
 export const TIPOS: Record<TipoId, Tipo> = {
   habitat:    { id: 'habitat', nome: 'Habitat', w: 3, h: 3, altura: 1.4, cor: 0x94a3b8, unico: true,
                 papel: 'Where the crew lives. Batteries charge here every morning.' },
-  suporte:    { id: 'suporte', nome: 'Life Support', w: 3, h: 2, altura: 1.1, cor: 0x3b82f6, sala: 'suporte', unico: true,
+  suporte:    { id: 'suporte', nome: 'Life Support', w: 3, h: 2, altura: 1.1, cor: 0x3b82f6, sala: 'oxigenio', unico: true,
                 papel: 'Makes oxygen. Each battery gives oxygen for the night.' },
   blindagem:  { id: 'blindagem', nome: 'Radiation Shield', w: 2, h: 2, altura: 1.3, cor: 0xeab308, sala: 'blindagem', unico: true,
                 papel: 'Protects the crew from solar storms.' },
-  oficina:    { id: 'oficina', nome: 'Rocket Workshop', w: 3, h: 3, altura: 1.2, cor: 0xf97316, sala: 'oficina', unico: true,
+  oficina:    { id: 'oficina', nome: 'Rocket Workshop', w: 3, h: 3, altura: 1.2, cor: 0xf97316, sala: 'meta', unico: true,
                 papel: 'Builds the rocket to Mars.' },
   painel:     { id: 'painel', nome: 'Solar Panel', w: 2, h: 1, altura: 0.5, cor: 0x1e3a8a, unico: false,
                 papel: 'Catches sunlight. At the pole the Sun is always low, so panels stand tall.' },

@@ -19,8 +19,7 @@ sys.path.insert(0, HERE)
 import comum as C
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
-OUT = os.path.join(ROOT, 'public', 'lua', 'voo')
-TMP = os.path.join(C.CACHE, 'voo')
+TMP = os.path.join(C.CACHE, 'voo_tmp')
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 import argparse
 ap = argparse.ArgumentParser()
@@ -29,12 +28,17 @@ ap.add_argument('--w', type=int, default=1280)
 ap.add_argument('--h', type=int, default=720)
 ap.add_argument('--so', default='', help='render only these frames, e.g. 0,30,71 (preview)')
 ap.add_argument('--so-json', action='store_true', help='only recompute voo.json (camera path), no pictures')
+ap.add_argument('--nome', default='voo', help="output name: public/lua/<nome>/ and src/dados/<nome>.json (voo_leve = light set for phones)")
 args = ap.parse_args(argv)
+OUT = os.path.join(ROOT, 'public', 'lua', args.nome)
 
 R = C.R_KM
 FOV = math.radians(10)               # narrow lens: near-isometric at both ends, like the game
-S_INICIO = 530.33 * 0.32             # px per km of the game's map at its widest ground zoom
-DIAM_FIM = 448                       # px: globe diameter in the last frame (62% of the height)
+S_INICIO_HD = 530.33 * 0.32          # px per km of the game's map at its widest ground zoom (1280 wide)
+DIAM_FIM_HD = 448                    # px: globe diameter in the last frame at 1280 x 720 (62% of the height)
+# Same framing at any frame size: both scale with it (the light set for phones is 640 x 360).
+S_INICIO = S_INICIO_HD * args.w / 1280
+DIAM_FIM = round(DIAM_FIM_HD * args.h / 720)
 MAPA_PAD = 1.0                       # km around the map that the 64 km patch leaves in place
 
 with open(os.path.join(ROOT, 'src', 'dados', 'terreno.json')) as f:
@@ -251,7 +255,7 @@ for i in lista:
     subprocess.run(['magick', png, '-quality', '72', '-define', 'webp:alpha-quality=90', os.path.join(OUT, f'f{i:02d}.webp')], check=True)
     print('frame', i, flush=True)
 if not args.so:
-    with open(os.path.join(ROOT, 'src', 'dados', 'voo.json'), 'w') as f:
+    with open(os.path.join(ROOT, 'src', 'dados', f'{args.nome}.json'), 'w') as f:
         json.dump({'quadros': args.frames, 'w': args.w, 'h': args.h, 'margem': MARGEM, 'sInicio': S_INICIO, 'diametroFim': DIAM_FIM,
                    'p': [round(p, 5) for p in PS], 'razao': round(d1 / d0, 3), 'base': base_px,
                    'dia': 1, 'nota': 'Frame 0 = the map at sInicio px/km, centered on the map center. Last frame = the Moon view of day 1, globe diameter diametroFim px, centered. Frame i was rendered at camera distance d0 * razao ** p[i]; frames are w*margem x h*margem.'}, f, indent=1)
