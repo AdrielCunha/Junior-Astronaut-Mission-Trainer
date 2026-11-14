@@ -1,6 +1,6 @@
 {
   "capitulo": "Moon base",
-  "nota": "Archived NASA data, downloaded on 2026-11-14. Daily dose = mean of hourly absorbed_dose_rate from LRO/CRaTER-D1D2 (lunar orbit). Calm reference: 5.0 µGy/h (May 5, 2024). Level = day mean / calm: below 1.6 = 0, below 10 = 1, below 100 = 2, otherwise 3.",
+  "nota": "Archived NASA data, downloaded on 2026-11-14. Daily dose = mean of hourly absorbed_dose_rate from LRO/CRaTER-D1D2 (lunar orbit). Calm reference: 5.0 µGy/h (May 5, 2024). Level = day mean / calm: below 1.6 = 0, below 10 = 1, below 100 = 2, otherwise 3. Forecast range: made by the game from the DONKI events known that morning (flares, CMEs, particles, ENLIL runs); it is not an official NASA forecast.",
   "doseCalma": 5.0,
   "instrumento": "the CRaTER instrument on NASA's Lunar Reconnaissance Orbiter (LRO), in orbit around the Moon",
   "fontes": [
@@ -29,65 +29,105 @@
     {
       "data": "2024-05-05",
       "nivel": 0,
+      "previsao": [
+        0,
+        1
+      ],
       "doseMedia": 5.0,
       "dosePico": 5.4,
-      "aviso": "Good morning, Commander! At 06:01 UTC the Sun fired an X1.3 flare from sunspot region 13663. A flare is a flash of light and X-rays. Radiation near the Moon is calm today.",
+      "curto": "A flare flashed on the Sun.",
+      "aviso": "Good morning, Commander! At 06:01 UTC the Sun fired an X1.3 flare from sunspot region 13663. A flare is a flash of light and X-rays.",
       "fato": "Flares are ranked A, B, C, M and X. X is the strongest. Light from the Sun reaches the Moon in about 8 minutes."
     },
     {
       "data": "2024-05-06",
       "nivel": 0,
+      "previsao": [
+        0,
+        2
+      ],
       "doseMedia": 5.2,
       "dosePico": 5.6,
-      "aviso": "Big flash! An X4.5 flare at 06:35 UTC. The fast particles that harm astronauts have not arrived. Radiation is still calm.",
+      "curto": "A big X4.5 flare on the Sun!",
+      "aviso": "Big flash! An X4.5 flare at 06:35 UTC.",
       "fato": "Sunspots are darker, cooler areas on the Sun with strong magnetic fields. Most big flares start there."
     },
     {
       "data": "2024-05-07",
       "nivel": 0,
+      "previsao": [
+        0,
+        1
+      ],
       "doseMedia": 5.1,
       "dosePico": 5.7,
-      "aviso": "A quieter day: only M-class flares (M5.1 and M8.2). Radiation is calm. A good day to work on the rocket!",
+      "curto": "Only small flares today.",
+      "aviso": "A quieter day: only M-class flares (M5.1 and M8.2).",
       "fato": "The Moon has no thick air and no global magnetic field. On Earth, both help block radiation from space."
     },
     {
       "data": "2024-05-08",
       "nivel": 0,
+      "previsao": [
+        0,
+        2
+      ],
       "doseMedia": 5.6,
       "dosePico": 6.3,
-      "aviso": "Watch out: three X1.0 flares today. At 22:24 UTC the Sun threw a cloud of solar material into space at 1,257 km/s. It is called a CME. Radiation is still calm, but a storm is coming.",
+      "curto": "The Sun threw a fast cloud of particles (a CME)!",
+      "aviso": "Watch out: three X1.0 flares today. At 22:24 UTC the Sun threw a cloud of solar material into space at 1,257 km/s. It is called a CME.",
       "fato": "A CME (coronal mass ejection) is a giant cloud of gas and magnetic field thrown out by the Sun. It crosses to the Moon in one to three days."
     },
     {
       "data": "2024-05-09",
       "nivel": 1,
+      "previsao": [
+        1,
+        2
+      ],
       "doseMedia": 11.2,
       "dosePico": 21.8,
-      "aviso": "Storm alert! An X2.2 flare at 09:13 UTC. At 13:59 UTC NASA detected fast particles from the Sun. Radiation is MEDIUM.",
+      "curto": "NASA detected fast particles from the Sun!",
+      "aviso": "Storm alert! An X2.2 flare at 09:13 UTC. At 13:59 UTC NASA detected fast particles from the Sun.",
       "fato": "Solar energetic particles are very fast protons. Thin walls do not stop them, so a base needs radiation shielding."
     },
     {
       "data": "2024-05-10",
       "nivel": 2,
+      "previsao": [
+        1,
+        3
+      ],
       "doseMedia": 229.7,
       "dosePico": 1437.8,
-      "aviso": "Big storm! An X3.9 flare at 06:54 UTC and more fast particles from 12:59 UTC. On Earth, a Kp 9 geomagnetic storm starts at 15:00 UTC, the strongest in more than 20 years. Radiation is HIGH.",
+      "curto": "An X3.9 flare and more fast particles!",
+      "aviso": "Storm alert! An X3.9 flare at 06:54 UTC and more fast particles from 12:59 UTC. On Earth, a Kp 9 geomagnetic storm starts at 15:00 UTC, the strongest in more than 20 years.",
       "fato": "On Earth this storm made auroras far from the poles. Earth's magnetic field protected people there. The Moon has no such shield."
     },
     {
       "data": "2024-05-11",
       "nivel": 3,
+      "previsao": [
+        2,
+        3
+      ],
       "doseMedia": 1082.5,
       "dosePico": 1928.6,
-      "aviso": "EXTREME! An X5.8 flare at 01:23 UTC. This is the highest radiation of the mission. Protect the crew!",
+      "curto": "A giant X5.8 flare!",
+      "aviso": "A giant X5.8 flare at 01:23 UTC. Get the shield ready!",
       "fato": "µGy/h (micrograys per hour) measures how much radiation energy a body absorbs each hour."
     },
     {
       "data": "2024-05-12",
       "nivel": 2,
+      "previsao": [
+        1,
+        2
+      ],
       "doseMedia": 242.8,
       "dosePico": 707.0,
-      "aviso": "The storm is fading, but radiation is still HIGH. Today is launch day: the rocket must be ready tonight!",
+      "curto": "The flares are getting smaller. Launch tonight!",
+      "aviso": "The flares are getting smaller. Today is launch day: the rocket must be ready tonight!",
       "fato": "NASA's Moon to Mars Space Weather Analysis Office watches the Sun every day and logs events in DONKI, the database this game uses."
     }
   ]

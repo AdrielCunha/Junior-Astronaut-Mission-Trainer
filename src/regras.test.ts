@@ -12,14 +12,19 @@ import {
 } from './regras.ts';
 
 // Same numbers as capitulos.ts (that file imports JSON without attributes, which Node needs).
-const LUA: Config = { dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 4 };
-const NAVE: Config = { dias: 5, bateriasPorDia: 4, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 15, metaPorBateria: 15 };
+const LUA: Config = { dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 5 };
+const NAVE: Config = { dias: 5, bateriasPorDia: 4, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 15, metaPorBateria: 12 };
 const MARTE: Config = {
   dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 0,
   obras: { aquecimento: 2, blindagem: 3, oxigenio: 3, meta: 12 },
 };
 
-type Dias = { nivel: number; frio?: number }[];
+type Dias = { nivel: number; previsao: number[]; frio?: number }[];
+type Escudo = (previsao: number[]) => number;
+// How many shield batteries a player puts in, given the morning forecast range.
+const MEIO: Escudo = (p) => Math.ceil((p[0] + p[1]) / 2);
+const MAXIMO: Escudo = (p) => p[1];
+const MINIMO: Escudo = (p) => p[0];
 const vezes = (ef: Efeito, n: number): Efeito[] => Array(Math.max(0, n)).fill(ef);
 
 // plano: the batteries the player delivers on day i, in order, given the state that morning.
@@ -36,9 +41,9 @@ function jogar(c: Config, dias: Dias, plano: (e: Estado, i: number) => Efeito[],
   return { e, r: resultado(e, c) };
 }
 
-// A careful player: build the module a need depends on, then power it (heat, shield),
-// keep oxygen just above zero, and put the rest into the goal.
-const cuidadoso = (c: Config, dias: Dias) => (e: Estado, i: number): Efeito[] => {
+// A careful player: build the module a need depends on, then power it (heat, shield
+// from the forecast, never from the real level), keep oxygen just above zero, rest to the goal.
+const cuidadoso = (c: Config, dias: Dias, escudo: Escudo = MEIO) => (e: Estado, i: number): Efeito[] => {
   let livres = bateriasDoDia(e, c);
   let s = e;
   let a = nenhuma();
@@ -52,7 +57,7 @@ const cuidadoso = (c: Config, dias: Dias) => (e: Estado, i: number): Efeito[] =>
   };
   usar('aquecimento', dias[i].frio ?? 0);
   // Mars: build the shield early; ENLIL warns the day before the storm.
-  usar('blindagem', dias[i].nivel);
+  usar('blindagem', escudo(dias[i].previsao));
   const frioSemCalor = Math.max(0, (dias[i].frio ?? 0) - a.aquecimento) * 10;
   const depois = e.oxigenio - c.oxigenioPorNoite - frioSemCalor;
   usar('oxigenio', depois <= 5 ? Math.ceil((5 - depois) / c.oxigenioPorBateria) : 0);
@@ -63,8 +68,8 @@ const cuidadoso = (c: Config, dias: Dias) => (e: Estado, i: number): Efeito[] =>
 test('end of day applies the formulas', () => {
   const a = { oxigenio: 2, blindagem: 1, meta: 2, aquecimento: 0 };
   const e = fimDoDia(inicioDoCapitulo(LUA), a, { nivel: 3, frio: 2 }, LUA);
-  // oxygen 60 + 20 - 10 - 2 missing heat * 10; dose 1 + 2 missing shield * 15; goal 2 * 4
-  assert.deepEqual(e, { dia: 2, oxigenio: 50, dose: 31, meta: 8, obras: {} });
+  // oxygen 60 + 20 - 10 - 2 missing heat * 10; dose 1 + 2 missing shield * 15; goal 2 * 5
+  assert.deepEqual(e, { dia: 2, oxigenio: 50, dose: 31, meta: 10, obras: {} });
 });
 
 test('a battery builds an unfinished module, then powers it', () => {
@@ -120,4 +125,20 @@ test('Mars: after resting (a retry lowers the dose to DESCANSO), the crew can st
 test('an empty day costs oxygen and dose only', () => {
   const e = fimDoDia(inicioDoCapitulo(NAVE), nenhuma(), { nivel: 0 }, NAVE);
   assert.deepEqual(e, { dia: 2, oxigenio: 45, dose: 1, meta: 0, obras: {} });
+});
+
+test('every forecast range contains the real level', () => {
+  for (const d of [...lua.dias, ...nave.dias, ...marte.dias]) assert.ok(d.previsao[0] <= d.nivel && d.nivel <= d.previsao[1], d.data);
+});
+
+test('always shielding for the worst case is too slow: the trip misses Mars', () => {
+  assert.equal(jogar(NAVE, nave.dias, cuidadoso(NAVE, nave.dias, MAXIMO)).r, 'meta-incompleta');
+});
+
+test('always shielding for the best case hurts the crew, and Mars is lost', () => {
+  const um = jogar(LUA, lua.dias, cuidadoso(LUA, lua.dias, MINIMO));
+  assert.ok(um.e.dose >= 50, `Moon dose ${um.e.dose}`);
+  const dois = jogar(NAVE, nave.dias, cuidadoso(NAVE, nave.dias, MINIMO), um.e.dose);
+  const tres = jogar(MARTE, marte.dias, cuidadoso(MARTE, marte.dias, MINIMO), dois.e.dose);
+  assert.notEqual(tres.r, 'vitoria');
 });

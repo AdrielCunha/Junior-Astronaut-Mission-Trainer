@@ -2,15 +2,19 @@
 // The game scene: isometric base, HUD and the morning / night / end panels, for all three chapters.
 // Rules live in ../regras.ts, chapter settings in ../capitulos.ts, real NASA data in ../dados/.
 import Phaser from 'phaser';
-import { CAPITULOS, type Equipamento, type Lugar } from '../capitulos';
+import { CAPITULOS, type Dia, type Equipamento, type Lugar } from '../capitulos';
 import {
   COMUM, DESCANSO, inicioDoCapitulo, fimDoDia, resultado, bateriasDoDia, naEnfermaria, pontuacao, nenhuma, entregar, pronto, custo,
-  type Alocacao, type Estado, type Resultado,
+  type Alocacao, type Efeito, type Estado, type Resultado,
 } from '../regras';
 
 type V = Phaser.Math.Vector2;
 type Fase = 'inicio' | 'manha' | 'dia' | 'noite' | 'fim' | 'dados';
-type Parte = string | { texto: string; cor?: string; tamanho?: number; negrito?: boolean; link?: string };
+// A panel part is a line of text, or a block that draws itself (icons, bars) and returns its height.
+type Bloco = (x: number, y: number, largura: number) => { itens: Phaser.GameObjects.GameObject[]; altura: number };
+type Parte = string | { texto: string; cor?: string; tamanho?: number; negrito?: boolean; link?: string } | Bloco;
+type Icone = 'sol' | 'escudo' | 'termometro' | 'bateria' | 'oxigenio' | 'saude' | 'foguete' | 'marte' | 'chama' | 'cupula';
+type Cartao = { icone: Icone; cor?: number; grande: string; pequeno: string; corGrande?: string };
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 
 // All positions are in grid tiles (gx, gy) plus height z, also in tiles.
@@ -22,6 +26,8 @@ const SALA_L = 5;
 const SALA_A = 3;
 const PAREDE = 1.6;
 const MUNDO = { gx0: 0, gx1: 20, gy0: 0, gy1: 20 };
+// The ship is long and thin: frame it on its own so it fills the screen.
+const MUNDO_NAVE = { gx0: -3, gx1: 22, gy0: -1, gy1: 13 };
 // Paths start at the plaza in front of the habitat. Each place: its module, the path from the
 // plaza (the last point is where the commander stands inside) and where a crew member works.
 // Every path reaches its module from an open side, so it never runs behind a wall.
@@ -33,6 +39,16 @@ const LUGARES: Record<Lugar, Modulo & { rota: Ponto[]; posto: Ponto }> = {
   cima: { gx: 1, gy: 7, paredeEsquerda: true, rota: [[10, 11.2], [3.5, 11.2], [3.5, 8.6]], posto: [1.9, 8.3] },
   // The launch pad / dome site. Not a module: the commander stands next to it.
   plataforma: { gx: 16.2, gy: 9.6, paredeEsquerda: false, rota: [[15, 13], [15, 11.6]], posto: [15, 11.6] },
+};
+// The ship, seen in cutaway: a long hull floating in space. Rooms sit against the far hull
+// wall, the corridor runs in front of them, bunks and cockpit are near the open side.
+const CASCO = { x0: 0, x1: 17, ponta: 21.5, y0: 4.5, y1: 13 };
+const PRACA_NAVE: Ponto = [9, 9.5];
+const LUGARES_NAVE: typeof LUGARES = {
+  ...LUGARES,
+  baixo: { gx: 1, gy: 4.6, paredeEsquerda: false, rota: [[3.5, 9.5], [3.5, 6.8]], posto: [5.3, 6.0] },
+  esquerda: { gx: 6.5, gy: 4.6, paredeEsquerda: false, rota: [[9, 9.5], [9, 6.8]], posto: [10.8, 6.0] },
+  direita: { gx: 12, gy: 4.6, paredeEsquerda: false, rota: [[14.5, 9.5], [14.5, 6.8]], posto: [16.3, 6.0] },
 };
 const HABITAT: Modulo = { gx: 7, gy: 7, paredeEsquerda: true };
 const PLATAFORMA = { gx: 18, gy: 11 };
@@ -58,6 +74,9 @@ const dataBonita = (iso: string) =>
 const corDaBarra = (v: number) => (v > 70 ? 0x22c55e : v >= 30 ? 0xeab308 : 0xef4444);
 const escurecer = (cor: number, pct: number) => Phaser.Display.Color.ValueToColor(cor).darken(pct).color;
 const baterias = (n: number) => `${n} batter${n === 1 ? 'y' : 'ies'}`;
+const corNumero = (hex: string) => Phaser.Display.Color.HexStringToColor(hex).color;
+const faixa = (p: number[]) => (p[0] === p[1] ? NIVEIS[p[0]].nome : `${NIVEIS[p[0]].nome}–${NIVEIS[p[1]].nome}`);
+const v = (x: number, y: number) => new Phaser.Math.Vector2(x, y);
 
 export class Base extends Phaser.Scene {
   // Game state. Scene fields survive scene.restart(), which redraws everything after a resize.
@@ -91,6 +110,7 @@ export class Base extends Phaser.Scene {
   private cupula!: Phaser.GameObjects.Graphics;
   private brilho: Phaser.GameObjects.Graphics | null = null;
   private calor: Phaser.GameObjects.Graphics | null = null;
+  private chama: Phaser.GameObjects.Graphics | null = null; // engine exhaust, bigger with more engine power
   private hud!: Phaser.GameObjects.Graphics;
   private hudDia!: Phaser.GameObjects.Text;
   private hudBarras: Phaser.GameObjects.Text[] = [];
@@ -101,6 +121,7 @@ export class Base extends Phaser.Scene {
   private painel: Phaser.GameObjects.GameObject[] = [];
   private acaoPrincipal: (() => void) | null = null;
   private estaticos: Phaser.GameObjects.Graphics[] = [];
+  private guia: Phaser.GameObjects.Container | null = null;
   private layout = { topo: 0, base: 0, barras: 0, larguraBarra: 0, baterias: 0, tripulacao: 0 };
 
   constructor() {
@@ -122,8 +143,16 @@ export class Base extends Phaser.Scene {
     return bateriasDoDia(this.estado, this.cap.config) - usadas;
   }
 
+  private get lugares() {
+    return this.cap.tema === 'nave' ? LUGARES_NAVE : LUGARES;
+  }
+
+  private get praca(): Ponto {
+    return this.cap.tema === 'nave' ? PRACA_NAVE : PRACA;
+  }
+
   private lugar(i: number) {
-    return LUGARES[this.cap.salas[i].lugar];
+    return this.lugares[this.cap.salas[i].lugar];
   }
 
   private p(gx: number, gy: number, z = 0): V {
@@ -165,7 +194,7 @@ export class Base extends Phaser.Scene {
     this.u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.62, 1.5);
     const topo = 66 * this.u;
     const base = 62 * this.u;
-    const { gx0, gx1, gy0, gy1 } = MUNDO;
+    const { gx0, gx1, gy0, gy1 } = this.cap.tema === 'nave' ? MUNDO_NAVE : MUNDO;
     const largura = gx1 - gy0 - (gx0 - gy1);
     const altura = (gx1 + gy1 - gx0 - gy0) / 2 + 1;
     this.T = Math.min((W * 0.97) / largura, (H - topo - base) / altura);
@@ -182,11 +211,17 @@ export class Base extends Phaser.Scene {
     this.estrutura = null;
     this.brilho = null;
     this.calor = null;
+    this.guia = null;
+    this.chama = null;
 
     this.desenharCeu(W, H);
-    this.desenharChao();
-    this.desenharPaineisSolares();
-    this.desenharCaminhos();
+    if (this.cap.tema === 'nave') {
+      this.desenharNave();
+    } else {
+      this.desenharChao();
+      this.desenharPaineisSolares();
+      this.desenharCaminhos();
+    }
     this.desenharBase();
     this.desenharMeta();
     // Everything that never changes goes into one texture, drawn once.
@@ -260,6 +295,111 @@ export class Base extends Phaser.Scene {
     g.fillStyle(0xffffff, 0.75).fillEllipse(x + r * 0.1, y - r * 0.55, r * 1.1, r * 0.22).fillEllipse(x - r * 0.2, y + r * 0.6, r * 0.9, r * 0.18);
     g.fillStyle(0x020617, 0.55).fillEllipse(x + r * 0.45, y, r * 1.1, r * 2);
     this.texto(x, y + r + 6 * this.u, tema === 'lua' ? 'Earth' : 'Earth, far behind', 12, '#93c5fd').setOrigin(0.5, 0);
+  }
+
+  // The spaceship for chapter 2, drawn once into the background.
+  private desenharNave() {
+    const g = this.estatico();
+    const { x0, x1, ponta, y0, y1 } = CASCO;
+    const meio = (y0 + y1) / 2;
+    const ALTO = 2.2;
+    const parede = (a: Ponto, b: Ponto, h: number, cor: number, z0 = 0) =>
+      g.fillStyle(cor).fillPoints([this.p(a[0], a[1], z0), this.p(b[0], b[1], z0), this.p(b[0], b[1], z0 + h), this.p(a[0], a[1], z0 + h)], true);
+
+    // Solar wings, out in space behind the hull.
+    for (const wx of [4.5, 13]) {
+      const a = this.p(wx, y0, 1.2);
+      const b = this.p(wx, y0 - 4.6, 1.2);
+      g.lineStyle(Math.max(2, this.T * 0.12), 0x94a3b8).lineBetween(a.x, a.y, b.x, b.y);
+      for (const k of [0, 1]) {
+        const cantos = this.retangulo(wx - 1.7, y0 - 1.0 - k * 1.9, wx + 1.7, y0 - 2.6 - k * 1.9, 1.2);
+        g.fillStyle(0x1e3a8a).fillPoints(cantos, true);
+        g.lineStyle(1, 0x60a5fa, 0.8);
+        for (let t = 0.25; t < 1; t += 0.25) {
+          const c0 = this.p(Phaser.Math.Linear(wx - 1.7, wx + 1.7, t), y0 - 1.0 - k * 1.9, 1.2);
+          const c1 = this.p(Phaser.Math.Linear(wx - 1.7, wx + 1.7, t), y0 - 2.6 - k * 1.9, 1.2);
+          g.lineBetween(c0.x, c0.y, c1.x, c1.y);
+        }
+        g.lineStyle(1.5, 0x93c5fd).strokePoints(cantos, true);
+      }
+    }
+    const asa = this.p(8.75, y0 - 5.2, 1.2);
+    this.texto(asa.x, asa.y, `Solar wings\n${baterias(this.cap.config.bateriasPorDia)} a day`, 12, '#bfdbfe', { align: 'center', backgroundColor: '#0f172acc', padding: { x: 6, y: 3 } })
+      .setOrigin(0.5, 1).setDepth(5e4);
+
+    // Engine blocks at the back end; the exhaust is drawn live in atualizar().
+    for (const ey of [6.5, 11]) {
+      this.caixa(g, -1.4, ey - 1.0, 1.4, 2.0, 1.8, 0x475569, 0.1);
+      const bocal = this.p(-1.4, ey, 1.0);
+      g.fillStyle(0x0e7490).fillEllipse(bocal.x, bocal.y, this.T * 1.0, this.T * 0.8);
+    }
+
+    // Hull: underside faces, deck, far walls, back wall.
+    const casco: Ponto[] = [[x0, y0], [x1, y0], [ponta, meio], [x1, y1], [x0, y1]];
+    g.fillStyle(0x1e293b).fillPoints([this.p(x0, y1, 0), this.p(x1, y1, 0), this.p(x1, y1, -1), this.p(x0, y1, -1)], true);
+    g.fillStyle(0x0f172a).fillPoints([this.p(x1, y1, 0), this.p(ponta, meio, 0), this.p(ponta, meio, -1), this.p(x1, y1, -1)], true);
+    g.fillStyle(0x334155).fillPoints(casco.map(([x, y]) => this.p(x, y)), true);
+    g.lineStyle(1, 0x475569, 0.9);
+    for (let k = 1; k < x1; k += 2) {
+      const a = this.p(k, y0);
+      const b = this.p(k, y1);
+      g.lineBetween(a.x, a.y, b.x, b.y);
+    }
+    parede([x0, y0], [x1, y0], ALTO, 0x94a3b8);
+    parede([x1, y0], [ponta, meio], ALTO, 0x7c8ca3);
+    parede([x0, y0], [x1, y0], 0.3, 0x38bdf8, ALTO - 0.45);
+    // Portholes with stars, and the cockpit windshield in the nose.
+    for (let k = 1.5; k < x1; k += 2.6) {
+      const c = this.p(k, y0, 1.6);
+      g.fillStyle(0x475569).fillEllipse(c.x, c.y, this.T * 0.9, this.T * 0.75);
+      g.fillStyle(0x020617).fillEllipse(c.x, c.y, this.T * 0.65, this.T * 0.55);
+      g.fillStyle(0xffffff, 0.9).fillCircle(c.x - this.T * 0.12, c.y - this.T * 0.08, 1.2);
+    }
+    const vidro = [this.p(x1 + 0.6, y0 + 0.57, 0.9), this.p(ponta - 0.8, meio - 0.76, 0.9), this.p(ponta - 0.8, meio - 0.76, 1.9), this.p(x1 + 0.6, y0 + 0.57, 1.9)];
+    g.fillStyle(0x0c4a6e).fillPoints(vidro, true).lineStyle(2, 0x38bdf8).strokePoints(vidro, true);
+    parede([x0, y1], [x0, y0], ALTO, 0x64748b);
+    const porta = [this.p(x0, 9.9, 0), this.p(x0, 9.1, 0), this.p(x0, 9.1, 1.5), this.p(x0, 9.9, 1.5)];
+    g.fillStyle(0x334155).fillPoints(porta, true).lineStyle(2, 0xfacc15).strokePoints(porta, true);
+
+    // Corridor with guide lights, and low dividers between the rooms.
+    g.fillStyle(0x1e293b).fillPoints(this.retangulo(0.4, 8.6, 18.4, 10.4), true);
+    for (let k = 1; k < 18.4; k += 1.2) {
+      const q = this.p(k, 10.3, 0.02);
+      g.fillStyle(0x7dd3fc).fillEllipse(q.x, q.y, this.T * 0.2, this.T * 0.1);
+    }
+    for (const dx of [6.25, 11.75]) this.caixa(g, dx - 0.06, 4.6, 0.12, 3.0, 0.4, 0xcbd5e1);
+
+    // Crew bunks, galley table and the cockpit, on the open side.
+    for (const k of [0, 1, 2]) {
+      this.caixa(g, 1.2 + k * 1.5, 11.0, 1.2, 1.6, 0.35, 0xe2e8f0);
+      this.caixa(g, 1.2 + k * 1.5, 11.0, 1.2, 0.5, 0.12, 0x6366f1, 0.35);
+    }
+    this.caixa(g, 8.0, 11.1, 2.2, 1.2, 0.45, 0xa8a29e);
+    for (const [sx, sy] of [[7.6, 11.6], [10.6, 11.6]] as Ponto[]) this.cilindro(g, sx, sy, 0.22, 0.3, 0x64748b);
+    for (const sx of [14.6, 16.4]) {
+      this.caixa(g, sx, 10.9, 0.8, 0.8, 0.35, 0x334155);
+      this.caixa(g, sx, 11.55, 0.8, 0.15, 0.6, 0x475569, 0.35);
+    }
+    this.caixa(g, 17.4, 9.4, 1.0, 1.6, 0.6, 0x1e293b);
+    const tela = this.p(17.9, 10.2, 0.62);
+    g.fillStyle(0x22d3ee).fillEllipse(tela.x, tela.y, this.T * 0.6, this.T * 0.3);
+
+    // Cut edge of the hull along the open side, including the nose.
+    this.caixa(g, x0, y1 - 0.25, x1 - x0, 0.25, 0.35, 0x64748b);
+    g.fillStyle(0xef4444).fillPoints([this.p(x0, y1, 0.12), this.p(x1, y1, 0.12), this.p(x1, y1, 0.22), this.p(x0, y1, 0.22)], true);
+    parede([x1, y1], [ponta, meio], 0.35, 0x64748b);
+    g.fillStyle(0xef4444).fillPoints([this.p(x1, y1, 0.12), this.p(ponta, meio, 0.12), this.p(ponta, meio, 0.22), this.p(x1, y1, 0.22)], true);
+    // Glass canopy over the cockpit, so the nose reads as the front of the ship.
+    const cabine = this.p(19.3, meio, 0.9);
+    g.fillStyle(0x0c4a6e, 0.85).fillEllipse(cabine.x, cabine.y, this.T * 3.2, this.T * 2.0);
+    g.fillStyle(0x38bdf8, 0.35).fillEllipse(cabine.x, cabine.y - this.T * 0.2, this.T * 2.6, this.T * 1.4);
+    g.fillStyle(0xffffff, 0.6).fillEllipse(cabine.x - this.T * 0.6, cabine.y - this.T * 0.45, this.T * 0.7, this.T * 0.25);
+    g.lineStyle(2, 0x94a3b8).strokeEllipse(cabine.x, cabine.y, this.T * 3.2, this.T * 2.0);
+
+    for (const [x, y, nome] of [[3.6, 12.9, 'Crew bunks'], [9.1, 12.9, 'Galley'], [15.6, 12.9, 'Cockpit']] as [number, number, string][]) {
+      const q = this.p(x, y, 0.6);
+      this.texto(q.x, q.y, nome, 11, '#cbd5e1').setOrigin(0.5, 0).setDepth(5e4);
+    }
   }
 
   private desenharChao() {
@@ -339,10 +479,10 @@ export class Base extends Phaser.Scene {
     const g = this.estatico();
     const meia = 0.55;
     const cor = this.cap.tema === 'nave' ? 0x1e293b : 0x52525b;
-    const trechos: [Ponto, Ponto][] = [[PRACA, [HABITAT.gx + 2.5, HABITAT.gy + SALA_A]]];
+    const trechos: [Ponto, Ponto][] = [[this.praca, [HABITAT.gx + 2.5, HABITAT.gy + SALA_A]]];
     for (const sala of this.cap.salas) {
-      let de = PRACA;
-      for (const ate of LUGARES[sala.lugar].rota) {
+      let de = this.praca;
+      for (const ate of this.lugares[sala.lugar].rota) {
         trechos.push([de, ate]);
         de = ate;
       }
@@ -352,7 +492,7 @@ export class Base extends Phaser.Scene {
         Math.min(a[0], b[0]) - meia, Math.min(a[1], b[1]) - meia, Math.max(a[0], b[0]) + meia, Math.max(a[1], b[1]) + meia,
       ), true);
     }
-    const c = this.p(...PRACA);
+    const c = this.p(...this.praca);
     g.fillStyle(cor).fillEllipse(c.x, c.y, this.T * 5.2, this.T * 2.6);
     g.fillStyle(escurecer(cor, 15)).fillEllipse(c.x, c.y, this.T * 3.6, this.T * 1.8);
     g.lineStyle(2, 0xfacc15, 0.8).strokeEllipse(c.x, c.y, this.T * 3.6, this.T * 1.8);
@@ -443,7 +583,7 @@ export class Base extends Phaser.Scene {
   private desenharBase() {
     if (this.cap.tema === 'marte') {
       this.desenharModuloDePouso();
-    } else {
+    } else if (this.cap.tema === 'lua') {
       // Habitat: where the crew sleeps. Not a battery room.
       const hab = this.desenharModulo(HABITAT, 0x94a3b8).g;
       for (const k of [0, 1]) {
@@ -456,7 +596,7 @@ export class Base extends Phaser.Scene {
     }
 
     this.cap.salas.forEach((sala, i) => {
-      const { gx, gy } = LUGARES[sala.lugar];
+      const { gx, gy } = this.lugares[sala.lugar];
       let g: Phaser.GameObjects.Graphics;
       let piso: V[];
       let area: V[];
@@ -470,7 +610,7 @@ export class Base extends Phaser.Scene {
         topo = this.p(px, py, ALTURA_CUPULA + 0.6);
       } else {
         const feito = pronto(this.estado, sala.efeito, this.cap.config);
-        ({ g, piso } = feito ? this.desenharModulo(LUGARES[sala.lugar], sala.cor) : this.desenharObra(LUGARES[sala.lugar], sala.cor));
+        ({ g, piso } = feito ? this.desenharModulo(this.lugares[sala.lugar], sala.cor) : this.desenharObra(this.lugares[sala.lugar], sala.cor));
         if (feito) this.desenharEquipamento(g, sala.equipamento, gx, gy);
         area = [this.p(gx, gy + SALA_A), this.p(gx, gy, PAREDE), this.p(gx + SALA_L, gy, PAREDE), this.p(gx + SALA_L, gy), this.p(gx + SALA_L, gy + SALA_A)];
         topo = this.p(gx + SALA_L / 2, gy, PAREDE + 0.2);
@@ -566,12 +706,7 @@ export class Base extends Phaser.Scene {
     this.planeta = this.add.graphics().setDepth(0);
     const { gx, gy } = PLATAFORMA;
     if (this.cap.tema === 'nave') {
-      const g = this.estatico();
-      for (const [x, y, h, cor] of [[17, 10, 0.8, 0x78716c], [18.2, 10.2, 0.6, 0x57534e], [17.4, 11.4, 0.5, 0x92400e]] as const) {
-        this.caixa(g, x, y, 1, 1, h, cor);
-      }
-      const t = this.p(17.8, 12.6);
-      this.texto(t.x, t.y, 'Cargo', 11, '#cbd5e1').setOrigin(0.5, 0).setDepth(5e4);
+      this.chama = this.add.graphics().setDepth(-0.5);
       return;
     }
 
@@ -686,7 +821,7 @@ export class Base extends Phaser.Scene {
       this.tweens.add({ targets: a, y: q.y - this.T * 0.08, duration: 900 + i * 130, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       this.tripulantes.push(a);
     }
-    const inicio = this.salaAtual === null ? this.p(...PRACA) : this.dentro(this.salaAtual);
+    const inicio = this.salaAtual === null ? this.p(...this.praca) : this.dentro(this.salaAtual);
     this.comandante = this.astronauta(inicio.x, inicio.y, CORES_TRIPULACAO[0], 1);
   }
 
@@ -758,7 +893,8 @@ export class Base extends Phaser.Scene {
     const c = this.cap.config;
     const g = this.hud.clear();
     const d = this.dia;
-    const nivel = d.nivel;
+    // During the day only the forecast is known; the real level shows up in the night summary.
+    const [prevMin, prevMax] = d.previsao;
     const frio = d.frio ?? 0;
     const emJogo = this.fase === 'manha' || this.fase === 'dia' || this.fase === 'noite';
 
@@ -814,8 +950,8 @@ export class Base extends Phaser.Scene {
       if (sala.efeito === 'oxigenio') efeito = `+${n * c.oxigenioPorBateria} oxygen tonight`;
       if (sala.efeito === 'meta') efeito = `+${n * c.metaPorBateria}% ${this.cap.nomeMeta.toLowerCase()} tonight`;
       if (sala.efeito === 'blindagem') {
-        efeito = nivel === 0 ? 'No storm today' : `${Math.min(n, nivel)} of ${nivel} needed`;
-        curto = n < nivel;
+        efeito = prevMax === 0 ? 'No storm expected' : `forecast ${prevMin} to ${prevMax}`;
+        curto = n < prevMin;
       }
       if (sala.efeito === 'aquecimento') {
         efeito = `${Math.min(n, frio)} of ${frio} needed tonight`;
@@ -825,8 +961,8 @@ export class Base extends Phaser.Scene {
     });
 
     // Shield dome and glow: as strong as the share of the storm the shield covers.
-    const cobertura = nivel === 0 ? (this.entregas.blindagem > 0 ? 1 : 0) : Math.min(1, this.entregas.blindagem / nivel);
-    const centro = this.p(10, 10, 0);
+    const cobertura = prevMax === 0 ? (this.entregas.blindagem > 0 ? 1 : 0) : Math.min(1, this.entregas.blindagem / prevMax);
+    const centro = this.cap.tema === 'nave' ? this.p(10.5, 8.75, 0) : this.p(10, 10, 0);
     this.cupula.clear();
     if (cobertura > 0 && emJogo) {
       this.cupula.fillStyle(0xfde047, 0.05 + 0.07 * cobertura).fillEllipse(centro.x, centro.y - this.T * 1.5, this.T * 38, this.T * 18);
@@ -843,8 +979,22 @@ export class Base extends Phaser.Scene {
       this.calor.fillStyle(0xfdba74, 0.8).fillCircle(0, 0, this.T * 0.3);
     }
 
+    if (this.chama) {
+      // Engine exhaust: longer with every battery sent to the engines today.
+      const g2 = this.chama.clear();
+      const comprimento = 1.6 + 1.2 * this.entregas.meta;
+      for (const ey of [6.5, 11]) {
+        const base = [this.p(-1.4, ey - 0.6, 1), this.p(-1.4, ey + 0.6, 1)];
+        const ponta = this.p(-1.4 - comprimento, ey, 1);
+        g2.fillStyle(0x22d3ee, 0.45).fillTriangle(base[0].x, base[0].y, base[1].x, base[1].y, ponta.x, ponta.y);
+        const meio = this.p(-1.4 - comprimento * 0.55, ey, 1);
+        const b2 = [this.p(-1.4, ey - 0.3, 1), this.p(-1.4, ey + 0.3, 1)];
+        g2.fillStyle(0xe0f2fe, 0.9).fillTriangle(b2[0].x, b2[0].y, b2[1].x, b2[1].y, meio.x, meio.y);
+      }
+    }
+
     // Solar particles: more of them on stronger days.
-    const ritmo = [0, 140, 45, 12][nivel];
+    const ritmo = [0, 140, 45, 12][prevMax];
     if (ritmo && emJogo) {
       this.particulas.frequency = ritmo;
       if (!this.particulas.emitting) this.particulas.start();
@@ -854,11 +1004,11 @@ export class Base extends Phaser.Scene {
 
     if (!this.animouFim) this.mostrarProgresso(e.meta);
 
-    const nomeNivel = NIVEIS[nivel];
     this.hudRadiacao.setText(
-      emJogo ? `Radiation today: ${nomeNivel.nome}${nivel ? `  ·  the shield needs ${baterias(nivel)}` : ''}${frio ? `  ·  heating needs ${frio}` : ''}` : '',
-    ).setColor(nomeNivel.cor);
+      emJogo ? `Storm forecast: ${faixa(d.previsao)}${prevMax ? `  ·  shield ${prevMin} to ${prevMax}` : ''}${frio ? `  ·  heating needs ${frio}` : ''}` : '',
+    ).setColor(NIVEIS[prevMax].cor);
 
+    this.atualizarGuia();
     this.botaoFim.setText(this.baterias > 0 ? `End day (${this.baterias} unused)` : 'End day  ▶');
     this.botaoFim.setAlpha(this.fase === 'dia' ? 1 : 0.4);
   }
@@ -902,7 +1052,7 @@ export class Base extends Phaser.Scene {
 
     // Back along the current room's path to the plaza, then out along the new room's path.
     const volta = this.salaAtual === null ? [] : [...this.lugar(this.salaAtual).rota].reverse().slice(1);
-    const rota = [...volta, PRACA, ...this.lugar(i).rota].map((q) => this.p(...q));
+    const rota = [...volta, this.praca, ...this.lugar(i).rota].map((q) => this.p(...q));
     let de = new Phaser.Math.Vector2(this.comandante.x, this.comandante.y);
     const passos = rota.filter((ate) => ate.distance(de) > 1).map((ate) => {
       const duration = (de.distance(ate) / this.T) * 90;
@@ -910,6 +1060,7 @@ export class Base extends Phaser.Scene {
       return { x: ate.x, y: ate.y, duration, onUpdate: () => this.comandante.setDepth(this.comandante.y) };
     });
     this.andando = true;
+    this.atualizarGuia();
     this.tweens.chain({ targets: this.comandante, tweens: passos, onComplete: aoChegar });
   }
 
@@ -1013,6 +1164,12 @@ export class Base extends Phaser.Scene {
     itens.push(t);
     y += t.height + 12 * u;
     for (const parte of partes) {
+      if (typeof parte === 'function') {
+        const b = parte(margem, y, largura - 2 * margem);
+        itens.push(...b.itens);
+        y += b.altura + 12 * u;
+        continue;
+      }
       const p = typeof parte === 'string' ? { texto: parte } : parte;
       const linha = this.texto(margem, y, p.texto, p.tamanho ?? 16, p.cor ?? (p.link ? '#93c5fd' : '#cbd5e1'), {
         wordWrap: { width: largura - 2 * margem, useAdvancedWrap: true },
@@ -1048,14 +1205,194 @@ export class Base extends Phaser.Scene {
     this.painel = [fundo, c];
   }
 
+  // ---------- Icons and visual blocks for the panels ----------
+
+  private icone(g: Phaser.GameObjects.Graphics, tipo: Icone, x: number, y: number, s: number, cor = 0xffffff) {
+    if (tipo === 'sol') {
+      g.fillStyle(cor, 0.22).fillCircle(x, y, s);
+      g.lineStyle(s * 0.13, cor);
+      for (let k = 0; k < 8; k++) {
+        const a = (k * Math.PI) / 4;
+        g.lineBetween(x + Math.cos(a) * s * 0.62, y + Math.sin(a) * s * 0.62, x + Math.cos(a) * s * 0.95, y + Math.sin(a) * s * 0.95);
+      }
+      g.fillStyle(cor).fillCircle(x, y, s * 0.48);
+    } else if (tipo === 'escudo') {
+      g.fillStyle(0xeab308).fillPoints([v(x - s * 0.65, y - s * 0.75), v(x + s * 0.65, y - s * 0.75), v(x + s * 0.65, y + s * 0.05), v(x, y + s * 0.85), v(x - s * 0.65, y + s * 0.05)], true);
+      g.fillStyle(0xfef08a).fillPoints([v(x - s * 0.4, y - s * 0.5), v(x + s * 0.4, y - s * 0.5), v(x + s * 0.4, y), v(x, y + s * 0.5), v(x - s * 0.4, y)], true);
+    } else if (tipo === 'termometro') {
+      g.fillStyle(0xe2e8f0).fillRoundedRect(x - s * 0.2, y - s * 0.85, s * 0.4, s * 1.3, s * 0.2);
+      g.fillStyle(0x60a5fa).fillCircle(x, y + s * 0.5, s * 0.34).fillRect(x - s * 0.08, y - s * 0.2, s * 0.16, s * 0.7);
+    } else if (tipo === 'bateria') {
+      g.fillStyle(0x14532d).fillRoundedRect(x - s * 0.42, y - s * 0.7, s * 0.84, s * 1.45, s * 0.1).fillRect(x - s * 0.18, y - s * 0.86, s * 0.36, s * 0.18);
+      g.fillStyle(cor).fillRect(x - s * 0.3, y - s * 0.55, s * 0.6, s * 1.15);
+    } else if (tipo === 'oxigenio') {
+      g.fillStyle(0x3b82f6).fillCircle(x - s * 0.25, y + s * 0.2, s * 0.45);
+      g.fillStyle(0x60a5fa).fillCircle(x + s * 0.38, y - s * 0.28, s * 0.3);
+      g.fillStyle(0xbfdbfe).fillCircle(x + s * 0.05, y - s * 0.72, s * 0.16);
+    } else if (tipo === 'saude') {
+      g.fillStyle(0xef4444).fillCircle(x - s * 0.28, y - s * 0.2, s * 0.33).fillCircle(x + s * 0.28, y - s * 0.2, s * 0.33);
+      g.fillTriangle(x - s * 0.6, y - s * 0.08, x + s * 0.6, y - s * 0.08, x, y + s * 0.68);
+    } else if (tipo === 'foguete') {
+      g.fillStyle(0xf1f5f9).fillRect(x - s * 0.22, y - s * 0.45, s * 0.44, s * 0.9);
+      g.fillStyle(0xef4444).fillTriangle(x - s * 0.22, y - s * 0.45, x + s * 0.22, y - s * 0.45, x, y - s * 0.92);
+      g.fillTriangle(x - s * 0.22, y + s * 0.15, x - s * 0.52, y + s * 0.6, x - s * 0.22, y + s * 0.45).fillTriangle(x + s * 0.22, y + s * 0.15, x + s * 0.52, y + s * 0.6, x + s * 0.22, y + s * 0.45);
+      g.fillStyle(0x38bdf8).fillCircle(x, y - s * 0.12, s * 0.13);
+    } else if (tipo === 'marte') {
+      g.fillStyle(0xc2410c).fillCircle(x, y, s * 0.7);
+      g.fillStyle(0x9a3412).fillEllipse(x - s * 0.2, y + s * 0.15, s * 0.5, s * 0.25).fillEllipse(x + s * 0.25, y - s * 0.25, s * 0.35, s * 0.18);
+    } else if (tipo === 'chama') {
+      g.fillStyle(0xf97316).fillEllipse(x, y + s * 0.1, s * 0.9, s * 1.4);
+      g.fillStyle(0xfde047).fillEllipse(x, y + s * 0.32, s * 0.45, s * 0.7);
+    } else {
+      g.fillStyle(0xe7e5e4);
+      g.beginPath().arc(x, y + s * 0.45, s * 0.8, Math.PI, 0).closePath().fillPath();
+      g.fillStyle(0x38bdf8).fillRect(x - s * 0.15, y + s * 0.05, s * 0.3, s * 0.4);
+      g.lineStyle(s * 0.08, 0x78716c).lineBetween(x - s * 0.9, y + s * 0.45, x + s * 0.9, y + s * 0.45);
+    }
+  }
+
+  private iconeDe(ef: Efeito): Icone {
+    if (ef === 'oxigenio') return 'oxigenio';
+    if (ef === 'blindagem') return 'escudo';
+    if (ef === 'aquecimento') return 'chama';
+    return this.cap.tema === 'lua' ? 'foguete' : this.cap.tema === 'nave' ? 'marte' : 'cupula';
+  }
+
+  // Mission Control speaking: one short line in a speech bubble.
+  private blocoFala(fala: string): Bloco {
+    return (x, y, largura) => {
+      const u = this.u;
+      const g = this.add.graphics();
+      const t = this.texto(x + 64 * u, y + 30 * u, fala, 19, '#f8fafc', { fontStyle: 'bold', wordWrap: { width: largura - 80 * u, useAdvancedWrap: true } });
+      const nome = this.texto(x + 64 * u, y + 10 * u, 'Mission Control', 12, '#93c5fd');
+      const altura = Math.max(64 * u, t.height + 42 * u);
+      g.fillStyle(0x1e3a8a, 0.55).fillRoundedRect(x, y, largura, altura, 12 * u);
+      // Antenna: Mission Control's face.
+      g.fillStyle(0xe2e8f0).fillEllipse(x + 30 * u, y + altura / 2 + 4 * u, 34 * u, 16 * u);
+      g.lineStyle(3 * u, 0xe2e8f0).lineBetween(x + 30 * u, y + altura / 2 + 4 * u, x + 30 * u, y + altura / 2 - 16 * u);
+      g.fillStyle(0xef4444).fillCircle(x + 30 * u, y + altura / 2 - 18 * u, 4 * u);
+      return { itens: [g, nome, t], altura };
+    };
+  }
+
+  // A row of big cards: icon, big value, small caption.
+  private blocoCartoes(cartoes: Cartao[]): Bloco {
+    return (x, y, largura) => {
+      const u = this.u;
+      const g = this.add.graphics();
+      const itens: Phaser.GameObjects.GameObject[] = [g];
+      const espaco = 10 * u;
+      const w = (largura - espaco * (cartoes.length - 1)) / cartoes.length;
+      const altura = 132 * u;
+      cartoes.forEach((c, k) => {
+        const cx = x + k * (w + espaco);
+        g.fillStyle(0x1e293b).fillRoundedRect(cx, y, w, altura, 12 * u);
+        this.icone(g, c.icone, cx + w / 2, y + 34 * u, 24 * u, c.cor);
+        itens.push(this.texto(cx + w / 2, y + 66 * u, c.grande, 22, c.corGrande ?? '#f8fafc', { fontStyle: 'bold' }).setOrigin(0.5, 0));
+        itens.push(this.texto(cx + w / 2, y + 96 * u, c.pequeno, 13, '#cbd5e1', { align: 'center', wordWrap: { width: w - 12 * u } }).setOrigin(0.5, 0));
+      });
+      return { itens, altura };
+    };
+  }
+
+  // The rooms of the chapter, as small cards with an icon and one line.
+  private blocoSalas(): Bloco {
+    return (x, y, largura) => {
+      const u = this.u;
+      const salas = this.cap.salas;
+      const g = this.add.graphics();
+      const itens: Phaser.GameObjects.GameObject[] = [g];
+      const espaco = 8 * u;
+      const w = (largura - espaco * (salas.length - 1)) / salas.length;
+      const altura = 112 * u;
+      salas.forEach((sala, k) => {
+        const cx = x + k * (w + espaco);
+        g.fillStyle(sala.cor, 0.22).fillRoundedRect(cx, y, w, altura, 10 * u);
+        g.lineStyle(2, sala.cor, 0.8).strokeRoundedRect(cx, y, w, altura, 10 * u);
+        this.icone(g, this.iconeDe(sala.efeito), cx + w / 2, y + 28 * u, 18 * u);
+        itens.push(this.texto(cx + w / 2, y + 52 * u, sala.nome, 14, '#f8fafc', { fontStyle: 'bold', align: 'center', wordWrap: { width: w - 8 * u } }).setOrigin(0.5, 0));
+        itens.push(this.texto(cx + w / 2, y + 76 * u, sala.curto, 12, '#cbd5e1', { align: 'center', wordWrap: { width: w - 8 * u } }).setOrigin(0.5, 0));
+      });
+      return { itens, altura };
+    };
+  }
+
+  // Bars that slide from the morning value to the night value, with the change in big numbers.
+  private blocoBarras(linhas: { icone: Icone; nome: string; de: number; para: number; sufixo?: string; corFixa?: number }[]): Bloco {
+    return (x, y, largura) => {
+      const u = this.u;
+      const fundo = this.add.graphics();
+      const itens: Phaser.GameObjects.GameObject[] = [fundo];
+      const alturaLinha = 40 * u;
+      const xBarra = x + 170 * u;
+      const wBarra = largura - 170 * u - 70 * u;
+      linhas.forEach((l, k) => {
+        const cy = y + k * alturaLinha + alturaLinha / 2;
+        this.icone(fundo, l.icone, x + 16 * u, cy, 14 * u);
+        itens.push(this.texto(x + 40 * u, cy, l.nome, 15, '#e2e8f0').setOrigin(0, 0.5));
+        fundo.fillStyle(0x334155).fillRoundedRect(xBarra, cy - 8 * u, wBarra, 16 * u, 5 * u);
+        const barra = this.add.graphics();
+        itens.push(barra);
+        const diferenca = Math.round(l.para - l.de);
+        itens.push(this.texto(x + largura, cy, `${diferenca > 0 ? '+' : ''}${diferenca}${l.sufixo ?? ''}`, 18, diferenca > 0 ? '#86efac' : diferenca < 0 ? '#fca5a5' : '#94a3b8', { fontStyle: 'bold' }).setOrigin(1, 0.5));
+        const desenhar = (valor: number) => {
+          if (!barra.active) return;
+          barra.clear();
+          if (valor > 0) barra.fillStyle(l.corFixa ?? corDaBarra(valor)).fillRoundedRect(xBarra, cy - 8 * u, Math.max(8 * u, (wBarra * valor) / 100), 16 * u, 5 * u);
+        };
+        desenhar(l.de);
+        this.tweens.addCounter({ from: l.de, to: l.para, duration: 900, delay: 250 + k * 150, ease: 'Cubic.out', onUpdate: (tw) => desenhar(tw.getValue() ?? l.para) });
+      });
+      return { itens, altura: linhas.length * alturaLinha };
+    };
+  }
+
+  // Today's real measurement, as "N times a calm day".
+  private blocoMedida(dia: Dia): Bloco {
+    return (x, y, largura) => {
+      const u = this.u;
+      const dados = this.cap.dados;
+      const vezes = dia.doseMedia / dados.doseCalma;
+      const g = this.add.graphics();
+      const altura = 70 * u;
+      g.fillStyle(0x14532d, 0.45).fillRoundedRect(x, y, largura, altura, 10 * u);
+      this.icone(g, 'sol', x + 34 * u, y + altura / 2, 20 * u, corNumero(NIVEIS[dia.nivel].cor));
+      const t1 = this.texto(x + 66 * u, y + altura / 2, NIVEIS[dia.nivel].nome, 26, NIVEIS[dia.nivel].cor, { fontStyle: 'bold' }).setOrigin(0, 0.5);
+      const comparacao = vezes < 1.6 ? 'NASA measured a calm day' : `NASA measured ${vezes < 10 ? vezes.toFixed(1) : Math.round(vezes)}× the radiation of a calm day`;
+      const t2 = this.texto(t1.x + t1.width + 14 * u, y + 12 * u, comparacao, 14, '#e2e8f0', { wordWrap: { width: largura - t1.width - 100 * u } });
+      const t3 = this.texto(t1.x + t1.width + 14 * u, y + altura - 10 * u, `Forecast was ${faixa(dia.previsao)} · ${dia.doseMedia} µGy/h`, 12, '#94a3b8').setOrigin(0, 1);
+      return { itens: [g, t1, t2, t3], altura };
+    };
+  }
+
+  // Day 1: a bouncing arrow shows where to click, until the first battery.
+  private atualizarGuia() {
+    const alvo = this.capIdx === 0 ? 0 : this.capIdx === 2 ? this.cap.salas.findIndex((s) => s.efeito === 'aquecimento') : -1;
+    const usadas = bateriasDoDia(this.estado, this.cap.config) - this.baterias;
+    const precisa = alvo >= 0 && this.fase === 'dia' && this.estado.dia === 1 && usadas === 0 && !this.andando;
+    if (!precisa) {
+      this.guia?.destroy();
+      this.guia = null;
+      return;
+    }
+    if (this.guia) return;
+    const { gx, gy } = this.lugar(alvo);
+    const q = this.p(gx + SALA_L / 2, gy + SALA_A - 0.4, 1.5);
+    const g = this.add.graphics();
+    g.fillStyle(0xfacc15).fillTriangle(-16 * this.u, 0, 16 * this.u, 0, 0, 22 * this.u).fillRect(-6 * this.u, -24 * this.u, 12 * this.u, 26 * this.u);
+    const t = this.texto(0, -30 * this.u, this.capIdx === 0 ? 'Click a room!' : 'Build Heating first!', 16, '#fde047', { fontStyle: 'bold', stroke: '#0f172a', strokeThickness: 5 }).setOrigin(0.5, 1);
+    this.guia = this.add.container(q.x, q.y, [g, t]).setDepth(2.1e5);
+    this.tweens.add({ targets: this.guia, y: q.y + 12 * this.u, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+  }
+
   private painelInicio() {
     const cap = this.cap;
     const partes: Parte[] = [
-      { texto: `Chapter ${cap.numero} of ${CAPITULOS.length}: ${cap.titulo}`, cor: '#93c5fd', negrito: true },
-      ...cap.introducao,
-      ...cap.salas.map((s) => ({ texto: `${s.nome}: ${s.papel}`, cor: '#e2e8f0' })),
-      { texto: 'There are never enough batteries for everything. Choose well!', cor: '#fde68a', negrito: true },
-      { texto: 'The solar storm in this game really happened. NASA spacecraft measured it in May 2024.', cor: '#86efac' },
+      { texto: `Chapter ${cap.numero} of ${CAPITULOS.length}: ${cap.titulo}`, cor: '#93c5fd', negrito: true, tamanho: 18 },
+      ...cap.introducao.map((t) => ({ texto: t, cor: '#e2e8f0', tamanho: 17 })),
+      this.blocoSalas(),
+      { texto: 'Never enough batteries for everything. Choose well!', cor: '#fde68a', negrito: true, tamanho: 17 },
+      { texto: 'The solar storm is real: NASA measured it in May 2024.', cor: '#86efac', tamanho: 14 },
     ];
     this.abrirPainel(cap.numero === 1 ? 'LUNAR ODYSSEY' : `Chapter ${cap.numero}`, partes, [
       { texto: 'Real NASA data', acao: () => this.abrirDados() },
@@ -1063,34 +1400,33 @@ export class Base extends Phaser.Scene {
     ]);
   }
 
-  private painelManha() {
+  private painelManha(detalhe = false) {
     const d = this.dia;
     const c = this.cap.config;
-    const nivel = NIVEIS[d.nivel];
+    const [pMin, pMax] = d.previsao;
     const doentes = naEnfermaria(this.estado);
-    const partes: Parte[] = [
-      { texto: 'Mission Control says:', cor: '#94a3b8', tamanho: 14 },
-      { texto: d.aviso, cor: '#f8fafc' },
+    const cartoes: Cartao[] = [
       {
-        texto: `Radiation today: ${nivel.nome}${d.nivel ? `. The shield needs ${baterias(d.nivel)}.` : '. The shield can rest.'}`,
-        cor: nivel.cor, negrito: true,
+        icone: 'sol', cor: corNumero(NIVEIS[pMax].cor), grande: faixa(d.previsao), corGrande: NIVEIS[pMax].cor,
+        pequeno: pMax === 0 ? 'Storm forecast: none' : pMin === pMax ? `Shield needs ${baterias(pMin)}` : `Storm forecast. Shield: ${pMin} to ${pMax}`,
       },
     ];
-    if (d.frio) {
-      partes.push({ texto: `Tonight's low: ${d.minima} °C (measured by Curiosity on sol ${d.sol}). Heating needs ${baterias(d.frio)}.`, cor: '#fdba74', negrito: true });
-    }
+    if (d.frio) cartoes.push({ icone: 'termometro', grande: `${d.minima} °C`, corGrande: '#93c5fd', pequeno: `Tonight. Heating needs ${baterias(d.frio)}` });
+    cartoes.push({ icone: 'bateria', cor: 0x4ade80, grande: `${bateriasDoDia(this.estado, c)}`, corGrande: '#86efac', pequeno: doentes ? `batteries (${doentes} crew sick)` : 'batteries today' });
+
+    const partes: Parte[] = [this.blocoFala(d.curto)];
+    if (detalhe) partes.push({ texto: d.aviso, cor: '#cbd5e1', tamanho: 14 });
+    partes.push(this.blocoCartoes(cartoes));
+    if (pMin !== pMax) partes.push({ texto: 'Forecasts are never sure. More shield is safer, but leaves fewer batteries.', cor: '#94a3b8', tamanho: 13 });
     if (c.obras) {
+      if (d.frio && !pronto(this.estado, 'aquecimento', c)) partes.push({ texto: 'Build Heating first: tonight is cold!', cor: '#fca5a5', negrito: true });
+      else if (pMax && !pronto(this.estado, 'blindagem', c)) partes.push({ texto: 'Build the Shield: a storm may come!', cor: '#fca5a5', negrito: true });
       const falta = this.cap.salas.filter((s) => !pronto(this.estado, s.efeito, c));
-      if (falta.length) {
-        partes.push({ texto: `Still to build: ${falta.map((s) => `${s.nome} (${custo(s.efeito, c) - (this.estado.obras[s.efeito] ?? 0)} more)`).join(', ')}.`, cor: '#fde68a' });
-      }
-      if (d.frio && !pronto(this.estado, 'aquecimento', c)) partes.push({ texto: 'Heating is not built yet: build it today, or the cold will cost oxygen tonight.', cor: '#fca5a5' });
-      if (d.nivel && !pronto(this.estado, 'blindagem', c)) partes.push({ texto: 'The shield is not built yet: build it today to protect the crew.', cor: '#fca5a5' });
+      if (falta.length) partes.push({ texto: `To build: ${falta.map((s) => `${s.nome} ${custo(s.efeito, c) - (this.estado.obras[s.efeito] ?? 0)}`).join(' · ')}`, cor: '#fde68a', tamanho: 14 });
     }
-    partes.push({ texto: `Batteries today: ${bateriasDoDia(this.estado, c)}`, cor: '#86efac', negrito: true });
-    if (doentes) partes.push({ texto: `${doentes} astronaut${doentes > 1 ? 's are' : ' is'} in the infirmary, so you have ${baterias(doentes)} less.`, cor: '#fca5a5' });
-    if (this.estado.dia === c.dias) partes.push({ texto: `Last day: ${this.cap.nomeMeta} must reach 100% tonight!`, cor: '#fde68a', negrito: true });
+    if (this.estado.dia === c.dias) partes.push({ texto: `Last day! ${this.cap.nomeMeta} must reach 100% tonight.`, cor: '#fde68a', negrito: true });
     this.abrirPainel(`Day ${this.estado.dia} of ${c.dias} · ${dataBonita(d.data)}`, partes, [
+      { texto: detalhe ? 'Less' : 'More from NASA', acao: () => this.painelManha(!detalhe) },
       { texto: 'Start the day', acao: () => { this.inicioDoDia = this.estado; this.fase = 'dia'; this.fecharPainel(); this.atualizar(); }, principal: true },
     ]);
   }
@@ -1100,36 +1436,30 @@ export class Base extends Phaser.Scene {
     const { antes, aloc } = this.noite;
     const e = this.estado;
     const c = this.cap.config;
-    const dados = this.cap.dados;
-    const d = dados.dias[antes.dia - 1];
+    const d = this.cap.dados.dias[antes.dia - 1];
+    const manha = this.inicioDoDia;
     const faltouEscudo = Math.max(0, d.nivel - aloc.blindagem);
     const faltouCalor = Math.max(0, (d.frio ?? 0) - aloc.aquecimento);
-    const nomeAr = this.cap.salas.find((s) => s.efeito === 'oxigenio')?.nome ?? 'Life Support';
     const partes: Parte[] = [
-      `Oxygen: ${antes.oxigenio} → ${e.oxigenio}   (+${aloc.oxigenio * c.oxigenioPorBateria} from ${nomeAr}, −${c.oxigenioPorNoite} breathing${faltouCalor ? `, −${faltouCalor * COMUM.oxigenioPorFrioSemAquecimento} cold machines` : ''})`,
-      d.nivel === 0
-        ? `Radiation was calm. Crew health −${COMUM.dosePorNoite}: a little radiation is always there.`
-        : faltouEscudo === 0
-          ? `The shield held against the storm! Crew health −${COMUM.dosePorNoite} only.`
-          : `The shield was ${baterias(faltouEscudo)} short. Crew health ${100 - antes.dose} → ${100 - e.dose}.`,
+      this.blocoBarras([
+        { icone: 'oxigenio', nome: 'Oxygen', de: antes.oxigenio, para: e.oxigenio },
+        { icone: 'saude', nome: 'Crew health', de: 100 - antes.dose, para: 100 - e.dose },
+        { icone: this.iconeDe('meta'), nome: this.cap.nomeMeta, de: manha.meta, para: e.meta, sufixo: '%', corFixa: 0x60a5fa },
+      ]),
     ];
-    if (d.frio) {
-      partes.push(faltouCalor
-        ? { texto: `Heating was ${baterias(faltouCalor)} short in the ${d.minima} °C night. Frozen machines made less air.`, cor: '#fdba74' }
-        : `Heating kept the base warm in the ${d.minima} °C night.`);
-    }
-    const manha = this.inicioDoDia;
+    const sobra = aloc.blindagem - d.nivel;
+    if (faltouEscudo) partes.push({ texto: `The shield was ${baterias(faltouEscudo)} short: the crew got radiation.`, cor: '#fca5a5', negrito: true });
+    else if (d.nivel && sobra === 0) partes.push({ texto: 'Perfect shield: exactly what the storm needed!', cor: '#86efac', negrito: true });
+    else if (d.nivel) partes.push({ texto: `The shield held! ${baterias(sobra)} more than needed.`, cor: '#86efac', negrito: true });
+    else if (sobra > 0) partes.push({ texto: `No storm came: ${baterias(sobra)} in the shield ${sobra === 1 ? 'was' : 'were'} not needed.`, cor: '#fde68a', negrito: true });
+    if (d.frio) partes.push(faltouCalor ? { texto: `Too cold (${d.minima} °C): frozen machines made less air.`, cor: '#fca5a5', negrito: true } : { texto: `Heating beat the ${d.minima} °C night!`, cor: '#86efac', negrito: true });
     const novos = this.cap.salas.filter((s) => c.obras && pronto(e, s.efeito, c) && !pronto(manha, s.efeito, c)).map((s) => s.nome);
-    if (novos.length) partes.push({ texto: `Built today: ${novos.join(', ')}.`, cor: '#86efac', negrito: true });
-    partes.push(`${this.cap.nomeMeta}: ${manha.meta}% → ${e.meta}%`);
-    if (naEnfermaria(e) > naEnfermaria(antes)) {
-      partes.push({ texto: 'An astronaut got too much radiation and went to the infirmary. Tomorrow you have one battery less.', cor: '#fca5a5', negrito: true });
-    }
-    if (e.meta >= 100 && !this.res) partes.push({ texto: `${this.cap.nomeMeta} is at 100%! Now keep the crew safe until the last day.`, cor: '#fde68a' });
-    partes.push(
-      { texto: `Real NASA data: on ${dataBonita(d.data)}, ${dados.instrumento} measured ${d.doseMedia} µGy/h on average (highest: ${d.dosePico}). A calm day is about ${dados.doseCalma}.`, cor: '#86efac', tamanho: 15 },
-      { texto: `Did you know? ${d.fato}`, cor: '#bfdbfe', tamanho: 15 },
-    );
+    if (novos.length) partes.push({ texto: `Built today: ${novos.join(', ')}!`, cor: '#86efac', negrito: true });
+    if (naEnfermaria(e) > naEnfermaria(antes)) partes.push({ texto: 'An astronaut went to the infirmary: 1 battery less tomorrow.', cor: '#fca5a5', negrito: true });
+    if (!this.res && e.oxigenio <= 20) partes.push({ texto: 'Oxygen is low! Power the air room tomorrow.', cor: '#fde68a', negrito: true });
+    if (e.meta >= 100 && !this.res) partes.push({ texto: `${this.cap.nomeMeta} is at 100%! Keep the crew safe until the last day.`, cor: '#fde68a' });
+    partes.splice(0, 0, this.blocoMedida(d));
+    partes.push({ texto: `Did you know? ${d.fato}`, cor: '#bfdbfe', tamanho: 14 });
     this.abrirPainel(`Night ${antes.dia}`, partes, [
       { texto: this.res ? 'See result' : 'Sleep until morning', acao: () => this.dormir(), principal: true },
     ]);
@@ -1206,11 +1536,12 @@ export class Base extends Phaser.Scene {
     this.abrirPainel('Real NASA data in this chapter', [
       `Each day of this chapter is a real day from May 2024. The radiation level comes from the dose measured by ${dados.instrumento}.`,
       ...dados.dias.map((d) => ({
-        texto: `${dataBonita(d.data)}: ${d.doseMedia} µGy/h average, highest ${d.dosePico}  →  ${NIVEIS[d.nivel].nome}${d.minima !== undefined ? `  ·  night low ${d.minima} °C` : ''}`,
+        texto: `${dataBonita(d.data)}: ${d.doseMedia} µGy/h average, highest ${d.dosePico}  →  ${NIVEIS[d.nivel].nome} (forecast ${faixa(d.previsao)})${d.minima !== undefined ? `  ·  night low ${d.minima} °C` : ''}`,
         cor: NIVEIS[d.nivel].cor, tamanho: 14,
       })),
       { texto: 'Sources (click to open):', cor: '#94a3b8', tamanho: 14 },
       ...dados.fontes.map((f) => ({ texto: f.nome, link: f.url, tamanho: 14 })),
+      { texto: 'The morning forecast ranges are made by the game from the NASA events known that morning (flares, CMEs, particles, ENLIL). They are not official NASA forecasts.', cor: '#94a3b8', tamanho: 13 },
       { texto: this.cap.notaDados, cor: '#94a3b8', tamanho: 13 },
     ], [
       { texto: 'Back', acao: () => { this.fase = this.faseAntesDosDados; this.mostrarFase(); }, principal: true },

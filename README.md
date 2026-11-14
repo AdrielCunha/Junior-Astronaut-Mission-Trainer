@@ -30,7 +30,7 @@ The data is downloaded once and stored in the game as archived data. The game do
 | [OSDR RadLab](https://visualization.osdr.nasa.gov/radlab/gui/data-api/) radiation dosimetry database | Measured radiation dose that sets each day's storm level: LRO/CRaTER in lunar orbit, BioSentinel in deep space, Curiosity/MSL-RAD on the surface of Mars |
 | [Curiosity REMS weather](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json) | Real night temperatures on Mars, which set how much heating each night needs |
 
-Each day's storm level is the day's mean dose divided by a calm day for the same instrument: below 1.6 is calm, below 10 medium, below 100 high, otherwise extreme. The files in `src/dados/` list every source link; the game shows them on its "Real NASA data" screen.
+Each day's storm level is the day's mean dose divided by a calm day for the same instrument: below 1.6 is calm, below 10 medium, below 100 high, otherwise extreme. In the morning the player only sees a forecast range, built by the game from the DONKI events known that day (it is not an official NASA forecast); the real level is revealed at night. Shielding for the worst case wastes batteries, shielding for the best case hurts the crew. The files in `src/dados/` list every source link; the game shows them on its "Real NASA data" screen.
 
 Oxygen, batteries and mission progress are simplified models made for teaching. They are not measurements.
 

@@ -1,75 +1,117 @@
 {
   "capitulo": "Mars base",
-  "nota": "Archived NASA data, downloaded on 2026-11-14. Daily dose = mean of absorbed_dose_rate from Curiosity's RAD instrument on the surface of Mars. Calm reference: 3.85 µGy/h (mean of May 18-19, 2024). Level = day mean / calm: below 1.6 = 0, below 10 = 1, below 100 = 2, otherwise 3. Night low = min_temp of the sol from Curiosity's REMS weather station; heating needs 2 batteries at -80 °C or colder, otherwise 1.",
+  "nota": "Archived NASA data, downloaded on 2026-11-14. Daily dose = mean of absorbed_dose_rate from Curiosity's RAD instrument on the surface of Mars. Calm reference: 3.85 µGy/h (mean of May 18-19, 2024). Level = day mean / calm: below 1.6 = 0, below 10 = 1, below 100 = 2, otherwise 3. Night low = min_temp of the sol from Curiosity's REMS weather station; heating needs 2 batteries at -80 °C or colder, otherwise 1. Forecast range: made by the game from the DONKI events known that morning (flares, CMEs, particles, ENLIL runs); it is not an official NASA forecast.",
   "doseCalma": 3.85,
   "instrumento": "the RAD instrument on NASA's Curiosity rover, on the surface of Mars",
   "fontes": [
-    { "nome": "Curiosity RAD radiation dose, via NASA OSDR RadLab", "url": "https://visualization.osdr.nasa.gov/radlab/api/?instrument_id=MSL-RAD-Surface&timestamp%3E=2024-05-18&timestamp%3C2024-05-26&timestamp&absorbed_dose_rate&format=csv" },
-    { "nome": "Curiosity REMS weather (night temperatures)", "url": "https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json" },
-    { "nome": "Coronal mass ejections, NASA DONKI", "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/CME?startDate=2024-05-16&endDate=2024-05-25" },
-    { "nome": "ENLIL solar wind model runs (CME arrival at Mars), NASA DONKI", "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/WSAEnlilSimulations?startDate=2024-05-16&endDate=2024-05-25" }
+    {
+      "nome": "Curiosity RAD radiation dose, via NASA OSDR RadLab",
+      "url": "https://visualization.osdr.nasa.gov/radlab/api/?instrument_id=MSL-RAD-Surface&timestamp%3E=2024-05-18&timestamp%3C2024-05-26&timestamp&absorbed_dose_rate&format=csv"
+    },
+    {
+      "nome": "Curiosity REMS weather (night temperatures)",
+      "url": "https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json"
+    },
+    {
+      "nome": "Coronal mass ejections, NASA DONKI",
+      "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/CME?startDate=2024-05-16&endDate=2024-05-25"
+    },
+    {
+      "nome": "ENLIL solar wind model runs (CME arrival at Mars), NASA DONKI",
+      "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/WSAEnlilSimulations?startDate=2024-05-16&endDate=2024-05-25"
+    }
   ],
   "dias": [
     {
       "data": "2024-05-18",
       "nivel": 0,
+      "previsao": [
+        0,
+        1
+      ],
       "doseMedia": 3.8,
       "dosePico": 4.6,
+      "curto": "Welcome to Mars! A very cold night is coming.",
       "sol": 4188,
       "minima": -98,
       "frio": 2,
-      "aviso": "Welcome to Mars! The crew landed in Gale Crater, where the Curiosity rover works. Radiation is calm: the thin Martian air blocks a little of it. But tonight will be very cold.",
+      "aviso": "Welcome to Mars! The crew landed in Gale Crater, where the Curiosity rover works. But tonight will be very cold.",
       "fato": "Mars air is about 100 times thinner than Earth's. It cannot hold the heat, so nights get very cold."
     },
     {
       "data": "2024-05-19",
       "nivel": 0,
+      "previsao": [
+        0,
+        1
+      ],
       "doseMedia": 3.9,
       "dosePico": 4.7,
+      "curto": "NASA model: CMEs reach Mars tomorrow!",
       "sol": 4189,
       "minima": -68,
       "frio": 1,
-      "aviso": "Alert: NASA's ENLIL model says clouds of solar material (CMEs) launched on May 16 and 17 will reach Mars tomorrow. Radiation is calm today. Get ready!",
+      "aviso": "Alert: NASA's ENLIL model says clouds of solar material (CMEs) launched on May 16 and 17 will reach Mars tomorrow. Get ready!",
       "fato": "ENLIL is a computer model of the solar wind. Scientists use it to predict when a CME will reach Earth, Mars or a spacecraft."
     },
     {
       "data": "2024-05-20",
       "nivel": 2,
+      "previsao": [
+        1,
+        3
+      ],
       "doseMedia": 69.3,
       "dosePico": 304.0,
+      "curto": "The CMEs should hit Mars today!",
       "sol": 4190,
       "minima": -69,
       "frio": 1,
-      "aviso": "Storm! At 05:36 UTC a CME left the Sun at 2,678 km/s, the fastest of the month. Less than an hour later, Curiosity measured radiation rising fast. Radiation is HIGH.",
+      "aviso": "Alert! At 05:36 UTC a CME left the Sun at 2,678 km/s, the fastest of the month.",
       "fato": "Today Curiosity measured about 18 times more radiation than on a calm day, even with the Martian air on top."
     },
     {
       "data": "2024-05-21",
       "nivel": 1,
+      "previsao": [
+        0,
+        2
+      ],
       "doseMedia": 12.5,
       "dosePico": 21.1,
+      "curto": "The CMEs are passing by.",
       "sol": 4191,
       "minima": -69,
       "frio": 1,
-      "aviso": "The particle storm is fading. Radiation is MEDIUM.",
+      "aviso": "The clouds of solar material are passing by Mars.",
       "fato": "Astronauts on Mars could hide from storms in shelters covered with Martian soil, which blocks radiation."
     },
     {
       "data": "2024-05-22",
       "nivel": 0,
+      "previsao": [
+        0,
+        1
+      ],
       "doseMedia": 5.4,
       "dosePico": 7.0,
+      "curto": "The Sun looks quieter. Keep building!",
       "sol": 4192,
       "minima": -69,
       "frio": 1,
-      "aviso": "Calm again. A good day to build!",
+      "aviso": "The Sun looks quieter. A good day to build!",
       "fato": "One day on Mars is called a sol. It lasts 24 hours and 39 minutes."
     },
     {
       "data": "2024-05-23",
       "nivel": 0,
+      "previsao": [
+        0,
+        0
+      ],
       "doseMedia": 4.6,
       "dosePico": 5.8,
+      "curto": "Quiet Sun. Keep building!",
       "sol": 4193,
       "minima": -68,
       "frio": 1,
@@ -79,8 +121,13 @@
     {
       "data": "2024-05-24",
       "nivel": 0,
+      "previsao": [
+        0,
+        0
+      ],
       "doseMedia": 4.6,
       "dosePico": 6.1,
+      "curto": "Quiet Sun. The base is taking shape.",
       "sol": 4194,
       "minima": -73,
       "frio": 1,
@@ -90,8 +137,13 @@
     {
       "data": "2024-05-25",
       "nivel": 0,
+      "previsao": [
+        0,
+        0
+      ],
       "doseMedia": 4.5,
       "dosePico": 5.1,
+      "curto": "Last day: finish the base!",
       "sol": 4195,
       "minima": -70,
       "frio": 1,

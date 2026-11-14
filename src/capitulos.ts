@@ -7,10 +7,12 @@ import type { Config, Efeito } from './regras';
 
 export type Dia = {
   data: string;
-  nivel: number;
+  nivel: number; // real level, revealed at night
+  previsao: number[]; // [min, max] forecast shown in the morning
   doseMedia: number;
   dosePico: number;
   aviso: string;
+  curto: string; // one short line for the morning card
   fato: string;
   frio?: number;
   minima?: number;
@@ -21,7 +23,7 @@ export type Dados = { nota: string; doseCalma: number; instrumento: string; font
 // Fixed places on the map; the scene knows their geometry.
 export type Lugar = 'esquerda' | 'direita' | 'baixo' | 'cima' | 'plataforma';
 export type Equipamento = 'tanques' | 'escudo' | 'oficina' | 'motor' | 'aquecedor' | 'cupula';
-export type Sala = { efeito: Efeito; nome: string; cor: number; papel: string; lugar: Lugar; equipamento: Equipamento };
+export type Sala = { efeito: Efeito; nome: string; cor: number; papel: string; curto: string; lugar: Lugar; equipamento: Equipamento };
 
 export type Capitulo = {
   numero: number;
@@ -40,16 +42,16 @@ export type Capitulo = {
 };
 
 const oxigenio = (nome: string, por: number, noite: number): Sala => ({
-  efeito: 'oxigenio', nome, cor: 0x3b82f6, lugar: 'esquerda', equipamento: 'tanques',
+  efeito: 'oxigenio', nome, cor: 0x3b82f6, lugar: 'esquerda', equipamento: 'tanques', curto: 'Makes oxygen',
   papel: `Makes oxygen. Each battery gives +${por} oxygen. The crew breathes ${noite} every night.`,
 });
 const blindagem = (nome: string): Sala => ({
-  efeito: 'blindagem', nome, cor: 0xeab308, lugar: 'direita', equipamento: 'escudo',
+  efeito: 'blindagem', nome, cor: 0xeab308, lugar: 'direita', equipamento: 'escudo', curto: 'Blocks storm radiation',
   papel: 'Protects the crew from solar storms. It needs as many batteries as the storm level.',
 });
 
-const LUA: Config = { dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 4 };
-const NAVE: Config = { dias: 5, bateriasPorDia: 4, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 15, metaPorBateria: 15 };
+const LUA: Config = { dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 5 };
+const NAVE: Config = { dias: 5, bateriasPorDia: 4, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 15, metaPorBateria: 12 };
 // Mars starts empty: every module is built first (cost in batteries), then powered.
 // The goal is the share of the base that is built; the dome is the crew's new home.
 const MARTE: Config = {
@@ -69,12 +71,12 @@ export const CAPITULOS: Capitulo[] = [
     salas: [
       oxigenio('Life Support', LUA.oxigenioPorBateria, LUA.oxigenioPorNoite),
       blindagem('Radiation Shield'),
-      { efeito: 'meta', nome: 'Rocket Workshop', cor: 0xf97316, lugar: 'baixo', equipamento: 'oficina',
+      { efeito: 'meta', nome: 'Rocket Workshop', cor: 0xf97316, lugar: 'baixo', equipamento: 'oficina', curto: 'Builds the rocket',
         papel: `Builds the rocket to Mars. Each battery adds ${LUA.metaPorBateria}%. Launch is on day ${LUA.dias}.` },
     ],
     introducao: [
-      `Your crew of four lives on the Moon. Your mission: build a rocket to fly to Mars. Launch day is May 12, 2024, in ${LUA.dias} days.`,
-      `Every morning the solar panels charge ${LUA.bateriasPorDia} batteries. Click a room and your commander carries a battery there.`,
+      `Build a rocket to fly to Mars. Launch is on day ${LUA.dias}.`,
+      `Every morning you get ${LUA.bateriasPorDia} batteries. Click a room to send one there.`,
     ],
     vitoria: ['Launch! The rocket is on its way to Mars.', 'Your crew made it through a real solar storm and launched on time.'],
     metaIncompleta: 'Launch day came and the rocket was not finished. The launch window closed.',
@@ -82,6 +84,7 @@ export const CAPITULOS: Capitulo[] = [
       'Every battery has a cost: power for the rocket is power not used for oxygen or the shield.',
       'The Moon has no thick air and no magnetic field, so a base needs a radiation shield.',
       'Flares and CMEs are warnings: scientists watch the Sun to know when particles may come.',
+      'Space weather forecasts are never sure: protect more when the warning signs are strong.',
     ],
     creditos: 'Storm data: NASA DONKI + LRO/CRaTER via OSDR RadLab. Archived, May 2024.',
     notaDados: 'LRO measures in lunar orbit, not on the ground. Oxygen, batteries and the rocket are simple models for learning, not measurements.',
@@ -96,13 +99,12 @@ export const CAPITULOS: Capitulo[] = [
     salas: [
       oxigenio('Air Recycler', NAVE.oxigenioPorBateria, NAVE.oxigenioPorNoite),
       blindagem('Storm Shelter'),
-      { efeito: 'meta', nome: 'Engines', cor: 0x22d3ee, lugar: 'baixo', equipamento: 'motor',
+      { efeito: 'meta', nome: 'Engines', cor: 0x22d3ee, lugar: 'baixo', equipamento: 'motor', curto: 'Flies the ship to Mars',
         papel: `Pushes the ship toward Mars. Each battery adds ${NAVE.metaPorBateria}% of the trip. Arrival is on day ${NAVE.dias}.` },
     ],
     introducao: [
-      `The rocket is now a spaceship. In ${NAVE.dias} days it must reach Mars.`,
-      `The ship has ${NAVE.bateriasPorDia} batteries a day. In a closed ship the crew uses more air: ${NAVE.oxigenioPorNoite} every night.`,
-      'Out here there is no magnetic field and no air to block radiation. The crew carries the radiation dose from the Moon.',
+      `Reach Mars in ${NAVE.dias} days. You get ${NAVE.bateriasPorDia} batteries a day.`,
+      'Deep space has no air and no magnetic field to block radiation.',
     ],
     vitoria: ['Mars orbit reached!', 'The ship crossed a real solar storm and arrived at Mars.'],
     metaIncompleta: 'The engines did not get enough power. The ship missed Mars.',
@@ -126,15 +128,15 @@ export const CAPITULOS: Capitulo[] = [
         papel: `Build it first (${OBRAS.oxigenio} batteries). Then it makes oxygen: +${MARTE.oxigenioPorBateria} per battery. The crew breathes ${MARTE.oxigenioPorNoite} every night.` },
       { ...blindagem('Radiation Shield'),
         papel: `Build it first (${OBRAS.blindagem} batteries). Then it protects the crew: it needs as many batteries as the storm level.` },
-      { efeito: 'aquecimento', nome: 'Heating', cor: 0xef4444, lugar: 'cima', equipamento: 'aquecedor',
+      { efeito: 'aquecimento', nome: 'Heating', cor: 0xef4444, lugar: 'cima', equipamento: 'aquecedor', curto: 'Keeps machines warm',
         papel: `Build it first (${OBRAS.aquecimento} batteries). Then it keeps the machines warm at night. Each missing battery of heat costs 10 oxygen.` },
-      { efeito: 'meta', nome: 'Habitat Dome', cor: 0xf97316, lugar: 'plataforma', equipamento: 'cupula',
+      { efeito: 'meta', nome: 'Habitat Dome', cor: 0xf97316, lugar: 'plataforma', equipamento: 'cupula', curto: "The crew's new home",
         papel: `The crew's new home. It takes ${OBRAS.meta} batteries to build. The whole base must be built by day ${MARTE.dias}.` },
     ],
     introducao: [
-      `The crew landed on Mars with only their lander and solar panels. In ${MARTE.dias} days they must build a whole base.`,
-      'Click a construction site to build a module. A finished module works like a room: send it batteries to power it.',
-      "What do you build first? Mars nights are very cold (real temperatures from NASA's Curiosity rover), and a solar storm is on its way.",
+      `You landed with only a lander. Build a whole base in ${MARTE.dias} days!`,
+      'Click a construction site to build it. Then send it batteries to make it work.',
+      'What first? Mars nights are very cold, and a storm is coming.',
     ],
     vitoria: ['Welcome home! The Mars base is ready.', 'Your crew survived the Moon, deep space and Mars.'],
     metaIncompleta: 'The base was not finished in time. Mission Control called the crew back.',
