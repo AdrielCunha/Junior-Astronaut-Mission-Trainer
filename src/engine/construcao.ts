@@ -1,6 +1,6 @@
 // Generated with AI assistance (Claude). See README, "Use of AI tools".
 // What can be built, where, and the grid that remembers it. No Phaser.
-import type { Efeito } from '../regras.ts';
+import type { Alocacao } from '../regras.ts';
 import type { Caixa } from './fisica.ts';
 import type { Terreno } from './terreno.ts';
 
@@ -13,7 +13,7 @@ export type Tipo = {
   w: number; h: number;          // footprint, tiles
   altura: number;                // drawn height, tiles
   cor: number;
-  sala?: Efeito;                 // rooms that take batteries (game rules, regras.ts)
+  sala?: keyof Alocacao;         // rooms that take batteries (game rules, regras.ts)
   unico: boolean;                // only one allowed
   papel: string;
 };

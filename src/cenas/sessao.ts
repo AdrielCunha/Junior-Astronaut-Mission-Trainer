@@ -7,12 +7,11 @@ import terrenoJson from '../dados/terreno.json';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { Grade, TIPOS, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
-import voo from '../dados/voo.json';
-import { inicioDoCapitulo, nenhuma, bateriasDoDia, type Alocacao, type Efeito, type Estado } from '../regras';
+import { VOO as voo } from './qualidade';
 import { CAPITULOS } from '../capitulos';
+import { inicioDoCapitulo, bateriasDoDia, nenhuma, type Alocacao, type Efeito, type Estado } from '../regras';
 
-// This engine plays chapter 1 (the Moon) with the same rules as the classic scene.
-export const LUA = CAPITULOS[0].config;
+const C = CAPITULOS[0].config;
 
 export type Fase = 'inicio' | 'manha' | 'dia' | 'noite' | 'fim';
 
@@ -70,7 +69,7 @@ class Sessao {
   readonly sinais = new Phaser.Events.EventEmitter();
 
   fase: Fase = 'inicio';
-  estado: Estado = inicioDoCapitulo(LUA);
+  estado: Estado = inicioDoCapitulo(C);
   entregas: Alocacao = nenhuma();
   carregando = 0;           // batteries in the commander's hands
   noHabitat = 0;            // batteries still waiting at the habitat today
@@ -93,7 +92,7 @@ class Sessao {
   reiniciar() {
     this.grade = new Grade(this.terreno);
     this.fase = 'inicio';
-    this.estado = inicioDoCapitulo(LUA);
+    this.estado = inicioDoCapitulo(C);
     this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = 0;
@@ -211,7 +210,7 @@ class Sessao {
   novoDia() {
     this.entregas = nenhuma();
     this.carregando = 0;
-    this.noHabitat = bateriasDoDia(this.estado, LUA);
+    this.noHabitat = bateriasDoDia(this.estado, C);
     this.tarefasHoje.clear();
   }
 
