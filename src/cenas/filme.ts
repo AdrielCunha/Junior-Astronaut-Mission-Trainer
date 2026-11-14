@@ -43,7 +43,7 @@ export function carregarFilme(texturas: Phaser.Textures.TextureManager) {
       img.onerror = () => {
         if (feito) return;
         feito = true;
-        console.error(`Falha ao baixar o quadro ${i} do voo: ${quadroVoo(i)}`);
+        console.error(`Failed to load flight frame ${i}: ${quadroVoo(i)}`);
         ativos--;
         terminar();
         puxar();

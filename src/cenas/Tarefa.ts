@@ -105,20 +105,12 @@ export class CenaTarefa extends Phaser.Scene {
       this.tweens.add({ targets: selo, scale: 1, duration: 450, ease: 'Back.easeOut' });
       this.tweens.add({ targets: selo, angle: 6, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 450 });
 
-      // The fact replaces the instruction; a green button closes.
-      const bt = this.add.text(0, 0, 'OK!  ▶', letra(20 * u, '#ffffff')).setOrigin(0.5);
-      const bw = bt.width + 44 * u, bh = Math.min(pAlt, 50 * u);
-      const bx = x0 + largura - 60 * u - bw / 2, by = py + pAlt / 2;
-      const bg = this.add.graphics()
-        .fillStyle(0x22c55e).fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2)
-        .lineStyle(4 * u, 0xffffff).strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
-      const ok = this.add.container(bx, by, [bg, bt]).setSize(bw, bh).setInteractive({ useHandCursor: true }).on('pointerdown', fechar);
-      this.tweens.add({ targets: ok, scale: 1.08, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      const pw1 = bx - bw / 2 - 12 * u - (x0 + 60 * u);
-      desenharPilula(x0 + 60 * u, pw1);
-      tInstr.setPosition(x0 + 60 * u + pw1 / 2, py + pAlt / 2)
-        .setStyle(letra(13.5 * u, '#e2e8f0', { align: 'center', fontStyle: '500', wordWrap: { width: pw1 - 28 * u } }))
+      // The fact replaces the instruction; the overlay closes by itself, like the other tasks.
+      desenharPilula(x0 + 60 * u, largura - 120 * u);
+      tInstr.setPosition(W / 2, py + pAlt / 2)
+        .setStyle(letra(13.5 * u, '#e2e8f0', { align: 'center', fontStyle: '500', wordWrap: { width: largura - 148 * u } }))
         .setText(`Did you know? ${d.tarefa.fato}`);
+      this.time.delayedCall(3500, fechar);
       this.input.keyboard?.once('keydown-ENTER', fechar);
     };
 
