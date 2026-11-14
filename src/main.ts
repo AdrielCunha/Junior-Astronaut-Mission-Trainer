@@ -6,6 +6,7 @@ import { Interface } from './cenas/Interface';
 import { Base } from './cenas/Base';
 import { CenaTarefa } from './cenas/Tarefa';
 import { Carregar } from './cenas/Carregar';
+import { iniciarAudio } from './audio';
 
 // Carregar (loading screen) loads the assets, then starts three scenes that run together, bottom to top: Espaco (stars, Moon, planets), Superficie (the map,
 // the commander, the modules) and Interface (bars and panels). See ARCHITECTURE.md.
@@ -20,8 +21,12 @@ new Phaser.Game({
   backgroundColor: '#05070f',
   // RESIZE: the canvas always fills the window; the scenes redraw at the new size.
   scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
-  // No sound yet: skip the audio system (it also warns when started before a tap).
+  // The music is played by audio.ts with a plain HTMLAudioElement, so Phaser's audio system
+  // stays off. It would also warn when started before a tap.
   audio: { noAudio: true },
   // CenaTarefa only runs while a task is open, above the game; Carregar covers everything while loading.
   scene: classico ? [Base] : [Espaco, Superficie, Interface, CenaTarefa, Carregar],
 });
+
+// The classic prototype has no music control, so it stays silent.
+if (!classico) iniciarAudio();
