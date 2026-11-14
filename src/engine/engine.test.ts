@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { Terreno, type DadosTerreno } from './terreno.ts';
 import { paraTela, paraChao, type Projecao } from './iso.ts';
 import { passo, novoCorpo, G, G_LUA, G_TERRA, pulo } from './fisica.ts';
-import { Grade, TIPOS, BASE_PADRAO, montarBasePadrao } from './construcao.ts';
+import { Grade, TIPOS, BASE_PADRAO, SETORES_SUPRIMENTOS, montarBasePadrao } from './construcao.ts';
 import { posicao, PLANETAS, lua } from './astro.ts';
 import { SUPRIMENTOS, empuxoDePouso } from './suprimentos.ts';
 import { encontrarCaminho } from './caminho.ts';
@@ -155,5 +155,98 @@ test('pathfinding on the real map goes from the habitat to every room', () => {
     const destino = { gx: c.gx + c.tipo.w / 2, gy: c.gy + c.tipo.h + 0.6 };
     const caminho = encontrarCaminho(real, caixas, 0.22, hx, hy, destino.gx, destino.gy);
     assert.ok(caminho && caminho.length >= 1, `path from habitat to ${c.tipo.nome}`);
+  }
+});
+
+const terrenoComRelevo = () => {
+  const n = 12;
+  return new Terreno({ n, metrosPorTile: 80, inclinacaoMaxAndar: 20, inclinacaoMaxConstruir: 10,
+    alturas: Array.from({ length: n + 1 }, () => Array(n + 1).fill(0)),
+    inclinacao: Array.from({ length: n }, () => Array(n).fill(0)),
+    relevo: { crateras: [{ x: 4, y: 4, raio: 2, profundidade: 0.6 }],
+      pedras: [{ x0: 8.1, y0: 3.1, x1: 8.9, y1: 3.9, topo: 0.8 }] },
+  });
+};
+
+test('crater bowls lower feet, raised rims match the render, and both reject construction', () => {
+  const t = terrenoComRelevo(), g = new Grade(t);
+  assert.ok(Math.abs(t.altura(4, 4) + 0.6) < 1e-8);
+  assert.ok(t.altura(5.9, 4) > 0, 'raised rim');
+  assert.equal(g.pode(TIPOS.painel, 3, 4).motivo, 'ocupado');
+  assert.equal(g.pode(TIPOS.painel, 6, 4).motivo, 'ocupado', 'outer rim overlaps footprint');
+  assert.equal(g.pode(TIPOS.painel, 8, 3).motivo, 'ocupado', 'rock overlaps footprint');
+  assert.equal(g.pode(TIPOS.painel, 9, 8).motivo, 'ok');
+});
+
+test('rocks block walking and click routes use the same hitboxes', () => {
+  const t = terrenoComRelevo(), boxes = new Grade(t).caixas();
+  const k = novoCorpo(7, 3.5, 0); k.noChao = true;
+  for (let i = 0; i < 120; i++) passo(k, { dx: 1, dy: 0, pular: false }, t, boxes, 1 / 60);
+  assert.ok(k.x <= 8.1 - k.raio + 0.01);
+  const path = encontrarCaminho(t, boxes, k.raio, 7, 3.5, 10, 3.5);
+  assert.ok(path && path.length > 1, 'click route detours around the stone');
+});
+
+test('walking in a crater slows down, follows its depth and can climb back out', () => {
+  const t = terrenoComRelevo();
+  const k = novoCorpo(4, 4, t.altura(4, 4)); k.noChao = true;
+  for (let i = 0; i < 30; i++) passo(k, { dx: 1, dy: 0, pular: false }, t, [], 1 / 60);
+  assert.ok(k.vx <= 1.61, 'half walking speed in the bowl');
+  assert.ok(k.z < 0, 'feet below surrounding terrain');
+  assert.ok(Math.abs(k.z - t.altura(k.x, k.y)) < 0.03);
+  for (let i = 0; i < 150; i++) passo(k, { dx: 1, dy: 0, pular: false }, t, [], 1 / 60);
+  assert.ok(k.x > 7, 'exits the crater without getting trapped');
+  assert.ok(k.vx > 3, 'normal speed outside');
+});
+
+test('Blender exports gameplay footprints for every rendered crater and stone', () => {
+  assert.equal(real.crateras.length, 24);
+  assert.ok(real.pedras.length > 50);
+  const grade = new Grade(real);
+  for (const cr of real.crateras) {
+    assert.ok(real.bloqueiaConstrucao(cr.x, cr.y, 0.1, 0.1));
+    assert.equal(real.fatorVelocidade(cr.x, cr.y), 0.5);
+    const p = paraTela(dados.imagem, cr.x, cr.y, real.altura(cr.x, cr.y));
+    const q = paraChao(dados.imagem, real, p.x, p.y);
+    assert.ok(q && Math.hypot(q.gx - cr.x, q.gy - cr.y) < 0.05, 'click projection follows crater depth');
+  }
+  for (const b of real.pedras) {
+    assert.ok(b.x0 < b.x1 && b.y0 < b.y1 && Number.isFinite(b.topo));
+    assert.ok(real.bloqueiaConstrucao(b.x0, b.y0, b.x1-b.x0, b.y1-b.y0));
+  }
+  assert.equal(grade.caixas().length, real.pedras.length);
+});
+
+test('colony modules keep circulation gaps and floors clear the highest ground', () => {
+  const grade = new Grade(real);
+  const modules = montarBasePadrao(grade);
+  for (const c of modules) {
+    for (let y = 0; y <= c.tipo.h; y++) for (let x = 0; x <= c.tipo.w; x++) {
+      assert.ok(c.z >= real.altura(c.gx+x,c.gy+y), `${c.tipo.id} floor clears the ground`);
+    }
+    for (const other of modules) {
+      if (c.id === other.id) continue;
+      const separated = c.gx+c.tipo.w+1 <= other.gx || other.gx+other.tipo.w+1 <= c.gx ||
+        c.gy+c.tipo.h+1 <= other.gy || other.gy+other.tipo.h+1 <= c.gy;
+      assert.ok(separated, `${c.tipo.id} and ${other.tipo.id} have a walking corridor`);
+    }
+  }
+});
+
+
+test('the service court remains clear as supply equipment joins the colony', () => {
+  const g = new Grade(real);
+  montarBasePadrao(g);
+  for (const {tipo} of SUPRIMENTOS) {
+    const [dx,dy] = SETORES_SUPRIMENTOS[tipo]!;
+    const p = g.procurarComEspaco(TIPOS[tipo],32+dx,32+dy);
+    assert.ok(p, `${tipo} has a sector`);
+    assert.ok(g.construir(TIPOS[tipo],p.gx,p.gy));
+  }
+  for(const c of g.lista) {
+    const courtOverlap = c.gx < 35 && c.gx+c.tipo.w > 31 && c.gy < 37 && c.gy+c.tipo.h > 32;
+    assert.ok(!courtOverlap, `${c.tipo.id} leaves the service court free`);
+    const others = g.lista.filter(o=>o!==c);
+    assert.ok(!others.some(o=>c.gx<o.gx+o.tipo.w+1 && c.gx+c.tipo.w+1>o.gx && c.gy<o.gy+o.tipo.h+1 && c.gy+c.tipo.h+1>o.gy), `${c.tipo.id} keeps its circulation space`);
   }
 });

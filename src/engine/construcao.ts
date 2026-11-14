@@ -21,13 +21,13 @@ export type Tipo = {
 export const TIPOS: Record<TipoId, Tipo> = {
   habitat:    { id: 'habitat', nome: 'Habitat', w: 3, h: 3, altura: 1.4, cor: 0x94a3b8, unico: true,
                 papel: 'Where the crew lives. Batteries charge here every morning.' },
-  suporte:    { id: 'suporte', nome: 'Life Support', w: 3, h: 2, altura: 1.1, cor: 0x3b82f6, sala: 'oxigenio', unico: true,
+  suporte:    { id: 'suporte', nome: 'Life Support', w: 3, h: 2, altura: 1.4, cor: 0x3b82f6, sala: 'oxigenio', unico: true,
                 papel: 'Makes oxygen. Each battery gives oxygen for the night.' },
   blindagem:  { id: 'blindagem', nome: 'Radiation Shield', w: 2, h: 2, altura: 1.3, cor: 0xeab308, sala: 'blindagem', unico: true,
                 papel: 'Protects the crew from solar storms.' },
-  oficina:    { id: 'oficina', nome: 'Rocket Workshop', w: 3, h: 3, altura: 1.2, cor: 0xf97316, sala: 'meta', unico: true,
+  oficina:    { id: 'oficina', nome: 'Rocket Workshop', w: 3, h: 3, altura: 2.0, cor: 0xf97316, sala: 'meta', unico: true,
                 papel: 'Builds the rocket to Mars.' },
-  painel:     { id: 'painel', nome: 'Solar Panel', w: 2, h: 1, altura: 0.5, cor: 0x1e3a8a, unico: false,
+  painel:     { id: 'painel', nome: 'Solar Panel', w: 2, h: 1, altura: 1.65, cor: 0x1e3a8a, unico: false,
                 papel: 'Catches sunlight. At the pole the Sun is always low, so panels stand tall.' },
   plataforma: { id: 'plataforma', nome: 'Launch Pad', w: 3, h: 3, altura: 0.25, cor: 0x64748b, unico: true,
                 papel: 'Where the rocket will lift off.' },
@@ -74,13 +74,14 @@ export class Grade {
     for (let j = gy; j < gy + tipo.h; j++) for (let i = gx; i < gx + tipo.w; i++) {
       if (this.ocup[j * this.n + i]) return { motivo: 'ocupado', inclinacao: 0 };
     }
+    if (this.t.bloqueiaConstrucao(gx, gy, tipo.w, tipo.h)) return { motivo: 'ocupado', inclinacao: 0 };
     const inc = this.t.inclinacaoMax(gx, gy, tipo.w, tipo.h);
     return { motivo: inc > this.t.maxConstruir ? 'ingreme' : 'ok', inclinacao: inc };
   }
 
   construir(tipo: Tipo, gx: number, gy: number): Construcao | null {
     if (this.pode(tipo, gx, gy).motivo !== 'ok') return null;
-    const c: Construcao = { id: this.proximo++, tipo, gx, gy, z: this.t.alturaMedia(gx, gy, tipo.w, tipo.h) };
+    const c: Construcao = { id: this.proximo++, tipo, gx, gy, z: this.t.alturaMax(gx, gy, tipo.w, tipo.h) + 0.025 };
     for (let j = gy; j < gy + tipo.h; j++) for (let i = gx; i < gx + tipo.w; i++) this.ocup[j * this.n + i] = c.id;
     this.lista.push(c);
     return c;
@@ -88,10 +89,42 @@ export class Grade {
 
   // Solid boxes for the physics. A small inset keeps paths between neighbors walkable.
   caixas(): Caixa[] {
-    return this.lista.map((c) => ({
+    return [...this.t.pedras, ...this.lista.map((c) => ({
       x0: c.gx + 0.08, y0: c.gy + 0.08, x1: c.gx + c.tipo.w - 0.08, y1: c.gy + c.tipo.h - 0.08,
       topo: c.z + c.tipo.altura,
-    }));
+    }))];
+  }
+
+  // Prefer the intended sector while leaving a full tile of circulation around modules.
+  procurarComEspaco(tipo: Tipo, gx: number, gy: number): { gx: number; gy: number } | null {
+    let best: { gx: number; gy: number } | null = null;
+    let score = Infinity;
+    for (let y = Math.max(1, gy - 9); y <= Math.min(this.n - tipo.h - 1, gy + 9); y++) {
+      for (let x = Math.max(1, gx - 9); x <= Math.min(this.n - tipo.w - 1, gx + 9); x++) {
+        if (this.pode(tipo, x, y).motivo !== 'ok') continue;
+        if (this.lista.some(c => x < c.gx + c.tipo.w + 1 && x + tipo.w + 1 > c.gx &&
+          y < c.gy + c.tipo.h + 1 && y + tipo.h + 1 > c.gy)) continue;
+        // Compare projected silhouettes, not just footprints: tall towers can hide neighbors.
+        const bounds = (kind: Tipo, px: number, py: number, z: number) => ({
+          left: px - py - kind.h, right: px - py + kind.w,
+          top: (px + py) / 2 - z * 1.225 - (kind.id === 'plataforma' ? 3.8 : kind.altura * 1.225),
+          bottom: (px + py + kind.w + kind.h) / 2 - z * 1.225,
+        });
+        const b = bounds(tipo,x,y,this.t.alturaMax(x,y,tipo.w,tipo.h));
+        let overlap = 0;
+        for (const c of this.lista) {
+          const a = bounds(c.tipo,c.gx,c.gy,c.z);
+          overlap += Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left)+0.3) *
+            Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)+0.3);
+        }
+        // Keep a central service court clear, even when a supply must move from its sector.
+        const center = this.n/2;
+        if (x < center+3 && x+tipo.w > center-1 && y < center+5 && y+tipo.h > center) continue;
+        const cost = (x - gx) ** 2 + (y - gy) ** 2 + this.t.inclinacaoMax(x, y, tipo.w, tipo.h) * 0.3 + overlap * 16;
+        if (cost < score) { score = cost; best = { gx: x, gy: y }; }
+      }
+    }
+    return best ?? this.procurar(tipo, gx, gy);
   }
 
   // Nearest flat spot for a footprint, searching outward from (gx, gy).
@@ -109,22 +142,27 @@ export class Grade {
 // The base the crew already has when the game starts (players do not build; they run it).
 // Offsets in tiles from the map center; each module goes to the nearest flat, free spot, so the
 // layout follows the real ground. The rooms ring the habitat: short walks with the batteries.
+// Habitation at the center, a solar field behind it, operations to the right and launch farther out.
 export const BASE_PADRAO: [TipoId, number, number][] = [
-  ['habitat', -1, -1],
-  ['suporte', 4, -2],
-  ['blindagem', -5, -1],
-  ['oficina', -1, 4],
-  ['plataforma', 5, 4],
-  ['painel', -4, -5],
-  ['painel', -1, -6],
-  ['painel', 2, -6],
+  ['habitat', -2, -4],
+  ['suporte', 4, -3],
+  ['blindagem', -6, -1],
+  ['oficina', 7, 0],
+  ['plataforma', 13, 6],
+  ['painel', -6, -8],
+  ['painel', -3, -8],
+  ['painel', 0, -8],
 ];
+
+export const SETORES_SUPRIMENTOS: Partial<Record<TipoId, [number, number]>> = {
+  antena: [-7, -6], estufa: [-6, 4], perfuratriz: [7, -7], rover: [5, 6],
+};
 
 export function montarBasePadrao(g: Grade): Construcao[] {
   const c0 = Math.floor(g.n / 2);
   const feitas: Construcao[] = [];
   for (const [id, dx, dy] of BASE_PADRAO) {
-    const p = g.procurar(TIPOS[id], c0 + dx, c0 + dy);
+    const p = g.procurarComEspaco(TIPOS[id], c0 + dx, c0 + dy);
     const c = p && g.construir(TIPOS[id], p.gx, p.gy);
     if (c) feitas.push(c);
   }

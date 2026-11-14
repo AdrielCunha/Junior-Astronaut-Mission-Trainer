@@ -23,6 +23,7 @@ export type Caixa = { x0: number; y0: number; x1: number; y1: number; topo: numb
 
 export type Chao = {
   altura(x: number, y: number): number;
+  fatorVelocidade?(x: number, y: number): number;
   inclinacaoEm(x: number, y: number): number;
   readonly maxAndar: number;
   readonly n: number;
@@ -73,8 +74,9 @@ export function passo(k: Corpo, e: Entrada | null, c: Chao, caixas: Caixa[], dt:
   // Horizontal: steer toward the wanted velocity; little control in the air (no air on the Moon
   // to push against: once you jump, you mostly keep going).
   const len = e ? Math.hypot(e.dx, e.dy) : 0;
-  const wx = len > 0 ? (e!.dx / len) * AJUSTES.velocidade : 0;
-  const wy = len > 0 ? (e!.dy / len) * AJUSTES.velocidade : 0;
+  const velocidade = AJUSTES.velocidade * (k.noChao ? (c.fatorVelocidade?.(k.x, k.y) ?? 1) : 1);
+  const wx = len > 0 ? (e!.dx / len) * velocidade : 0;
+  const wy = len > 0 ? (e!.dy / len) * velocidade : 0;
   const a = AJUSTES.aceleracao * (k.noChao ? 1 : AJUSTES.controleNoAr) * dt;
   const ax = wx - k.vx, ay = wy - k.vy, al = Math.hypot(ax, ay);
   if (al > 0) { const f = Math.min(1, a / al); k.vx += ax * f; k.vy += ay * f; }
