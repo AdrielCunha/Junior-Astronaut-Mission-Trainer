@@ -10,6 +10,7 @@ import { passo, novoCorpo, G, G_LUA, G_TERRA, pulo } from './fisica.ts';
 import { Grade, TIPOS, BASE_PADRAO, montarBasePadrao } from './construcao.ts';
 import { posicao, PLANETAS, lua } from './astro.ts';
 import { SUPRIMENTOS, empuxoDePouso } from './suprimentos.ts';
+import { encontrarCaminho } from './caminho.ts';
 
 const dados = JSON.parse(readFileSync(new URL('../dados/terreno.json', import.meta.url), 'utf8')) as DadosTerreno & { imagem: Projecao };
 const real = new Terreno(dados);
@@ -121,4 +122,38 @@ test('every supply drop fits next to the default base', () => {
   const g = new Grade(real);
   montarBasePadrao(g);
   for (const s of SUPRIMENTOS) assert.ok(g.procurar(TIPOS[s.tipo], 32, 32), s.tipo);
+});
+
+test('pathfinding routes around a module instead of walking into it', () => {
+  const n = 10;
+  const alturas = Array.from({ length: n + 1 }, () => Array.from({ length: n + 1 }, () => 0));
+  const inclinacao = Array.from({ length: n }, () => Array.from({ length: n }, () => 0));
+  const t = new Terreno({ n, metrosPorTile: 80, inclinacaoMaxAndar: 20, inclinacaoMaxConstruir: 10, alturas, inclinacao });
+
+  // Place a 2x2 box right in the way between start (2, 5) and goal (8, 5)
+  const caixa = [{ x0: 4.08, y0: 4.08, x1: 5.92, y1: 5.92, topo: 1 }];
+  const caminho = encontrarCaminho(t, caixa, 0.22, 2, 5, 8, 5);
+  assert.ok(caminho, 'a path exists');
+  assert.ok(caminho.length >= 2, `path has at least 2 waypoints, got ${caminho.length}`);
+  // End point reaches goal
+  const fim = caminho[caminho.length - 1];
+  assert.ok(Math.hypot(fim.gx - 8, fim.gy - 5) < 0.1, 'reaches the goal');
+  // Every waypoint must be outside the box
+  for (const p of caminho) {
+    const inside = p.gx >= 4.08 && p.gx <= 5.92 && p.gy >= 4.08 && p.gy <= 5.92;
+    assert.ok(!inside, `waypoint (${p.gx}, ${p.gy}) is inside the box`);
+  }
+});
+
+test('pathfinding on the real map goes from the habitat to every room', () => {
+  const g = new Grade(real);
+  montarBasePadrao(g);
+  const caixas = g.caixas();
+  const hab = g.lista.find((c) => c.tipo.id === 'habitat')!;
+  const hx = hab.gx + hab.tipo.w + 0.7, hy = hab.gy + hab.tipo.h / 2;
+  for (const c of g.lista.filter((m) => m.tipo.sala)) {
+    const destino = { gx: c.gx + c.tipo.w / 2, gy: c.gy + c.tipo.h + 0.6 };
+    const caminho = encontrarCaminho(real, caixas, 0.22, hx, hy, destino.gx, destino.gy);
+    assert.ok(caminho && caminho.length >= 1, `path from habitat to ${c.tipo.nome}`);
+  }
 });

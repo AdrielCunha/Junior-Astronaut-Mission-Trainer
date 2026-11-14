@@ -7,7 +7,8 @@
 // plays the frames) while the base stays visible, live.
 import Phaser from 'phaser';
 import { paraTela, paraChao, profundidade } from '../engine/iso';
-import { passo, novoCorpo, G, G_LUA, G_TERRA, pulo, type Corpo, type Entrada } from '../engine/fisica';
+import { passo, novoCorpo, G, G_LUA, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
+import { encontrarCaminho, type Ponto } from '../engine/caminho';
 import { TIPOS, montarBasePadrao, type Construcao, type TipoId } from '../engine/construcao';
 import { empuxoDePouso, suprimentoDoDia } from '../engine/suprimentos';
 import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte } from './sessao';
@@ -16,6 +17,7 @@ import { VOO as voo } from './qualidade';
 import { sortear } from '../tarefas';
 import type { DadosTarefa } from './Tarefa';
 import modelos from '../dados/modulos.json';
+import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 
 const P = dadosTerreno.imagem;
@@ -35,9 +37,12 @@ export class Superficie extends Phaser.Scene {
   private corpo!: Corpo;
   private gAstronauta!: Phaser.GameObjects.Graphics;   // shadow + carried batteries
   private comandante!: Phaser.GameObjects.Sprite;
+  private bandeira!: Phaser.GameObjects.Image;         // flag marking the chosen destination
   private direcao = 1;                                  // sprite row: map angle / 45 deg
   private desenhos = new Map<number, { g: Phaser.GameObjects.Graphics; img: Phaser.GameObjects.Image; rotulo?: Phaser.GameObjects.Text }>();
-  private alvo: { gx: number; gy: number; usar?: Construcao } | null = null;
+  private rota: Ponto[] = [];                            // A* waypoints to walk through
+  private alvoUsar: Construcao | null = null;             // module to use when we arrive
+  private bloqueadoCont = 0;
   private teclas!: Record<string, Phaser.Input.Keyboard.Key>;
   private passada = 0;
   private sobre: Construcao | null = null;              // module under the cursor
@@ -78,7 +83,12 @@ export class Superficie extends Phaser.Scene {
     this.gAstronauta = this.add.graphics();
     this.comandante = this.add.sprite(0, 0, 'astronauta', 0).setOrigin(sprite.pe[0] / sprite.frame, sprite.pe[1] / sprite.frame)
       .setScale(sprite.escala);
-    this.mapa.add([this.gAstronauta, this.comandante]);
+    const bInfo = bandeiras.lua;
+    this.bandeira = this.add.image(0, 0, 'bandeira_lua')
+      .setOrigin(bInfo.ancora[0] / bInfo.w, bInfo.ancora[1] / bInfo.h)
+      .setScale(bInfo.escala)
+      .setVisible(false);
+    this.mapa.add([this.gAstronauta, this.comandante, this.bandeira]);
     for (const c of sessao.grade.lista) this.desenharModulo(c);
 
     const pe = paraTela(P, this.corpo.x, this.corpo.y, this.corpo.z);
@@ -148,6 +158,7 @@ export class Superficie extends Phaser.Scene {
       this.inicioVoo = null;
       this.mapa.setAlpha(sessao.vista === 'chao' ? 1 : 0);
     }
+    if (sessao.vista !== 'chao' || sessao.voo) this.recolherBandeira();
     this.mapa.setVisible(this.mapa.alpha > 0.001);
     this.input.enabled = sessao.vista === 'chao' && !sessao.voo && !sessao.emTarefa;
   }
@@ -158,7 +169,102 @@ export class Superficie extends Phaser.Scene {
     if (!q) return;
     this.seguir = true;
     const c = sessao.grade.em(q.gx, q.gy);
-    this.alvo = c ? { gx: c.gx + c.tipo.w / 2, gy: c.gy + c.tipo.h + 0.5, usar: c } : q;
+    // If clicking a module we are already standing next to, use it immediately.
+    if (c && this.perto(c)) {
+      this.rota = [];
+      this.alvoUsar = null;
+      this.usar(c);
+      return;
+    }
+    let destGx: number, destGy: number;
+    if (c) {
+      const ap = this.pontoDeAcesso(c);
+      destGx = ap.gx; destGy = ap.gy;
+      this.alvoUsar = c;
+    } else {
+      destGx = q.gx; destGy = q.gy;
+      this.alvoUsar = null;
+    }
+    const caixas = sessao.grade.caixas();
+    const caminho = encontrarCaminho(sessao.terreno, caixas, this.corpo.raio, this.corpo.x, this.corpo.y, destGx, destGy);
+    this.rota = caminho ?? [];
+    this.bloqueadoCont = 0;
+    if (this.rota.length > 0) {
+      this.plantarBandeira(destGx, destGy);
+    } else {
+      this.recolherBandeira();
+    }
+  }
+
+  /** Plants the flag marking the chosen destination spot on the terrain. */
+  private plantarBandeira(gx: number, gy: number, planeta = 'lua') {
+    const bInfo = (bandeiras as Record<string, typeof bandeiras.lua>)[planeta] ?? bandeiras.lua;
+    const z = sessao.terreno.altura(gx, gy);
+    const pe = paraTela(P, gx, gy, z);
+    this.bandeira.setTexture(`bandeira_${planeta}`);
+    this.bandeira.setOrigin(bInfo.ancora[0] / bInfo.w, bInfo.ancora[1] / bInfo.h);
+    this.bandeira.setPosition(pe.x, pe.y);
+    this.bandeira.setDepth(profundidade(gx, gy) - 0.5);
+    this.bandeira.setVisible(true).setAlpha(1);
+
+    // Bounce-in drop animation when planting the flag
+    this.tweens.killTweensOf(this.bandeira);
+    this.bandeira.setScale(bInfo.escala * 0.3, bInfo.escala * 1.3);
+    this.tweens.add({
+      targets: this.bandeira,
+      scaleX: bInfo.escala,
+      scaleY: bInfo.escala,
+      duration: 250,
+      ease: 'Back.easeOut',
+    });
+  }
+
+  /** Smoothly folds and hides the destination flag when arriving or changing path. */
+  private recolherBandeira() {
+    if (!this.bandeira || !this.bandeira.visible) return;
+    this.tweens.killTweensOf(this.bandeira);
+    this.tweens.add({
+      targets: this.bandeira,
+      alpha: 0,
+      scaleY: 0,
+      duration: 200,
+      ease: 'Quad.easeIn',
+      onComplete: () => this.bandeira.setVisible(false),
+    });
+  }
+
+  /** Picks the best approach point for a module: the nearest edge midpoint that is accessible. */
+  private pontoDeAcesso(c: Construcao): { gx: number; gy: number } {
+    const k = this.corpo;
+    const caixas = sessao.grade.caixas();
+    const mx = c.gx + c.tipo.w / 2, my = c.gy + c.tipo.h / 2;
+    const margem = 0.7;
+    // Four edge midpoints (N, S, E, W), sorted by distance to the commander.
+    const candidatos = [
+      { gx: mx, gy: c.gy - margem },                       // north
+      { gx: mx, gy: c.gy + c.tipo.h + margem },            // south
+      { gx: c.gx - margem, gy: my },                       // west
+      { gx: c.gx + c.tipo.w + margem, gy: my },            // east
+    ].sort((a, b) => Math.hypot(a.gx - k.x, a.gy - k.y) - Math.hypot(b.gx - k.x, b.gy - k.y));
+
+    // Exclude module c itself when checking if the spot is blocked by another module
+    const outrasCaixas = caixas.filter((b) =>
+      Math.abs(b.x0 - (c.gx + 0.08)) > 0.05 || Math.abs(b.y0 - (c.gy + 0.08)) > 0.05
+    );
+
+    for (const p of candidatos) {
+      if (p.gx >= 1 && p.gy >= 1 && p.gx < sessao.terreno.n - 1 && p.gy < sessao.terreno.n - 1) {
+        if (sessao.terreno.inclinacaoEm(p.gx, p.gy) <= sessao.terreno.maxAndar) {
+          const colide = outrasCaixas.some((b) => {
+            const px = Math.max(b.x0, Math.min(p.gx, b.x1));
+            const py = Math.max(b.y0, Math.min(p.gy, b.y1));
+            return (p.gx - px) ** 2 + (p.gy - py) ** 2 < (k.raio + 0.08) ** 2;
+          });
+          if (!colide) return p;
+        }
+      }
+    }
+    return candidatos[0];
   }
 
   // Rooms you can use light up under the cursor, like buttons.
@@ -180,14 +286,34 @@ export class Superficie extends Phaser.Scene {
     if (t.A.isDown || t.LEFT.isDown) sx -= 1;
     if (t.D.isDown || t.RIGHT.isDown) sx += 1;
     let dx = sx + sy, dy = sy - sx;
-    if (sx || sy) { this.alvo = null; this.seguir = true; }
-    else if (this.alvo) {
-      dx = this.alvo.gx - this.corpo.x; dy = this.alvo.gy - this.corpo.y;
+    if (sx || sy) { this.rota = []; this.alvoUsar = null; this.seguir = true; this.recolherBandeira(); }
+    else if (this.rota.length) {
+      // Follow the A* waypoint list: steer toward the first remaining waypoint, pop it
+      // when close enough, and repeat until the route is done.
+      const wp = this.rota[0];
+      dx = wp.gx - this.corpo.x; dy = wp.gy - this.corpo.y;
       const d = Math.hypot(dx, dy);
-      if (d < 0.25 || (this.alvo.usar && this.perto(this.alvo.usar))) {
-        const u = this.alvo.usar;
-        this.alvo = null; dx = dy = 0;
-        if (u) this.usar(u);
+
+      // Check if we should interact with the target module (close enough to any edge).
+      if (this.alvoUsar && this.perto(this.alvoUsar)) {
+        const u = this.alvoUsar;
+        this.rota = []; this.alvoUsar = null; dx = dy = 0;
+        this.recolherBandeira();
+        this.usar(u);
+      } else if (d < 0.35) {
+        // Reached this waypoint, advance to the next.
+        this.rota.shift();
+        if (!this.rota.length) {
+          dx = dy = 0;
+          this.recolherBandeira();
+          if (this.alvoUsar && this.perto(this.alvoUsar)) {
+            const u = this.alvoUsar;
+            this.alvoUsar = null;
+            this.usar(u);
+          } else {
+            this.alvoUsar = null;
+          }
+        }
       }
     }
     return { dx, dy, pular: Phaser.Input.Keyboard.JustDown(t.SPACE) };
@@ -329,7 +455,17 @@ export class Superficie extends Phaser.Scene {
     const caixas = sessao.grade.caixas();
     const e = this.input.enabled ? this.entrada() : null;
     const antesNoChao = this.corpo.noChao;
-    passo(this.corpo, e, sessao.terreno, caixas, dt);
+    const { bloqueado } = passo(this.corpo, e, sessao.terreno, caixas, dt);
+    if (this.rota.length > 0 && bloqueado) {
+      if (++this.bloqueadoCont > 20) {
+        this.rota = [];
+        this.alvoUsar = null;
+        this.bloqueadoCont = 0;
+        this.recolherBandeira();
+      }
+    } else {
+      this.bloqueadoCont = 0;
+    }
     if (antesNoChao && !this.corpo.noChao && this.corpo.vz > 0 && !sessao.pulou) {
       sessao.pulou = true;
       const lua = pulo(G_LUA), terra = pulo(G_TERRA);

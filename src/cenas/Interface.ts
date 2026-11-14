@@ -8,6 +8,7 @@ import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, type Estad
 import { TIPOS } from '../engine/construcao';
 import { suprimentoDoDia } from '../engine/suprimentos';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, dadosTerreno, type Fase } from './sessao';
+import { alternarMudo, estaMudo } from '../audio';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 const NIVEIS = ['CALM', 'RISING', 'HIGH', 'EXTREME'];
@@ -26,6 +27,7 @@ export class Interface extends Phaser.Scene {
   private acaoPrincipal?: () => void;
   private aviso?: Phaser.GameObjects.Text;
   private btFim!: Phaser.GameObjects.Text;
+  private btSom!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: 'Interface' });   // started by Carregar
@@ -77,6 +79,7 @@ export class Interface extends Phaser.Scene {
     // ----- main button (bottom right) -----
     const yb = H - 16 * u;
     this.btFim = this.botao(W - 16 * u, yb, 'End day  ▶', () => this.terminarDia(), COR.azul, 16).setOrigin(1, 1);
+    this.btSom = this.botao(W - 16 * u, 62 * u, estaMudo() ? 'Music off' : 'Music on', () => this.atualizarSom(alternarMudo()), '#334155', 12).setOrigin(1, 0).setDepth(10);
 
     // ----- zoom (right side) -----
     const zx = W - 16 * u, zy = H * 0.42;
@@ -112,6 +115,7 @@ export class Interface extends Phaser.Scene {
     kb.on('keydown-MINUS', () => sessao.zoom(0.4));
     kb.on('keydown-NUMPAD_SUBTRACT', () => sessao.zoom(0.4));
     kb.on('keydown-H', () => sessao.irPara(U_INICIAL));
+    kb.on('keydown-M', () => this.atualizarSom(alternarMudo()));
     kb.on('keydown-ENTER', () => this.acaoPrincipal?.());
 
     sessao.ouvir(this, 'mensagem', (s, cor) => this.mensagem(s, cor));
@@ -120,6 +124,10 @@ export class Interface extends Phaser.Scene {
 
     this.atualizar();
     this.mostrarFase();
+  }
+
+  private atualizarSom(mudo: boolean) {
+    this.btSom.setText(mudo ? 'Music off' : 'Music on');
   }
 
   update() {
@@ -293,5 +301,6 @@ export class Interface extends Phaser.Scene {
     const escala = Math.min(1, (H - 24) / altura);
     const c = this.add.container((W - largura * escala) / 2, (H - altura * escala) / 2, itens).setScale(escala);
     this.painel = [fundo, c];
+    this.children.bringToTop(this.btSom);
   }
 }

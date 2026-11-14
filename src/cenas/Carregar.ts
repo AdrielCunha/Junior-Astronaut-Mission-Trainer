@@ -9,6 +9,7 @@ import { LEVE } from './qualidade';
 import { carregarLua, criarLua, LADO } from './luaShader';
 import { giroEm } from './globo';
 import modelos from '../dados/modulos.json';
+import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 import constelacoes from '../dados/constelacoes.json';
 
@@ -118,6 +119,7 @@ export class Carregar extends Phaser.Scene {
     carregarLua(this);
     this.load.image('terreno', dadosTerreno.imagem.arquivo);
     for (const [id, m] of Object.entries(modelos)) this.load.image(`mod_${id}`, m.arquivo);
+    for (const [id, b] of Object.entries(bandeiras)) this.load.image(`bandeira_${id}`, b.arquivo);
     this.load.spritesheet('astronauta', 'lua/astronaut.png', { frameWidth: sprite.frame, frameHeight: sprite.frame });
     this.load.image('ceu', 'lua/sky.jpg');
     if (!LEVE) constelacoes.forEach((c, k) => this.load.image(`const${k}`, c.arquivo));

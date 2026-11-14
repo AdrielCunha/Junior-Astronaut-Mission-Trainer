@@ -1,0 +1,32 @@
+{
+  "lua": {
+    "arquivo": "lua/bandeiras/lua.png",
+    "w": 63,
+    "h": 106,
+    "escala": 0.5,
+    "ancora": [
+      20.54,
+      88.85
+    ]
+  },
+  "marte": {
+    "arquivo": "lua/bandeiras/marte.png",
+    "w": 63,
+    "h": 106,
+    "escala": 0.5,
+    "ancora": [
+      20.54,
+      88.85
+    ]
+  },
+  "terra": {
+    "arquivo": "lua/bandeiras/terra.png",
+    "w": 63,
+    "h": 106,
+    "escala": 0.5,
+    "ancora": [
+      20.54,
+      88.85
+    ]
+  }
+}
