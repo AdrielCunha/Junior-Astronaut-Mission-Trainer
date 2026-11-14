@@ -2,7 +2,7 @@
 
 A browser game for kids ages 7 to 12, built for the NASA Space Apps Challenge 2026, challenge "Build a Junior Astronaut Mission Trainer".
 
-**Status:** in development (hackathon weekend, November 14-15, 2026). Chapter 1 (the Moon base) is playable from start to end. Chapters 2 and 3 are not built yet.
+**Status:** in development (hackathon weekend, November 14-15, 2026). All three chapters are playable from start to end.
 
 ## The idea
 
@@ -12,13 +12,13 @@ The solar storms in the game are storms that really happened. Their dates and st
 
 ## Three chapters
 
-| Chapter | Place | Goal |
-|---|---|---|
-| 1 | Moon base | Build the rocket |
-| 2 | Spacecraft | Reach Mars |
-| 3 | Mars base | Build the base and survive |
+| Chapter | Place | Goal | Real days used |
+|---|---|---|---|
+| 1 | Moon base | Build the rocket | May 5-12, 2024 |
+| 2 | Spacecraft | Reach Mars | May 13-17, 2024 |
+| 3 | Mars base | Build the base and survive the cold nights | May 18-25, 2024 |
 
-Each chapter is a series of days. Each day: read the morning report, send batteries to the rooms, see what happened overnight.
+Each chapter is a series of days. Each day: read the morning report, send batteries to the rooms, see what happened overnight. The crew's radiation dose carries from one chapter to the next. The real trip to Mars takes about 7 months; the game shortens it to 5 days.
 
 ## NASA data
 
@@ -26,10 +26,11 @@ The data is downloaded once and stored in the game as archived data. The game do
 
 | Source | Used for |
 |---|---|
-| [DONKI](https://ccmc.gsfc.nasa.gov/tools/DONKI/) space weather database | Solar flares and coronal mass ejections that become the storm warnings |
-| [RadLab](https://visualization.osdr.nasa.gov/radlab/gui/data-api/) radiation dosimetry database | Measured radiation dose: LRO/CRaTER in lunar orbit, Curiosity/MSL-RAD on the surface of Mars |
-| [Curiosity REMS weather](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json) | Real temperatures on Mars for the cold nights |
-| [OSDR](https://osdr.nasa.gov/bio/repo/) Open Science Data Repository | Short science facts about health and plants in space |
+| [DONKI](https://ccmc.gsfc.nasa.gov/tools/DONKI/) space weather database | Solar flares, coronal mass ejections, particle events and ENLIL model runs that become the morning warnings |
+| [OSDR RadLab](https://visualization.osdr.nasa.gov/radlab/gui/data-api/) radiation dosimetry database | Measured radiation dose that sets each day's storm level: LRO/CRaTER in lunar orbit, BioSentinel in deep space, Curiosity/MSL-RAD on the surface of Mars |
+| [Curiosity REMS weather](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json) | Real night temperatures on Mars, which set how much heating each night needs |
+
+Each day's storm level is the day's mean dose divided by a calm day for the same instrument: below 1.6 is calm, below 10 medium, below 100 high, otherwise extreme. The files in `src/dados/` list every source link; the game shows them on its "Real NASA data" screen.
 
 Oxygen, batteries and mission progress are simplified models made for teaching. They are not measurements.
 
@@ -42,7 +43,7 @@ To run it locally (Node 24; the tests run TypeScript directly in Node):
 ```bash
 npm install
 npm run dev     # play at http://localhost:5173
-npm test        # game rules, checked against the real May 2024 storm
+npm test        # game balance, checked against the real May 2024 storm in all three chapters
 ```
 
 ## Use of AI tools

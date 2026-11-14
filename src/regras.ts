@@ -1,58 +1,72 @@
 // Generated with AI assistance (Claude). See README, "Use of AI tools".
-// Game rules for one chapter. Pure functions, no Phaser: easy to test and to tune.
-// The numbers are starting values (GDD section 5), tuned by the test, not by play.
+// Game rules. Pure functions, no Phaser: easy to test and to tune.
+// The numbers are tuned by regras.test.ts against the real NASA data, not by play.
+
+export type Efeito = 'oxigenio' | 'blindagem' | 'meta' | 'aquecimento';
+export type Alocacao = Record<Efeito, number>; // batteries delivered to each kind of room today
 
 export type Estado = {
   dia: number; // 1-based
   oxigenio: number; // 0-100
-  dose: number; // accumulated radiation, 0-100
-  meta: number; // rocket progress, 0-100
+  dose: number; // accumulated radiation, 0-100; carries over between chapters
+  meta: number; // chapter goal progress, 0-100
 };
 
-export type Alocacao = { suporte: number; blindagem: number; oficina: number };
-export type DadosDoDia = { nivel: number }; // radiation level 0-3 from real measured dose
+// Per-chapter numbers.
+export type Config = {
+  dias: number;
+  bateriasPorDia: number;
+  oxigenioInicial: number;
+  oxigenioPorBateria: number;
+  oxigenioPorNoite: number; // the crew breathes this much every night
+  metaPorBateria: number;
+};
 
-export type Resultado = 'vitoria' | 'sem-oxigenio' | 'radiacao' | 'foguete-incompleto' | null;
+// nivel: radiation level 0-3 from the real measured dose.
+// frio: heating batteries the night needs, from real Mars temperatures (0 outside Mars).
+export type DadosDoDia = { nivel: number; frio?: number };
 
-export const REGRAS = {
-  dias: 8,
-  bateriasPorDia: 5,
-  oxigenioInicial: 60,
-  oxigenioPorBateria: 10,
-  oxigenioPorNoite: 10, // the crew breathes this much every night
+export type Resultado = 'vitoria' | 'sem-oxigenio' | 'radiacao' | 'meta-incompleta' | null;
+
+export const COMUM = {
   dosePorNoite: 1, // background radiation, always there
   dosePorNivelSemBlindagem: 15,
-  metaPorBateria: 4,
+  oxigenioPorFrioSemAquecimento: 10, // machines freeze and make less air
   dosePorAstronautaNaEnfermaria: 25,
   tripulacao: 4,
 };
 
 const limitar = (v: number) => Math.max(0, Math.min(100, v));
 
-export const estadoInicial = (): Estado => ({ dia: 1, oxigenio: REGRAS.oxigenioInicial, dose: 0, meta: 0 });
+export const nenhuma = (): Alocacao => ({ oxigenio: 0, blindagem: 0, meta: 0, aquecimento: 0 });
+
+export const inicioDoCapitulo = (c: Config, dose = 0): Estado => ({ dia: 1, oxigenio: c.oxigenioInicial, dose, meta: 0 });
 
 export const naEnfermaria = (e: Estado) =>
-  Math.min(REGRAS.tripulacao - 1, Math.floor(e.dose / REGRAS.dosePorAstronautaNaEnfermaria));
+  Math.min(COMUM.tripulacao - 1, Math.floor(e.dose / COMUM.dosePorAstronautaNaEnfermaria));
 
 // Each astronaut in the infirmary is one less pair of hands: one less battery per day.
-export const bateriasDoDia = (e: Estado) => REGRAS.bateriasPorDia - naEnfermaria(e);
+export const bateriasDoDia = (e: Estado, c: Config) => c.bateriasPorDia - naEnfermaria(e);
 
-export function fimDoDia(e: Estado, a: Alocacao, d: DadosDoDia): Estado {
-  const desprotegido = Math.max(0, d.nivel - a.blindagem);
+export function fimDoDia(e: Estado, a: Alocacao, d: DadosDoDia, c: Config): Estado {
+  const semBlindagem = Math.max(0, d.nivel - a.blindagem);
+  const semAquecimento = Math.max(0, (d.frio ?? 0) - a.aquecimento);
   return {
     dia: e.dia + 1,
-    oxigenio: limitar(e.oxigenio + REGRAS.oxigenioPorBateria * a.suporte - REGRAS.oxigenioPorNoite),
-    dose: limitar(e.dose + REGRAS.dosePorNoite + REGRAS.dosePorNivelSemBlindagem * desprotegido),
-    meta: limitar(e.meta + REGRAS.metaPorBateria * a.oficina),
+    oxigenio: limitar(
+      e.oxigenio + c.oxigenioPorBateria * a.oxigenio - c.oxigenioPorNoite - COMUM.oxigenioPorFrioSemAquecimento * semAquecimento,
+    ),
+    dose: limitar(e.dose + COMUM.dosePorNoite + COMUM.dosePorNivelSemBlindagem * semBlindagem),
+    meta: limitar(e.meta + c.metaPorBateria * a.meta),
   };
 }
 
-// Called after fimDoDia. The launch window is the last day: finishing the rocket
-// early does not end the chapter, the crew still has to get through the storm.
-export function resultado(e: Estado): Resultado {
+// Called after fimDoDia. The goal is checked only on the last night (launch window,
+// arrival at Mars, base deadline): finishing early does not skip the storm.
+export function resultado(e: Estado, c: Config): Resultado {
   if (e.oxigenio <= 0) return 'sem-oxigenio';
   if (e.dose >= 100) return 'radiacao';
-  if (e.dia > REGRAS.dias) return e.meta >= 100 ? 'vitoria' : 'foguete-incompleto';
+  if (e.dia > c.dias) return e.meta >= 100 ? 'vitoria' : 'meta-incompleta';
   return null;
 }
 

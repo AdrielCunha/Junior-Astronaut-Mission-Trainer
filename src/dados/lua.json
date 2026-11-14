@@ -1,12 +1,29 @@
 {
   "capitulo": "Moon base",
-  "nota": "Archived NASA data, downloaded on 2026-11-14. Daily dose = mean of hourly absorbed_dose_rate from LRO/CRaTER-D1D2 (lunar orbit). Level: below 8 = 0, 8-50 = 1, 50-500 = 2, above 500 = 3.",
+  "nota": "Archived NASA data, downloaded on 2026-11-14. Daily dose = mean of hourly absorbed_dose_rate from LRO/CRaTER-D1D2 (lunar orbit). Calm reference: 5.0 µGy/h (May 5, 2024). Level = day mean / calm: below 1.6 = 0, below 10 = 1, below 100 = 2, otherwise 3.",
+  "doseCalma": 5.0,
+  "instrumento": "the CRaTER instrument on NASA's Lunar Reconnaissance Orbiter (LRO), in orbit around the Moon",
   "fontes": [
-    { "nome": "LRO / CRaTER radiation dose, via NASA OSDR RadLab", "url": "https://visualization.osdr.nasa.gov/radlab/api/?instrument_id=CRaTER-D1D2&timestamp%3E=2024-05-05&timestamp%3C2024-05-13&timestamp&absorbed_dose_rate&format=csv" },
-    { "nome": "Solar flares, NASA DONKI", "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/FLR?startDate=2024-05-04&endDate=2024-05-12" },
-    { "nome": "Coronal mass ejections, NASA DONKI", "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/CME?startDate=2024-05-04&endDate=2024-05-12" },
-    { "nome": "Solar energetic particles, NASA DONKI", "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/SEP?startDate=2024-05-04&endDate=2024-05-12" },
-    { "nome": "Geomagnetic storms, NASA DONKI", "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/GST?startDate=2024-05-04&endDate=2024-05-12" }
+    {
+      "nome": "LRO / CRaTER radiation dose, via NASA OSDR RadLab",
+      "url": "https://visualization.osdr.nasa.gov/radlab/api/?instrument_id=CRaTER-D1D2&timestamp%3E=2024-05-05&timestamp%3C2024-05-13&timestamp&absorbed_dose_rate&format=csv"
+    },
+    {
+      "nome": "Solar flares, NASA DONKI",
+      "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/FLR?startDate=2024-05-04&endDate=2024-05-12"
+    },
+    {
+      "nome": "Coronal mass ejections, NASA DONKI",
+      "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/CME?startDate=2024-05-04&endDate=2024-05-12"
+    },
+    {
+      "nome": "Solar energetic particles, NASA DONKI",
+      "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/SEP?startDate=2024-05-04&endDate=2024-05-12"
+    },
+    {
+      "nome": "Geomagnetic storms, NASA DONKI",
+      "url": "https://ccmc.gsfc.nasa.gov/DONKI/WS/get/GST?startDate=2024-05-04&endDate=2024-05-12"
+    }
   ],
   "dias": [
     {
@@ -46,7 +63,7 @@
       "nivel": 1,
       "doseMedia": 11.2,
       "dosePico": 21.8,
-      "aviso": "Storm alert! An X2.2 flare at 09:13 UTC. At 13:59 UTC NASA detected fast particles from the Sun. Radiation is RISING.",
+      "aviso": "Storm alert! An X2.2 flare at 09:13 UTC. At 13:59 UTC NASA detected fast particles from the Sun. Radiation is MEDIUM.",
       "fato": "Solar energetic particles are very fast protons. Thin walls do not stop them, so a base needs radiation shielding."
     },
     {
