@@ -7,6 +7,8 @@ import { Espaco } from './cenas/Espaco';
 import { Superficie } from './cenas/Superficie';
 import { Interface } from './cenas/Interface';
 import { Base } from './cenas/Base';
+import { CenaTarefa } from './cenas/Tarefa';
+import { Radar } from './cenas/Radar';
 import { Carregar } from './cenas/Carregar';
 import { iniciarAudio } from './audio';
 import { NaveTarefa } from './cenas/NaveTarefa';
@@ -443,12 +445,14 @@ const jogo = new Phaser.Game({
   // The music is played by audio.ts with a plain HTMLAudioElement, so Phaser's audio system
   // stays off. It would also warn when started before a tap.
   audio: { noAudio: true },
-  // Loading scene stays active first, then the world scenes and task scenes start when ready.
+  // Load scenes first, then the world and overlays. The task scenes are registered so they can be
+  // launched individually while the player is exploring the base. Radar is also kept available for the
+  // title screen flow added on main.
   scene: classico
     ? [Carregar, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, CenaTarefa]
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, CenaTarefa, Radar]
     : [Carregar, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, CenaTarefa],
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, CenaTarefa, Radar],
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;

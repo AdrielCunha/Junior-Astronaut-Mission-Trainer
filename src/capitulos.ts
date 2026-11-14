@@ -3,6 +3,7 @@
 import lua from './dados/lua.json';
 import nave from './dados/nave.json';
 import marte from './dados/marte.json';
+import { LUA, NAVE, MARTE } from './configs';
 import type { Config, Efeito } from './regras';
 
 export type Dia = {
@@ -50,14 +51,6 @@ const blindagem = (nome: string): Sala => ({
   papel: 'Protects the crew from solar storms. It needs as many batteries as the storm level.',
 });
 
-const LUA: Config = { dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 5 };
-const NAVE: Config = { dias: 5, bateriasPorDia: 4, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 15, metaPorBateria: 12 };
-// Mars starts empty: every module is built first (cost in batteries), then powered.
-// The goal is the share of the base that is built; the dome is the crew's new home.
-const MARTE: Config = {
-  dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 0,
-  obras: { aquecimento: 2, blindagem: 3, oxigenio: 3, meta: 12 },
-};
 const OBRAS = MARTE.obras!;
 
 export const CAPITULOS: Capitulo[] = [

@@ -128,6 +128,26 @@ export class Base extends Phaser.Scene {
     super('Base');
   }
 
+  // Chapters 2 and 3 are reached from the 3D scenes (see Interface.iniciarPrototipo): the crew
+  // arrives here with its radiation dose and the chapter 1 score. Apply that once; clear the data
+  // so a resize (which restarts the scene) does not reset the chapter.
+  init(data?: { capitulo?: number; dose?: number; pontos?: number[] }) {
+    if (!data || data.capitulo === undefined) return;
+    this.sys.settings.data = {};
+    const idx = Phaser.Math.Clamp(Math.floor(data.capitulo), 0, CAPITULOS.length - 1);
+    this.capIdx = idx;
+    this.pontos = data.pontos ? [...data.pontos] : [];
+    this.doseNoInicio = data.dose ?? 0;
+    this.estado = inicioDoCapitulo(CAPITULOS[idx].config, this.doseNoInicio);
+    this.inicioDoDia = this.estado;
+    this.entregas = nenhuma();
+    this.salaAtual = null;
+    this.noite = null;
+    this.res = null;
+    this.animouFim = false;
+    this.fase = 'inicio';
+  }
+
   private get cap() {
     return CAPITULOS[this.capIdx];
   }

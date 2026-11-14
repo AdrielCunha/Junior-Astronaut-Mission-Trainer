@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import lua from '../dados/lua.json';
 import { CAPITULOS } from '../capitulos';
+import type { DadosRadar } from './Radar';
 import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, type Estado } from '../regras';
 import { TIPOS } from '../engine/construcao';
 import { suprimentoDoDia } from '../engine/suprimentos';
@@ -147,15 +148,16 @@ export class Interface extends Phaser.Scene {
     g.fillStyle(0x020617, 0.72).fillRect(0, 0, W, 54 * u);
 
     this.textos.dia.setText(sessao.fase === 'inicio'
-      ? `Chapter 1 · ${dadosTerreno.centro.lat.toFixed(2)}°, ${dadosTerreno.centro.lon.toFixed(1)}° · Shackleton rim`
+      ? `Exploring · ${dadosTerreno.centro.lat.toFixed(2)}°, ${dadosTerreno.centro.lon.toFixed(1)}° · Shackleton rim`
       : `Day ${Math.min(e.dia, C.dias)} of ${C.dias} · ${dataBonita(sessao.data)}`);
 
-    // Bars: oxygen, radiation dose (lower is better), rocket.
-    const barras: [string, number, number][] = [
+    // Bars: oxygen, radiation dose (lower is better), rocket. None while just exploring the base.
+    const barras: [string, number, number][] = sessao.fase === 'inicio' ? [] : [
       ['Oxygen', e.oxigenio, corDaBarra(e.oxigenio)],
       ['Radiation', e.dose, corDaBarra(e.dose, true)],
       ['Rocket', e.meta, 0x60a5fa],
     ];
+    for (let i = 0; i < 3; i++) this.textos[`b${i}`]?.setText('');
     const bw = 130 * u, x0 = W / 2 - (barras.length * (bw + 24 * u)) / 2;
     for (const [i, [nome, v, cor]] of barras.entries()) {
       const x = x0 + i * (bw + 24 * u), y = 26 * u;
@@ -175,7 +177,7 @@ export class Interface extends Phaser.Scene {
       ? (sessao.noHabitat ? 'Walk to the Habitat to pick up today\'s batteries.' : sessao.carregando ? 'Click a room (or press E next to it) to give it a battery.' : 'All batteries used. Press "End day".')
       : '');
 
-    this.btFim.setText(sessao.fase === 'inicio' ? 'Start mission  ▶' : 'End day  ▶');
+    this.btFim.setText(sessao.fase === 'inicio' ? '◀  Menu' : 'End day  ▶');
     this.btFim.setVisible(sessao.fase === 'dia' || sessao.fase === 'inicio');
   }
 
@@ -200,7 +202,8 @@ export class Interface extends Phaser.Scene {
   }
 
   private terminarDia() {
-    if (sessao.fase === 'inicio') { this.irPara('manha'); return; }
+    // While exploring, this button goes back to the title screen.
+    if (sessao.fase === 'inicio') { this.mostrarFase(); return; }
     if (sessao.fase !== 'dia') return;
     const antes = sessao.estado;
     sessao.estado = fimDoDia(antes, sessao.entregas, { nivel: sessao.dia.nivel }, C);
@@ -217,13 +220,13 @@ export class Interface extends Phaser.Scene {
     this.fecharPainel();
     const f = sessao.fase;
     if (f === 'inicio') {
-      this.abrirPainel('LUNAR ODYSSEY', [
-        { texto: 'Chapter 1: the Moon base', cor: '#93c5fd', negrito: true },
-        'Your crew lives on the rim of Shackleton crater, at the Moon\'s south pole. The ground you see is real: NASA\'s LRO spacecraft measured every hill with a laser.',
-        `Every morning the solar panels charge the batteries at the Habitat. Walk there, pick them up, then click a room to give it a battery: Life Support makes oxygen, the Radiation Shield protects the crew, the Rocket Workshop builds the rocket to Mars. Launch is in ${C.dias} days.`,
-        { texto: 'There are never enough batteries for everything. Choose well!', cor: '#fde68a', negrito: true },
-        'New equipment arrives by cargo lander on some days. Scroll out (or pinch) to fly from the ground to the whole Moon, and on to Mars.',
-      ], [{ texto: 'Explore the base', acao: () => this.fecharPainel() }, { texto: 'Start mission', acao: () => this.irPara('manha'), principal: true }]);
+      // Title screen (Radar.ts): LAUNCH starts the first morning; "Explore" leaves the base open.
+      // The title screen has its own music switch: refresh ours when it closes.
+      const dados: DadosRadar = {
+        aoComecar: () => { this.atualizarSom(estaMudo()); this.irPara('manha'); },
+        aoExplorar: () => this.atualizarSom(estaMudo()),
+      };
+      this.scene.launch('Radar', dados);
     } else if (f === 'manha') {
       const d = sessao.dia;
       const n = bateriasDoDia(sessao.estado, C);
@@ -255,12 +258,25 @@ export class Interface extends Phaser.Scene {
       const e = sessao.estado;
       const r = resultado(e, C);
       const titulo = r === 'vitoria' ? 'Launch! To Mars!' : r === 'sem-oxigenio' ? 'Out of oxygen' : r === 'radiacao' ? 'Too much radiation' : 'The rocket was not ready';
+      const jogarDeNovo = { texto: r === 'vitoria' ? 'Play chapter 1 again' : 'Play again', acao: () => { sessao.reiniciar(); this.scene.get('Superficie').scene.restart(); this.irPara('inicio'); } };
       this.abrirPainel(titulo, [
         `Score: ${pontuacao(e)}  (oxygen ${Math.round(e.oxigenio)} + health ${Math.round(100 - e.dose)} + rocket ${Math.round(e.meta)})`,
         'Every battery was a choice. On a real mission, power for one system is power taken from another.',
         { texto: `Real data: ${lua.nota}`, cor: '#94a3b8', tamanho: 12 },
-      ], [{ texto: 'Play again', acao: () => { sessao.reiniciar(); this.scene.get('Superficie').scene.restart(); this.irPara('inicio'); }, principal: true }]);
+      ], r === 'vitoria'
+        ? [jogarDeNovo, { texto: 'Board the ship  ▶', acao: () => this.iniciarPrototipo(e), principal: true }]
+        : [{ ...jogarDeNovo, principal: true }]);
     }
+  }
+
+  // Chapters 2 and 3 live in the Base prototype, which has its own art (spacecraft, Mars) and
+  // mechanics (heating, dome). Hand the crew over keeping its radiation dose and the score so far.
+  private iniciarPrototipo(e: Estado) {
+    this.scene.stop('Espaco');
+    this.scene.stop('Superficie');
+    this.scene.stop('Tarefa');
+    this.scene.start('Base', { capitulo: 1, dose: e.dose, pontos: [pontuacao(e)] });
+    this.scene.stop();
   }
 
   private fecharPainel() {
