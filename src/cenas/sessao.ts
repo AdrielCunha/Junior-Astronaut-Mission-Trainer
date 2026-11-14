@@ -87,8 +87,10 @@ class Sessao {
   //   'prep' glides the ground camera to the frame-0 framing, 'filme' plays the frames.
   voo: { tipo: 'zoom' | 'filme'; fase: 'prep' | 'filme'; de: number; para: number; t: number; dur: number; destino: Vista; sentido: 1 | -1 } | null = null;
   filmePronto = false;      // Espaco sets it when every frame is loaded
+  filmeFalhou = false;      // a frame failed after every retry: hold the last good one
   tela = { w: 1280, h: 720 };
   private empurrao = 0;     // wheel / pinch pushing past the edge of a view
+  private pendente: Vista | null = null;   // next flight once the current one lands
   pulou = false;
 
   reiniciar() {
@@ -106,6 +108,7 @@ class Sessao {
     this.ancora = null;
     this.voo = null;
     this.transicao = null;
+    this.pendente = null;
     this.pulou = false;
   }
 
@@ -148,7 +151,7 @@ class Sessao {
       return;
     }
     this.empurrao += d;
-    if (this.empurrao > 0.3) this.voar(this.vista === 'lua' ? 'sistema' : 'sistema');
+    if (this.empurrao > 0.3) this.voar('sistema');
     else if (this.empurrao < -0.3) this.voar(this.vista === 'sistema' ? 'lua' : 'chao');
   }
 
@@ -163,6 +166,9 @@ class Sessao {
       this.transicao = { t: 0, destino, mudou: false };
       return;
     }
+    // From the solar system straight back to the ground, stop at the Moon first: the ground
+    // and the Moon are joined by the rendered film, the solar system is not.
+    if (destino === 'chao' && this.vista === 'sistema') { this.pendente = 'chao'; destino = 'lua'; }
     const filme = (this.vista === 'chao' && destino === 'lua') || (this.vista === 'lua' && destino === 'chao');
     if (filme) {
       // Both ways start with a short 'prep': going out, the ground camera glides to the first
@@ -214,6 +220,9 @@ class Sessao {
       this.vista = v.destino;
       this.u = this.alvo = v.tipo === 'zoom' ? v.para : v.destino === 'lua' ? this.uGlobo : this.uFilme;
       this.voo = null;
+      const proximo = this.pendente;
+      this.pendente = null;
+      if (proximo) this.voar(proximo);   // the Moon halfway: continue to the ground
       return;
     }
     if (this.vista === 'chao') {

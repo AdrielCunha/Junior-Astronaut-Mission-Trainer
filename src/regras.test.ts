@@ -10,14 +10,7 @@ import {
   inicioDoCapitulo, fimDoDia, resultado, bateriasDoDia, nenhuma, entregar, pronto, custo, DESCANSO,
   type Config, type Efeito, type Estado,
 } from './regras.ts';
-
-// Same numbers as capitulos.ts (that file imports JSON without attributes, which Node needs).
-const LUA: Config = { dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 5 };
-const NAVE: Config = { dias: 5, bateriasPorDia: 4, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 15, metaPorBateria: 12 };
-const MARTE: Config = {
-  dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 0,
-  obras: { aquecimento: 2, blindagem: 3, oxigenio: 3, meta: 12 },
-};
+import { LUA, NAVE, MARTE } from './configs.ts';
 
 type Dias = { nivel: number; previsao: number[]; frio?: number }[];
 type Escudo = (previsao: number[]) => number;

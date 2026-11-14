@@ -57,6 +57,7 @@ export class Superficie extends Phaser.Scene {
   private sobre: Construcao | null = null;              // module under the cursor
   private seguir = true;             // camera follows the commander until the player pans
   private arrastando = false;
+  private apertouNoMapa = false;
   private mapa!: Phaser.GameObjects.Layer;          // terrain + everything on it
   private terreno!: Phaser.GameObjects.Image;
   private inicioVoo: { x: number; y: number } | null = null;
@@ -117,10 +118,11 @@ export class Superficie extends Phaser.Scene {
     this.teclas = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,E') as Record<string, Phaser.Input.Keyboard.Key>;
     kb.on('keydown-E', () => this.usarPerto());
     this.arrastando = false;
+    this.apertouNoMapa = false;
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
       const q = paraChao(P, sessao.terreno, ptr.worldX, ptr.worldY);
       this.destacar(q ? sessao.grade.em(q.gx, q.gy) ?? null : null);
-      if (!ptr.isDown || this.input.pointer2.isDown) return;
+      if (!ptr.isDown || !this.apertouNoMapa || this.input.pointer2.isDown) return;
       if (!this.arrastando && Phaser.Math.Distance.Between(ptr.downX, ptr.downY, ptr.x, ptr.y) < 8) return;
       this.arrastando = true;
       this.seguir = false;
@@ -128,10 +130,13 @@ export class Superficie extends Phaser.Scene {
       cam.scrollX -= (ptr.x - ptr.prevPosition.x) / cam.zoom;
       cam.scrollY -= (ptr.y - ptr.prevPosition.y) / cam.zoom;
     });
-    this.input.on('pointerdown', () => { this.arrastando = false; });
+    // A press on a panel button (Interface, Tarefa) never reaches this scene, but the panel closes on
+    // that press, so the release does. Only a release whose press was on the map is a click.
+    this.input.on('pointerdown', () => { this.arrastando = false; this.apertouNoMapa = true; });
     this.input.on('pointerup', (ptr: Phaser.Input.Pointer) => {
-      if (!this.arrastando && !this.input.pointer2.isDown && ptr.button === 0) this.clicar(ptr);
+      if (this.apertouNoMapa && !this.arrastando && !this.input.pointer2.isDown && ptr.button === 0) this.clicar(ptr);
       this.arrastando = false;
+      this.apertouNoMapa = false;
     });
     this.input.mouse?.disableContextMenu();
 
@@ -588,7 +593,10 @@ export class Superficie extends Phaser.Scene {
     d.g.clear();
     fundacao(d.g, P, c, (x, y) => sessao.terreno.altura(x, y));
     this.posicionar(d.img, c, this.modelo(c));
-    const prof = profundidade(c.gx + c.tipo.w, c.gy + c.tipo.h);
+    // Sort by the module's back corner (where its picture is anchored), not its front corner:
+    // using the front corner pushed every module in front of the commander, so the astronaut
+    // disappeared under it whenever walking next to a wall.
+    const prof = profundidade(c.gx, c.gy);
     d.g.setDepth(prof - 1); d.img.setDepth(prof);
     if (d.rotulo) {
       const topo = paraTela(P, c.gx + c.tipo.w / 2, c.gy + c.tipo.h / 2, c.z + c.tipo.altura + 0.6);

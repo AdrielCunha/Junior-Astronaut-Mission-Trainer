@@ -152,9 +152,14 @@ export class Espaco extends Phaser.Scene {
     if (q !== null) {
       let i = 0;
       while (i < voo.p.length - 1 && voo.p[i + 1] <= q) i++;
+      // If this frame never downloaded, keep showing the last one that did.
+      while (i > 0 && !this.textures.exists(`voo${i}`)) i--;
+      const temQuadro = this.textures.exists(`voo${i}`);
       const fim = 1 - suave(0.975, 1, q);
-      this.quadro.setTexture(`voo${i}`).setScale(sessao.escalaFilme * Math.pow(voo.razao, -(q - voo.p[i])))
-        .setPosition(W / 2, H / 2).setAlpha(fim).setVisible(fim > 0);
+      if (temQuadro) {
+        this.quadro.setTexture(`voo${i}`).setScale(sessao.escalaFilme * Math.pow(voo.razao, -(q - voo.p[i])))
+          .setPosition(W / 2, H / 2).setAlpha(fim).setVisible(fim > 0);
+      }
       // The colony on the moving planet: the base's pixel in this frame and the next (from
       // Blender), each at the scale it has now, blended by how far we are between them.
       const j = Math.min(voo.p.length - 1, i + 1);
@@ -166,7 +171,7 @@ export class Espaco extends Phaser.Scene {
       const a = em(i), b = em(j);
       const f = j > i ? Phaser.Math.Clamp((q - voo.p[i]) / (voo.p[j] - voo.p[i]), 0, 1) : 0;
       const bx = Phaser.Math.Linear(a.x, b.x, f), by = Phaser.Math.Linear(a.y, b.y, f);
-      const ap = suave(0.2, 0.3, q) * (1 - suave(0.975, 1, q));
+      const ap = temQuadro ? suave(0.2, 0.3, q) * (1 - suave(0.975, 1, q)) : 0;
       this.pinoVoo = ap > 0 ? { x: bx, y: by, a: ap } : null;
     } else {
       this.pinoVoo = null;
