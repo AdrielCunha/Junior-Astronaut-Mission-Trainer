@@ -19,8 +19,8 @@ export type Dia = {
 export type Dados = { nota: string; doseCalma: number; instrumento: string; fontes: { nome: string; url: string }[]; dias: Dia[] };
 
 // Fixed places on the map; the scene knows their geometry.
-export type Lugar = 'esquerda' | 'direita' | 'baixo' | 'cima';
-export type Equipamento = 'tanques' | 'escudo' | 'oficina' | 'motor' | 'construcao' | 'aquecedor';
+export type Lugar = 'esquerda' | 'direita' | 'baixo' | 'cima' | 'plataforma';
+export type Equipamento = 'tanques' | 'escudo' | 'oficina' | 'motor' | 'aquecedor' | 'cupula';
 export type Sala = { efeito: Efeito; nome: string; cor: number; papel: string; lugar: Lugar; equipamento: Equipamento };
 
 export type Capitulo = {
@@ -50,7 +50,13 @@ const blindagem = (nome: string): Sala => ({
 
 const LUA: Config = { dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 4 };
 const NAVE: Config = { dias: 5, bateriasPorDia: 4, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 15, metaPorBateria: 15 };
-const MARTE: Config = { dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 6 };
+// Mars starts empty: every module is built first (cost in batteries), then powered.
+// The goal is the share of the base that is built; the dome is the crew's new home.
+const MARTE: Config = {
+  dias: 8, bateriasPorDia: 5, oxigenioInicial: 60, oxigenioPorBateria: 10, oxigenioPorNoite: 10, metaPorBateria: 0,
+  obras: { aquecimento: 2, blindagem: 3, oxigenio: 3, meta: 12 },
+};
+const OBRAS = MARTE.obras!;
 
 export const CAPITULOS: Capitulo[] = [
   {
@@ -116,24 +122,26 @@ export const CAPITULOS: Capitulo[] = [
     tema: 'marte',
     nomeMeta: 'Base',
     salas: [
-      oxigenio('Life Support', MARTE.oxigenioPorBateria, MARTE.oxigenioPorNoite),
-      blindagem('Radiation Shield'),
-      { efeito: 'meta', nome: 'Base Builder', cor: 0xf97316, lugar: 'baixo', equipamento: 'construcao',
-        papel: `Builds the new Mars base. Each battery adds ${MARTE.metaPorBateria}%. It must be ready on day ${MARTE.dias}.` },
+      { ...oxigenio('Life Support', MARTE.oxigenioPorBateria, MARTE.oxigenioPorNoite),
+        papel: `Build it first (${OBRAS.oxigenio} batteries). Then it makes oxygen: +${MARTE.oxigenioPorBateria} per battery. The crew breathes ${MARTE.oxigenioPorNoite} every night.` },
+      { ...blindagem('Radiation Shield'),
+        papel: `Build it first (${OBRAS.blindagem} batteries). Then it protects the crew: it needs as many batteries as the storm level.` },
       { efeito: 'aquecimento', nome: 'Heating', cor: 0xef4444, lugar: 'cima', equipamento: 'aquecedor',
-        papel: `Keeps the machines warm at night. Without enough heat, oxygen drops 10 more per missing battery.` },
+        papel: `Build it first (${OBRAS.aquecimento} batteries). Then it keeps the machines warm at night. Each missing battery of heat costs 10 oxygen.` },
+      { efeito: 'meta', nome: 'Habitat Dome', cor: 0xf97316, lugar: 'plataforma', equipamento: 'cupula',
+        papel: `The crew's new home. It takes ${OBRAS.meta} batteries to build. The whole base must be built by day ${MARTE.dias}.` },
     ],
     introducao: [
-      `The crew landed on Mars. In ${MARTE.dias} days they must build a base to live in.`,
-      `Mars nights are very cold. The night temperatures come from NASA's Curiosity rover. Heating needs batteries every night.`,
-      'The thin Martian air blocks a little radiation, but not all of it.',
+      `The crew landed on Mars with only their lander and solar panels. In ${MARTE.dias} days they must build a whole base.`,
+      'Click a construction site to build a module. A finished module works like a room: send it batteries to power it.',
+      "What do you build first? Mars nights are very cold (real temperatures from NASA's Curiosity rover), and a solar storm is on its way.",
     ],
     vitoria: ['Welcome home! The Mars base is ready.', 'Your crew survived the Moon, deep space and Mars.'],
     metaIncompleta: 'The base was not finished in time. Mission Control called the crew back.',
     licoes: [
       'Mars has a thin atmosphere: it protects a little from radiation but cannot keep the heat in.',
       'NASA models like ENLIL predict when solar storms reach other planets.',
-      'Living on Mars means balancing air, heat, protection and building.',
+      'On a new planet, the weather and the Sun decide what you must build first.',
     ],
     creditos: 'Data: NASA DONKI + Curiosity RAD via OSDR RadLab + Curiosity REMS. Archived, May 2024.',
     notaDados: 'Curiosity measures on the surface of Mars, in Gale Crater. Oxygen, batteries, heating and the base are simple models for learning, not measurements.',

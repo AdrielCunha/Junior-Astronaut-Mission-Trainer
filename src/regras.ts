@@ -10,6 +10,7 @@ export type Estado = {
   oxigenio: number; // 0-100
   dose: number; // accumulated radiation, 0-100; carries over between chapters
   meta: number; // chapter goal progress, 0-100
+  obras: Partial<Record<Efeito, number>>; // batteries already put into building each module
 };
 
 // Per-chapter numbers.
@@ -20,6 +21,9 @@ export type Config = {
   oxigenioPorBateria: number;
   oxigenioPorNoite: number; // the crew breathes this much every night
   metaPorBateria: number;
+  // Modules the crew must build first (Mars). Cost in batteries. While a module is unfinished,
+  // batteries sent to it go into building it; the goal is then the share of the base that is built.
+  obras?: Partial<Record<Efeito, number>>;
 };
 
 // nivel: radiation level 0-3 from the real measured dose.
@@ -36,11 +40,32 @@ export const COMUM = {
   tripulacao: 4,
 };
 
+// Trying a lost chapter again: the crew rests first, so its dose is at most this.
+// Without it, a crew that arrives at Mars too sick could be stuck in a chapter it cannot win.
+export const DESCANSO = 20;
+
 const limitar = (v: number) => Math.max(0, Math.min(100, v));
 
 export const nenhuma = (): Alocacao => ({ oxigenio: 0, blindagem: 0, meta: 0, aquecimento: 0 });
 
-export const inicioDoCapitulo = (c: Config, dose = 0): Estado => ({ dia: 1, oxigenio: c.oxigenioInicial, dose, meta: 0 });
+export const inicioDoCapitulo = (c: Config, dose = 0): Estado => ({ dia: 1, oxigenio: c.oxigenioInicial, dose, meta: 0, obras: {} });
+
+export const custo = (ef: Efeito, c: Config) => c.obras?.[ef] ?? 0;
+export const pronto = (e: Estado, ef: Efeito, c: Config) => (e.obras[ef] ?? 0) >= custo(ef, c);
+
+function construido(obras: Estado['obras'], c: Config) {
+  const lista = Object.entries(c.obras ?? {}) as [Efeito, number][];
+  const total = lista.reduce((s, [, n]) => s + n, 0);
+  const feito = lista.reduce((s, [ef, n]) => s + Math.min(n, obras[ef] ?? 0), 0);
+  return total ? Math.round((100 * feito) / total) : 0;
+}
+
+// One battery delivered to a room: it builds the module if unfinished, otherwise it powers it.
+export function entregar(e: Estado, a: Alocacao, ef: Efeito, c: Config): [Estado, Alocacao] {
+  if (pronto(e, ef, c)) return [e, { ...a, [ef]: a[ef] + 1 }];
+  const obras = { ...e.obras, [ef]: (e.obras[ef] ?? 0) + 1 };
+  return [{ ...e, obras, meta: construido(obras, c) }, a];
+}
 
 export const naEnfermaria = (e: Estado) =>
   Math.min(COMUM.tripulacao - 1, Math.floor(e.dose / COMUM.dosePorAstronautaNaEnfermaria));
@@ -58,6 +83,7 @@ export function fimDoDia(e: Estado, a: Alocacao, d: DadosDoDia, c: Config): Esta
     ),
     dose: limitar(e.dose + COMUM.dosePorNoite + COMUM.dosePorNivelSemBlindagem * semBlindagem),
     meta: limitar(e.meta + c.metaPorBateria * a.meta),
+    obras: e.obras,
   };
 }
 

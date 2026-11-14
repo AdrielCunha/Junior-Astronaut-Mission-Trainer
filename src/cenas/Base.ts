@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import { CAPITULOS, type Equipamento, type Lugar } from '../capitulos';
 import {
-  COMUM, inicioDoCapitulo, fimDoDia, resultado, bateriasDoDia, naEnfermaria, pontuacao, nenhuma,
+  COMUM, DESCANSO, inicioDoCapitulo, fimDoDia, resultado, bateriasDoDia, naEnfermaria, pontuacao, nenhuma, entregar, pronto, custo,
   type Alocacao, type Estado, type Resultado,
 } from '../regras';
 
@@ -31,6 +31,8 @@ const LUGARES: Record<Lugar, Modulo & { rota: Ponto[]; posto: Ponto }> = {
   direita: { gx: 14, gy: 3, paredeEsquerda: false, rota: [[13.5, 13], [13.5, 4.6], [16.3, 4.6]], posto: [18.3, 4.3] },
   baixo: { gx: 12, gy: 16, paredeEsquerda: false, rota: [[10, 17.6], [14.3, 17.6]], posto: [16.3, 17.3] },
   cima: { gx: 1, gy: 7, paredeEsquerda: true, rota: [[10, 11.2], [3.5, 11.2], [3.5, 8.6]], posto: [1.9, 8.3] },
+  // The launch pad / dome site. Not a module: the commander stands next to it.
+  plataforma: { gx: 16.2, gy: 9.6, paredeEsquerda: false, rota: [[15, 13], [15, 11.6]], posto: [15, 11.6] },
 };
 const HABITAT: Modulo = { gx: 7, gy: 7, paredeEsquerda: true };
 const PLATAFORMA = { gx: 18, gy: 11 };
@@ -70,6 +72,9 @@ export class Base extends Phaser.Scene {
   private res: Resultado = null;
   private pontos: number[] = []; // score of each finished chapter
   private animouFim = false;
+  private inicioDoDia: Estado = this.estado; // state when the day started, for the night summary
+  private anuncio: string | null = null; // shown once after the scene redraws, e.g. "Heating is built!"
+
 
   // Rebuilt by every create().
   private T = 20;
@@ -110,8 +115,10 @@ export class Base extends Phaser.Scene {
     return this.cap.dados.dias[Math.min(this.estado.dia, this.cap.config.dias) - 1];
   }
 
+  // Batteries left today: those that powered rooms plus those that went into construction.
   private get baterias() {
-    const usadas = this.entregas.oxigenio + this.entregas.blindagem + this.entregas.meta + this.entregas.aquecimento;
+    const soma = (o: Partial<Alocacao>) => Object.values(o).reduce((s, n) => s + (n ?? 0), 0);
+    const usadas = soma(this.entregas) + soma(this.estado.obras) - soma(this.inicioDoDia.obras);
     return bateriasDoDia(this.estado, this.cap.config) - usadas;
   }
 
@@ -194,6 +201,7 @@ export class Base extends Phaser.Scene {
     this.input.keyboard?.on('keydown-SPACE', () => this.acaoPrincipal?.());
 
     this.mostrarFase();
+    this.mostrarAnuncio();
   }
 
   // ---------- Drawing the world ----------
@@ -383,25 +391,93 @@ export class Base extends Phaser.Scene {
     return { g, piso };
   }
 
-  private desenharBase() {
-    // Habitat: where the crew sleeps. Not a battery room.
-    const hab = this.desenharModulo(HABITAT, 0x94a3b8).g;
-    for (const k of [0, 1]) {
-      this.caixa(hab, HABITAT.gx + 0.5 + k * 1.6, HABITAT.gy + 0.4, 1.2, 0.9, 0.35, 0xe2e8f0);
-      this.caixa(hab, HABITAT.gx + 0.5 + k * 1.6, HABITAT.gy + 0.4, 1.2, 0.6, 0.12, 0x6366f1, 0.35);
+  // Mars: the crew arrives in a lander, not a habitat.
+  private desenharModuloDePouso() {
+    const g = this.add.graphics().setDepth(this.p(HABITAT.gx, HABITAT.gy).y);
+    const c = this.p(HABITAT.gx + 2.5, HABITAT.gy + 1.5);
+    for (const [dx, dy] of [[-1.6, 0], [1.6, 0], [0, -1.2], [0, 1.2]]) {
+      const pe = this.p(HABITAT.gx + 2.5 + dx, HABITAT.gy + 1.5 + dy);
+      g.lineStyle(this.T * 0.1, 0x94a3b8).lineBetween(pe.x, pe.y, c.x + (pe.x - c.x) * 0.4, c.y - this.T * 0.9);
+      g.fillStyle(0x64748b).fillEllipse(pe.x, pe.y, this.T * 0.5, this.T * 0.25);
     }
-    this.cilindro(hab, HABITAT.gx + 4.0, HABITAT.gy + 1.0, 0.45, 0.4, 0xa8a29e);
-    const th = this.p(HABITAT.gx + SALA_L / 2, HABITAT.gy, PAREDE + 0.2);
-    this.texto(th.x, th.y, 'Habitat', 12, '#cbd5e1', { backgroundColor: '#0f172acc', padding: { x: 6, y: 3 } }).setOrigin(0.5, 1).setDepth(5e4);
+    this.cilindro(g, HABITAT.gx + 2.5, HABITAT.gy + 1.5, 1.3, 1.4, 0xe2e8f0, 0.6);
+    const topo = this.p(HABITAT.gx + 2.5, HABITAT.gy + 1.5, 2.0);
+    g.fillStyle(0xcbd5e1).fillTriangle(topo.x - this.T * 1.3, topo.y, topo.x + this.T * 1.3, topo.y, topo.x, topo.y - this.T * 1.3);
+    g.fillStyle(0x38bdf8).fillEllipse(topo.x, topo.y + this.T * 0.5, this.T * 0.7, this.T * 0.4);
+    g.fillStyle(0xef4444).fillRect(topo.x - this.T * 1.3, topo.y + this.T * 0.95, this.T * 2.6, this.T * 0.14);
+    const r = this.p(HABITAT.gx + 2.5, HABITAT.gy + 1.5, 3.6);
+    this.texto(r.x, r.y, 'Lander', 12, '#cbd5e1', { backgroundColor: '#0f172acc', padding: { x: 6, y: 3 } }).setOrigin(0.5, 1).setDepth(5e4);
+  }
+
+  // A module not built yet: a marked plot with scaffolding and crates.
+  private desenharObra(m: Modulo, cor: number) {
+    const g = this.add.graphics().setDepth(this.p(m.gx, m.gy).y);
+    const { gx, gy } = m;
+    const piso = this.retangulo(gx, gy, gx + SALA_L, gy + SALA_A);
+    g.fillStyle(cor, 0.15).fillPoints(piso, true);
+    g.lineStyle(2, 0xfacc15, 0.9);
+    for (let k = 0; k < 4; k++) {
+      const a = piso[k];
+      const b = piso[(k + 1) % 4];
+      for (let t = 0; t < 1; t += 0.1) {
+        g.lineBetween(Phaser.Math.Linear(a.x, b.x, t), Phaser.Math.Linear(a.y, b.y, t), Phaser.Math.Linear(a.x, b.x, t + 0.05), Phaser.Math.Linear(a.y, b.y, t + 0.05));
+      }
+    }
+    const postes: Ponto[] = [[gx, gy], [gx + SALA_L, gy], [gx, gy + SALA_A]];
+    g.lineStyle(Math.max(1.5, this.T * 0.07), 0x9ca3af);
+    for (const [x, y] of postes) {
+      const a = this.p(x, y);
+      const b = this.p(x, y, 1.2);
+      g.lineBetween(a.x, a.y, b.x, b.y);
+    }
+    const t0 = this.p(gx, gy + SALA_A, 1.2);
+    const t1 = this.p(gx, gy, 1.2);
+    const t2 = this.p(gx + SALA_L, gy, 1.2);
+    g.lineBetween(t0.x, t0.y, t1.x, t1.y).lineBetween(t1.x, t1.y, t2.x, t2.y);
+    this.caixa(g, gx + 1.0, gy + 0.8, 0.7, 0.7, 0.45, 0xa16207);
+    this.caixa(g, gx + 1.9, gy + 0.9, 0.6, 0.6, 0.35, 0x854d0e);
+    this.caixa(g, gx + 3.2, gy + 0.7, 1.0, 0.5, 0.2, 0x78716c);
+    return { g, piso };
+  }
+
+  private desenharBase() {
+    if (this.cap.tema === 'marte') {
+      this.desenharModuloDePouso();
+    } else {
+      // Habitat: where the crew sleeps. Not a battery room.
+      const hab = this.desenharModulo(HABITAT, 0x94a3b8).g;
+      for (const k of [0, 1]) {
+        this.caixa(hab, HABITAT.gx + 0.5 + k * 1.6, HABITAT.gy + 0.4, 1.2, 0.9, 0.35, 0xe2e8f0);
+        this.caixa(hab, HABITAT.gx + 0.5 + k * 1.6, HABITAT.gy + 0.4, 1.2, 0.6, 0.12, 0x6366f1, 0.35);
+      }
+      this.cilindro(hab, HABITAT.gx + 4.0, HABITAT.gy + 1.0, 0.45, 0.4, 0xa8a29e);
+      const th = this.p(HABITAT.gx + SALA_L / 2, HABITAT.gy, PAREDE + 0.2);
+      this.texto(th.x, th.y, 'Habitat', 12, '#cbd5e1', { backgroundColor: '#0f172acc', padding: { x: 6, y: 3 } }).setOrigin(0.5, 1).setDepth(5e4);
+    }
 
     this.cap.salas.forEach((sala, i) => {
       const { gx, gy } = LUGARES[sala.lugar];
-      const { g, piso } = this.desenharModulo(LUGARES[sala.lugar], sala.cor);
-      this.desenharEquipamento(g, sala.equipamento, gx, gy);
+      let g: Phaser.GameObjects.Graphics;
+      let piso: V[];
+      let area: V[];
+      let topo: V;
+      if (sala.lugar === 'plataforma') {
+        // The dome site: click the pad. The dome itself is drawn by desenharMeta.
+        const { gx: px, gy: py } = PLATAFORMA;
+        g = this.add.graphics().setDepth(this.p(px - 1.8, py - 1.4).y);
+        piso = this.retangulo(px - 1.8, py - 1.4, px + 1.8, py + 1.4);
+        area = [this.p(px - 1.8, py + 1.4), this.p(px - 1.8, py - 1.4, 2.8), this.p(px + 1.8, py - 1.4, 2.8), this.p(px + 1.8, py - 1.4), this.p(px + 1.8, py + 1.4)];
+        topo = this.p(px, py, ALTURA_CUPULA + 0.6);
+      } else {
+        const feito = pronto(this.estado, sala.efeito, this.cap.config);
+        ({ g, piso } = feito ? this.desenharModulo(LUGARES[sala.lugar], sala.cor) : this.desenharObra(LUGARES[sala.lugar], sala.cor));
+        if (feito) this.desenharEquipamento(g, sala.equipamento, gx, gy);
+        area = [this.p(gx, gy + SALA_A), this.p(gx, gy, PAREDE), this.p(gx + SALA_L, gy, PAREDE), this.p(gx + SALA_L, gy), this.p(gx + SALA_L, gy + SALA_A)];
+        topo = this.p(gx + SALA_L / 2, gy, PAREDE + 0.2);
+      }
 
       // Click target: floor plus back wall.
       const alvo = this.add.graphics().setDepth(g.depth + 0.5);
-      const area = [this.p(gx, gy + SALA_A), this.p(gx, gy, PAREDE), this.p(gx + SALA_L, gy, PAREDE), this.p(gx + SALA_L, gy), this.p(gx + SALA_L, gy + SALA_A)];
       // Phaser skips input on an empty Graphics, so it always holds an almost invisible fill.
       const invisivel = () => alvo.clear().fillStyle(0xffffff, 0.001).fillPoints(area, true);
       invisivel();
@@ -417,7 +493,6 @@ export class Base extends Phaser.Scene {
         })
         .on('pointerdown', () => this.clicarSala(i));
 
-      const topo = this.p(gx + SALA_L / 2, gy, PAREDE + 0.2);
       this.rotulos.push(
         this.texto(topo.x, topo.y, '', 13, '#f8fafc', { align: 'center', backgroundColor: '#0f172add', padding: { x: 7, y: 4 } })
           .setOrigin(0.5, 1).setDepth(5e4),
@@ -464,15 +539,7 @@ export class Base extends Phaser.Scene {
       this.caixa(g, gx + 3.5, gy + 0.6, 1.0, 1.0, 0.6, 0x334155);
       const tela = this.p(gx + 4.0, gy + 1.1, 0.6);
       g.fillStyle(0x22d3ee).fillEllipse(tela.x, tela.y, this.T * 0.6, this.T * 0.3);
-    } else if (tipo === 'construcao') {
-      // Stacked building blocks and a 3D printer.
-      this.caixa(g, gx + 0.5, gy + 0.5, 0.8, 0.8, 0.4, 0xd6d3d1);
-      this.caixa(g, gx + 1.4, gy + 0.5, 0.8, 0.8, 0.4, 0xd6d3d1);
-      this.caixa(g, gx + 0.9, gy + 0.6, 0.8, 0.8, 0.4, 0xe7e5e4, 0.4);
-      this.caixa(g, gx + 2.6, gy + 0.4, 1.3, 1.1, 1.0, 0x57534e);
-      this.caixa(g, gx + 2.8, gy + 0.6, 0.9, 0.7, 0.05, 0xf97316, 1.0);
-      this.bracoRobo(g, gx + 0.4, gy);
-    } else {
+    } else if (tipo === 'aquecedor') {
       // Heater: a box with glowing coils; the glow shows how warm the base is tonight.
       this.caixa(g, gx + 1.5, gy + 0.5, 2.0, 1.0, 0.9, 0x44403c);
       for (let k = 0; k < 4; k++) {
@@ -564,7 +631,9 @@ export class Base extends Phaser.Scene {
   }
 
   private mostrarProgresso(meta: number) {
-    const fracao = meta / 100;
+    const c = this.cap.config;
+    // On Mars the dome shows its own construction; elsewhere the chapter goal.
+    const fracao = c.obras ? Math.min(1, (this.estado.obras.meta ?? 0) / custo('meta', c)) : meta / 100;
     if (this.estrutura) {
       const h = this.alturaEstrutura();
       const { x, y } = this.estrutura;
@@ -678,8 +747,7 @@ export class Base extends Phaser.Scene {
 
   private mostrarDica(i: number) {
     const sala = this.cap.salas[i];
-    const { gx, gy } = this.lugar(i);
-    const topo = this.p(gx + SALA_L / 2, gy + SALA_A, 0);
+    const topo = sala.lugar === 'plataforma' ? this.p(PLATAFORMA.gx + 1.8, PLATAFORMA.gy + 1.4) : this.p(this.lugar(i).gx + SALA_L / 2, this.lugar(i).gy + SALA_A);
     this.dica.setText(`${sala.nome}\n${sala.papel}`).setOrigin(0.5, 0).setPosition(topo.x, topo.y + 10 * this.u).setVisible(true);
     this.dica.x = Phaser.Math.Clamp(this.dica.x, this.dica.width / 2 + 8, this.scale.width - this.dica.width / 2 - 8);
   }
@@ -733,6 +801,14 @@ export class Base extends Phaser.Scene {
 
     this.cap.salas.forEach((sala, i) => {
       const n = this.entregas[sala.efeito];
+      if (!pronto(e, sala.efeito, c)) {
+        this.rotulos[i].setText(`${sala.nome}  ·  to build\nConstruction: ${e.obras[sala.efeito] ?? 0} of ${custo(sala.efeito, c)} batteries`).setColor('#fde68a');
+        return;
+      }
+      if (sala.efeito === 'meta' && c.obras) {
+        this.rotulos[i].setText(`${sala.nome}\nBuilt!`).setColor('#86efac');
+        return;
+      }
       let efeito = '';
       let curto = false;
       if (sala.efeito === 'oxigenio') efeito = `+${n * c.oxigenioPorBateria} oxygen tonight`;
@@ -800,16 +876,29 @@ export class Base extends Phaser.Scene {
       this.tweens.add({ targets: this.botaoFim, scale: 1.12, duration: 120, yoyo: true, repeat: 1 });
       return;
     }
-    const entregar = () => {
-      this.entregas[this.cap.salas[i].efeito]++;
+    const sala = this.cap.salas[i];
+    const c = this.cap.config;
+    if (sala.efeito === 'meta' && c.obras && pronto(this.estado, 'meta', c)) {
+      this.efeitoEntrega(i, 'Already built', '#fde68a');
+      return;
+    }
+    const aoChegar = () => {
+      const obra = !pronto(this.estado, sala.efeito, c);
+      [this.estado, this.entregas] = entregar(this.estado, this.entregas, sala.efeito, c);
       this.salaAtual = i;
       this.andando = false;
       (this.comandante.list[1] as Phaser.GameObjects.Graphics).setVisible(false);
-      this.efeitoEntrega(i);
+      if (obra && pronto(this.estado, sala.efeito, c)) {
+        this.anuncio = `${sala.nome} is built!`;
+        // Redraw so the finished module replaces the construction site.
+        if (sala.lugar !== 'plataforma') return this.scene.restart();
+      }
+      this.efeitoEntrega(i, obra ? '+1 construction' : '+1 battery');
       this.atualizar();
+      this.mostrarAnuncio();
     };
     (this.comandante.list[1] as Phaser.GameObjects.Graphics).setVisible(true);
-    if (this.salaAtual === i) return entregar();
+    if (this.salaAtual === i) return aoChegar();
 
     // Back along the current room's path to the plaza, then out along the new room's path.
     const volta = this.salaAtual === null ? [] : [...this.lugar(this.salaAtual).rota].reverse().slice(1);
@@ -821,15 +910,24 @@ export class Base extends Phaser.Scene {
       return { x: ate.x, y: ate.y, duration, onUpdate: () => this.comandante.setDepth(this.comandante.y) };
     });
     this.andando = true;
-    this.tweens.chain({ targets: this.comandante, tweens: passos, onComplete: entregar });
+    this.tweens.chain({ targets: this.comandante, tweens: passos, onComplete: aoChegar });
   }
 
-  private efeitoEntrega(i: number) {
-    const { gx, gy } = this.lugar(i);
+  private efeitoEntrega(i: number, texto: string, cor = '#4ade80') {
+    const { gx, gy } = this.cap.salas[i].lugar === 'plataforma' ? { gx: PLATAFORMA.gx - SALA_L / 2, gy: PLATAFORMA.gy - 1.5 } : this.lugar(i);
     const de = this.p(gx + SALA_L / 2, gy + 1.5, 1);
-    const t = this.texto(de.x, de.y, '+1 battery', 15, '#4ade80', { fontStyle: 'bold', stroke: '#052e16', strokeThickness: 4 })
+    const t = this.texto(de.x, de.y, texto, 15, cor, { fontStyle: 'bold', stroke: '#052e16', strokeThickness: 4 })
       .setOrigin(0.5).setDepth(7e4);
     this.tweens.add({ targets: t, y: de.y - this.T * 1.5, alpha: 0, duration: 900, onComplete: () => t.destroy() });
+  }
+
+  private mostrarAnuncio() {
+    if (!this.anuncio) return;
+    const t = this.texto(this.scale.width / 2, this.layout.topo + 40 * this.u, this.anuncio, 26, '#86efac', {
+      fontStyle: 'bold', stroke: '#052e16', strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(2.5e5);
+    this.anuncio = null;
+    this.tweens.add({ targets: t, alpha: 0, delay: 1400, duration: 600, onComplete: () => t.destroy() });
   }
 
   private terminarDia() {
@@ -858,6 +956,7 @@ export class Base extends Phaser.Scene {
     this.pontos = this.pontos.slice(0, idx);
     this.doseNoInicio = dose;
     this.estado = inicioDoCapitulo(this.cap.config, dose);
+    this.inicioDoDia = this.estado;
     this.entregas = nenhuma();
     this.salaAtual = null;
     this.noite = null;
@@ -865,6 +964,12 @@ export class Base extends Phaser.Scene {
     this.animouFim = false;
     this.fase = 'inicio';
     this.scene.restart();
+  }
+
+  private tentarDeNovo() {
+    const descansou = this.doseNoInicio > DESCANSO;
+    this.comecarCapitulo(this.capIdx, Math.min(this.doseNoInicio, DESCANSO));
+    if (descansou) this.anuncio = 'The crew rested before trying again';
   }
 
   private abrirDados() {
@@ -974,11 +1079,19 @@ export class Base extends Phaser.Scene {
     if (d.frio) {
       partes.push({ texto: `Tonight's low: ${d.minima} °C (measured by Curiosity on sol ${d.sol}). Heating needs ${baterias(d.frio)}.`, cor: '#fdba74', negrito: true });
     }
+    if (c.obras) {
+      const falta = this.cap.salas.filter((s) => !pronto(this.estado, s.efeito, c));
+      if (falta.length) {
+        partes.push({ texto: `Still to build: ${falta.map((s) => `${s.nome} (${custo(s.efeito, c) - (this.estado.obras[s.efeito] ?? 0)} more)`).join(', ')}.`, cor: '#fde68a' });
+      }
+      if (d.frio && !pronto(this.estado, 'aquecimento', c)) partes.push({ texto: 'Heating is not built yet: build it today, or the cold will cost oxygen tonight.', cor: '#fca5a5' });
+      if (d.nivel && !pronto(this.estado, 'blindagem', c)) partes.push({ texto: 'The shield is not built yet: build it today to protect the crew.', cor: '#fca5a5' });
+    }
     partes.push({ texto: `Batteries today: ${bateriasDoDia(this.estado, c)}`, cor: '#86efac', negrito: true });
     if (doentes) partes.push({ texto: `${doentes} astronaut${doentes > 1 ? 's are' : ' is'} in the infirmary, so you have ${baterias(doentes)} less.`, cor: '#fca5a5' });
     if (this.estado.dia === c.dias) partes.push({ texto: `Last day: ${this.cap.nomeMeta} must reach 100% tonight!`, cor: '#fde68a', negrito: true });
     this.abrirPainel(`Day ${this.estado.dia} of ${c.dias} · ${dataBonita(d.data)}`, partes, [
-      { texto: 'Start the day', acao: () => { this.fase = 'dia'; this.fecharPainel(); this.atualizar(); }, principal: true },
+      { texto: 'Start the day', acao: () => { this.inicioDoDia = this.estado; this.fase = 'dia'; this.fecharPainel(); this.atualizar(); }, principal: true },
     ]);
   }
 
@@ -1005,7 +1118,10 @@ export class Base extends Phaser.Scene {
         ? { texto: `Heating was ${baterias(faltouCalor)} short in the ${d.minima} °C night. Frozen machines made less air.`, cor: '#fdba74' }
         : `Heating kept the base warm in the ${d.minima} °C night.`);
     }
-    partes.push(`${this.cap.nomeMeta}: ${antes.meta}% → ${e.meta}%`);
+    const manha = this.inicioDoDia;
+    const novos = this.cap.salas.filter((s) => c.obras && pronto(e, s.efeito, c) && !pronto(manha, s.efeito, c)).map((s) => s.nome);
+    if (novos.length) partes.push({ texto: `Built today: ${novos.join(', ')}.`, cor: '#86efac', negrito: true });
+    partes.push(`${this.cap.nomeMeta}: ${manha.meta}% → ${e.meta}%`);
     if (naEnfermaria(e) > naEnfermaria(antes)) {
       partes.push({ texto: 'An astronaut got too much radiation and went to the infirmary. Tomorrow you have one battery less.', cor: '#fca5a5', negrito: true });
     }
@@ -1053,7 +1169,7 @@ export class Base extends Phaser.Scene {
       mostrar = () => this.abrirPainel(titulo, [texto, placar, ...licoes(cap.licoes)], [
         dados,
         { texto: 'Start over', acao: () => this.comecarCapitulo(0, 0) },
-        { texto: 'Try this chapter again', acao: () => this.comecarCapitulo(this.capIdx, this.doseNoInicio), principal: true },
+        { texto: 'Try this chapter again', acao: () => this.tentarDeNovo(), principal: true },
       ], '#fca5a5');
     }
 

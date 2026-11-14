@@ -16,7 +16,7 @@ The solar storms in the game are storms that really happened. Their dates and st
 |---|---|---|---|
 | 1 | Moon base | Build the rocket | May 5-12, 2024 |
 | 2 | Spacecraft | Reach Mars | May 13-17, 2024 |
-| 3 | Mars base | Build the base and survive the cold nights | May 18-25, 2024 |
+| 3 | Mars | Build a base from nothing and survive the cold nights | May 18-25, 2024 |
 
 Each chapter is a series of days. Each day: read the morning report, send batteries to the rooms, see what happened overnight. The crew's radiation dose carries from one chapter to the next. The real trip to Mars takes about 7 months; the game shortens it to 5 days.
 
