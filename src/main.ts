@@ -25,7 +25,9 @@ new Phaser.Game({
   // stays off. It would also warn when started before a tap.
   audio: { noAudio: true },
   // CenaTarefa only runs while a task is open, above the game; Carregar covers everything while loading.
-  scene: classico ? [Base] : [Espaco, Superficie, Interface, CenaTarefa, Carregar],
+  // Base is registered but not started here: the end of chapter 1 hands the crew over to it, where
+  // chapters 2 and 3 are implemented. ?classic still opens Base directly (all three chapters).
+  scene: classico ? [Base] : [Espaco, Superficie, Interface, CenaTarefa, Carregar, Base],
 });
 
 // The classic prototype has no music control, so it stays silent.

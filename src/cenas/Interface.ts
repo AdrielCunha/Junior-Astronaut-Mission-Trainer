@@ -255,12 +255,25 @@ export class Interface extends Phaser.Scene {
       const e = sessao.estado;
       const r = resultado(e, C);
       const titulo = r === 'vitoria' ? 'Launch! To Mars!' : r === 'sem-oxigenio' ? 'Out of oxygen' : r === 'radiacao' ? 'Too much radiation' : 'The rocket was not ready';
+      const jogarDeNovo = { texto: r === 'vitoria' ? 'Play chapter 1 again' : 'Play again', acao: () => { sessao.reiniciar(); this.scene.get('Superficie').scene.restart(); this.irPara('inicio'); } };
       this.abrirPainel(titulo, [
         `Score: ${pontuacao(e)}  (oxygen ${Math.round(e.oxigenio)} + health ${Math.round(100 - e.dose)} + rocket ${Math.round(e.meta)})`,
         'Every battery was a choice. On a real mission, power for one system is power taken from another.',
         { texto: `Real data: ${lua.nota}`, cor: '#94a3b8', tamanho: 12 },
-      ], [{ texto: 'Play again', acao: () => { sessao.reiniciar(); this.scene.get('Superficie').scene.restart(); this.irPara('inicio'); }, principal: true }]);
+      ], r === 'vitoria'
+        ? [jogarDeNovo, { texto: 'Board the ship  ▶', acao: () => this.iniciarPrototipo(e), principal: true }]
+        : [{ ...jogarDeNovo, principal: true }]);
     }
+  }
+
+  // Chapters 2 and 3 live in the Base prototype, which has its own art (spacecraft, Mars) and
+  // mechanics (heating, dome). Hand the crew over keeping its radiation dose and the score so far.
+  private iniciarPrototipo(e: Estado) {
+    this.scene.stop('Espaco');
+    this.scene.stop('Superficie');
+    this.scene.stop('Tarefa');
+    this.scene.start('Base', { capitulo: 1, dose: e.dose, pontos: [pontuacao(e)] });
+    this.scene.stop();
   }
 
   private fecharPainel() {

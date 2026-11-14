@@ -526,7 +526,10 @@ export class Superficie extends Phaser.Scene {
     d.g.clear();
     fundacao(d.g, P, c, baseDe(c, (x, y) => sessao.terreno.altura(x, y)));
     this.posicionar(d.img, c, this.modelo(c));
-    const prof = profundidade(c.gx + c.tipo.w, c.gy + c.tipo.h);
+    // Sort by the module's back corner (where its picture is anchored), not its front corner:
+    // using the front corner pushed every module in front of the commander, so the astronaut
+    // disappeared under it whenever walking next to a wall.
+    const prof = profundidade(c.gx, c.gy);
     d.g.setDepth(prof - 1); d.img.setDepth(prof);
     if (d.rotulo) {
       const topo = paraTela(P, c.gx + c.tipo.w / 2, c.gy + c.tipo.h / 2, c.z + c.tipo.altura + 0.6);
