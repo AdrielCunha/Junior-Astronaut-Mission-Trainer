@@ -1,0 +1,17 @@
+# Secrets: the NASA API key lives here and must never be committed
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+dist/
+
+# Team working documents in Portuguese. Space Apps requires English for linked materials.
+GDD.md
+guia-dados-nasa.pdf
+
+# Tool and OS leftovers
+.playwright-mcp/
+.DS_Store
+Thumbs.db
