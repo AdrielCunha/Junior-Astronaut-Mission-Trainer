@@ -9,6 +9,7 @@ import { VOO as voo, quadroVoo } from './qualidade';
 import { sessao } from './sessao';
 
 const POR_VEZ = 2;
+const TENTATIVAS = 3;
 let comecou = false;
 
 export function carregarFilme(texturas: Phaser.Textures.TextureManager) {
@@ -19,6 +20,7 @@ export function carregarFilme(texturas: Phaser.Textures.TextureManager) {
   if (!faltam.length) { sessao.filmePronto = true; return; }
 
   let proximo = 0, ativos = 0;
+  const tentativas = new Map<number, number>();
   const terminar = () => { if (proximo >= faltam.length && ativos === 0) sessao.filmePronto = true; };
 
   const puxar = () => {
@@ -43,8 +45,15 @@ export function carregarFilme(texturas: Phaser.Textures.TextureManager) {
       img.onerror = () => {
         if (feito) return;
         feito = true;
-        console.error(`Falha ao baixar o quadro ${i} do voo: ${quadroVoo(i)}`);
         ativos--;
+        const n = (tentativas.get(i) ?? 0) + 1;
+        tentativas.set(i, n);
+        if (n < TENTATIVAS) {
+          faltam.push(i);          // try this frame again after the others
+        } else {
+          sessao.filmeFalhou = true;
+          console.error(`Falha ao baixar o quadro ${i} do voo após ${n} tentativas: ${quadroVoo(i)}`);
+        }
         terminar();
         puxar();
       };
