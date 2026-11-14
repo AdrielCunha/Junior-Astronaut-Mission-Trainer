@@ -1,0 +1,65 @@
+[
+ {
+  "arquivo": "lua/constelacoes/c0.png",
+  "x": 1474,
+  "y": 0,
+  "w": 574,
+  "h": 175
+ },
+ {
+  "arquivo": "lua/constelacoes/c1.png",
+  "x": 703,
+  "y": 2,
+  "w": 625,
+  "h": 566
+ },
+ {
+  "arquivo": "lua/constelacoes/c2.png",
+  "x": 213,
+  "y": 161,
+  "w": 330,
+  "h": 560
+ },
+ {
+  "arquivo": "lua/constelacoes/c3.png",
+  "x": 1499,
+  "y": 250,
+  "w": 549,
+  "h": 23
+ },
+ {
+  "arquivo": "lua/constelacoes/c4.png",
+  "x": 1309,
+  "y": 306,
+  "w": 659,
+  "h": 824
+ },
+ {
+  "arquivo": "lua/constelacoes/c5.png",
+  "x": 606,
+  "y": 627,
+  "w": 790,
+  "h": 525
+ },
+ {
+  "arquivo": "lua/constelacoes/c6.png",
+  "x": 790,
+  "y": 705,
+  "w": 82,
+  "h": 98
+ },
+ {
+  "arquivo": "lua/constelacoes/c7.png",
+  "x": 0,
+  "y": 802,
+  "w": 395,
+  "h": 208
+ },
+ {
+  "arquivo": "lua/constelacoes/c8.png",
+  "x": 1892,
+  "y": 887,
+  "w": 156,
+  "h": 80
+ }
+]

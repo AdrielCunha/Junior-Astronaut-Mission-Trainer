@@ -15,3 +15,8 @@ guia-dados-nasa.pdf
 .playwright-mcp/
 .DS_Store
 Thumbs.db
+
+# Big NASA source files: make_moon.py downloads them when missing
+tools/lua3d/nasa/*.exr
+tools/lua3d/.cache/
+__pycache__/
