@@ -1,0 +1,172 @@
+{
+ "habitat": {
+  "arquivo": "lua/modulos/habitat.png",
+  "w": 372,
+  "h": 288,
+  "escala": 0.5,
+  "ancora": [
+   186.0,
+   96.5
+  ]
+ },
+ "suporte": {
+  "arquivo": "lua/modulos/suporte.png",
+  "w": 312,
+  "h": 230,
+  "escala": 0.5,
+  "ancora": [
+   126.0,
+   68.72
+  ]
+ },
+ "blindagem": {
+  "arquivo": "lua/modulos/blindagem.png",
+  "w": 267,
+  "h": 218,
+  "escala": 0.5,
+  "ancora": [
+   133.5,
+   85.01
+  ]
+ },
+ "oficina": {
+  "arquivo": "lua/modulos/oficina.png",
+  "w": 372,
+  "h": 342,
+  "escala": 0.5,
+  "ancora": [
+   186.0,
+   150.5
+  ]
+ },
+ "painel": {
+  "arquivo": "lua/modulos/painel.png",
+  "w": 165,
+  "h": 189,
+  "escala": 0.5,
+  "ancora": [
+   52.5,
+   118.86
+  ]
+ },
+ "plataforma": {
+  "arquivo": "lua/modulos/plataforma.png",
+  "w": 367,
+  "h": 388,
+  "escala": 0.5,
+  "ancora": [
+   183.5,
+   198.03
+  ]
+ },
+ "antena": {
+  "arquivo": "lua/modulos/antena.png",
+  "w": 199,
+  "h": 213,
+  "escala": 0.5,
+  "ancora": [
+   99.5,
+   95.1
+  ]
+ },
+ "estufa": {
+  "arquivo": "lua/modulos/estufa.png",
+  "w": 312,
+  "h": 250,
+  "escala": 0.5,
+  "ancora": [
+   126.0,
+   88.56
+  ]
+ },
+ "perfuratriz": {
+  "arquivo": "lua/modulos/perfuratriz.png",
+  "w": 247,
+  "h": 247,
+  "escala": 0.5,
+  "ancora": [
+   123.5,
+   116.85
+  ]
+ },
+ "rover": {
+  "arquivo": "lua/modulos/rover.png",
+  "w": 183,
+  "h": 181,
+  "escala": 0.5,
+  "ancora": [
+   61.5,
+   83.41
+  ]
+ },
+ "pouso": {
+  "arquivo": "lua/modulos/pouso.png",
+  "w": 262,
+  "h": 238,
+  "escala": 0.5,
+  "ancora": [
+   131.0,
+   105.87
+  ]
+ },
+ "chama": {
+  "arquivo": "lua/modulos/chama.png",
+  "w": 92,
+  "h": 146,
+  "escala": 0.5,
+  "ancora": [
+   46.0,
+   -16.39
+  ]
+ },
+ "foguete0": {
+  "arquivo": "lua/modulos/foguete0.png",
+  "w": 367,
+  "h": 388,
+  "escala": 0.5,
+  "ancora": [
+   183.5,
+   198.03
+  ]
+ },
+ "foguete1": {
+  "arquivo": "lua/modulos/foguete1.png",
+  "w": 367,
+  "h": 388,
+  "escala": 0.5,
+  "ancora": [
+   183.5,
+   198.03
+  ]
+ },
+ "foguete2": {
+  "arquivo": "lua/modulos/foguete2.png",
+  "w": 367,
+  "h": 388,
+  "escala": 0.5,
+  "ancora": [
+   183.5,
+   198.03
+  ]
+ },
+ "foguete3": {
+  "arquivo": "lua/modulos/foguete3.png",
+  "w": 367,
+  "h": 388,
+  "escala": 0.5,
+  "ancora": [
+   183.5,
+   198.03
+  ]
+ },
+ "foguete4": {
+  "arquivo": "lua/modulos/foguete4.png",
+  "w": 367,
+  "h": 432,
+  "escala": 0.5,
+  "ancora": [
+   183.5,
+   241.68
+  ]
+ }
+}

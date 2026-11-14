@@ -1,0 +1,11 @@
+{
+ "frame": 160,
+ "colunas": 9,
+ "andar": 8,
+ "escala": 0.25,
+ "pe": [
+  80.0,
+  138.79
+ ],
+ "nota": "Row d faces map angle d*45 deg, where angle = atan2(-dy, dx) for a move (dx, dy) in tiles. Column 0 idle, 1.. walk."
+}

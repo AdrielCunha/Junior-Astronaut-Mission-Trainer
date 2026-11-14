@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --test src/regras.test.ts"
+    "test": "node --test src/regras.test.ts src/engine/engine.test.ts",
+    "assets": "python3 tools/lua3d/make_terrain.py && prime-run blender -b -P tools/lua3d/render_terrain.py && prime-run blender -b -P tools/lua3d/make_moon.py && python3 tools/lua3d/make_moon_textures.py && python3 tools/lua3d/make_constellations.py && prime-run blender -b -P tools/lua3d/make_flight.py && prime-run blender -b -P tools/lua3d/make_astronaut.py && prime-run blender -b -P tools/lua3d/make_modules.py"
   },
   "dependencies": {
     "phaser": "^3.90.0"

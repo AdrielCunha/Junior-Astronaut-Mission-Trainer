@@ -1,0 +1,6 @@
+{
+ "alturaMinKm": -8.878,
+ "alturaMaxKm": 10.504,
+ "raioKm": 1737.4,
+ "nota": "moon_height.png: height = min + value/255 * (max - min) km. Both maps: equirectangular, top = north, x = 0.5 at lon 0."
+}
