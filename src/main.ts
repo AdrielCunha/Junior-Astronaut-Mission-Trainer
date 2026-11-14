@@ -5,6 +5,7 @@ import { Superficie } from './cenas/Superficie';
 import { Interface } from './cenas/Interface';
 import { Base } from './cenas/Base';
 import { CenaTarefa } from './cenas/Tarefa';
+import { Radar } from './cenas/Radar';
 import { Carregar } from './cenas/Carregar';
 import { iniciarAudio } from './audio';
 
@@ -24,8 +25,9 @@ new Phaser.Game({
   // The music is played by audio.ts with a plain HTMLAudioElement, so Phaser's audio system
   // stays off. It would also warn when started before a tap.
   audio: { noAudio: true },
-  // CenaTarefa only runs while a task is open, above the game; Carregar covers everything while loading.
-  scene: classico ? [Base] : [Espaco, Superficie, Interface, CenaTarefa, Carregar],
+  // CenaTarefa (a task) and Radar (title screen) run only while open, above the game;
+  // Carregar covers everything while loading.
+  scene: classico ? [Base] : [Espaco, Superficie, Interface, CenaTarefa, Radar, Carregar],
 });
 
 // The classic prototype has no music control, so it stays silent.
