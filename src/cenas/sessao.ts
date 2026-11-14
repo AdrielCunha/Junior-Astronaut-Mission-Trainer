@@ -7,8 +7,11 @@ import terrenoJson from '../dados/terreno.json';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { Grade, TIPOS, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
-import voo from '../dados/voo.json';
-import { estadoInicial, bateriasDoDia, type Alocacao, type Estado } from '../regras';
+import { VOO as voo } from './qualidade';
+import { CAPITULOS } from '../capitulos';
+import { inicioDoCapitulo, bateriasDoDia, nenhuma, type Alocacao, type Estado } from '../regras';
+
+const C = CAPITULOS[0].config;
 
 export type Fase = 'inicio' | 'manha' | 'dia' | 'noite' | 'fim';
 
@@ -66,8 +69,8 @@ class Sessao {
   readonly sinais = new Phaser.Events.EventEmitter();
 
   fase: Fase = 'inicio';
-  estado: Estado = estadoInicial();
-  entregas: Alocacao = { suporte: 0, blindagem: 0, oficina: 0 };
+  estado: Estado = inicioDoCapitulo(C);
+  entregas: Alocacao = nenhuma();
   carregando = 0;           // batteries in the commander's hands
   noHabitat = 0;            // batteries still waiting at the habitat today
   vista: Vista = 'chao';
@@ -86,8 +89,8 @@ class Sessao {
   reiniciar() {
     this.grade = new Grade(this.terreno);
     this.fase = 'inicio';
-    this.estado = estadoInicial();
-    this.entregas = { suporte: 0, blindagem: 0, oficina: 0 };
+    this.estado = inicioDoCapitulo(C);
+    this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = 0;
     this.vista = 'chao';
@@ -199,9 +202,9 @@ class Sessao {
   }
 
   novoDia() {
-    this.entregas = { suporte: 0, blindagem: 0, oficina: 0 };
+    this.entregas = nenhuma();
     this.carregando = 0;
-    this.noHabitat = bateriasDoDia(this.estado);
+    this.noHabitat = bateriasDoDia(this.estado, C);
   }
 
   emitir<K extends keyof Eventos>(nome: K, ...args: Eventos[K]) {

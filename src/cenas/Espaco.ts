@@ -8,8 +8,9 @@
 // Driven by sessao.u (one zoom scale, see sessao.ts) and sessao.data. See ARCHITECTURE.md.
 import Phaser from 'phaser';
 import constelacoes from '../dados/constelacoes.json';
-import voo from '../dados/voo.json';
-import { carregarLua, criarLua, LADO } from './luaShader';
+import { VOO as voo, LEVE } from './qualidade';
+import { carregarFilme } from './filme';
+import { criarLua, LADO } from './luaShader';
 import { PLANETAS, posicao, lua, nomeDaFase, AU_KM, RAIO_LUA_KM, RAIO_SOL_KM, TERRA_LUA_KM } from '../engine/astro';
 import { sessao, suave, fonte, dataBonita, COR, sDeU } from './sessao';
 import { VISTA as vista, giroEm, pontoNaLua, naTela, visivel, solSobreBase, type V3 } from './globo';
@@ -35,13 +36,7 @@ export class Espaco extends Phaser.Scene {
   private pinoVoo: { x: number; y: number; a: number } | null = null;
 
   constructor() {
-    super({ key: 'Espaco', active: true });
-  }
-
-  preload() {
-    carregarLua(this);
-    this.load.image('ceu', 'lua/sky.jpg');
-    constelacoes.forEach((c, i) => this.load.image(`const${i}`, c.arquivo));
+    super({ key: 'Espaco' });   // started by Carregar
   }
 
   create() {
@@ -64,30 +59,38 @@ export class Espaco extends Phaser.Scene {
     this.legenda = this.add.text(W / 2, H - 16, '', fonte(14, '#cbd5e1', { align: 'center', stroke: '#020617', strokeThickness: 4, wordWrap: { width: W - 40 } }))
       .setOrigin(0.5, 1);
 
-    // The Blender flight (ground <-> Moon): loaded in the background after the game starts.
-    this.quadro = this.add.image(W / 2, H / 2, '__DEFAULT').setDepth(10).setVisible(false);
-    const chave = (i: number) => `voo${i}`;
-    if (this.textures.exists(chave(voo.quadros - 1))) sessao.filmePronto = true;
-    else {
-      for (let i = 0; i < voo.quadros; i++) this.load.image(chave(i), `lua/voo/f${String(i).padStart(2, '0')}.webp`);
-      this.load.once('complete', () => this.aquecer());
-      this.load.start();
-    }
+    // Only rewrite the caption when it changes: every rewrite redraws the text and uploads it.
+    this.legendaNova = '';
+    const legendaPost = () => { if (this.legenda.text !== this.legendaNova) this.legenda.setText(this.legendaNova); };
+    this.events.on('postupdate', legendaPost);
+    this.events.once('shutdown', () => this.events.off('postupdate', legendaPost));
 
-    this.time.addEvent({ delay: 5500, loop: true, callback: () => this.tracarConstelacao() });
-    this.time.delayedCall(1500, () => this.tracarConstelacao());
+    // The Blender flight (ground <-> Moon): downloaded in the background by filme.ts, which lives
+    // outside the scene, so a resize (it restarts this scene) cannot load a frame twice.
+    this.quadro = this.add.image(W / 2, H / 2, '__DEFAULT').setDepth(10).setVisible(false);
+    this.aqueceu = false;
+    carregarFilme(this.textures);
+
+    if (!LEVE) {
+      this.time.addEvent({ delay: 5500, loop: true, callback: () => this.tracarConstelacao() });
+      this.time.delayedCall(1500, () => this.tracarConstelacao());
+    }
   }
 
-  // Browsers decode an image and send it to the GPU the first time it is drawn, which makes the
-  // first flight stutter. Draw every frame once, a few per game frame, off screen, before flying.
+  private legendaNova = '';
+  private aqueceu = false;
+  private definirLegenda(s: string) { this.legendaNova = s; }
+
+  // A frame is sent to the GPU the first time it is drawn. Sending all of them at once froze the
+  // start (hundreds of MB of textures). Only the first few go ahead of time, slowly; the rest are
+  // sent one by one as the flight reaches them.
   private aquecer() {
-    const chaves = Array.from({ length: voo.quadros }, (_, i) => `voo${i}`);
-    const fora = this.add.image(-4000, -4000, chaves[0]).setAlpha(0.01).setOrigin(0);
+    const fora = this.add.image(-4000, -4000, 'voo0').setAlpha(0.01).setOrigin(0);
     let i = 0;
     const ev = this.time.addEvent({
-      delay: 16, loop: true, callback: () => {
-        for (let k = 0; k < 3 && i < chaves.length; k++) fora.setTexture(chaves[i++]);
-        if (i >= chaves.length) { ev.remove(); fora.destroy(); sessao.filmePronto = true; }
+      delay: 150, loop: true, callback: () => {
+        fora.setTexture(`voo${i++}`);
+        if (i >= Math.min(6, voo.quadros)) { ev.remove(); fora.destroy(); }
       },
     });
   }
@@ -121,6 +124,7 @@ export class Espaco extends Phaser.Scene {
   update(_t: number, dtMs: number) {
     const W = this.scale.width, H = this.scale.height;
     sessao.passo(dtMs / 1000);     // Espaco runs first: every layer sees the same zoom this frame
+    if (!this.aqueceu && sessao.filmePronto) { this.aqueceu = true; this.aquecer(); }
     const n = sessao.nivel;
     const uG = sessao.uGlobo;
     // Flight frames. Show the frame rendered just before the current point p and shrink it to
@@ -160,7 +164,7 @@ export class Espaco extends Phaser.Scene {
     this.ceu.setAlpha(0.55 + 0.45 * suave(0.6, 1.6, n));
     this.g.clear();
     for (const r of this.rotulos.values()) r.setVisible(false);
-    this.legenda.setText('');
+    this.legendaNova = '';
     this.pino.setVisible(false);
     this.lua.setVisible(false);
     this.brilho.setVisible(!!this.pinoVoo);
@@ -216,7 +220,7 @@ export class Espaco extends Phaser.Scene {
     if (n < 2.08) {
       if (sessao.voo) return;
       const sol = solSobreBase(giro);
-      this.legenda.setText(
+      this.definirLegenda(
         `The Moon · ${dataBonita(t)} · ${nomeDaFase(lua(t).fase)} seen from Earth\n` +
         `Sun over your base: ${sol >= 0 ? sol.toFixed(1) + '° above' : (-sol).toFixed(1) + '° below'} the horizon. At the pole it only skims the horizon.`);
       return;
@@ -264,7 +268,7 @@ export class Espaco extends Phaser.Scene {
 
     const marte = posicao(PLANETAS[3], t);
     const dm = Math.hypot(marte.x - terraP.x, marte.y - terraP.y);
-    this.legenda.setText(
+    this.definirLegenda(
       `${dataBonita(t)} · real positions from NASA JPL orbital elements · planet sizes enlarged, distances true\n` +
       (rotulos > 0.5 ? `Mars, your next stop, is ${(dm * AU_KM / 1e6).toFixed(0)} million km away today. Light takes ${(dm * 499 / 60).toFixed(0)} minutes to get there.`
         : `The Moon is ${TERRA_LUA_KM.toLocaleString('en-US')} km from Earth. Light crosses that in 1.3 seconds.`));

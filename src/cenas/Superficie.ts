@@ -12,7 +12,7 @@ import { TIPOS, montarBasePadrao, type Construcao, type TipoId } from '../engine
 import { empuxoDePouso, suprimentoDoDia } from '../engine/suprimentos';
 import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte } from './sessao';
 import { fundacao, baseDe, sombraECarga } from './desenho';
-import voo from '../dados/voo.json';
+import { VOO as voo } from './qualidade';
 import modelos from '../dados/modulos.json';
 import sprite from '../dados/astronauta.json';
 
@@ -47,13 +47,7 @@ export class Superficie extends Phaser.Scene {
   private pouso: Pouso | null = null;
 
   constructor() {
-    super({ key: 'Superficie', active: true });
-  }
-
-  preload() {
-    this.load.image('terreno', P.arquivo);
-    for (const [id, m] of Object.entries(modelos)) this.load.image(`mod_${id}`, m.arquivo);
-    this.load.spritesheet('astronauta', 'lua/astronaut.png', { frameWidth: sprite.frame, frameHeight: sprite.frame });
+    super({ key: 'Superficie' });   // started by Carregar
   }
 
   // Map center in world px: the flight's first frame is centered on it.
