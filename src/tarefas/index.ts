@@ -5,6 +5,7 @@
 import type Phaser from 'phaser';
 import type { Efeito } from '../regras';
 import { poeiraDuto } from './poeiraDuto';
+import { escudoSol } from './escudoSol';
 
 // Screen box the task draws in; u is the UI scale (1 at 1100x650).
 export type Area = { x: number; y: number; w: number; h: number; u: number };
@@ -21,7 +22,7 @@ export type Tarefa = {
   montar: (cena: Phaser.Scene, area: Area, feito: () => void) => void;
 };
 
-export const BANCO: Tarefa[] = [poeiraDuto];
+export const BANCO: Tarefa[] = [poeiraDuto, escudoSol];
 
 // A random task for this room, not the same as last time when there is a choice.
 export function sortear(sala: Efeito, ultima?: string): Tarefa | undefined {

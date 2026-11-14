@@ -3,7 +3,7 @@
 // Different every time: the number, size and place of the dust clumps are random.
 import type Phaser from 'phaser';
 import type { Tarefa } from './index';
-import { CONTORNO, letra } from './estilo';
+import { CONTORNO, criarBarra, letra } from './estilo';
 
 const PO = [0xa8a29e, 0x8f8983, 0xc2bdb7];   // lunar regolith greys, a bit lighter for the cartoon look
 
@@ -84,19 +84,9 @@ export const poeiraDuto: Tarefa = {
 
     // Airflow bar: a chunky pill that fills green.
     const by = y + h - alturaBarra / 2;
-    const larguraBarra = Math.min(w * 0.62, 360 * u), altBarra = 20 * u;
-    const bx = cx - larguraBarra / 2;
-    cena.add.text(bx - 10 * u, by, 'AIR', letra(17 * u, '#ffffff', { stroke: '#1e293b', strokeThickness: 5 * u })).setOrigin(1, 0.5);
-    cena.add.graphics()
-      .fillStyle(0x1e3a8a).fillRoundedRect(bx, by - altBarra / 2, larguraBarra, altBarra, altBarra / 2)
-      .lineStyle(3 * u, 0xffffff).strokeRoundedRect(bx, by - altBarra / 2, larguraBarra, altBarra, altBarra / 2);
-    const enchimento = cena.add.graphics();
+    const encher = criarBarra(cena, cx, by, Math.min(w * 0.62, 360 * u), u, 'AIR');
     const barra = { p: 0 };
-    const desenharBarra = () => {
-      const largura = Math.max(altBarra - 6 * u, (larguraBarra - 6 * u) * barra.p);
-      enchimento.clear();
-      if (barra.p > 0) enchimento.fillStyle(0x4ade80).fillRoundedRect(bx + 3 * u, by - altBarra / 2 + 3 * u, largura, altBarra - 6 * u, (altBarra - 6 * u) / 2);
-    };
+    const desenharBarra = () => encher(barra.p);
 
     let limpos = 0, acabou = false;
     const progresso = () => {
