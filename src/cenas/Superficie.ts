@@ -165,6 +165,7 @@ export class Superficie extends Phaser.Scene {
   private tempoMovel = 0;
   private pecasRover!: PecasRover;
   private dicaRover!: Phaser.GameObjects.Text;
+  private alfaDicaRover = 0;      // the rover's tag fades in as the commander walks up to it
   private fundoDicaRover!: Phaser.GameObjects.Graphics;
   private fundoDica?: Phaser.GameObjects.Graphics;
   private alvoRover = false;
@@ -1720,9 +1721,13 @@ export class Superficie extends Phaser.Scene {
         : this.pertoRover()
           ? carregado ? 'E / click: Drive Apollo LRV' : sessao.carregando ? 'E / click: Install 1 battery & drive' : `Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}`
           : sessao.mundo === 'marte' ? 'APOLLO LRV (on a pretend Mars trip!) · Click to approach' : 'APOLLO LRV · Click to approach';
-      this.dicaRover.setPosition(p.x, p.y).setVisible(this.podeUsarRover())
+      // Only near the rover (or driving it): from afar its tag covered the map. It fades in and out.
+      const dist = Math.hypot(this.corpo.x - r.corpo.x, this.corpo.y - r.corpo.y);
+      const alvo = r.dirigindo ? 1 : 1 - suave(3, 4.5, dist);
+      this.alfaDicaRover += (alvo - this.alfaDicaRover) * (1 - Math.exp(-dt * 8));
+      this.dicaRover.setPosition(p.x, p.y).setVisible(this.podeUsarRover() && this.alfaDicaRover > 0.02).setAlpha(this.alfaDicaRover)
         .setText(`Battery: ${carregado ? 'charged' : 'empty'}\n${acao}`);
-      fundoRotulo(this.fundoDicaRover, this.dicaRover);
+      fundoRotulo(this.fundoDicaRover, this.dicaRover, 0.72);
     }
     sessao.parado = Math.hypot(this.corpo.vx, this.corpo.vy) < 0.05 && this.corpo.noChao;
     this.atualizarOclusao(dt);

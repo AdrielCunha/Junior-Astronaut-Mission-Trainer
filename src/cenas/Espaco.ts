@@ -679,7 +679,7 @@ export class Espaco extends Phaser.Scene {
     const dm = Math.hypot(marte.x - terraP.x, marte.y - terraP.y);
     this.definirLegenda(
       `${dataBonita(t)} · real positions from NASA JPL orbital elements · planet sizes enlarged, distances true · time: 1 second = ${HORAS_SISTEMA} hours · click a body to see it up close\n` +
-      (el > 0.3 ? 'Neptune is 4.5 billion km from the Sun: sunlight takes 4 hours to get there. Let go to come back.'
+      (el > 0.3 ? `Neptune is 4.5 billion km from the Sun: sunlight takes 4 hours to get there. ${sessao.elasticoNoLimite ? 'The view stays here a few seconds, then comes back (or zoom in).' : 'Let go to come back.'}`
         : emMarte ? `Earth is ${(dm * AU_KM / 1e6).toFixed(0)} million km away today. A radio message takes ${(dm * 499 / 60).toFixed(0)} minutes each way, so Mission Control cannot steer you live.`
         : rotulos > 0.5 ? `Scroll out to peek at the outer planets. Mars, your next stop, is ${(dm * AU_KM / 1e6).toFixed(0)} million km away today. Light takes ${(dm * 499 / 60).toFixed(0)} minutes to get there.`
         : `The Moon is ${TERRA_LUA_KM.toLocaleString('en-US')} km from Earth. Light crosses that in 1.3 seconds.`));

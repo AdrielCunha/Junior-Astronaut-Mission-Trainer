@@ -146,13 +146,14 @@ export function desenharBotao(g: Phaser.GameObjects.Graphics, w: number, h: numb
 
 // Dark rounded label behind a text that floats over the map (prop and rover tooltips).
 // Redraw it whenever the text changes, moves or is scaled; it follows the text's visibility.
-export function fundoRotulo(g: Phaser.GameObjects.Graphics, t: Phaser.GameObjects.Text) {
+// opacidade: the pill's fill (a little see-through for labels that sit over the map).
+export function fundoRotulo(g: Phaser.GameObjects.Graphics, t: Phaser.GameObjects.Text, opacidade = 0.96) {
   const s = t.scaleX, w = t.width * s, h = t.height * s;
   const x = t.x - w * t.originX, y = t.y - h * t.originY, r = Math.min(h / 2, 16 * s);
   g.clear().setDepth(t.depth - 0.001).setVisible(t.visible).setAlpha(t.alpha);
   if (!t.visible || !t.text) return g;
   return g.fillStyle(0x000000, 0.3).fillRoundedRect(x + 2 * s, y + 4 * s, w, h, r)
-    .fillStyle(CONTORNO, 0.96).fillRoundedRect(x, y, w, h, r)
+    .fillStyle(CONTORNO, opacidade).fillRoundedRect(x, y, w, h, r)
     .lineStyle(2.5 * s, 0xffffff).strokeRoundedRect(x, y, w, h, r);
 }
 

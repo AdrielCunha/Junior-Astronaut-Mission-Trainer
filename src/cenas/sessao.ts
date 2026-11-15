@@ -328,6 +328,8 @@ class Sessao {
   // The view glides to where the pull asks (no jump per wheel notch): elastico is that glide.
   elastico = 0;
   private get alvoElastico() { return ELASTICO_MAX * (1 - Math.exp(-this.puxo / ELASTICO_MAX)); }
+  // Pulled all the way out: the view holds there for 10 s before springing back (passo).
+  get elasticoNoLimite() { return this.alvoElastico > ELASTICO_MAX * 0.85; }
   // 0..1 ground, 1..2 flying to the globe, 2..3 out to the planets (for fades and labels).
   get nivel() {
     const u = this.u, g = this.uGlobo;
@@ -469,7 +471,10 @@ class Sessao {
       if (Math.abs(this.alvo - this.u) < 1e-4) this.u = this.alvo;
     } else {
       // Let go (no pull for a moment): spring back to the solar system view, gently.
-      if (this.puxo > 0 && performance.now() - this.ultimoPuxo > 250) {
+      // Pulled all the way out (the whole system out to Neptune) the view stays there a while, so
+      // it can be looked at, then springs back on its own 10 s later.
+      const espera = this.elasticoNoLimite ? 10000 : 250;
+      if (this.puxo > 0 && performance.now() - this.ultimoPuxo > espera) {
         this.puxo *= Math.exp(-dt * 2.5);
         if (this.puxo < 0.01) this.puxo = 0;
       }
