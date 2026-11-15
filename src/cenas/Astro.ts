@@ -119,7 +119,7 @@ export class Astro extends Phaser.Scene {
       if (!movimentoReduzido()) this.tweens.add({ targets: brilho, scale: (raio * 3.3) / 128, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
     // The body, live on the GPU, turning continuously like the Moon (astroShader.ts).
-    const corpo = criarAstro(this, cx, cy, Math.ceil(raio * 2 * (info.aneis ? ESCALA_ANEIS : ESCALA_ASTRO)), { textura: `mapa_${nome}`, ...info, aneis: !!info.aneis });
+    const corpo = criarAstro(this, cx, cy, Math.ceil(raio * 2 * (info.aneis ? ESCALA_ANEIS : ESCALA_ASTRO)), { textura: `mapa_${nome}`, ...info, aneis: !!info.aneis, nuvens: nome === 'terra' });
     this.corpo = corpo; this.raio = raio;
     this.update(this.time.now);
     if (voo) {
@@ -247,6 +247,7 @@ export class Astro extends Phaser.Scene {
     if (!movimentoReduzido()) this.horas += (dt / 1000) * ESCALAS[Astro.escala][0];
     const voltas = this.voltas0 + this.horas / 24 / Math.abs(ROTACAO_DIAS[nome] ?? 1);
     this.corpo.setGiro(grande(nome).sentido * 2 * Math.PI * (voltas % 1));
+    this.corpo.setTempo(this.horas % 10000);   // Earth's clouds drift and change on the same clock
   }
 
   private ir(nome: string) {
