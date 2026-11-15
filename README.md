@@ -27,6 +27,10 @@ Each chapter is a series of days. Each day: read the morning report, send batter
 - A driveable rover inspired by the Apollo LRV is available on the Moon. Click it or press **E** nearby to board or exit; use **WASD**, arrow keys, or ground clicks to drive.
 - During missions, boarding an empty rover installs **one carried battery**, providing power for that day. Exploration mode provides power freely. The rover stays on the Moon.
 - The driver uses the selected astronaut skin. Wheel tracks and lunar dust follow the rover, and its first boarding shows a short Apollo LRV fact card in English.
+- Mission progress autosaves every two seconds and when leaving the page. Returning opens the title screen with the option to continue. Saved data stays in this browser profile: chapter, day, resources, base layout, astronaut/rover positions, shield countdown and night report. Task overlays and cinematic playback are not resumed mid-animation.
+- Installing a rover battery plays a short insertion animation before consuming it, then turns the battery light green. The same one-battery-per-day rule still applies.
+- Rocket parts appear on the launch pad as batteries reach the workshop, with stage notifications and assembly sounds. The HUD previews the progress that will be committed at the end of the day.
+- Quiet machine telemetry, radio cues and rover contact vibrations use the effects volume controls. Continuous sounds stop under pause screens, tasks, hidden tabs and scene changes; these represent suit/contact audio rather than wind or sound travelling through lunar vacuum.
 - The selected `lunar_icons_v6` pack supplies the HUD, reports and notices: oxygen, energy, radiation, rocket, shield, health, tools and backpack. The backpack indicates carried batteries. PNG textures and original SVG sources live in `public/icons/lunar-v6/`.
 - Optional developer resource controls are available on the development server or with `?dev`.
 

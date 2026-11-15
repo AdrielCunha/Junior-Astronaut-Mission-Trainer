@@ -15,7 +15,8 @@ import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, DESCANSO, 
 import { iniciarNave3D, iniciarMarte3D } from './irParaMarte';
 import { suprimentoDoDia } from '../engine/suprimentos';
 import { DOSE_ALARME } from '../engine/eventos';
-import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase } from './sessao';
+import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase, type RelatorioDia } from './sessao';
+import { apagarPartida } from '../salvamento';
 import { alternarMudo } from '../audio';
 import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndicador, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
 import { resolverIcone, textoDoJogo, type IconeJogo } from '../dados/icones';
@@ -57,9 +58,12 @@ export class Interface extends Phaser.Scene {
   private bateriasSolar: Phaser.GameObjects.Image[] = [];
   private totalBateriasSolar = 3;
   private flashSolar!: Phaser.GameObjects.Graphics;
-  private desfechoPendente: { tipo: 'protegida' | 'atingida'; baterias: number } | null = null;
-  private danoTempestade = 0;
-  private bateriasTempestade = 0;
+  private get desfechoPendente() { return sessao.desfechoPendente; }
+  private set desfechoPendente(v: typeof sessao.desfechoPendente) { sessao.desfechoPendente=v; }
+  private get danoTempestade() { return sessao.danoTempestade; }
+  private set danoTempestade(v: number) { sessao.danoTempestade=v; }
+  private get bateriasTempestade() { return sessao.bateriasTempestade; }
+  private set bateriasTempestade(v: number) { sessao.bateriasTempestade=v; }
   private proximoAlarme = 0;
   private animacaoSolar = 0;
   private alertaSolarX = 0;
@@ -160,11 +164,14 @@ export class Interface extends Phaser.Scene {
     sessao.ouvir(this, 'zoomMarte', () => this.zoomMarte());
 
     this.atualizar();
-    this.mostrarFase();
+    if (sessao.partidaRestaurada) {
+      sessao.partidaRestaurada=false;
+      this.abrirTelaInicial();
+    } else this.mostrarFase();
   }
 
   private abrirMenu() {
-    if (sessao.emTarefa || sessao.transicao || configuracoesAbertas || this.scene.isActive('MenuJogo')) return;
+    if (sessao.emTarefa || sessao.abastecendoRover || sessao.transicao || configuracoesAbertas || this.scene.isActive('MenuJogo')) return;
     this.scene.launch('MenuJogo', { aoSairTitulo: () => this.abrirTelaInicial() });
   }
 
@@ -176,8 +183,10 @@ export class Interface extends Phaser.Scene {
         this.entregaPendente?.remove();
         this.entregaPendente = undefined;
         this.aviso?.destroy();
-        sessao.reiniciar();
+        apagarPartida();
+        sessao.capIdx=0;sessao.pontos=[];sessao.usarMundo('lua');
         this.ultimoDia = undefined;
+        this.scene.get('Espaco').scene.restart();
         this.scene.get('Superficie').scene.restart();
         this.irPara('manha');
       },
@@ -413,7 +422,7 @@ export class Interface extends Phaser.Scene {
       ? `Exploring \u00b7 ${marte ? 'Jezero crater' : 'Shackleton rim'}`
       : `${marte ? 'Mars \u00b7 ' : sessao.mundo === 'nave' ? 'Ship \u00b7 ' : ''}Day ${Math.min(e.dia, C_().dias)} of ${C_().dias} \u00b7 ${dataBonita(sessao.data)}`);
     this.tituloHud.atualizar(this.textos.dia.text);
-    const valores = [e.oxigenio, e.dose, e.meta];
+    const valores = [e.oxigenio, e.dose, sessao.mundo==='lua'?sessao.progressoFoguete:e.meta];
     this.recursos.forEach((r, i) => { r.caixa.setVisible(sessao.fase !== 'inicio'); r.atualizar(valores[i]); });
     const d = sessao.entregas;
     // On Mars the last counter is the heating (the dome is built through construction, not powered).
@@ -489,6 +498,7 @@ export class Interface extends Phaser.Scene {
   }
 
   private terminarDia() {
+    if (sessao.abastecendoRover) return;
     // While exploring, this button goes back to the title screen.
     if (sessao.fase === 'inicio') { this.mostrarFase(); return; }
     if (sessao.fase !== 'dia') return;
@@ -507,14 +517,12 @@ export class Interface extends Phaser.Scene {
       danoTempestade: ataque ? this.danoTempestade : 0, bateriasTempestade: this.bateriasTempestade };
     sessao.carregando = 0;
     sessao.noHabitat = 0;
-    sessao.emitir('estado');
     this.irPara('noite');
+    sessao.emitir('estado');
   }
 
-  private ultimoDia?: {
-    antes: Estado; entregas: typeof sessao.entregas; nivel: number; fato: string; frio: number;
-    danoTempestade: number; bateriasTempestade: number;
-  };
+  private get ultimoDia() { return sessao.ultimoDia ?? undefined; }
+  private set ultimoDia(v: RelatorioDia | undefined) { sessao.ultimoDia=v??null; }
 
   private mostrarFase() {
     this.fecharPainel();
@@ -548,7 +556,7 @@ export class Interface extends Phaser.Scene {
         ...(sessao.mundo === 'lua' ? ['Optional rover: bring 1 battery from the Battery Bank to drive all day. A new day needs a new battery.'] : []),
         ...(sessao.mundo === 'lua' && sessao.estado.dia === 1 ? [
           'First mission: pick up batteries at the Battery Bank, then take one to Life Support and one to the Rocket Workshop. Click a building or press E nearby.',
-          'Complete each room\'s task to deliver its first battery. Choose where the rest go, then press "End day". Oxygen and rocket progress update overnight.',
+          'Complete each room\'s task to deliver its first battery. Rocket parts appear as you deliver batteries. Oxygen updates overnight. Choose where the rest go, then press "End day".',
         ] : []),
         ...(sessao.mundo === 'lua' && d.nivel >= 3 ? [{ texto: `Emergency: ${PRAZO_TEMPESTADE_MS / 1000} seconds to deliver ${d.nivel} batteries to the Radiation Shield. The countdown starts when you press Go and continues during tasks. The pause menu stops it.`, cor: '#fde68a', negrito: true }] : []),
         ...frio,
@@ -693,6 +701,7 @@ export class Interface extends Phaser.Scene {
   // every message from the start, so it never jumps. It shrinks on small screens so it always fits.
   private abrirPainel(titulo: string, quem: Remetente, partes: Parte[], botoes: Botao[]) {
     this.fecharPainel();
+    if (quem===CONTROLE) tocarSfx('radio');
     this.aviso?.destroy();   // an old notice would sit on top of the panel
     this.aviso = undefined;
     const W = this.scale.width, H = this.scale.height;

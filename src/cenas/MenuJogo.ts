@@ -101,8 +101,8 @@ export class MenuJogo extends Phaser.Scene {
     this.conteudo.add(etiqueta); this.proximoy += px(46);
     this.botao('Continue  \u25b6', () => this.fechar(), 'continue', true);
     this.botao('Settings', () => this.abrirPagina('settings'), 'settings');
-    this.botao('Main menu', () => { this.aoSairTitulo(); this.fechar(); }, 'main-menu');
-    this.conteudo.add(this.add.text(Math.round(this.largura / 2), this.altura - px(19), 'ESC to continue', letra(px(12), '#93a9ca')).setOrigin(0.5));
+    this.botao('Save & main menu', () => { sessao.salvar(); this.aoSairTitulo(); this.fechar(); }, 'main-menu');
+    this.conteudo.add(this.add.text(Math.round(this.largura / 2), this.altura - px(19), 'Autosave on this device · ESC to continue', letra(px(11), '#93a9ca')).setOrigin(0.5));
   }
 
   private alternancia(rotulo: string, valor: string, acao: () => void, id: string) {

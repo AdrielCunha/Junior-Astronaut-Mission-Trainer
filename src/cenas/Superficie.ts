@@ -21,7 +21,7 @@ import { encontrarCaminho, type Ponto } from '../engine/caminho';
 import naveProps from '../dados/nave_props.json';
 import { TIPOS, montarBasePadrao, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
 import { entregar as entregarRegra, custo, pronto } from '../regras';
-import { empuxoDePouso, suprimentoDoDia } from '../engine/suprimentos';
+import { empuxoDePouso, suprimentoDoDia, SUPRIMENTOS } from '../engine/suprimentos';
 import { sortearEvento, DOSE_ALARME } from '../engine/eventos';
 import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte, ZOOM_MAX } from './sessao';
 import { fundacao, sombraECarga } from './desenho';
@@ -38,7 +38,7 @@ import { chaveSkin } from '../dados/skins';
 import { DECORACAO, comoTipo, type DecoColocada } from '../dados/decoracao';
 import { CHAVE_FOGUETE } from './Chegada';
 import foguetevoo from '../dados/foguete_voo.json';
-import { tocarMotor, tocarSfx } from '../sfx';
+import { tocarMotor, tocarSfx, criarAmbienteSonoro } from '../sfx';
 import { dirigirRover, estacionarRover, desembarcar, pontoLivre } from '../engine/rover';
 import { desenharRover, LINHA_QUADRIL_SENTADO } from './desenharRover';
 
@@ -119,6 +119,9 @@ export class Superficie extends Phaser.Scene {
   private gRoverFrente!: Phaser.GameObjects.Graphics;
   private dicaRover!: Phaser.GameObjects.Text;
   private alvoRover = false;
+  private sons!: ReturnType<typeof criarAmbienteSonoro>;
+  private progressoAnterior = 0;
+  private suprimentosPendentes: TipoId[] = [];
   // Rocket leaving the Moon at the end of chapter 1 (decolar). The pad then shows no rocket.
   private decolagem: { img: Phaser.GameObjects.Image; chama: Phaser.GameObjects.Graphics; cx: number; cy: number; z: number; vz: number; t: number; fim: () => void } | null = null;
   private foguetePartiu = false;
@@ -234,9 +237,23 @@ export class Superficie extends Phaser.Scene {
     for (const c of sessao.grade.lista) this.desenharModulo(c);
     this.montarDeco();
     this.desenharCaminhos();
+    if (sessao.posicaoAstronauta && sessao.posicaoAstronauta.x<sessao.terreno.n && sessao.posicaoAstronauta.y<sessao.terreno.n) this.corpo={...sessao.posicaoAstronauta};
     this.rota = []; this.alvoUsar = null; this.alvoRover = false;
     if (sessao.mundo === 'lua') sessao.rover ??= estacionarRover(sessao.terreno, sessao.grade.caixas(), sx + 1, sy + 1);
     if (sessao.rover?.dirigindo) this.corpo = sessao.rover.corpo;
+    sessao.posicaoAstronauta=this.corpo;
+    this.progressoAnterior=sessao.progressoFoguete;
+    this.suprimentosPendentes=sessao.mundo==='lua' && sessao.fase==='dia'
+      ? SUPRIMENTOS.filter(s=>s.dia<=sessao.estado.dia && !sessao.grade.lista.some(c=>c.tipo.id===s.tipo)).map(s=>s.tipo):[];
+    this.sons=criarAmbienteSonoro();
+    const silenciar=()=>this.sons.silenciar();
+    const visibilidade=()=>{if(document.hidden)silenciar();};
+    this.events.on('pause',silenciar);
+    document.addEventListener('visibilitychange',visibilidade);
+    this.events.once('shutdown',()=>{
+      this.sons.parar();this.events.off('pause',silenciar);document.removeEventListener('visibilitychange',visibilidade);
+      sessao.abastecendoRover=false;
+    });
     this.gRover = this.add.graphics();
     this.gRoverFrente = this.add.graphics();
     this.dicaRover = this.add.text(0, 0, '', fonte(13, '#ffffff', {
@@ -281,7 +298,7 @@ export class Superficie extends Phaser.Scene {
     });
     this.input.mouse?.disableContextMenu();
 
-    sessao.ouvir(this, 'estado', () => { for (const c of sessao.grade.lista) this.desenharModulo(c); });
+    sessao.ouvir(this, 'estado', () => { for (const c of sessao.grade.lista) this.desenharModulo(c); this.animarMontagem(); });
     // A new phase can change a picture too: the shield's water walls drain for the next morning.
     sessao.ouvir(this, 'fase', () => { for (const c of sessao.grade.lista) this.desenharModulo(c); });
     sessao.ouvir(this, 'suprimento', (tipo) => this.chegar(tipo));
@@ -331,7 +348,7 @@ export class Superficie extends Phaser.Scene {
     }
     if (sessao.vista !== 'chao' || sessao.voo) this.recolherBandeira();
     this.mapa.setVisible(this.mapa.alpha > 0.001);
-    this.input.enabled = sessao.vista === 'chao' && !sessao.voo && !sessao.emTarefa && !configuracoesAbertas && !sessao.transicao;
+    this.input.enabled = sessao.vista === 'chao' && !sessao.voo && !sessao.emTarefa && !sessao.abastecendoRover && !configuracoesAbertas && !sessao.transicao;
   }
 
   // ---------- input ----------
@@ -632,7 +649,7 @@ export class Superficie extends Phaser.Scene {
   }
 
   private podeUsarRover() {
-    return this.input.enabled && !sessao.emTarefa && !configuracoesAbertas && !sessao.transicao && !sessao.voo
+    return this.input.enabled && !sessao.emTarefa && !sessao.abastecendoRover && !configuracoesAbertas && !sessao.transicao && !sessao.voo
       && sessao.vista === 'chao' && (sessao.fase === 'inicio' || sessao.fase === 'dia');
   }
 
@@ -662,7 +679,6 @@ export class Superficie extends Phaser.Scene {
   private alternarRover() {
     const r = sessao.rover;
     if (!r || !this.podeUsarRover()) return;
-    let abasteceu = false;
     if (r.dirigindo) {
       const astronauta = desembarcar(r, sessao.terreno, sessao.grade.caixas());
       if (!astronauta) { sessao.emitir('mensagem', 'No room to get out. Move the rover to an open spot.', '#fde68a'); return; }
@@ -675,9 +691,8 @@ export class Superficie extends Phaser.Scene {
           sessao.emitir('mensagem', 'Rover battery empty. Bring 1 battery from the Battery Bank, then press E or click the rover to install it. One battery lasts all day.', '#fde68a');
           return;
         }
-        sessao.carregando--;
-        sessao.diaCargaRover = sessao.estado.dia;
-        abasteceu = true;
+        this.abastecerRover();
+        return;
       }
       r.dirigindo = true;
       this.corpo = r.corpo;
@@ -685,9 +700,60 @@ export class Superficie extends Phaser.Scene {
     }
     this.rota = []; this.alvoUsar = null; this.alvoRover = false;
     this.recolherBandeira(); this.seguir = true;
-    sessao.emitir('mensagem', r.dirigindo ? `${abasteceu ? '1 battery installed: charged for today! ' : ''}Rover: WASD / arrows to drive, E or click the rover to get out. Click the ground to drive there.` : 'Back on foot! Press E near the rover to drive again.', '#93c5fd');
+    sessao.emitir('mensagem', r.dirigindo ? 'Rover: WASD / arrows to drive, E or click the rover to get out. Click the ground to drive there.' : 'Back on foot! Press E near the rover to drive again.', '#93c5fd');
     sessao.emitir('estado');
     if (r.dirigindo && !sessao.curiosidadeRoverVista) this.scene.launch('CuriosidadeRover');
+  }
+
+  private abastecerRover() {
+    const r=sessao.rover;if(!r || sessao.abastecendoRover || sessao.carregando<1)return;
+    const dia=sessao.estado.dia;
+    sessao.salvar();
+    sessao.abastecendoRover=true;
+    this.rota=[];this.alvoRover=false;this.alvoUsar=null;this.recolherBandeira();
+    this.corpo.vx=this.corpo.vy=0;this.input.keyboard?.resetKeys();
+    const inicio=paraTela(P,this.corpo.x,this.corpo.y,this.corpo.z+0.8);
+    const fim=paraTela(P,r.corpo.x+0.56*Math.cos(r.angulo),r.corpo.y+0.56*Math.sin(r.angulo),r.corpo.z+0.51);
+    const bateria=criarIconeJogo(this,inicio.x,inicio.y,'energy',24).setDepth(1_000_003);
+    const aviso=this.add.text(fim.x,fim.y-27,'Installing battery...',fonte(12,'#fde047',{
+      backgroundColor:'#14243e',padding:{x:9,y:5},
+    })).setOrigin(0.5,1).setDepth(1_000_003);
+    this.mapa.add([bateria,aviso]);tocarSfx('bateria');
+    this.tweens.add({targets:bateria,x:fim.x,y:fim.y,displayWidth:10,displayHeight:10,
+      duration:movimentoReduzido()?350:1100,ease:'Sine.easeInOut',onComplete:()=>{
+        bateria.destroy();aviso.destroy();sessao.abastecendoRover=false;
+        if(sessao.rover!==r || sessao.fase!=='dia' || sessao.estado.dia!==dia || sessao.carregando<1)return;
+        sessao.carregando--;sessao.diaCargaRover=dia;
+        tocarSfx('ligar');this.aplicarZoom();this.alternarRover();
+        sessao.emitir('mensagem','Battery installed. Rover charged for today!','#86efac');
+        sessao.posicaoAstronauta=this.corpo;sessao.salvar();
+      }});
+  }
+
+  private animarMontagem() {
+    const progresso=sessao.progressoFoguete,antes=this.progressoAnterior;
+    this.progressoAnterior=progresso;
+    if(sessao.mundo!=='lua' || progresso<=antes)return;
+    const pad=sessao.grade.lista.find(c=>c.tipo.id==='plataforma');
+    const oficina=sessao.grade.lista.find(c=>c.tipo.id==='oficina');
+    if(!pad || !oficina)return;
+    const etapa=Math.min(4,Math.floor(progresso/25));
+    const mudou=etapa>Math.floor(antes/25);
+    const nomes=['Launch pad ready','Engine installed','Fuel tanks installed','Crew capsule installed','Rocket ready for launch!'];
+    const fim=paraTela(P,pad.gx+pad.tipo.w/2,pad.gy+pad.tipo.h/2,pad.z+0.9+etapa*0.4);
+    const inicio=paraTela(P,oficina.gx+oficina.tipo.w/2,oficina.gy+oficina.tipo.h/2,oficina.z+oficina.tipo.altura);
+    const peca=criarIconeJogo(this,inicio.x,inicio.y,'wrench',22).setDepth(1_000_002);
+    const texto=this.add.text(fim.x,fim.y-12,mudou?nomes[etapa]:`Parts delivered · ${Math.round(progresso)}%`,fonte(13,mudou?'#86efac':'#fde047',{
+      backgroundColor:'#14243e',padding:{x:9,y:6},
+    })).setOrigin(0.5,1).setDepth(1_000_002).setAlpha(0);
+    this.mapa.add([peca,texto]);
+    tocarSfx('montagem');
+    this.tweens.add({targets:peca,x:fim.x,y:fim.y,angle:movimentoReduzido()?0:180,
+      duration:movimentoReduzido()?1:750,ease:'Sine.easeInOut',onComplete:()=>{
+        peca.destroy();texto.setAlpha(1);
+        this.tweens.add({targets:texto,alpha:0,y:fim.y-(movimentoReduzido()?12:32),delay:1800,duration:500,onComplete:()=>texto.destroy()});
+      }});
+    if(mudou)sessao.emitir('mensagem',`${nomes[etapa]} Rocket progress: ${Math.round(progresso)}%.`,'#86efac');
   }
 
   // ---------- random events (engine/eventos.ts) ----------
@@ -1067,7 +1133,7 @@ export class Superficie extends Phaser.Scene {
       this.contornoEmergencia.setAlpha(reduz ? 0.3 : 0.16 + 0.3 * pulso);
     }
     this.sombraBandeira.setVisible(this.bandeira.visible).setAlpha(this.bandeira.alpha);
-    if(configuracoesAbertas || sessao.transicao) {this.input.keyboard?.resetKeys();return;}
+    if(configuracoesAbertas || sessao.transicao) {this.input.keyboard?.resetKeys();this.sons.silenciar();return;}
     const caixas = sessao.grade.caixas();
     const e = this.input.enabled && (sessao.fase === 'dia' || sessao.fase === 'inicio') ? this.entrada() : null;
     const antesNoChao = this.corpo.noChao;
@@ -1117,7 +1183,7 @@ export class Superficie extends Phaser.Scene {
     this.desenharComandante();
     if (sessao.rover) {
       const r = sessao.rover;
-      desenharRover(this.gRover, P, r, _t, this.gRoverFrente);
+      desenharRover(this.gRover, P, r, _t, this.gRoverFrente, sessao.roverCarregado, sessao.abastecendoRover);
       const p = paraTela(P, r.corpo.x, r.corpo.y, r.corpo.z + 1.25);
       const carregado = sessao.roverCarregado;
       const acao = r.dirigindo
@@ -1137,6 +1203,13 @@ export class Superficie extends Phaser.Scene {
       for (const t of this.nomesNoMapa) t.setAlpha(1 - a);
     }
     if(this.mapa.visible) this.ambiente.update(dt,this.corpo,sessao.grade.lista,sessao.rover);
+    const ativo=this.scene.isVisible() && !document.hidden && this.input.enabled && (sessao.fase==='dia'||sessao.fase==='inicio');
+    const proximidade=sessao.grade.lista.filter(c=>c.tipo.sala || c.tipo.id==='habitat')
+      .reduce((v,c)=>Math.max(v,1/(1+Math.hypot(c.gx+c.tipo.w/2-this.corpo.x,c.gy+c.tipo.h/2-this.corpo.y)**2*0.2)),0);
+    this.sons.atualizar(sessao.rover?.dirigindo?Math.hypot(this.corpo.vx,this.corpo.vy)/6.4:0,proximidade,ativo);
+    sessao.posicaoAstronauta=this.corpo;
+    sessao.atualizarSalvamento(dtMs);
+    if(!this.pouso && this.suprimentosPendentes.length && sessao.fase==='dia') this.chegar(this.suprimentosPendentes.shift()!);
     this.animarModulos(dt);
     this.atualizarDica(dt);
 
@@ -1181,7 +1254,7 @@ export class Superficie extends Phaser.Scene {
     if (c.tipo.id === 'bateria') return modeloBancoBaterias(sessao.noHabitat, sessao.fase === 'inicio') as Modelo;
     const meta = sessao.estado.meta;
     if (c.tipo.id === 'plataforma' && this.foguetePartiu) return 'plataforma';
-    if (c.tipo.id === 'plataforma') return `foguete${Math.min(4, Math.floor(meta / 25))}` as Modelo;
+    if (c.tipo.id === 'plataforma') return `foguete${Math.min(4, Math.floor(sessao.progressoFoguete / 25))}` as Modelo;
     if (c.tipo.id === 'blindagem' && sessao.fase !== 'inicio') return `blindagem_agua${Math.min(3, sessao.entregas.blindagem)}` as Modelo;
     return c.tipo.id as Modelo;
   }
@@ -1287,6 +1360,7 @@ export class Superficie extends Phaser.Scene {
         .setColor(this.emObra(c) ? '#fde68a' : '#f8fafc').setAlign('center');
     }
     if (d.rotulo) {
+      if(c.tipo.id==='plataforma' && sessao.mundo==='lua') d.rotulo.setText(`Rocket · ${Math.round(sessao.progressoFoguete)}%`);
       // The launch pad's own altura is tiny (0.25) but the rocket on top can be very tall,
       // and the rocket workshop has a high antenna/crane. Calculate visual height from
       // the model sprite anchor and add sufficient clearance so labels float cleanly above.

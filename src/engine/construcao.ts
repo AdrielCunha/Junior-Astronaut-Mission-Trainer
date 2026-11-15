@@ -119,6 +119,22 @@ export class Grade {
     return c;
   }
 
+  restaurar(modulos: {id: number; tipo: TipoId; gx: number; gy: number}[], decoracao: DecoColocada[]) {
+    for (const m of modulos) {
+      if (!Object.prototype.hasOwnProperty.call(TIPOS,m.tipo) || !Number.isInteger(m.id)
+        || this.lista.some(c=>c.id===m.id) || !Number.isInteger(m.gx) || !Number.isInteger(m.gy)) throw new Error('Invalid saved module');
+      const c = this.construir(TIPOS[m.tipo],m.gx,m.gy);
+      if (!c) throw new Error('Invalid saved module position');
+      c.id = m.id;
+      for (let y=m.gy;y<m.gy+c.tipo.h;y++) for (let x=m.gx;x<m.gx+c.tipo.w;x++) this.ocup[y*this.n+x]=m.id;
+      this.proximo=Math.max(this.proximo,m.id+1);
+    }
+    for (const d of decoracao) {
+      if (d.gx+d.w>this.n || d.gy+d.h>this.n) throw new Error('Invalid saved prop');
+      this.colocarDeco(d,d.gx,d.gy);
+    }
+  }
+
   // Puts a prop on the ground: reserves its tiles and makes it solid.
   colocarDeco(d: Omit<DecoColocada, 'gx' | 'gy' | 'z'>, gx: number, gy: number): DecoColocada {
     const p: DecoColocada = { ...d, gx, gy, z: this.t.alturaMax(gx, gy, d.w, d.h) + 0.01 };

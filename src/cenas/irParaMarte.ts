@@ -17,6 +17,13 @@ const IMAGENS: Partial<Record<Mundo, [string, string][]>> = {
   nave: [['terreno_nave', terrenoNave.imagem.arquivo], ['terreno_nave_teto', terrenoNave.imagemTeto], ...Object.entries(naveProps).map(([id, p]) => [`mod_${id}`, p.arquivo] as [string, string])],
 };
 
+export function carregarImagensMundo(cena: Phaser.Scene, mundo: Mundo, pronto: () => void) {
+  const faltam=(IMAGENS[mundo]??[]).filter(([chave])=>!cena.textures.exists(chave));
+  if (!faltam.length) { pronto(); return; }
+  for (const [chave,arquivo] of faltam) cena.load.image(chave,arquivo);
+  cena.load.once('complete',pronto);cena.load.start();
+}
+
 export function iniciarMundo3D(cena: Phaser.Scene, mundo: Mundo, capIdx: number, dose: number, pontos: number[]) {
   const comecar = () => {
     const sm = cena.game.scene;
