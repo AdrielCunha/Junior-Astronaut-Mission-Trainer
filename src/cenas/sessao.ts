@@ -15,7 +15,7 @@ import { lerPartida, gravarPartida } from '../salvamento';
 import { LAYOUT, LAYOUT_VERSAO } from '../dados/layout';
 import { Grade, TIPOS, ROTACAO_LAYOUT, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
-import { VOO as voo } from './qualidade';
+import { VOO as voo, usarFilme } from './qualidade';
 import { CAPITULOS } from '../capitulos';
 import { inicioDoCapitulo, bateriasDoDia, nenhuma, type Alocacao, type Efeito, type Estado } from '../regras';
 
@@ -48,6 +48,7 @@ export const S_MAX = S_MAPA * ZOOM_MAX;
 export const U_CHAO = Math.log(ZOOM_MAX / ZOOM_MIN);
 export const U_INICIAL = Math.log(ZOOM_MAX / 1.1);
 export const RAIO_LUA = 1737.4;             // km
+export const RAIO_MARTE = 3396.19;          // km
 const AU = 149597870.7;
 // How far the elastic zoom goes past the solar system view, in log units: out to Neptune.
 export const ELASTICO_MAX = 3.2;
@@ -90,7 +91,6 @@ export type Eventos = {
   suprimento: [TipoId];               // a cargo lander is bringing this today
   desbloqueado: [Construcao];         // it landed and is part of the base
   pulo: [];
-  zoomMarte: [];                      // on Mars, zooming out past the ground opens MarteVista
   controleUsado: ['movimento' | 'pulo'];
   pousoFoguete: [() => void];        // after the launch film: the rocket lands on the pad, then calls back
 };
@@ -249,7 +249,9 @@ class Sessao {
   // Switches the terrain, the base layout and gravity to another world. The terrain data is
   // changed IN PLACE: scenes keep references to dadosTerreno and its projection (Superficie's P).
   usarMundo(m: Mundo) {
+    if (m !== this.mundo) this.filmePronto = false;   // the other world's flight film loads next
     this.mundo = m;
+    usarFilme(m);
     const fonte = m === 'marte' ? terrenoMarteJson : m === 'nave' ? terrenoNaveJson : TERRENO_LUA;
     const d = dadosTerreno as unknown as Record<string, unknown>;
     const img = dadosTerreno.imagem;
@@ -305,7 +307,7 @@ class Sessao {
   // voo.sInicio px/km, their last the globe at voo.diametroFim px: both views follow from it.
   get escalaFilme() { return Math.max(this.tela.w / voo.w, this.tela.h / voo.h); }
   get uFilme() { return uDeS(voo.sInicio * this.escalaFilme); }
-  get uGlobo() { return uDeS((voo.diametroFim * this.escalaFilme) / (2 * RAIO_LUA)); }
+  get uGlobo() { return uDeS((voo.diametroFim * this.escalaFilme) / (2 * (this.mundo === 'marte' ? RAIO_MARTE : RAIO_LUA))); }
   // Where the flight is now, p = 0 (the map) .. 1 (the Moon view), or null when not flying it.
   // p is the camera's log distance, the axis the frames were rendered on (voo.p).
   get quadroFilme(): number | null {
@@ -348,7 +350,7 @@ class Sessao {
       if (this.empurrao > 0.35) this.voar('lua');
       return;
     }
-    if (this.vista === 'sistema' && this.mundo === 'lua' && (d > 0 || this.puxo > 0)) {
+    if (this.vista === 'sistema' && this.mundo !== 'nave' && (d > 0 || this.puxo > 0)) {
       this.puxo = Math.max(0, this.puxo + d * 2);
       this.ultimoPuxo = performance.now();
       this.empurrao = 0;
@@ -359,11 +361,14 @@ class Sessao {
     else if (this.empurrao < -0.3) this.voar(this.vista === 'sistema' ? 'lua' : 'chao');
   }
 
+  // The film part of the flight. Mars's film zooms farther (Mars is bigger) and turns the view
+  // as it pulls back, so it runs a little longer: calmer for anyone who gets motion sick.
+  get duracaoFilme() { return DURACAO_FILME * (this.mundo === 'marte' ? 1.25 : 1); }
+
   // Plays the whole flight to another view; input waits until it lands.
   voar(destino: Vista) {
-    // Mars has no globe or film in Espaco: its zoom out is MarteVista (the Mars film, live globe
-    // and solar system), opened by Interface.
-    if (this.mundo === 'marte' && destino !== 'chao') { this.empurrao = 0; this.emitir('zoomMarte'); return; }
+    // Mars flies like the Moon: its own film (make_flight_marte.py), then its live globe, then
+    // the solar system, all in Espaco.
     if (this.mundo === 'nave' && destino !== 'chao') {
       this.empurrao = 0;
       this.emitir('mensagem', '🚀 On the ship to Mars! Look out: only stars.', '#93c5fd');
@@ -392,7 +397,7 @@ class Sessao {
       const Lf = Math.log(voo.razao);
       const Lg = ida ? Math.abs(this.uFilme - this.u) : Math.abs(this.uFilme - U_INICIAL);
       this.voo = { tipo: 'filme', fase: 'prep', de: this.u, para: ida ? this.uFilme : this.u, t: 0,
-        dur: ida ? (DURACAO_FILME * (Lg + Lf)) / Lf : 0.7, destino, sentido: ida ? 1 : -1, T: 0, Lg, Lf };
+        dur: ida ? (this.duracaoFilme * (Lg + Lf)) / Lf : this.mundo === 'marte' ? 0.05 : 0.7, destino, sentido: ida ? 1 : -1, T: 0, Lg, Lf };
       return;
     }
     const para = destino === 'lua' ? this.uGlobo : this.uSistema;
@@ -439,7 +444,7 @@ class Sessao {
         if (v.sentido < 0 && v.fase === 'prep') {                               // the Moon turns first
           v.t = Math.min(1, v.t + dt / v.dur);
           if (v.t < 1) return;
-          v.fase = 'filme'; v.t = 0; v.T = 0; v.dur = (DURACAO_FILME * (Lg + Lf)) / Lf;
+          v.fase = 'filme'; v.t = 0; v.T = 0; v.dur = (this.duracaoFilme * (Lg + Lf)) / Lf;
           return;
         }
         v.T = Math.min(1, (v.T ?? 0) + dt / v.dur);

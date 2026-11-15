@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Terreno, type DadosTerreno } from './terreno.ts';
 import { paraTela, paraChao, type Projecao } from './iso.ts';
-import { passo, novoCorpo, G, G_LUA, G_TERRA, pulo } from './fisica.ts';
+import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, definirGravidade, METROS_POR_TILE_CORPO } from './fisica.ts';
 import { Grade, TIPOS, BASE_PADRAO, BASE_MARTE, SETORES_SUPRIMENTOS, montarBasePadrao } from './construcao.ts';
 import { posicao, PLANETAS, lua } from './astro.ts';
 import { SUPRIMENTOS, empuxoDePouso } from './suprimentos.ts';
@@ -47,6 +47,32 @@ test('a dropped body falls with lunar gravity and lands', () => {
 test('a Moon jump is about six times higher than on Earth', () => {
   const r = pulo(G_LUA).altura / pulo(G_TERRA).altura;
   assert.ok(r > 5.9 && r < 6.2, `ratio ${r}`);
+});
+
+test('Mars and Moon jump trajectories match their gravity at 30, 60 and 120 FPS', () => {
+  const anterior = G * METROS_POR_TILE_CORPO;
+  try {
+    for (const gravidade of [G_MARTE, G_LUA]) {
+      definirGravidade(gravidade);
+      for (const fps of [30, 60, 120]) {
+        const k = novoCorpo(2, 2, 0); k.noChao = true;
+        const t = plano(), esperado = pulo(gravidade), dt = 1 / fps;
+        let altura = 0, tempo = 0, pousos = 0;
+        for (let i = 0; i < fps * 5; i++) {
+          const resultado = passo(k, { dx: 0, dy: 0, pular: i === 0 }, t, [], dt);
+          altura = Math.max(altura, k.z * METROS_POR_TILE_CORPO);
+          tempo += dt;
+          if (resultado.pousou) { pousos++; break; }
+        }
+        assert.equal(pousos, 1);
+        assert.ok(Math.abs(tempo - esperado.tempo) <= dt + 1e-9, `g=${gravidade}, ${fps} FPS: ${tempo}s`);
+        // Semi-implicit Euler loses at most about half a frame's initial vertical displacement.
+        assert.ok(Math.abs(altura - esperado.altura) < 2.2 * dt, `g=${gravidade}, ${fps} FPS: ${altura}m`);
+      }
+    }
+    assert.ok(pulo(G_MARTE).altura < pulo(G_LUA).altura);
+    assert.ok(pulo(G_MARTE).tempo < pulo(G_LUA).tempo);
+  } finally { definirGravidade(anterior); }
 });
 
 test('a module is a wall; walking slides along it', () => {
