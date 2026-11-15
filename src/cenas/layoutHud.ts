@@ -29,12 +29,13 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
   const faixa = caixa(0, 0, largura, Math.max(objetivo.y + h2, titulo.y + h1) + margem);
   const avisoY = estreito ? fimRecursos + espaco : objetivo.y + h2 + px(10);
   // Right column: the menu button on top of the three zoom buttons.
-  const zoomAltura = 4 * lado + 3 * espaco;
+  const zoomAltura = 5 * lado + 4 * espaco;
   const zoomY = Math.max(Math.round((altura - zoomAltura) / 2), fimRecursos + 2 * espaco);
   const nivelW = px(64), nivelH = px(28);
   const centroZoom = largura - margem - nivelW / 2;
   const menu = caixa(centroZoom - lado / 2, zoomY, lado, lado);
   const zoom = Array.from({ length: 3 }, (_, i) => caixa(centroZoom - lado / 2, zoomY + (i + 1) * passo, lado, lado));
+  const editar = caixa(centroZoom - lado / 2, zoomY + 4 * passo, lado, lado);
   const nivel = caixa(largura - margem - nivelW, zoomY + zoomAltura + espaco, nivelW, nivelH);
   const fimDia = caixa(largura - margem - px(128), altura - margem - lado, px(128), lado);
   const dicasW = px(570), dicasCompactas = dicasW + espaco > fimDia.x - margem;
@@ -44,5 +45,5 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
   const dicasAba = caixa(painelW - abaW, painelH - lado, abaW, lado);
   const dicas = caixa(margem, fimDia.y, dicasCompactas ? abaW : dicasW, lado);
   const dicasFechadasX = margem - dicasAba.x;
-  return { u, margem, espaco, titulo, faixa, menu, recursos, capsula, objetivo, avisoY, zoom, nivel, fimDia, dicas, dicasCompactas, dicasPainel, dicasAba, dicasFechadasX };
+  return { u, margem, espaco, titulo, faixa, menu, recursos, capsula, objetivo, avisoY, zoom, nivel, editar, fimDia, dicas, dicasCompactas, dicasPainel, dicasAba, dicasFechadasX };
 }

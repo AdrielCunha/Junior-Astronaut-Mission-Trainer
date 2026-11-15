@@ -4,7 +4,7 @@ import type { Interface } from './cenas/Interface';
 import type { Base } from './cenas/Base';
 import { CAPITULOS } from './capitulos';
 import { sessao } from './cenas/sessao';
-import { iniciarNave3D, iniciarMarte3D } from './cenas/irParaMarte';
+import { iniciarMundo3D } from './cenas/irParaMarte';
 import { PRAZO_TEMPESTADE_MS } from './cenas/tempestadeSolar';
 
 export function instalarMenuDev(jogo: Phaser.Game) {
@@ -63,6 +63,7 @@ export function instalarMenuDev(jogo: Phaser.Game) {
     pausadas = jogo.scene.getScenes(true).map(scene => scene.sys.settings.key);
     for (const key of pausadas) { const scene = jogo.scene.getScene(key); scene.input.keyboard?.resetKeys(); jogo.scene.pause(key); }
     const valores = alvo().devValores();
+    dialog.querySelector<HTMLSelectElement>('#dev-chapter')!.value = String(sessao.capIdx);
     for (const key of ['oxigenio', 'dose', 'meta'] as const) {
       const numero = dialog.querySelector<HTMLInputElement>(`#dev-${key}`)!;
       numero.value = String(Math.round(valores[key]));
@@ -94,13 +95,13 @@ export function instalarMenuDev(jogo: Phaser.Game) {
     }
     if (acao === 'chapter') {
       const indice = Number(dialog.querySelector<HTMLSelectElement>('#dev-chapter')!.value);
+      const capitulo = CAPITULOS[indice];
+      if (!capitulo) { status('Select a chapter first.'); return; }
+      // Find the scene while the menu has it paused, before closing resumes the game.
+      const cena = jogo.scene.scenes.find((c) => c.sys.isActive() || jogo.scene.isPaused(c.sys.settings.key));
+      if (!cena) { status('No mission scene is available.'); return; }
       fechar();
-      if (indice === 0) {
-        location.reload();
-      } else {
-        const cena = jogo.scene.getScenes(true)[0];
-        if (cena) (indice === 1 ? iniciarNave3D : iniciarMarte3D)(cena, 0, []);
-      }
+      iniciarMundo3D(cena, capitulo.tema, indice, 0, []);
       return;
     }
     if (!disponivel()) return;

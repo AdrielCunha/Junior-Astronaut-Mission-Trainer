@@ -6,6 +6,12 @@ import type { Tipo } from '../engine/construcao';
 
 export type Deco = { id: string; nome: string; info: string; w: number; h: number; altura: number; dx: number; dy: number };
 
+export const OBJETOS_CONSTRUCAO:Deco[]=[
+  {id:'generator',nome:'Generator',info:'A portable backup generator stored with the base equipment.',w:1,h:1,altura:.85,dx:12,dy:-23},
+  {id:'canister',nome:'Canister',info:'A sealed storage canister. Move it with the other base supplies.',w:1,h:1,altura:1,dx:22,dy:5},
+  {id:'toolkit',nome:'Tool kit',info:'A portable case of tools for working around the base.',w:1,h:1,altura:.8,dx:-12,dy:21},
+];
+
 const ROVER = 'An old rover from an earlier mission. Its batteries died long ago, but the wheels still look ready to roll.';
 const DESCIDA = 'The bottom half of a lander. The top half flew back up; the legs and tanks stay on the Moon.';
 const SONDA = 'A probe that hit the ground too fast. Early robot missions crashed a lot before engineers got landings right.';
@@ -25,6 +31,7 @@ const QUEIJO = 'The Moon is not cheese! It is rock and dust.';
 const MOCHILA ='A lost backpack! Life support packs hold oxygen and cooling water for a moonwalk.';
 
 export const DECORACAO: Deco[] = [
+  ...OBJETOS_CONSTRUCAO,
   // Spread over the open ground, away from the center and the main buildings (Grade.procurarDeco)
   { id: 'caixas', nome: 'Supply Crates', info: CAIXAS, w: 1, h: 1, altura: 0.8, dx: 16, dy: 11 },
   { id: 'lanterna', nome: 'Solar Lamp', info: LANTERNA, w: 1, h: 1, altura: 1.1, dx: -24, dy: 3 },
