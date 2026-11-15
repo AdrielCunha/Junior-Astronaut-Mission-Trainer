@@ -7,6 +7,7 @@ import {
   type TarefaDivisao, type IdSistema,
 } from '../desviar-energia-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -198,6 +199,7 @@ export class DesviarEnergiaTarefa extends Phaser.Scene {
       if (resultado === 'desarmou') {
         // Show the overload for a moment, then restart the round.
         bloqueado = true;
+        tocarSfx('zap');
         celulas.clear();
         for (let k = 0; k < CAPACIDADE_MAXIMA; k++) {
           const y = BY + (CAPACIDADE_MAXIMA - 1 - k) * CELULA_H * 0.88 + 4;
@@ -218,6 +220,7 @@ export class DesviarEnergiaTarefa extends Phaser.Scene {
         return;
       }
       estado = tarefa;
+      tocarSfx(resultado === 'ligou' ? 'ligar' : 'clique');
       this.tweens.add({ targets: carta.caixa, scale: 1.06, duration: 90, yoyo: true });
       if (resultado === 'concluida') { pintar(); vencer(); return; }
       if (resultado === 'rodada') {

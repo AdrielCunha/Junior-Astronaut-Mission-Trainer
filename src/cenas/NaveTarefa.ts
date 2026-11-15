@@ -2,6 +2,7 @@
 // "Mapa da rota" mini-task: drag the rocket from the Moon to Mars while the asteroids drift by.
 // The rules live in ../nave-tarefa.ts (pure functions, tested); this scene only draws and reads the mouse.
 import Phaser from 'phaser';
+import { tocarSfx } from '../sfx';
 import { escalaPainel, moldura, faixaTitulo, barraStatus, botaoFechar } from './moldura';
 import { criarTarefaNave, naveEmColisao, tarefaConcluida, moverAsteroides, distancia, type Ponto } from '../nave-tarefa';
 
@@ -241,6 +242,7 @@ export class NaveTarefa extends Phaser.Scene {
     const bater = () => {
       bloqueado = true;
       arrastando = false;
+      tocarSfx('zap');
       msg('You hit an obstacle. Try another route.', '#fca5a5');
       rajada(pos.x, pos.y, [0xfde047, 0xfb923c, 0xffffff], 12, 60);
       this.tweens.add({ targets: nave, alpha: 0.25, duration: 90, yoyo: true, repeat: 3 });
@@ -257,6 +259,7 @@ export class NaveTarefa extends Phaser.Scene {
       acabou = true;
       arrastando = false;
       colocar({ ...tarefa.end });
+      tocarSfx('sucesso');
       msg('Route complete!', '#86efac');
       rajada(tarefa.end.x, tarefa.end.y, [0xfde047, 0x86efac, 0x7dd3fc, 0xf9a8d4], 26, 150);
       this.tweens.add({ targets: nave, scale: 0, angle: 200, duration: 800, delay: 150, ease: 'Quad.easeIn' });
@@ -289,6 +292,7 @@ export class NaveTarefa extends Phaser.Scene {
     nave.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (acabou || bloqueado) return;
       const l = aoLocal(p);
+      tocarSfx('pegar');
       folga = { x: pos.x - l.x, y: pos.y - l.y };
       arrastando = true;
       if (dicaVisivel) { dicaVisivel = false; this.tweens.add({ targets: dica, alpha: 0, duration: 400 }); }

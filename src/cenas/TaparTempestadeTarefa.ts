@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { criarTarefaTapar, colocarSaco, removerSaco, doseSentida, tarefaConcluida, sacosNoLadoCerto, type TarefaTapar, type EncaixeTempestade } from '../tapar-tempestade-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -195,6 +196,7 @@ export class TaparTempestadeTarefa extends Phaser.Scene {
       arrastado = this.add.image(l.x, l.y, 'tapar_saco_v2').setScale(0.55).setDepth(50);
       raiz.add(arrastado);
       noAr++;
+      tocarSfx('pegar');
       pintarTudo();
       msg('Take the bag to the wall.');
     });
@@ -230,11 +232,12 @@ export class TaparTempestadeTarefa extends Phaser.Scene {
         const d = Phaser.Math.Distance.Between(l.x, l.y, c.x, c.y);
         if (d < dist) { dist = d; melhor = e; }
       }
-      if (!melhor) { voltarPilha(im); msg(INSTRUCAO); return; }
+      if (!melhor) { tocarSfx('soltar'); voltarPilha(im); msg(INSTRUCAO); return; }
       const r = colocarSaco(estado, melhor.id);
       const c = centroEncaixe(melhor);
       if (r.resultado === 'certo') {
         estado = r.tarefa;
+        tocarSfx('encaixe');
         im.destroy();
         noAr--;
         pintarTudo();
@@ -256,6 +259,7 @@ export class TaparTempestadeTarefa extends Phaser.Scene {
     sacosNoEncaixe.forEach((im, i) => im.on('pointerdown', () => {
       if (acabou || arrastado) return;
       estado = removerSaco(estado, estado.encaixes[i].id);
+      tocarSfx('pegar');
       pintarTudo();
       msg('Bag returned. Place it again where you need it.');
     }));

@@ -2,6 +2,7 @@
 // "Maintenance - O₂ Filter": drag the vacuum over the dust stains until the air quality bar is full.
 // The rules live in ../filtro-o2-tarefa.ts (pure functions, tested); this scene only draws and reads the mouse.
 import Phaser from 'phaser';
+import { tocarSfx } from '../sfx';
 import { criarTarefaFiltroO2, limparEm, qualidadeDoAr, tarefaConcluida, centroDaCelula, type TarefaFiltroO2 } from '../filtro-o2-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
 
@@ -126,7 +127,7 @@ export class FiltroO2Tarefa extends Phaser.Scene {
       pos = l;
       mostrar(arrastando || dentro(p));
     };
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => { if (dentro(p)) { arrastando = true; mover(p); } });
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => { if (dentro(p)) { arrastando = true; tocarSfx('ligar'); mover(p); } });
     this.input.on('pointermove', mover);
     this.input.on('pointerup', () => { arrastando = false; });
     this.input.on('gameout', () => { arrastando = false; mostrar(false); });
@@ -170,7 +171,7 @@ export class FiltroO2Tarefa extends Phaser.Scene {
         this.tweens.add({ targets: g, x: pos.x, y: pos.y, alpha: 0, duration: 260, onComplete: () => g.destroy() });
       }
       if (tarefaConcluida(estado)) { vencer(); return; }
-      if (!meio && qualidadeDoAr(estado) >= 0.5) { meio = true; msg('It is getting clean! Keep going.', '#fde68a'); }
+      if (!meio && qualidadeDoAr(estado) >= 0.5) { meio = true; tocarSfx('ok'); msg('It is getting clean! Keep going.', '#fde68a'); }
     };
     this.events.on('update', aCadaQuadro);
     this.events.once('shutdown', () => this.events.off('update', aCadaQuadro));

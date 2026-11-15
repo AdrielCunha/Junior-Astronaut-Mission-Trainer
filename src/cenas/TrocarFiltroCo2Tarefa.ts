@@ -7,6 +7,7 @@ import {
   type TarefaFiltroCo2, type Ponto,
 } from '../trocar-filtro-co2-tarefa';
 import { FONTE, abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -121,6 +122,7 @@ export class TrocarFiltroCo2Tarefa extends Phaser.Scene {
         const proximo = abrirTrava(estado, i);
         if (proximo === estado) return;
         estado = proximo; dica.stop();
+        tocarSfx('clique');
         alavanca.setScale(1).setTint(0x86efac);
         this.tweens.add({ targets: alavanca, angle: lado * -85, duration: 280, ease: 'Back.easeOut' });
         rajada(this, raiz, alavanca.x, alavanca.y + 30, [0xfde047, 0x86efac], 6, 40);
@@ -174,6 +176,7 @@ export class TrocarFiltroCo2Tarefa extends Phaser.Scene {
     const aoLocal = (p: Phaser.Input.Pointer): Ponto => ({ x: (p.x - raiz.x) / s, y: (p.y - raiz.y) / s });
     const pegar = (im: Phaser.GameObjects.Image, p: Phaser.Input.Pointer) => {
       const l = aoLocal(p);
+      tocarSfx('pegar');
       arrastado = im; deslocamento = { x: im.x - l.x, y: im.y - l.y };
       this.tweens.killTweensOf(im);
       if (im === novo) flutuar.stop();
@@ -235,19 +238,22 @@ export class TrocarFiltroCo2Tarefa extends Phaser.Scene {
       const antes = estado;
       if (im === velho) {
         estado = soltarFiltroVelho(estado, solto);
-        if (estado === antes) { voltar(velho, encaixe); msg('The trash goes on the left. Try again!', '#fde68a'); return; }
+        if (estado === antes) { tocarSfx('soltar'); voltar(velho, encaixe); msg('The trash goes on the left. Try again!', '#fde68a'); return; }
         this.tweens.add({ targets: velho, x: lixo.x, y: lixo.y - 40, scale: 0.35, alpha: 0, duration: 380, ease: 'Cubic.easeIn' });
+        tocarSfx('soltar');
         rajada(this, raiz, lixo.x, lixo.y - 30, [0x93c5fd, 0xe0f2fe], 8, 60);
         msg('Now drag the new filter into the slot.'); destacar(novo);
         return;
       }
       estado = soltarFiltroNovo(estado, solto);
       if (estado.fase !== 'respirando') {
+        tocarSfx('soltar');
         voltar(novo, prateleira);
         if (estado !== antes) msg('That is not the right fit. Try the center opening.', '#fde68a');
         return;
       }
       this.tweens.add({ targets: novo, x: encaixe.x, y: encaixe.y, scale: 1, duration: 200, ease: 'Back.easeOut', onComplete: () => novo.setDepth(5) });
+      tocarSfx('encaixe');
       rajada(this, raiz, encaixe.x, encaixe.y, [0xfde047, 0x7dd3fc, 0x86efac], 12, 90);
       alavancas.forEach((a) => this.tweens.add({ targets: a, angle: 0, duration: 300, ease: 'Back.easeOut' }));
       msg('Installed! CO₂ is dropping...', '#86efac');

@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { criarRumo, apontarPara, avancarRumo, alvoAtual, rumoConcluido, rumoNoAlvo, progressoDoAlvo, type TarefaRumo } from '../direcao-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -146,8 +147,8 @@ export class DirecaoTarefa extends Phaser.Scene {
     };
     const fundo = this.add.rectangle(0, 0, JAN_W, JAN_H, 0xffffff, 0.001).setOrigin(0).setInteractive({ useHandCursor: true });
     janela.add(fundo);
-    fundo.on('pointerdown', (p: Phaser.Input.Pointer) => { if (!acabou) { arrastando = true; mover(p); } });
-    const soltar = () => { arrastando = false; };
+    fundo.on('pointerdown', (p: Phaser.Input.Pointer) => { if (!acabou) { arrastando = true; tocarSfx('pegar'); mover(p); } });
+    const soltar = () => { if (arrastando) tocarSfx('soltar'); arrastando = false; };
     this.input.on('pointermove', mover);
     this.input.on('pointerup', soltar);
     this.input.on('gameout', soltar);
@@ -181,11 +182,14 @@ export class DirecaoTarefa extends Phaser.Scene {
         // The rocket turns by the shortest way, at a limited speed, so it feels heavy but not slow.
         const dif = Phaser.Math.Angle.WrapDegrees(desejado - estado.rumo);
         const passo = Math.sign(dif) * Math.min(Math.abs(dif), VEL_GIRO * dt);
+        const passoAntes = Math.floor(estado.rumo / 15);
         estado = apontarPara(estado, estado.rumo + passo);
+        if (Math.floor(estado.rumo / 15) !== passoAntes) tocarSfx('girar');
         const antes = estado.indice;
         estado = avancarRumo(estado, dt);
         if (estado.indice !== antes) {
           const a = estado.alvos[antes];
+          tocarSfx('encaixe');
           rajada(this, janela, CX + Math.sin(rad(a.angulo)) * RAIO, CY - Math.cos(rad(a.angulo)) * RAIO, [0xfde047, 0x86efac, 0xffffff], 14, 80);
           desenharFichas();
           if (rumoConcluido(estado)) { vencer(); return; }

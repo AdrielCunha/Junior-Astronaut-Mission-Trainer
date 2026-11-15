@@ -2,6 +2,7 @@
 // "Safety - Hatches": drag each coloured lid onto the open hatch of the same colour before the solar storm.
 // The rules live in ../fechar-escotilhas-tarefa.ts (pure functions, tested); this scene only draws and reads the mouse.
 import Phaser from 'phaser';
+import { tocarSfx } from '../sfx';
 import { criarTarefaEscotilhas, soltarTampa, protecao, tarefaConcluida, escotilhasAbertas, type TarefaEscotilhas } from '../fechar-escotilhas-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
 
@@ -161,6 +162,7 @@ export class FecharEscotilhasTarefa extends Phaser.Scene {
 
     this.input.on('dragstart', (_p: Phaser.Input.Pointer, o: Phaser.GameObjects.Image) => {
       if (acabou) return;
+      tocarSfx('pegar');
       this.tweens.killTweensOf(o);
       o.setScale(1.1); janela.bringToTop(o);
     });
@@ -179,6 +181,7 @@ export class FecharEscotilhasTarefa extends Phaser.Scene {
       if (r.resultado === 'fechou') {
         estado = r.tarefa;
         const e = estado.escotilhas.find((x) => x.id === t.tp.id)!;
+        tocarSfx('encaixe');
         t.fechada = true; t.im.disableInteractive();
         this.tweens.add({ targets: t.im, x: e.x, y: e.y, scale: 1, duration: 160, ease: 'Sine.easeOut' });
         this.tweens.add({ targets: t.sombra, x: e.x + 5, y: e.y + 9, duration: 160 });
@@ -190,9 +193,11 @@ export class FecharEscotilhasTarefa extends Phaser.Scene {
         else msg(`The ${NOMES[e.id]} hatch is closed! ${escotilhasAbertas(estado)} to go.`, '#86efac');
       } else {
         if (r.resultado === 'errou') {
+          tocarSfx('erro');
           msg('That hatch is a different color. Try again!', '#fde68a');
           this.tweens.add({ targets: o, angle: { from: -10, to: 10 }, duration: 70, yoyo: true, repeat: 2, onComplete: () => o.setAngle(0) });
         }
+        else tocarSfx('soltar');
         voltar(t.tp.id);
       }
     });

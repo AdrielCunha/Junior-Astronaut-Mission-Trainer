@@ -7,6 +7,7 @@ import {
   type TarefaValvulas, type Valvula,
 } from '../equilibrar-valvulas-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -174,10 +175,13 @@ export class EquilibrarValvulasTarefa extends Phaser.Scene {
       if (Math.hypot(dx, dy) < 8) return;
       const nivel = nivelDoAngulo(Phaser.Math.RadToDeg(Math.atan2(dy, dx)) + 90);
       if (Math.abs(nivel - estado[q]) > 0.6) return;     // a jump across the gap at the bottom: ignore
+      const antes = Math.round(estado[q] * 20);
       estado = girarValvula(estado, q, nivel);
+      if (Math.round(estado[q] * 20) !== antes) tocarSfx('girar');
       pintar();
       for (const v of tipos) {                            // a little burst when a needle enters the green
         const dentro = naFaixa(estado, v);
+        if (dentro && !estavaNoVerde.get(v)) tocarSfx('encaixe');
         if (dentro && !estavaNoVerde.get(v)) rajada(this, raiz, COLUNAS[v].x, MOSTRADOR_Y, [0x86efac, 0xfde047, 0xffffff], 8, 60);
         estavaNoVerde.set(v, dentro);
       }
@@ -186,10 +190,10 @@ export class EquilibrarValvulasTarefa extends Phaser.Scene {
       }
     };
     for (const q of tipos) {
-      rodas.get(q)!.on('pointerdown', (p: Phaser.Input.Pointer) => { if (!acabou) { segurando = q; mover(p); } });
+      rodas.get(q)!.on('pointerdown', (p: Phaser.Input.Pointer) => { if (!acabou) { segurando = q; tocarSfx('pegar'); mover(p); } });
     }
     this.input.on('pointermove', mover);
-    this.input.on('pointerup', () => { segurando = null; });
+    this.input.on('pointerup', () => { if (segurando) tocarSfx('soltar'); segurando = null; });
     this.input.on('gameout', () => { segurando = null; });
 
     const vencer = () => {

@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { criarTarefaColapsoReator, avancar, resfriar, tarefaConcluida, META, type TarefaColapsoReator } from '../colapso-reator-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -123,6 +124,7 @@ export class ColapsoReatorTarefa extends Phaser.Scene {
         if (novo === estado) return;
         estado = novo;
         pontos.delete(id);
+        tocarSfx('bolha');
         im.disableInteractive();
         this.tweens.killTweensOf(im);
         rajada(this, janela, im.x, im.y, [0x7dd3fc, 0xe0f2fe, 0xffffff], 12, 60);
@@ -141,6 +143,7 @@ export class ColapsoReatorTarefa extends Phaser.Scene {
         estado = avancar(estado, dt);
         if (estado.alarmes !== alarmes) {
           alarmes = estado.alarmes;
+          tocarSfx('zap');
           pontos.forEach((im) => { im.disableInteractive(); this.tweens.killTweensOf(im); im.destroy(); });
           pontos.clear();
           msg('Overheated! Cool it down faster.', '#fca5a5');

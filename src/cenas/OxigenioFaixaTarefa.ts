@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { criarTarefaOxigenioFaixa, passo, progresso, tarefaConcluida, naFaixa, emAlerta, type TarefaOxigenioFaixa } from '../oxigenio-faixa-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -94,12 +95,12 @@ export class OxigenioFaixaTarefa extends Phaser.Scene {
       rotuloBotao.setY(BY + (ativo ? 6 : 0));
     };
     desenharBotao();
-    zona.on('pointerdown', () => { injetando = true; desenharBotao(); });
+    zona.on('pointerdown', () => { injetando = true; tocarSfx('clique'); desenharBotao(); });
     const soltar = () => { if (injetando) { injetando = false; desenharBotao(); } };
     this.input.on('pointerup', soltar);
     this.input.on('gameout', soltar);
     const kb = this.input.keyboard;
-    const descer = (e: KeyboardEvent) => { if (e.code === 'Space') { teclaEspaco = true; desenharBotao(); } };
+    const descer = (e: KeyboardEvent) => { if (e.code === 'Space') { if (!teclaEspaco) tocarSfx('clique'); teclaEspaco = true; desenharBotao(); } };
     const subir = (e: KeyboardEvent) => { if (e.code === 'Space') { teclaEspaco = false; desenharBotao(); } };
     kb?.on('keydown', descer);
     kb?.on('keyup', subir);
@@ -162,14 +163,15 @@ export class OxigenioFaixaTarefa extends Phaser.Scene {
       this.time.delayedCall(3600, () => { this.scene.stop(); this.aoConcluir?.(); });
     };
 
-    let bolha = 0;
+    let bolha = 0, somBolha = 0;
     const aCadaQuadro = (_t: number, delta: number) => {
       if (acabou) return;
       const dt = Math.min(0.05, delta / 1000);
       const ativo = injetando || teclaEspaco;
       estado = passo(estado, ativo, dt);
       desenhar();
-      bolha += dt;
+      bolha += dt; somBolha += dt;
+      if (ativo && somBolha > 0.25) { somBolha = 0; tocarSfx('bolha'); }
       if (ativo && bolha > 0.06) {
         bolha = 0;
         const b = this.add.circle(tx + 10 + Math.random() * (tw - 20), iy(estado.nivel) + 30, 3 + Math.random() * 2, 0xffffff, 0.8).setDepth(12);

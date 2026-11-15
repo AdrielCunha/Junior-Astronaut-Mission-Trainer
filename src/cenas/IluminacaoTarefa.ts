@@ -3,6 +3,7 @@
 // (Same turn-the-piece rules as the old lighting task, which still live in ../iluminacao-tarefa.ts.)
 // The rules live in ../iluminacao-tarefa.ts (pure functions, tested); this scene only draws and reads the mouse.
 import Phaser from 'phaser';
+import { tocarSfx } from '../sfx';
 import {
   criarTarefaIluminacao, girarPeca, calcularEnergia, tarefaConcluida, N, E, S, W, type TarefaIluminacao, type Tipo,
 } from '../iluminacao-tarefa';
@@ -140,6 +141,7 @@ export class IluminacaoTarefa extends Phaser.Scene {
         lp.im.setTexture(acesa ? 'ilum_sala_v3_on' : 'ilum_sala_v3_off');
         this.tweens.add({ targets: lp.brilho, alpha: acesa ? 0.45 : 0, scale: acesa ? 1 : 0.6, duration: 350 });
         if (acesa && !primeira) {
+          tocarSfx('ligar');
           this.tweens.add({ targets: lp.im, scale: 1.2, duration: 140, yoyo: true });
           rajada(this, janela, lp.x, lp.y, [0x67e8f9, 0xe0f2fe, 0xffffff], 10, 70);
         }
@@ -172,6 +174,7 @@ export class IluminacaoTarefa extends Phaser.Scene {
       placa.on('pointerout', () => placa.setScale(1));
       placa.on('pointerdown', () => {
         if (acabou) return;
+        tocarSfx('clique');
         estado = girarPeca(estado, i % estado.colunas, Math.floor(i / estado.colunas));
         angulos[i] += 90;
         this.tweens.add({ targets: fios[i], angle: angulos[i], duration: 140, ease: 'Sine.easeOut' });

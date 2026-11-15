@@ -7,6 +7,7 @@ import {
   tarefaConcluida, ciclosDaOnda, amplitudeDaOnda, type TarefaComunicacoes,
 } from '../comunicacoes-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -107,7 +108,9 @@ export class ComunicacoesTarefa extends Phaser.Scene {
     const aplicar = (p: Phaser.Input.Pointer) => {
       if (acabou || !modo) return;
       const v = (aoLocal(p).x - X0) / (X1 - X0);
+      const antes = Math.round((modo === 'freq' ? estado.frequencia : estado.ganho) * 20);
       estado = modo === 'freq' ? ajustarFrequencia(estado, v) : ajustarGanho(estado, v);
+      if (Math.round((modo === 'freq' ? estado.frequencia : estado.ganho) * 20) !== antes) tocarSfx('girar');
     };
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (acabou) return;
@@ -116,10 +119,11 @@ export class ComunicacoesTarefa extends Phaser.Scene {
       if (Math.abs(l.y - Y_FREQ) < 22) modo = 'freq';
       else if (Math.abs(l.y - Y_GANHO) < 22) modo = 'ganho';
       else return;
+      tocarSfx('pegar');
       aplicar(p);
     });
     this.input.on('pointermove', aplicar);
-    this.input.on('pointerup', () => { modo = null; });
+    this.input.on('pointerup', () => { if (modo) tocarSfx('soltar'); modo = null; });
 
     // ---- Win.
     const vencer = () => {

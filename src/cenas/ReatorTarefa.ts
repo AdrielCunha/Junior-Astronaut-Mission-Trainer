@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { criarTarefaReator, ligarEmOrdem, proximoModulo, carregar, reatorOnline, type TarefaReator } from '../reator-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -153,6 +154,7 @@ export class ReatorTarefa extends Phaser.Scene {
           return;
         }
         estado = novo;
+        tocarSfx('ligar');
         img.setTexture(`${chave}_on_v2`);
         desenharCanos();
         rajada(this, janela, p.x, p.y, [0xfde047, 0x86efac, 0x7dd3fc], 12, 80);
@@ -184,7 +186,7 @@ export class ReatorTarefa extends Phaser.Scene {
     let segurando = false;
     let acabou = false;
     const soltar = () => { segurando = false; };
-    botao.on('pointerdown', () => { if (estado.modulos.every((m) => m.ligado) && !acabou) { segurando = true; botao.setScale(0.94); } });
+    botao.on('pointerdown', () => { if (estado.modulos.every((m) => m.ligado) && !acabou) { segurando = true; tocarSfx('clique'); botao.setScale(0.94); } });
     botao.on('pointerup', () => { soltar(); botao.setScale(1); });
     botao.on('pointerout', () => { soltar(); botao.setScale(1); });
     this.input.on('pointerup', soltar);

@@ -2,6 +2,7 @@
 // Shared look of the task panels (metal frame, blue title pill, dark instruction pill, red close button),
 // the same one as the Life Support task (cenas/Tarefa.ts), so every task feels like part of the same cockpit.
 import Phaser from 'phaser';
+import { sfxDaMensagem, tocarSfx } from '../sfx';
 
 export const FONTE = '"Fredoka", system-ui, "Segoe UI", sans-serif';
 export const CONTORNO = 0x1e293b;   // dark outline of the Life Support look
@@ -81,7 +82,10 @@ export function barraStatus(scene: Phaser.Scene, raiz: Phaser.GameObjects.Contai
     fontFamily: FONTE, fontSize: '17px', color: '#ffffff', fontStyle: '600', align: 'center', resolution: window.devicePixelRatio || 1,
   }).setOrigin(0.5);
   raiz.add(t);
-  return (msg: string, cor = '#ffffff') => { t.setText(msg).setColor(cor); };
+  return (msg: string, cor = '#ffffff') => {
+    if (msg !== t.text) { const som = sfxDaMensagem(cor); if (som) tocarSfx(som); }
+    t.setText(msg).setColor(cor);
+  };
 }
 
 // Red X on the top-left corner; Esc does the same. Closing never delivers anything.
@@ -94,7 +98,7 @@ export function botaoFechar(scene: Phaser.Scene, raiz: Phaser.GameObjects.Contai
   b.setInteractive({ useHandCursor: true });
   b.on('pointerover', () => b.setScale(1.1));
   b.on('pointerout', () => b.setScale(1));
-  const sair = () => scene.scene.stop();
+  const sair = () => { tocarSfx('fechar'); scene.scene.stop(); };
   b.on('pointerup', sair);
   scene.input.keyboard?.once('keydown-ESC', sair);
   raiz.add(b);
@@ -102,6 +106,7 @@ export function botaoFechar(scene: Phaser.Scene, raiz: Phaser.GameObjects.Contai
 
 // Little stars that burst out of a point (a success, or a hit).
 export function rajada(scene: Phaser.Scene, pai: Phaser.GameObjects.Container, x: number, y: number, cores: number[], n: number, alcance: number) {
+  if (n >= 26) tocarSfx('sucesso');   // the big confetti is the task win
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + Math.random();
     const p = scene.add.star(x, y, 5, 3, 7, cores[i % cores.length]).setDepth(30);

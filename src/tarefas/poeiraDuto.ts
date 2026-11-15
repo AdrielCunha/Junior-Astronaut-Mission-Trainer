@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import type { Tarefa } from './index';
 import { CONTORNO, criarBarra, letra } from './estilo';
+import { tocarSfx } from '../sfx';
 
 const PO = [0xa8a29e, 0x8f8983, 0xc2bdb7];   // lunar regolith greys, a bit lighter for the cartoon look
 
@@ -102,7 +103,7 @@ export const poeiraDuto: Tarefa = {
 
     const naCaixa = (px: number, py: number) => Math.abs(px - cx) < L && Math.abs(py - cy) < L;
     const limiteY = y + h - alturaBarra - 8 * u;
-    cena.input.on('dragstart', (_p: Phaser.Input.Pointer, g: Phaser.GameObjects.Graphics) => { g.setDepth(8); g.setScale(1.12); });
+    cena.input.on('dragstart', (_p: Phaser.Input.Pointer, g: Phaser.GameObjects.Graphics) => { tocarSfx('pegar'); g.setDepth(8); g.setScale(1.12); });
     cena.input.on('drag', (_p: Phaser.Input.Pointer, g: Phaser.GameObjects.Graphics, dx: number, dy: number) => {
       if (acabou) return;
       g.setPosition(Phaser.Math.Clamp(dx, x + 20 * u, x + w - 20 * u), Phaser.Math.Clamp(dy, y + 20 * u, limiteY));
@@ -112,10 +113,12 @@ export const poeiraDuto: Tarefa = {
       if (!pedra || pedra.fora) return;
       g.setDepth(5).setScale(1);
       if (naCaixa(g.x, g.y)) {   // still in the housing: it rolls back into the duct
+        tocarSfx('soltar');
         cena.tweens.add({ targets: g, x: pedra.x0, y: pedra.y0, duration: 260, ease: 'Back.easeOut' });
         return;
       }
       pedra.fora = true;
+      tocarSfx('ok');
       g.disableInteractive();
       g.setDepth(2);
       const sinal = g.x < cx ? -1 : 1;

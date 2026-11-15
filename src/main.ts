@@ -28,7 +28,6 @@ import { TrocarFiltroCo2Tarefa } from './cenas/TrocarFiltroCo2Tarefa';
 import { EquilibrarValvulasTarefa } from './cenas/EquilibrarValvulasTarefa';
 import { TaparTempestadeTarefa } from './cenas/TaparTempestadeTarefa';
 import { FecharEscotilhasTarefa } from './cenas/FecharEscotilhasTarefa';
-import { CenaTarefa } from './cenas/Tarefa';
 import { BANCO } from './tarefas';
 
 // Carregar (loading screen) loads the assets, then starts three scenes that run together, bottom to top: Espaco (stars, Moon, planets), Superficie (the map,
@@ -52,7 +51,7 @@ const createDebugHarness = () => {
   const painel = document.createElement('div');
   painel.style.position = 'fixed';
   painel.style.top = '16px';
-  painel.style.right = '16px';
+  painel.style.left = '16px';
   painel.style.zIndex = '2000';
   painel.style.display = 'grid';
   painel.style.gap = '8px';

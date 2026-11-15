@@ -7,6 +7,7 @@ import {
   TRECHOS, FIOS, RODADAS, type Fiacao, type Reparo, type Dano,
 } from '../fiacao-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -216,6 +217,7 @@ export class FiacaoTarefa extends Phaser.Scene {
       }));
       if (fio < 0) return;
       const trecho = Math.min(TRECHOS - 1, Math.floor(idx / POR_TRECHO));
+      tocarSfx('clique');
       const { estado: novo, resultado } = tocarTrecho(estado, fio, trecho);
       estado = novo;
       if (resultado === 'bom') {
@@ -229,6 +231,7 @@ export class FiacaoTarefa extends Phaser.Scene {
         msg('No current here. The fault is further back!', '#fca5a5');
       } else if (resultado === 'achou') {
         piscar(fio, trecho, trecho, 0xfde047);
+        tocarSfx('bip');
         mostrarDano();
         liberarBotoes(true);
         msg(DICA[defeitoAtual(estado).dano], '#fde68a');
@@ -238,6 +241,7 @@ export class FiacaoTarefa extends Phaser.Scene {
     // ---- Repair buttons.
     botoes.forEach((b) => b.c.on('pointerdown', () => {
       if (acabou || ocupado || !estado.achado) { if (!estado.achado && !acabou) msg('First find the fault in the wire!', '#e2e8f0'); return; }
+      tocarSfx('clique');
       const d = defeitoAtual(estado);
       const novo = escolherReparo(estado, b.id);
       if (novo === estado) {
@@ -246,6 +250,7 @@ export class FiacaoTarefa extends Phaser.Scene {
         return;
       }
       ocupado = true;
+      tocarSfx('encaixe');
       estado = novo;
       dano.clear();
       liberarBotoes(false);

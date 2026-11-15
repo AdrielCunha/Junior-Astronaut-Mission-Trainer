@@ -2,6 +2,7 @@
 // "Engine - Power": drag three levers into their green zones and hold them there until the engine steadies.
 // The rules live in ../potencia-motor-tarefa.ts (pure functions, tested); this scene only draws and reads the mouse.
 import Phaser from 'phaser';
+import { tocarSfx } from '../sfx';
 import { criarMotorAjuste, moverControle, controleNaZona, controlesNaZona, avancarEstabilidade, estabilidade, motorAjustado, potenciaMedia, todosNaZona, type MotorAjuste } from '../potencia-motor-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
 
@@ -152,9 +153,12 @@ export class PotenciaMotorTarefa extends Phaser.Scene {
     const yLocal = (p: Phaser.Input.Pointer) => (p.y - raiz.y) / s - JY;
     const mover = (p: Phaser.Input.Pointer) => {
       if (!arrastando || acabou) return;
+      const antes = estado.controles.find((c) => c.id === arrastando)?.valor ?? 0;
       estado = moverControle(estado, arrastando, valorDoY(yLocal(p)));
+      const depois = estado.controles.find((c) => c.id === arrastando)?.valor ?? 0;
+      if (Math.round(antes * 10) !== Math.round(depois * 10)) tocarSfx('girar');
     };
-    for (const a of alavancas) a.area.on('pointerdown', (p: Phaser.Input.Pointer) => { if (acabou) return; arrastando = a.id; mover(p); });
+    for (const a of alavancas) a.area.on('pointerdown', (p: Phaser.Input.Pointer) => { if (acabou) return; arrastando = a.id; tocarSfx('pegar'); mover(p); });
     const soltar = () => { arrastando = null; };
     this.input.on('pointermove', mover);
     this.input.on('pointerup', soltar);
@@ -191,7 +195,7 @@ export class PotenciaMotorTarefa extends Phaser.Scene {
           a.dentro = dentro;
           a.knob.setTexture(dentro ? 'motor_botao_verde_v2' : 'motor_botao_azul_v2');
           a.lampada.setFillStyle(dentro ? 0x4ade80 : 0xcbd5e1);
-          if (dentro && !acabou) { rajada(this, janela, a.x, a.knob.y, [0x86efac, 0xfde047, 0xffffff], 8, 40); this.tweens.add({ targets: a.knob, scaleX: 1.15, scaleY: 1.15, duration: 120, yoyo: true }); }
+          if (dentro && !acabou) { tocarSfx('ok'); rajada(this, janela, a.x, a.knob.y, [0x86efac, 0xfde047, 0xffffff], 8, 40); this.tweens.add({ targets: a.knob, scaleX: 1.15, scaleY: 1.15, duration: 120, yoyo: true }); }
         }
       });
       const fora = 3 - controlesNaZona(estado);

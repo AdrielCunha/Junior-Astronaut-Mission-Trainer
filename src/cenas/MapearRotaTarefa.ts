@@ -2,6 +2,7 @@
 // "Map the Route": join the stars of a constellation in numbered order, dragging a line from star to star.
 // The rules live in ../mapear-rota-tarefa.ts (pure functions, tested); this scene only draws and reads the mouse.
 import Phaser from 'phaser';
+import { tocarSfx } from '../sfx';
 import { criarConstelacao, ligarEstrela, estrelaNoPonto, proximaEstrela, constelacaoConcluida, type Constelacao } from '../mapear-rota-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
 
@@ -142,6 +143,7 @@ export class MapearRotaTarefa extends Phaser.Scene {
         const novo = ligarEstrela(estado, n);
         if (novo !== estado) {
           estado = novo;
+          tocarSfx('bip');
           const e = estado.estrelas[n - 1];
           corpos[n - 1].corpo.setTexture('constel_estrela_acesa_v2');
           this.tweens.add({ targets: corpos[n - 1].corpo, scale: 0.72, yoyo: true, duration: 170, ease: 'Sine.easeOut' });
@@ -150,6 +152,7 @@ export class MapearRotaTarefa extends Phaser.Scene {
         } else if (!estado.estrelas[n - 1].ligada && this.time.now - ultimoErro > 700) {
           // A star out of order: a gentle shake and a hint, nothing is lost.
           ultimoErro = this.time.now;
+          tocarSfx('erro');
           msg(`Follow the numbers: now it is star ${proximaEstrela(estado)}.`, '#fca5a5');
           const c = corpos[n - 1].corpo, x0 = c.x;
           this.tweens.add({ targets: c, x: x0 + 5, yoyo: true, repeat: 3, duration: 55, onComplete: () => c.setX(x0) });

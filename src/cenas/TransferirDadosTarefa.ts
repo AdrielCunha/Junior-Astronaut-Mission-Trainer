@@ -7,6 +7,7 @@ import {
   type TransferenciaAntena,
 } from '../transferir-dados-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 704;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -165,7 +166,7 @@ export class TransferirDadosTarefa extends Phaser.Scene {
       const l = local(p);
       angAlvo = Phaser.Math.Clamp(Math.atan2(l.y - (antena.y - 8), l.x - antena.x), ANG_MIN, ANG_MAX);
     };
-    const aoPressionar = (p: Phaser.Input.Pointer) => { if (dentro(p) && !acabou) { arrastando = true; apontar(p); } };
+    const aoPressionar = (p: Phaser.Input.Pointer) => { if (dentro(p) && !acabou) { arrastando = true; tocarSfx('clique'); apontar(p); } };
     const aoMover = (p: Phaser.Input.Pointer) => { if (arrastando && !acabou) apontar(p); };
     const aoSoltar = () => { arrastando = false; };
     this.input.on('pointerdown', aoPressionar);
@@ -189,6 +190,7 @@ export class TransferirDadosTarefa extends Phaser.Scene {
         },
         onComplete: () => {
           const fim = posicaoDaTerra(estado, tempo);
+          tocarSfx('bip');
           rajada(this, janela, fim.x, fim.y, [0xfde047, 0x7dd3fc, 0xf9a8d4], 8, 50);
           this.tweens.add({ targets: terra, scale: 0.58, yoyo: true, duration: 140 });
           p.destroy();
@@ -235,6 +237,7 @@ export class TransferirDadosTarefa extends Phaser.Scene {
         if (transferenciaConcluida(estado)) vencer();
         else if (bom !== tinhaSinal || !avisou) {
           avisou = true; tinhaSinal = bom;
+          if (bom) tocarSfx('ligar');
           if (bom) msg('Strong signal! Hold it there.', '#86efac');
           else if (estado.progresso > 0) msg('Signal lost! Aim at Earth again.', '#fde68a');
         }

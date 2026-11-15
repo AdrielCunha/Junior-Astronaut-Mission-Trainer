@@ -10,6 +10,7 @@ import { TIPOS } from '../engine/construcao';
 import { suprimentoDoDia } from '../engine/suprimentos';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, dadosTerreno, type Fase } from './sessao';
 import { alternarMudo, estaMudo } from '../audio';
+import { alternarEfeitos, efeitosEstaoMudos } from '../sfx';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 const NIVEIS = ['CALM', 'RISING', 'HIGH', 'EXTREME'];
@@ -29,6 +30,7 @@ export class Interface extends Phaser.Scene {
   private aviso?: Phaser.GameObjects.Text;
   private btFim!: Phaser.GameObjects.Text;
   private btSom!: Phaser.GameObjects.Text;
+  private btEfeitos!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: 'Interface' });   // started by Carregar
@@ -81,6 +83,7 @@ export class Interface extends Phaser.Scene {
     const yb = H - 16 * u;
     this.btFim = this.botao(W - 16 * u, yb, 'End day  ▶', () => this.terminarDia(), COR.azul, 16).setOrigin(1, 1);
     this.btSom = this.botao(W - 16 * u, 62 * u, estaMudo() ? 'Music off' : 'Music on', () => this.atualizarSom(alternarMudo()), '#334155', 12).setOrigin(1, 0).setDepth(10);
+    this.btEfeitos = this.botao(W - 16 * u, 94 * u, efeitosEstaoMudos() ? 'Effects off' : 'Effects on', () => this.atualizarEfeitos(alternarEfeitos()), '#334155', 12).setOrigin(1, 0).setDepth(10);
 
     // ----- zoom (right side) -----
     const zx = W - 16 * u, zy = H * 0.42;
@@ -129,6 +132,10 @@ export class Interface extends Phaser.Scene {
 
   private atualizarSom(mudo: boolean) {
     this.btSom.setText(mudo ? 'Music off' : 'Music on');
+  }
+
+  private atualizarEfeitos(mudo: boolean) {
+    this.btEfeitos.setText(mudo ? 'Effects off' : 'Effects on');
   }
 
   update() {

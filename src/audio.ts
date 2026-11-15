@@ -3,12 +3,14 @@
 // gesture, as browsers require, and so a scene restart on resize does not restart the track.
 const VOLUME = 0.3;
 const CHAVE_MUDO = 'lunar-odyssey-mudo';
+const CHAVE_VOLUME = 'lunar-odyssey-volume-musica';
 const BASE = import.meta.env.BASE_URL;
 
 let audio: HTMLAudioElement | null = null;
 let iniciado = false;
 let comecou = false;
 let mudo = lerMudo();
+let volume = (() => { try { const salvo = localStorage.getItem(CHAVE_VOLUME); if (salvo === null) return 0.7; const n = Number(salvo); return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.7; } catch { return 0.7; } })();
 
 function lerMudo() {
   try { return localStorage.getItem(CHAVE_MUDO) === '1'; } catch { return false; }
@@ -23,7 +25,7 @@ function criarAudio() {
   audio = new Audio();
   audio.loop = true;
   audio.preload = 'none';
-  audio.volume = VOLUME;
+  audio.volume = VOLUME * volume * volume;
   audio.style.display = 'none';
 
   const ogg = document.createElement('source');
@@ -66,6 +68,13 @@ export function iniciarAudio() {
 
 export function estaMudo() {
   return mudo;
+}
+
+export function volumeMusica() { return volume; }
+export function definirVolumeMusica(valor: number) {
+  volume = Math.max(0, Math.min(1, valor));
+  try { localStorage.setItem(CHAVE_VOLUME, String(volume)); } catch { /* private mode */ }
+  if (audio) audio.volume = VOLUME * volume * volume;
 }
 
 export function alternarMudo() {
