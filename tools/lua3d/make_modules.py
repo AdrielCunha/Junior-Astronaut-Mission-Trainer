@@ -43,6 +43,7 @@ TIPOS = {
     'deco_sismografo': (1, 1), 'deco_refletor': (1, 1), 'deco_baliza': (1, 1), 'deco_barris': (1, 1),
     'deco_bandeira': (1, 1), 'deco_pedras': (1, 1), 'deco_camera': (1, 1), 'deco_amostras': (1, 1), 'deco_lanterna': (1, 1), 'deco_ferramentas': (1, 1), 'deco_carretel': (1, 1), 'deco_mochila': (1, 1),
     'deco_rocha_vulcao': (1, 1), 'deco_ingenuity': (1, 1), 'deco_seixos': (1, 1), 'deco_meteorito': (1, 1), 'deco_gelo': (1, 1), 'deco_estacao_tempo': (1, 1),
+    'deco_casa_sem_teto': (1, 1),
     'pouso': (2, 2),   # the cargo lander (footprint of its legs)
 }
 
@@ -1459,6 +1460,49 @@ def deco_estacao_tempo():
     haste((0.2, 0.45, 0.0), (0.18, 0.45, 0.17), 0.012, ACO, linha=0.005)
 
 
+def deco_casa_sem_teto():
+    # "Roof Not Included": a cheerful little house standing on the open ground with only the
+    # rafters up, a door, a window, a chimney, loose red shingles and a sign. (A joke: real Mars
+    # homes would hide underground from radiation.)
+    PAREDE, MADEIRA, ACO = '#fde68a', '#b45309', '#94a3b8'
+    caixa(0.05, 0.05, 0.95, 0.95, 0.0, 0.04, '#fdba74', bevel=0.015, linha=0.015)               # floor slab
+    caixa(0.12, 0.12, 0.88, 0.88, 0.04, 0.05, '#fcd34d', bevel=0.004, linha=0.006)              # warm floor
+    t = 0.06
+    caixa(0.12, 0.12, 0.88, 0.12 + t, 0.04, 0.6, PAREDE, bevel=0.012, linha=0.015)               # back wall
+    caixa(0.12, 0.12, 0.12 + t, 0.88, 0.04, 0.6, PAREDE, bevel=0.012, linha=0.015)               # left wall
+    caixa(0.88 - t, 0.12, 0.88, 0.88, 0.04, 0.6, PAREDE, bevel=0.012, linha=0.015)               # right wall
+    caixa(0.12, 0.88 - t, 0.36, 0.88, 0.04, 0.6, PAREDE, bevel=0.012, linha=0.015)               # front wall, left of the door
+    caixa(0.64, 0.88 - t, 0.88, 0.88, 0.04, 0.6, PAREDE, bevel=0.012, linha=0.015)               # front wall, right of the door
+    caixa(0.36, 0.88 - t, 0.64, 0.88, 0.42, 0.6, PAREDE, bevel=0.012, linha=0.015)               # above the door
+    caixa(0.37, 0.88 - t * 0.6, 0.63, 0.88 - t * 0.2, 0.05, 0.42, '#38bdf8', bevel=0.01, linha=0.012)   # blue door, ajar
+    esfera(0.58, 0.88 - t * 0.2, 0.24, 0.022, 0.014, 0.022, '#facc15', linha=0.004)              # door knob
+    caixa(0.69, 0.88 - t * 0.4, 0.83, 0.88, 0.26, 0.46, '#1e293b', bevel=0.006, linha=0.008)    # window frame (front)
+    visor(0.7, 0.88 - t * 0.2, 0.82, 0.88 + 0.006, 0.28, 0.44, '#8ae8ff')
+    caixa(0.88 - 0.004, 0.3, 0.88 + 0.01, 0.46, 0.26, 0.46, '#1e293b', bevel=0.004, linha=0.006) # window (right wall)
+    visor(0.88 + 0.004, 0.32, 0.88 + 0.016, 0.44, 0.28, 0.44, '#8ae8ff')
+    caixa(0.64, 0.2, 0.78, 0.34, 0.6, 0.9, '#ef4444', bevel=0.012, linha=0.014)                  # chimney
+    caixa(0.62, 0.18, 0.8, 0.36, 0.9, 0.95, '#b91c1c', bevel=0.01, linha=0.012)
+    # Only the rafters are up: a skeleton roof you can see the sky through.
+    haste((0.12, 0.12, 0.6), (0.5, 0.12, 0.9), 0.022, MADEIRA, linha=0.008)
+    haste((0.88, 0.12, 0.6), (0.5, 0.12, 0.9), 0.022, MADEIRA, linha=0.008)
+    haste((0.12, 0.88, 0.6), (0.5, 0.88, 0.9), 0.022, MADEIRA, linha=0.008)
+    haste((0.88, 0.88, 0.6), (0.5, 0.88, 0.9), 0.022, MADEIRA, linha=0.008)
+    haste((0.12, 0.5, 0.6), (0.5, 0.5, 0.9), 0.02, MADEIRA, linha=0.008)
+    haste((0.88, 0.5, 0.6), (0.5, 0.5, 0.9), 0.02, MADEIRA, linha=0.008)
+    haste((0.5, 0.12, 0.9), (0.5, 0.88, 0.9), 0.024, MADEIRA, linha=0.008)                        # ridge pole
+    # Loose red shingles on the ground and a hammer, as if the builders just left.
+    for (x, y, r) in ((0.2, 0.96, 0.2), (0.34, 0.97, -0.3), (0.28, 1.05, 0.5)):
+        o = caixa(-0.07, -0.045, 0.07, 0.045, 0.0, 0.025, '#ef4444', bevel=0.006, linha=0.008)
+        o.location = (x, -y, 0.012); o.rotation_euler = (0, 0, -r)
+    haste((0.82, 1.0, 0.03), (0.96, 1.0, 0.03), 0.014, MADEIRA, linha=0.006)                      # hammer handle
+    caixa(0.78, 0.97, 0.84, 1.03, 0.02, 0.07, ACO, bevel=0.006, linha=0.008)                       # hammer head
+    # Sign on a post: the joke.
+    haste((0.06, 0.98, 0.0), (0.06, 0.98, 0.5), 0.02, MADEIRA, linha=0.008)
+    caixa(-0.1, 0.96, 0.22, 1.0, 0.3, 0.52, '#fffbeb', bevel=0.008, linha=0.012)
+    texto3d('NO ROOF', 0.06, 1.004, 0.44, 0.065, '#b91c1c')
+    texto3d('(sorry!)', 0.06, 1.004, 0.35, 0.05, '#1e3a8a')
+
+
 def chama():
     # Rocket exhaust: a bright cone, drawn under the lander and flickered by the game.
     bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.05, radius2=0.28, depth=1.2)
@@ -1509,6 +1553,7 @@ MODELOS['deco_seixos'] = deco_seixos
 MODELOS['deco_meteorito'] = deco_meteorito
 MODELOS['deco_gelo'] = deco_gelo
 MODELOS['deco_estacao_tempo'] = deco_estacao_tempo
+MODELOS['deco_casa_sem_teto'] = deco_casa_sem_teto
 for i in range(5): MODELOS[f'foguete{i}'] = (lambda i=i: foguete(i))
 
 def agua(n):

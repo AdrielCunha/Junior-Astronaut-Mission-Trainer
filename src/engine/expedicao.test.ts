@@ -1,7 +1,7 @@
 // Generated with AI assistance (Claude). See README, "Use of AI tools".
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { avancar, terminada, tracarRota, pontoLivrePerto, maisLonge, criarCorridaEntrega, alvoDaSeta, pista, temperatura, BANDEIRAS_CORRIDA, type Expedicao } from './expedicao.ts';
+import { linha, OBJETIVOS, avancar, terminada, tracarRota, pontoLivrePerto, maisLonge, criarCorridaEntrega, alvoDaSeta, pista, temperatura, BANDEIRAS_CORRIDA, type Expedicao } from './expedicao.ts';
 import { criarExploracao, sortearTipo, haExploracaoHoje, esperaDaExploracao, TIPOS_POR_MUNDO, ESPERA_EXPLORACAO_MIN, ESPERA_EXPLORACAO_MAX, type Contexto } from './exploracao.ts';
 
 const tudoLivre = () => true;
@@ -146,11 +146,51 @@ test('events come from day 2, by world, and never the same kind twice in a row',
   assert.equal(haExploracaoHoje(2, 'lua', () => 0.74), true);
   assert.equal(haExploracaoHoje(2, 'lua', () => 0.76), false);
   assert.ok(esperaDaExploracao(() => 0.999) <= 8);   // as soon as the day starts
-  assert.equal(haExploracaoHoje(5, 'nave', () => 0), false);
+  assert.equal(haExploracaoHoje(5, 'nave', () => 0), true);   // the ship has its own (leaks, lost wrench)
   assert.ok(TIPOS_POR_MUNDO.lua.includes(sortearTipo('lua', undefined, () => 0)!));
   for (let i = 0; i < 30; i++) assert.notEqual(sortearTipo('lua', 'balizas', () => i / 30), 'balizas');
   assert.equal(sortearTipo('marte', 'tubos', () => 0), 'tubos');   // only one kind: it can repeat
-  assert.equal(sortearTipo('nave', undefined, () => 0), undefined);
+  assert.ok(['vazamentos', 'ferramenta'].includes(sortearTipo('nave', undefined, () => 0)!));
   assert.equal(esperaDaExploracao(() => 0), ESPERA_EXPLORACAO_MIN);
   assert.ok(esperaDaExploracao(() => 0.999) <= ESPERA_EXPLORACAO_MAX);
+});
+
+test('the HUD box always says what to find, and how it is going', () => {
+  const sorte = () => 0.4;
+  let e = criarExploracao('gelo', ctx(), sorte)!;
+  const longe = linha(e, pista(e, 0, 0), 0);
+  assert.equal(longe.titulo, OBJETIVOS.gelo);
+  assert.ok(longe.detalhe.includes('far away'));
+  e = criarExploracao('amostra', ctx(), sorte)!;
+  e = avancar(e, e.pontos[0].x, e.pontos[0].y, false).e;
+  assert.ok(linha(e, null, 0).titulo.startsWith('Bring the case'));
+  const b = criarExploracao('balizas', ctx(), sorte)!;
+  assert.ok(linha(b, null, 0.55).detalhe.includes('Stay here'));
+  const t = criarExploracao('tubos', ctx(), sorte)!;
+  assert.equal(linha(t, null, 0).titulo, `Pick up tube 1 of ${t.pontos.length}`);
+});
+
+const deck = (over: Partial<Contexto> = {}): Contexto => ctx({ limites: { x0: 3, x1: 21, y0: 6, y1: 18 }, jogador: { x: 12, y: 11 }, evitar: [{ x: 6.5, y: 7.5 }, { x: 10, y: 7.5 }], ...over });
+
+test('ship leaks: 3 spots on the deck, all hidden (hot/cold), patched in any order', () => {
+  let e = criarExploracao('vazamentos', deck(), fixa(0.3)) ?? criarExploracao('vazamentos', deck(), () => Math.random())!;
+  assert.equal(e.pontos.length, 3);
+  for (const p of e.pontos) {
+    assert.ok(p.x >= 3 && p.x <= 21 && p.y >= 6 && p.y <= 18);
+    assert.ok(Math.hypot(p.x - 12, p.y - 11) >= 5);   // not right next to the player
+  }
+  assert.equal(alvoDaSeta(e, 12, 11), null);
+  assert.ok(pista(e, 12, 11));
+  for (const i of [2, 0, 1]) {
+    const p = e.pontos[i];
+    e = avancar(avancar(e, p.x, p.y, false, 0.7).e, p.x, p.y, false, 0.7).e;
+  }
+  assert.ok(terminada(e));
+});
+
+test('ship hot/cold is scaled to the small deck', () => {
+  const e = criarExploracao('ferramenta', deck(), () => Math.random())!;
+  const p = e.pontos[0];
+  assert.ok(pista(e, p.x + 1, p.y)!.nivel >= 3);   // one tile away is already hot on the ship
+  assert.equal(linha(e, pista(e, p.x + 1, p.y), 0).titulo, OBJETIVOS.ferramenta);
 });

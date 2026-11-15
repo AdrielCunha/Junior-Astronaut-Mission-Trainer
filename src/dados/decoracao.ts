@@ -14,8 +14,8 @@ const SISMO = 'Measures moonquakes. The Moon rumbles a little, and scientists us
 const REFLETOR = 'Laser reflector. Scientists shoot lasers from Earth at it to measure the Moon distance very precisely.';
 const BALIZA = 'A beacon that blinks so rovers and astronauts can find their way home.';
 const BARRIS = 'Drums of rocket fuel. Fuel is heavy, so every kilo flown from Earth costs a lot.';
-const BANDEIRA = 'A mission flag. With no wind on the Moon, flags need a wire to look like they wave.';
-const PEDRAS = 'Boulders thrown out by meteorites. With no air, nothing smooths them: they stay sharp for billions of years.';
+const BANDEIRA = 'A mission flag. With no wind on the Moon, flags need a rod along the top to look like they wave.';
+const PEDRAS = 'Boulders thrown out by meteorites. With no air, nothing smooths them: they stay sharp for millions of years.';
 const CAMERA = 'A science camera taking photos of the sky. With no air, stars shine without twinkling.';
 const AMOSTRAS = 'A case of lunar soil and rock samples. They are sent to labs on Earth to learn how the Moon formed.';
 const LANTERNA = 'A solar lamp. It stores sunlight in the day to glow when the long lunar night comes.';
@@ -75,12 +75,13 @@ export const DECORACAO_MARTE: Deco[] = [
   marte('amostras', 'Sample Tubes', 'Rocks sealed in tubes. One day a rocket may carry them to Earth!', 15, 21, 0.3),
   marte('sismografo', 'Seismometer', 'Mars shakes too! This listened to more than 1,000 marsquakes.', -22, -5, 1.0),
   marte('barris', 'Oxygen Maker', 'A robot here made oxygen out of Mars air. Astronauts need it to breathe!', -7, 23, 0.55),
-  marte('mochila', 'Lost Backpack', 'Mars pulls you down less than Earth. You could jump 2 times higher here!', -9, -19, 0.3),
+  marte('mochila', 'Lost Backpack', 'Mars pulls you down less than Earth. You could jump almost 3 times higher here!', -9, -19, 0.3),
   marte('caixas', 'Supply Crates', 'A year on Mars is almost 2 Earth years. You would wait twice as long for your birthday!', 26, -5, 0.8),
   marte('bandeira', 'Mission Flag', 'A day on Mars is 40 minutes longer than yours. Just enough for two cartoons!', -2, -19, 1.2),
   marte('lanterna', 'Solar Lamp', 'Mars is far from the Sun, so sunlight here is weaker. Solar panels work extra hard!', 16, -10, 1.1),
   marte('carretel', 'Cable Spool', 'Dust storms on Mars can cover the whole planet for months!', -13, 18, 0.7),
   marte('baliza', 'Beacon', 'Mars has two little moons shaped like potatoes: Phobos and Deimos!', -2, 22, 1.3),
+  marte('casa_sem_teto', 'Roof Not Included', 'Real Mars homes hide underground to stay safe from space rays. Ours is up here so you can see it. We know, we know!', 21, -14, 0.95),
   marte('sonda', 'Crashed Probe', 'Landing on Mars is very hard. About half of the robots sent here did not make it.', 9, -17, 0.9),
 ];
 

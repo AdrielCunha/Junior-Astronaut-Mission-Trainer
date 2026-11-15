@@ -19,7 +19,7 @@ import { TIPOS } from '../engine/construcao';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase, type RelatorioDia } from './sessao';
 import { apagarPartida } from '../salvamento';
 import { alternarMudo } from '../audio';
-import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndicador, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
+import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndicador, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
 import { resolverIcone, textoDoJogo, type IconeJogo } from '../dados/icones';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
@@ -218,13 +218,13 @@ export class Interface extends Phaser.Scene {
     const pausado = sessao.emTarefa || configuracoesAbertas || !!sessao.transicao || this.scene.isActive('MenuJogo');
     this.guia?.atualizar(dt, pausado);
     (this.avisoEvento ??= new AvisoEvento(this, this.layout)).atualizar(dt, pausado);
-    (this.avisoExpedicao ??= new AvisoExpedicao(this, this.layout)).atualizar(dt, pausado);
+    (this.avisoExpedicao ??= new AvisoExpedicao(this, this.layout, () => !!this.guia)).atualizar(dt, pausado);
   }
 
   private criarAlertaSolar() {
     const l = this.layout, px = (v: number) => Math.round(v * l.u);
     const w = Math.min(this.scale.width - 2 * l.margem, px(560)), h = px(116);
-    const x = Math.round((this.scale.width - w) / 2), y = l.objetivo.y + l.objetivo.h + l.espaco;
+    const x = Math.round((this.scale.width - w) / 2), y = l.avisoY;
     const canto = px(16);
     // Translucent red rectangle: the map shows through it while the message stays readable.
     const fundo = this.add.graphics()
@@ -384,7 +384,6 @@ export class Interface extends Phaser.Scene {
   private criarHUD(W: number, H: number) {
     const l = this.layout = calcularLayoutHud(W, H, this.u), u = l.u;
     const px = (v: number) => Math.round(v * u);
-    criarFaixaHud(this, l.faixa, u);
     const pad = px(8);
     this.tituloHud = criarTituloHud(this, l.titulo, u);
     this.textos.dia = this.tituloHud.data;

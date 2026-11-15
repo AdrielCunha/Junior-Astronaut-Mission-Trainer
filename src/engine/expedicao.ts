@@ -3,7 +3,7 @@
 // events of engine/exploracao.ts: find a lost sample, relight beacons, scout for ice, collect Mars tubes).
 // The scene draws the markers and the HUD arrow; the rules live here. No Phaser, so node --test can run them.
 export type Ponto = { x: number; y: number };
-export type TipoExpedicao = 'corrida' | 'amostra' | 'balizas' | 'gelo' | 'tubos';
+export type TipoExpedicao = 'corrida' | 'amostra' | 'balizas' | 'gelo' | 'tubos' | 'vazamentos' | 'ferramenta';
 
 export type Expedicao = {
   id: string;
@@ -19,6 +19,7 @@ export type Expedicao = {
   segurar: number;     // seconds to stay at a spot (0: just pass by)
   espera: number;      // seconds already spent at the current spot
   escondidoAte: number; // the first spots (index below this) have no arrow: only a hot/cold hint
+  escala?: number;      // hot/cold distances are multiplied by this (the ship's deck is small: 0.35)
   cena?: string;       // task scene opened when the last spot is reached
   fato: string;        // shown at the end
 };
@@ -69,7 +70,7 @@ export function pista(e: Expedicao, x: number, y: number): { nivel: number; text
   if (terminada(e)) return null;
   const alvos = pendentes(e).filter((i) => i < e.escondidoAte);
   if (!alvos.length) return null;
-  return temperatura(Math.min(...alvos.map((i) => dist(e.pontos[i], x, y))));
+  return temperatura(Math.min(...alvos.map((i) => dist(e.pontos[i], x, y))) / (e.escala ?? 1));
 }
 
 // The nearest free spot to (x, y), searching rings up to `alcance` tiles away.
@@ -120,13 +121,41 @@ export function criarCorridaEntrega(inicio: Ponto, destino: Ponto & { nome: stri
   };
 }
 
-// The short HUD line: what is going on and how far along it is.
-export function linha(e: Expedicao, p: { texto: string } | null, progresso: number): string {
-  if (terminada(e)) return e.titulo;
-  if (p) return `${e.titulo} · ${p.texto}`;
-  if (progresso > 0.01) return `${e.titulo} · hold on… ${Math.round(progresso * 10) * 10}%`;
-  if (e.livre) return `${e.titulo} · ${e.atual} of ${e.pontos.length}`;
-  if (e.tipo === 'amostra') return `${e.titulo} · bring it to the ${e.destino}`;
-  if (e.tipo === 'corrida' && e.atual === e.pontos.length - 1) return `${e.titulo} · last flag: the ${e.destino}!`;
-  return `${e.titulo} · ${e.atual + 1} of ${e.pontos.length}`;
+// What to do, always as a verb + the thing, so a child who missed the notice still knows the goal.
+export const OBJETIVOS: Record<TipoExpedicao, string> = {
+  corrida: 'Drive through the flags',
+  amostra: 'Find the lost sample case',
+  balizas: 'Light up the beacons',
+  gelo: 'Find the ice',
+  tubos: 'Collect the sample tubes',
+  vazamentos: 'Find and patch the air leaks',
+  ferramenta: 'Find the lost wrench',
+};
+// How to do it, in one short line (shown on the start card).
+export const COMO: Record<TipoExpedicao, string> = {
+  corrida: 'Take the rover and follow the blue arrow.',
+  amostra: 'No arrow this time! Cold = far away, Hot = very close.',
+  balizas: 'Follow the blue arrow and stay by each beacon.',
+  gelo: 'No arrow this time! Cold = far away, Hot = very close.',
+  tubos: 'Follow the blue arrow. Number 1 first!',
+  vazamentos: 'Listen! Cold = far away, Hot = very close. Stay by a leak to patch it.',
+  ferramenta: 'No arrow this time! Cold = far away, Hot = very close.',
+};
+
+// The HUD box: the goal on top (it changes only when the goal changes) and how it is going below.
+export function linha(e: Expedicao, p: { nivel: number; texto: string } | null, progresso: number): { titulo: string; detalhe: string } {
+  const n = e.pontos.length;
+  if (terminada(e)) return { titulo: OBJETIVOS[e.tipo], detalhe: 'Done!' };
+  if (e.tipo === 'amostra' && e.atual >= 1) return { titulo: `Bring the case to the ${e.destino}`, detalhe: 'Follow the blue arrow' };
+  if (e.tipo === 'ferramenta' && e.atual >= 1) return { titulo: `Bring the wrench to the ${e.destino}`, detalhe: 'Follow the blue arrow' };
+  if (e.tipo === 'vazamentos') {
+    const det = progresso > 0.01 ? `Patching… ${Math.round(progresso * 10) * 10}%` : p ? `${p.texto} · ${e.atual} of ${n} patched` : `${e.atual} of ${n} patched`;
+    return { titulo: OBJETIVOS.vazamentos, detalhe: det };
+  }
+  const titulo = e.tipo === 'tubos' ? `Pick up tube ${e.atual + 1} of ${n}` : OBJETIVOS[e.tipo];
+  if (p) return { titulo, detalhe: `${p.texto} · ${p.nivel <= 1 ? 'far away, keep looking' : p.nivel === 2 ? 'getting closer' : 'very close!'}` };
+  if (progresso > 0.01) return { titulo, detalhe: `Stay here… ${Math.round(progresso * 10) * 10}%` };
+  if (e.livre) return { titulo, detalhe: `${e.atual} of ${n} lit · follow the blue arrow` };
+  if (e.tipo === 'corrida') return { titulo, detalhe: e.atual === n - 1 ? `Last flag: the ${e.destino}!` : `Flag ${e.atual + 1} of ${n}` };
+  return { titulo, detalhe: 'Follow the blue arrow' };
 }

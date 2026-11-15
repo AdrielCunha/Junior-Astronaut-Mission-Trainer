@@ -44,6 +44,7 @@ import { dirigirRover, estacionarRover, desembarcar, pontoLivre, RAIO_ROVER } fr
 import { deveQuebrar } from '../paralama-tarefa';
 import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto, alvoDaSeta, pista, type Expedicao, type TipoExpedicao } from '../engine/expedicao';
 import { criarExploracao, sortearTipo, AVISOS, type Contexto } from '../engine/exploracao';
+import { ESTACOES, estacaoDisponivel, textoEstacao } from '../engine/estacoes';
 import { desenharRover, esconderRover, LINHA_QUADRIL_SENTADO, type PecasRover } from './desenharRover';
 
 const P = dadosTerreno.imagem;
@@ -155,6 +156,7 @@ export class Superficie extends Phaser.Scene {
   private teto: Phaser.GameObjects.Image | null = null;
   private nomesNoMapa: Phaser.GameObjects.Text[] = [];
   private decoVisuais: { d: DecoColocada; img: Phaser.GameObjects.Image }[] = [];
+  private marcasEstacao: { d: DecoColocada; c: Phaser.GameObjects.Container }[] = [];   // "!" over ship stations
   private dica?: Phaser.GameObjects.Text;                // shared prop tooltip
   private decoSobre: DecoColocada | null = null;         // prop under the cursor
   private decoFixa: DecoColocada | null = null;          // prop just tapped (touch): tooltip stays a few seconds
@@ -402,7 +404,10 @@ export class Superficie extends Phaser.Scene {
     this.alvoRover = false;
     // Tapping a prop (touch has no hover) shows what it is for a few seconds.
     const deco = this.decoEm(ptr.worldX, ptr.worldY);
-    if (deco) { this.decoFixa = deco; this.decoFixaT = 4; return; }
+    if (deco) {
+      if (ESTACOES[deco.id] && this.pertoDeco(deco) <= ALCANCE) { this.usarEstacao(deco); return; }
+      this.decoFixa = deco; this.decoFixaT = 4; return;
+    }
     const q = paraChao(P, sessao.terreno, ptr.worldX, ptr.worldY);
     if (!q) return;
     this.seguir = true;
@@ -617,8 +622,52 @@ export class Superficie extends Phaser.Scene {
   private usarPerto() {
     if (!this.podeUsarRover()) return;
     if (sessao.rover?.dirigindo || this.pertoRover()) { this.alternarRover(); return; }
+    const estacao = this.estacaoPerto();
+    if (estacao) { this.usarEstacao(estacao); return; }
     const c = sessao.grade.lista.find((m) => this.perto(m) && this.usavel(m));
     if (c) this.usar(c);
+  }
+
+  // ---------- ship stations (engine/estacoes.ts) ----------
+  private pertoDeco(d: DecoColocada) {
+    const dx = Math.max(d.gx - this.corpo.x, 0, this.corpo.x - (d.gx + d.w));
+    const dy = Math.max(d.gy - this.corpo.y, 0, this.corpo.y - (d.gy + d.h));
+    return Math.hypot(dx, dy);
+  }
+
+  private estacaoPerto(): DecoColocada | undefined {
+    let melhor: DecoColocada | undefined, dm = ALCANCE;
+    for (const { d } of this.decoVisuais) { if (!ESTACOES[d.id]) continue; const k = this.pertoDeco(d); if (k <= dm) { dm = k; melhor = d; } }
+    return melhor;
+  }
+
+  // The station's task, once a day. Closing it early leaves the station for later.
+  private usarEstacao(d: DecoColocada) {
+    if (sessao.emTarefa || sessao.rover?.dirigindo) return;
+    const e = ESTACOES[d.id];
+    if (!e) return;
+    if (sessao.fase !== 'dia') { sessao.emitir('mensagem', sessao.fase === 'inicio' ? '🚀 Press MENU, then LAUNCH MISSION!' : '🌙 Night time. Wait for morning!'); return; }
+    if (!estacaoDisponivel(d.id, sessao.estacoesHoje, sessao.fase)) { sessao.emitir('mensagem', `✅ ${d.nome}: done for today. Come back tomorrow!`, '#86efac'); return; }
+    sessao.emTarefa = true;
+    let feito = false;
+    this.scene.get(e.cena).events.once('shutdown', () => this.time.delayedCall(0, () => { if (!feito) sessao.emTarefa = false; }));
+    this.scene.launch(e.cena, { aoConcluir: () => {
+      feito = true;
+      sessao.emTarefa = false;
+      sessao.estacoesHoje.add(d.id);
+      sessao.emitir('mensagem', `✅ ${d.nome}: ${e.acao.toLowerCase()} done!`, '#86efac');
+    } });
+    this.scene.bringToTop(e.cena);
+  }
+
+  // The "!" over the stations still to do today (bobbing), hidden when done or at night.
+  private atualizarEstacoes() {
+    const k = movimentoReduzido() ? 0 : Math.sin(this.time.now / 220) * 3;
+    for (const m of this.marcasEstacao) {
+      const ver = this.mapa.visible && estacaoDisponivel(m.d.id, sessao.estacoesHoje, sessao.fase);
+      m.c.setVisible(ver);
+      if (ver) m.c.setY((m.c.getData('y0') as number) + k);
+    }
   }
 
   private usar(c: Construcao) {
@@ -799,11 +848,16 @@ export class Superficie extends Phaser.Scene {
     const centro = lista.length
       ? { x: lista.reduce((s, c) => s + c.gx + c.tipo.w / 2, 0) / lista.length, y: lista.reduce((s, c) => s + c.gy + c.tipo.h / 2, 0) / lista.length }
       : { x: n / 2, y: n / 2 };
-    const casa = lista.find((c) => c.tipo.id === 'habitat') ?? lista[0];
+    const casa = (sessao.mundo === 'nave' ? lista.find((c) => c.tipo.id === 'oficina') : lista.find((c) => c.tipo.id === 'habitat')) ?? lista[0];
     const cx = casa ? casa.gx + casa.tipo.w / 2 : centro.x, cy = casa ? casa.gy + casa.tipo.h + 1 : centro.y;
     const porta = pontoLivrePerto(cx, cy, livre, 6) ?? { x: cx, y: cy };
     const evitar = lista.map((c) => ({ x: c.gx + c.tipo.w / 2, y: c.gy + c.tipo.h / 2 }));
-    return { centro, n, livre, crateras: [...sessao.terreno.crateras], casa: { ...porta, nome: casa?.tipo.nome ?? 'base' }, evitar };
+    const nave = sessao.mundo === 'nave';
+    return {
+      centro, n, livre, crateras: [...sessao.terreno.crateras], casa: { ...porta, nome: casa ? this.nomeDe(casa) : 'base' }, evitar,
+      // The ship's deck (terreno_nave.json): gx 3..21, gy 6..18.
+      ...(nave ? { limites: { x0: 3, x1: 21, y0: 6, y1: 18 }, jogador: { x: this.corpo.x, y: this.corpo.y } } : {}),
+    };
   }
 
   private passarExpedicao(dt: number) {
@@ -833,6 +887,8 @@ export class Superficie extends Phaser.Scene {
       amostra: `🧪 You found the sample case! Now bring it back to the ${e.destino}.`,
       balizas: `🔦 Beacon lit! ${e.atual} of ${e.pontos.length}.`,
       tubos: `🧪 Tube ${e.atual} of ${e.pontos.length} collected!`,
+      vazamentos: `💨 Leak patched! ${e.atual} of ${e.pontos.length}.`,
+      ferramenta: `🔧 You found the wrench! Now bring it to the ${e.destino}.`,
     };
     sessao.emitir('mensagem', msgs[e.tipo] ?? '', '#86efac');
     void indice;
@@ -847,6 +903,8 @@ export class Superficie extends Phaser.Scene {
       balizas: '🔦 All the beacons are on!',
       gelo: '❄ Ice found!',
       tubos: '🧪 All the tubes are collected!',
+      vazamentos: '💨 All leaks patched! The air is safe.',
+      ferramenta: `🔧 Wrench back in the ${e.destino}!`,
     };
     sessao.emitir('mensagem', `${msgs[e.tipo] ?? ''} ${e.fato}`, '#86efac');
   }
@@ -876,7 +934,7 @@ export class Superficie extends Phaser.Scene {
       this.bandeirasExp.forEach((b) => b.destroy());
       this.bandeirasExp = [];
       if (exp) exp.pontos.forEach((_p, i) => {
-        if (exp.feitos[i] && exp.tipo !== 'balizas') return;
+        if (exp.feitos[i] && exp.tipo !== 'balizas' && exp.tipo !== 'vazamentos') return;
         const c = this.criarMarcador(exp, i);
         this.mapa.add(c);
         this.bandeirasExp.push(c);
@@ -888,9 +946,11 @@ export class Superficie extends Phaser.Scene {
     for (const c of this.bandeirasExp) {
       const i = c.getData('i') as number, p = exp.pontos[i];
       const d = Math.hypot(this.corpo.x - p.x, this.corpo.y - p.y);
-      if (c.getData('oculto')) c.setAlpha(Phaser.Math.Clamp((7 - d) / 3, 0, 1));
+      // Hidden spots fade in only when close (on the small ship deck, closer still) and never get a ring.
+      const esc = exp.escala ?? 1;
+      if (c.getData('oculto')) c.setAlpha(Phaser.Math.Clamp((7 * esc - d) / (3 * esc), 0, 1));
       const anel = c.getData('anel') as Phaser.GameObjects.Ellipse | undefined;
-      if (anel) anel.setVisible(!exp.feitos[i] && (exp.livre || (proximo !== null && proximo === p))).setScale(k);
+      if (anel) anel.setVisible(!exp.feitos[i] && !c.getData('oculto') && (exp.livre || (proximo !== null && proximo === p))).setScale(k);
     }
   }
 
@@ -926,6 +986,30 @@ export class Superficie extends Phaser.Scene {
         .fillStyle(contorno, 1).fillRoundedRect(-8, -3, 16, 5, 2);
       if (feito) g.fillStyle(0xfde047, 0.3).fillCircle(0, -44, 17);
       g.fillStyle(feito ? 0xfde047 : 0x475569, 1).fillCircle(0, -44, 8).lineStyle(2.5, contorno, 1).strokeCircle(0, -44, 8);
+    } else if (exp.tipo === 'vazamentos') {
+      if (feito) {
+        // A riveted patch plate on the floor.
+        g.fillStyle(0x94a3b8, 1).fillRoundedRect(-11, -7, 22, 12, 3).lineStyle(2, contorno, 1).strokeRoundedRect(-11, -7, 22, 12, 3)
+          .fillStyle(contorno, 1).fillCircle(-7, -4, 1.4).fillCircle(7, -4, 1.4).fillCircle(-7, 2, 1.4).fillCircle(7, 2, 1.4);
+      } else {
+        // A crack with air puffing out of it.
+        g.lineStyle(2.5, contorno, 1).lineBetween(-9, -1, -3, -3).lineBetween(-3, -3, 2, 0).lineBetween(2, 0, 9, -2);
+        const nuvem = this.add.container(0, -14, [
+          this.add.circle(-6, 0, 7, 0xffffff, 0.85), this.add.circle(4, -5, 8, 0xffffff, 0.85), this.add.circle(10, 2, 6, 0xffffff, 0.85),
+        ]);
+        itens.push(nuvem);
+        if (!movimentoReduzido()) this.tweens.add({ targets: nuvem, y: -24, alpha: 0.2, scale: 1.3, duration: 900, repeat: -1 });
+      }
+    } else if (exp.tipo === 'ferramenta' && !ultima) {
+      // A wrench lying on the floor.
+      g.fillStyle(0xcbd5e1, 1).fillRoundedRect(-12, -6, 20, 5, 2).lineStyle(2, contorno, 1).strokeRoundedRect(-12, -6, 20, 5, 2)
+        .fillStyle(0xcbd5e1, 1).fillCircle(10, -3.5, 6).lineStyle(2, contorno, 1).strokeCircle(10, -3.5, 6)
+        .fillStyle(0x1e293b, 1).fillRect(11, -6, 6, 5);
+      itens.push(this.add.star(0, -18, 4, 2, 7, 0xfde047).setStrokeStyle(1.5, contorno));
+    } else if (exp.tipo === 'ferramenta') {
+      g.fillStyle(contorno, 1).fillRect(-2.5, -46, 5, 46).fillStyle(0xe2e8f0, 1).fillRect(-1, -45, 2, 44)
+        .fillStyle(0xf97316, 1).fillTriangle(1, -46, 30, -38, 1, -29).lineStyle(2.5, contorno, 1).strokeTriangle(1, -46, 30, -38, 1, -29);
+      itens.push(this.add.text(11, -38, '🔧', letra(9, '#1e293b')).setOrigin(0.5));
     } else {
       g.fillStyle(0xf8fafc, 1).fillRoundedRect(-4.5, -26, 9, 24, 4).lineStyle(2.5, contorno, 1).strokeRoundedRect(-4.5, -26, 9, 24, 4)
         .fillStyle(0xf97316, 1).fillRoundedRect(-5.5, -30, 11, 7, 3).lineStyle(2, contorno, 1).strokeRoundedRect(-5.5, -30, 11, 7, 3);
@@ -1484,6 +1568,7 @@ export class Superficie extends Phaser.Scene {
     if(!this.pouso && this.suprimentosPendentes.length && sessao.fase==='dia') this.chegar(this.suprimentosPendentes.shift()!);
     this.animarModulos(dt);
     this.atualizarDica(dt);
+    this.atualizarEstacoes();
 
     // Camera follows the commander on the ground.
     if (sessao.vista === 'chao' && !sessao.voo && this.seguir && !this.pouso) {
@@ -1547,7 +1632,7 @@ export class Superficie extends Phaser.Scene {
   // Surface props (old rover, probe, beacon...): placed once on free flat ground, solid, each with its name.
   private montarDeco() {
     const g = sessao.grade, c0 = Math.floor(g.n / 2);
-    this.decoVisuais = []; this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
+    this.decoVisuais = []; this.marcasEstacao = []; this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
     if (!g.deco.length) {
       // Each world has its own props and facts (Mars: DECORACAO_MARTE).
       const lista = sessao.mundo === 'nave' ? DECO_NAVE : sessao.mundo === 'marte' ? DECORACAO_MARTE : DECORACAO;
@@ -1574,6 +1659,15 @@ export class Superficie extends Phaser.Scene {
       if (sessao.mundo === 'marte') img.setTint(TOM_MARTE);
       this.mapa.add(img);
       this.decoVisuais.push({ d, img });
+      if (ESTACOES[d.id]) {
+        const topo = paraTela(P, d.gx + d.w / 2, d.gy + d.h / 2, d.z + d.altura + 0.9);
+        const c = this.add.container(topo.x, topo.y, [
+          this.add.circle(0, 0, 11, 0xfde047).setStrokeStyle(3, 0x1e293b),
+          this.add.text(0, 0, '!', letra(15, '#1e293b')).setOrigin(0.5),
+        ]).setDepth(1e6).setData('y0', topo.y);
+        this.mapa.add(c);
+        this.marcasEstacao.push({ d, c });
+      }
     }
     // One shared tooltip: names are hidden until the cursor or the commander is on the prop.
     this.dica = this.add.text(0, 0, '', letra(13, '#ffffff', {
@@ -1609,7 +1703,8 @@ export class Superficie extends Phaser.Scene {
     }
     if (!alvo || !this.mapa.visible) { this.dica.setVisible(false); if (this.fundoDica) fundoRotulo(this.fundoDica, this.dica); return; }
     const topo = paraTela(P, alvo.gx + alvo.w / 2, alvo.gy + alvo.h / 2, alvo.z + alvo.altura + 0.5);
-    this.dica.setText(`${alvo.nome}\n${alvo.info}`).setPosition(topo.x, topo.y)
+    const extra = textoEstacao(alvo.id, sessao.estacoesHoje, sessao.fase);
+    this.dica.setText(`${alvo.nome}\n${alvo.info}${extra ? `\n${extra}` : ''}`).setPosition(topo.x, topo.y)
       .setScale(1 / Math.max(0.5, this.cameras.main.zoom)).setVisible(true);
     if (this.fundoDica) fundoRotulo(this.fundoDica, this.dica);
   }

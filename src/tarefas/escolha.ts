@@ -11,7 +11,7 @@ export const CENAS_DA_SALA: Partial<Record<Efeito, string[]>> = {
 
 // Extra scenes only on the ship (chapter 2): the Engines room also looks out of the window to find Earth.
 export const CENAS_DA_NAVE: Partial<Record<Efeito, string[]>> = {
-  meta: ['LimparJanelaTarefa'],
+  meta: ['LimparJanelaTarefa', 'ManobraNaveTarefa'],
 };
 
 export type Opcao = { id: string; cena?: string };

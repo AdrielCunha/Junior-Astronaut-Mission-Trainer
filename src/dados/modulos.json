@@ -588,5 +588,15 @@
    54.0,
    76.35
   ]
+ },
+ "deco_casa_sem_teto": {
+  "arquivo": "lua/modulos/deco_casa_sem_teto.png",
+  "w": 159,
+  "h": 147,
+  "escala": 0.5,
+  "ancora": [
+   85.5,
+   69.79
+  ]
  }
 }

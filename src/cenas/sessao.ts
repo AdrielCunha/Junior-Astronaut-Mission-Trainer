@@ -193,6 +193,7 @@ class Sessao {
   paralamaHoje = false;     // the fender already broke (and was fixed) today
   expedicao: Expedicao | null = null;   // flags to drive or walk through (engine/expedicao.ts)
   corridaHoje = false;      // the rover delivery run was already offered today
+  estacoesHoje = new Set<string>();   // ship stations already used today (engine/estacoes.ts)
   exploracaoEm: number | null = null;   // seconds of play until today's exploration event (null: none today)
   ultimaExploracao?: string;
   pistaExpedicao: { nivel: number; texto: string } | null = null;   // hot/cold hint, set by Superficie every frame
@@ -279,7 +280,7 @@ class Sessao {
     this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = 0;
-    this.tarefasHoje.clear();
+    this.tarefasHoje.clear(); this.estacoesHoje.clear();
     this.ultimaTarefa = {};
     this.evento = null; this.eventoEm = null; this.alarmeHoje = null; this.energiaHoje = false; this.ultimoEvento = undefined; this.diasCalmos = 0; this.tempoCalmo = 0;
     this.odometroRover = 0; this.paralamaHoje = false; this.expedicao = null; this.corridaHoje = false; this.exploracaoEm = null;
@@ -464,7 +465,7 @@ class Sessao {
     this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = bateriasDoDia(this.estado, this.C);
-    this.tarefasHoje.clear();
+    this.tarefasHoje.clear(); this.estacoesHoje.clear();
     // Maybe something breaks today; it happens a little while after the morning.
     this.evento = null;
     this.tempoCalmo = 0;

@@ -40,6 +40,8 @@ import { LimparJanelaTarefa } from './cenas/LimparJanelaTarefa';
 import { BateriaRoverTarefa } from './cenas/BateriaRoverTarefa';
 import { ParalamaTarefa } from './cenas/ParalamaTarefa';
 import { ScannerGeloTarefa } from './cenas/ScannerGeloTarefa';
+import { ManobraNaveTarefa } from './cenas/ManobraNaveTarefa';
+import { HortaTarefa } from './cenas/HortaTarefa';
 import { BANCO } from './tarefas';
 import { sessao } from './cenas/sessao';
 import { iniciarMundo3D } from './cenas/irParaMarte';
@@ -384,10 +386,13 @@ const createDebugHarness = () => {
     ['BateriaRoverTarefa', 'Swap the rover battery', 'BateriaRoverTarefa'],
     ['ParalamaTarefa', 'Fix the rover fender', 'ParalamaTarefa'],
     ['ScannerGeloTarefa', 'Scan for ice', 'ScannerGeloTarefa'],
+    ['ManobraNaveTarefa', 'Thruster puffs (ship)', 'ManobraNaveTarefa'],
+    ['HortaTarefa', 'Grow the lettuce (ship)', 'HortaTarefa'],
   ];
   // Exploration events: they start an expedition on the ground (flags, hints and an arrow), so they need the map.
   const exploracoes: Array<[string, string]> = [
     ['amostra', 'Find the lost sample'], ['balizas', 'Relight the beacons'], ['gelo', 'Scout for ice'], ['tubos', 'Collect the Mars tubes'],
+    ['vazamentos', 'Patch the air leaks (ship)'], ['ferramenta', 'Find the lost wrench (ship)'],
   ];
   exploracoes.forEach(([tipo, label]) => taskButtons.push({
     key: `explorar-${tipo}`, label,
@@ -519,9 +524,9 @@ const jogo = new Phaser.Game({
   // title screen flow added on main.
   scene: classico
     ? [Carregar, Chegada, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo, CuriosidadeRover]
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo, CuriosidadeRover]
     : [Carregar, Chegada, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo, CuriosidadeRover],
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo, CuriosidadeRover],
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;

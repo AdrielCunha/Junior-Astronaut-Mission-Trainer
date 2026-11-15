@@ -247,14 +247,14 @@ export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: I
   const inicio = Math.round((b.w - largura) / 2), alto = b.h, raio = px(16);
   const margem = px(14), iconeW = px(26), gap = px(10);
   const coluna = inicio + margem + iconeW + gap, fim = inicio + largura - margem;
-  const cabecalhoY = Math.round(alto * 0.34), seloW = px(40), seloH = px(18);
+  const cabecalhoY = Math.round(alto * 0.3), seloW = px(40), seloH = px(18);
   const fundo = criarPilula(cena, inicio, 0, largura, alto, unidade, CONTORNO, 0xffffff, raio);
   const simbolo = criarIconeJogo(cena, inicio + margem + Math.round(iconeW / 2), Math.round(alto / 2), icone, iconeW);
   const label = cena.add.text(coluna, cabecalhoY, rotulo, letra(px(14.5), '#ffffff', { stroke: '#1e293b', strokeThickness: px(4) })).setOrigin(0, 0.5);
   const selo = criarSelo(cena, fim - seloW, cabecalhoY - Math.round(seloH / 2), seloW, seloH, unidade, cor);
   selo.texto.setFontSize(px(11));
   label.setScale(Math.min(1, (fim - seloW - px(6) - coluna) / label.width));
-  const trilhoH = px(12), trilhoY = Math.round(alto * 0.7), trilhoW = fim - coluna;
+  const trilhoH = px(12), trilhoY = Math.round(alto * 0.74), trilhoW = fim - coluna;
   const trilho = cena.add.graphics().fillStyle(0x0b1a4a).fillRoundedRect(coluna, trilhoY - trilhoH / 2, trilhoW, trilhoH, trilhoH / 2)
     .lineStyle(px(2), 0xffffff).strokeRoundedRect(coluna, trilhoY - trilhoH / 2, trilhoW, trilhoH, trilhoH / 2);
   const preenchimento = cena.add.graphics();
@@ -286,8 +286,10 @@ export function criarBotaoPilula(cena: Phaser.Scene, b: Caixa, u: number, titulo
 }
 
 // `rotulos` swaps the tooltips and icons (Mars: the lander, and heating instead of rocket parts).
+// A box taller than wide stacks the five counters in a column (the side HUD); otherwise they sit in a row.
 export function criarCapsulaRecursos(cena: Phaser.Scene, b: Caixa, u: number, rotulos?: { nomes: string[]; icones: string[] }) {
-  const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u);
+  const vertical = b.h > b.w;
+  const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u, CONTORNO, 0xffffff, vertical ? Math.round(Math.min(22 * u, b.w / 2)) : undefined);
   const nomes = rotulos?.nomes ?? ['Batteries at the Battery Bank', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Parts: batteries delivered to the rocket workshop today'];
   const icones = rotulos?.icones ?? ['energy', 'backpack', 'heart', 'shield', 'wrench'];
   const cores = ['#fde047', '#fde047', '#4ade80', '#fde047', '#60a5fa'];
@@ -298,22 +300,32 @@ export function criarCapsulaRecursos(cena: Phaser.Scene, b: Caixa, u: number, ro
   const fundo = cena.add.graphics();
   const texto = cena.add.text(0, 0, '', letra(Math.round(14 * u))).setOrigin(0, 0.5);
   tooltip.add([fundo, texto]);
+  const fatia = (vertical ? b.h : b.w) / 5;
   for (let i = 0; i < 5; i++) {
-    const x = Math.round(i * b.w / 5), centro = Math.round(b.h / 2);
-    if (i) divisores.lineBetween(x, Math.round(8 * u), x, b.h - Math.round(8 * u));
-    const simbolo = criarIconeJogo(cena, x + Math.round(18 * u), centro, icones[i], Math.round(23 * u));
-    const numero = cena.add.text(x + Math.round(33 * u), centro, '0', letra(Math.round(19 * u), cores[i])).setOrigin(0, 0.5);
+    const inicio = Math.round(i * fatia);
+    const x = vertical ? Math.round(b.w / 2 - 20 * u) : inicio;
+    const centro = vertical ? Math.round(inicio + fatia / 2) : Math.round(b.h / 2);
+    if (i && vertical) divisores.lineBetween(Math.round(8 * u), inicio, b.w - Math.round(8 * u), inicio);
+    else if (i) divisores.lineBetween(inicio, Math.round(8 * u), inicio, b.h - Math.round(8 * u));
+    const simbolo = criarIconeJogo(cena, x + Math.round(14 * u), centro, icones[i], Math.round(23 * u));
+    const numero = cena.add.text(x + Math.round(29 * u), centro, '0', letra(Math.round(19 * u), cores[i])).setOrigin(0, 0.5);
     numeros.push(numero);
     caixa.add([simbolo, numero]);
   }
   // Observe pointer movement without hit areas, so tooltips never consume map clicks.
   const mover = (p: Phaser.Input.Pointer) => {
     if (!caixa.visible || p.x < b.x || p.x >= b.x + b.w || p.y < b.y || p.y >= b.y + b.h) { tooltip.setVisible(false); return; }
-    const i = Math.min(4, Math.floor((p.x - b.x) * 5 / b.w));
+    const i = Math.min(4, Math.floor((vertical ? p.y - b.y : p.x - b.x) / fatia));
     texto.setText(nomes[i]);
     const pad = Math.round(10 * u), h = Math.round(30 * u), w = texto.width + 2 * pad;
-    const x = Math.round(Math.max(2, Math.min(b.x + i * b.w / 5, cena.scale.width - w - 2)));
-    tooltip.setPosition(x, b.y + b.h + Math.round(8 * u)).setVisible(true);
+    if (vertical) {
+      // Beside the row it explains, to the right of the column.
+      const x = Math.round(Math.min(b.x + b.w + 8 * u, cena.scale.width - w - 2));
+      tooltip.setPosition(x, Math.round(b.y + i * fatia + fatia / 2 - h / 2)).setVisible(true);
+    } else {
+      const x = Math.round(Math.max(2, Math.min(b.x + i * fatia, cena.scale.width - w - 2)));
+      tooltip.setPosition(x, b.y + b.h + Math.round(8 * u)).setVisible(true);
+    }
     texto.setPosition(pad, Math.round(h / 2));
     fundo.clear().fillStyle(CONTORNO).fillRoundedRect(0, 0, w, h, h / 2).lineStyle(Math.max(1, Math.round(u)), 0xffffff).strokeRoundedRect(0, 0, w, h, h / 2);
   };
