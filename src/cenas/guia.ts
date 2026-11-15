@@ -101,11 +101,16 @@ export class Guia {
 // Screen point over a module, converted through the ground camera. Out of view, it is held at the screen
 // edge with the angle toward the module, so an arrow drawn there points the way.
 export function pontoDoModulo(cena: Phaser.Scene, l: Layout, c: Construcao) {
+  const cx = c.gx + c.tipo.w / 2, cy = c.gy + c.tipo.h / 2;
+  return pontoDoMundo(cena, l, cx, cy, sessao.terreno.altura(cx, cy) + c.tipo.altura);
+}
+
+// The same for any ground point (gx, gy) at height z (in tiles).
+export function pontoDoMundo(cena: Phaser.Scene, l: Layout, gx: number, gy: number, z: number) {
   const W = cena.scale.width, H = cena.scale.height;
   const cam = cena.scene.get('Superficie').cameras.main;
   const m = Math.round(34 * l.u), topo = l.faixa.h + Math.round(60 * l.u);
-  const cx = c.gx + c.tipo.w / 2, cy = c.gy + c.tipo.h / 2;
-  const p = paraTela(dadosTerreno.imagem, cx, cy, sessao.terreno.altura(cx, cy) + c.tipo.altura);
+  const p = paraTela(dadosTerreno.imagem, gx, gy, z);
   const x = (p.x - cam.worldView.x) * cam.zoom, y = (p.y - cam.worldView.y) * cam.zoom;
   const dentro = x > m && x < W - m && y > topo && y < H - m;
   return dentro ? { x, y: y - Math.round(8 * l.u), fora: false, ang: Math.PI / 2 } : {
@@ -174,6 +179,55 @@ export class AvisoEvento {
     if (!movimentoReduzido()) {
       caixa.setScale(0.7).setAlpha(0);
       cena.tweens.add({ targets: caixa, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut' });
+    }
+  }
+}
+
+// The current expedition (engine/expedicao.ts): a blue arrow over the next flag (or at the screen edge
+// pointing to it) and a short line saying how many flags are left. Hidden while a fix-it event is shown.
+export class AvisoExpedicao {
+  private readonly g: Phaser.GameObjects.Graphics;
+  private pilula?: Phaser.GameObjects.Container;
+  private chave = '';
+  private t = 0;
+
+  constructor(private readonly cena: Phaser.Scene, private readonly layout: Layout) {
+    this.g = cena.add.graphics().setDepth(41);
+  }
+
+  atualizar(dtMs: number, pausado: boolean) {
+    this.t += dtMs / 1000;
+    this.g.clear();
+    const exp = sessao.expedicao;
+    const chave = exp ? `${exp.id}:${exp.atual}` : '';
+    if (chave !== this.chave) { this.chave = chave; this.montar(); }
+    const visivel = !!exp && !pausado && sessao.fase === 'dia' && sessao.vista === 'chao';
+    this.pilula?.setVisible(visivel && !sessao.evento);
+    const p = exp?.pontos[exp.atual];
+    if (!visivel || !p) return;
+    const q = pontoDoMundo(this.cena, this.layout, p.x, p.y, sessao.terreno.altura(p.x, p.y) + 1.4);
+    desenharSeta(this.g, this.layout.u, this.t, q.x, q.y, q.fora, q.ang, 0x38bdf8);
+  }
+
+  private montar() {
+    this.pilula?.destroy();
+    this.pilula = undefined;
+    const exp = sessao.expedicao;
+    if (!exp) return;
+    const { cena, layout: l } = this, u = l.u, px = (n: number) => Math.round(n * u);
+    const W = cena.scale.width, pad = px(14);
+    const ultima = exp.atual === exp.pontos.length - 1;
+    const texto = cena.add.text(0, 0, ultima ? `${exp.titulo} · last flag: the ${exp.destino}!` : `${exp.titulo} · flag ${exp.atual + 1} of ${exp.pontos.length}`,
+      letra(px(15), '#bae6fd')).setOrigin(0, 0.5);
+    const w = Math.round(pad + px(30) + texto.width + pad), h = px(40);
+    const caixa = criarPilula(cena, (W - w) / 2, l.capsula.y + l.capsula.h + px(10), w, h, u, CONTORNO, 0x38bdf8).setDepth(40);
+    const icone = criarIconeJogo(cena, pad + px(12), h / 2, 'rover', px(27));
+    texto.setPosition(pad + px(30), h / 2);
+    caixa.add([icone, texto]);
+    this.pilula = caixa;
+    if (!movimentoReduzido()) {
+      caixa.setScale(0.9).setAlpha(0);
+      cena.tweens.add({ targets: caixa, scale: 1, alpha: 1, duration: 220, ease: 'Back.easeOut' });
     }
   }
 }

@@ -40,7 +40,9 @@ import { DECORACAO, DECORACAO_MARTE, comoTipo, type DecoColocada } from '../dado
 import { CHAVE_FOGUETE } from './Chegada';
 import foguetevoo from '../dados/foguete_voo.json';
 import { tocarMotor, tocarSfx, criarAmbienteSonoro } from '../sfx';
-import { dirigirRover, estacionarRover, desembarcar, pontoLivre } from '../engine/rover';
+import { dirigirRover, estacionarRover, desembarcar, pontoLivre, RAIO_ROVER } from '../engine/rover';
+import { deveQuebrar } from '../paralama-tarefa';
+import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto } from '../engine/expedicao';
 import { desenharRover, esconderRover, LINHA_QUADRIL_SENTADO, type PecasRover } from './desenharRover';
 
 const P = dadosTerreno.imagem;
@@ -131,6 +133,9 @@ export class Superficie extends Phaser.Scene {
   private inicioVoo: { x: number; y: number } | null = null;
   private pouso: Pouso | null = null;
   private gRover!: Phaser.GameObjects.Graphics;
+  private bandeirasExp: Phaser.GameObjects.Container[] = [];   // flags of the current expedition
+  private chaveExp = '';
+  private avisoAPe = 0;
   private pecasRover!: PecasRover;
   private dicaRover!: Phaser.GameObjects.Text;
   private fundoDicaRover!: Phaser.GameObjects.Graphics;
@@ -732,6 +737,105 @@ export class Superficie extends Phaser.Scene {
     sessao.emitir('mensagem', r.dirigindo ? '🚙 WASD to drive. E to get out.' : '🧑 On foot! E near the rover to drive.', '#93c5fd');
     sessao.emitir('estado');
     if (r.dirigindo && !sessao.curiosidadeRoverVista) this.scene.launch('CuriosidadeRover');
+    else if (r.dirigindo) this.iniciarCorrida();
+  }
+
+  // ---------- expeditions (engine/expedicao.ts) ----------
+  // Once a day, getting into the charged rover starts a delivery run: drive through the flags to the module
+  // farthest away. Nothing is won or lost; it is a reason to explore the map.
+  private iniciarCorrida() {
+    const r = sessao.rover;
+    if (!r?.dirigindo || sessao.mundo !== 'lua' || sessao.fase !== 'dia' || !sessao.roverCarregado || sessao.corridaHoje || sessao.expedicao) return;
+    sessao.corridaHoje = true;
+    const caixas = sessao.grade.caixas();
+    const livre = (x: number, y: number) => pontoLivre(sessao.terreno, caixas, x, y, RAIO_ROVER + 0.2);
+    const inicio = { x: r.corpo.x, y: r.corpo.y };
+    const alvos = sessao.grade.lista.filter((c) => c.tipo.sala || c.tipo.id === 'plataforma')
+      .map((c) => ({ x: c.gx + c.tipo.w / 2, y: c.gy + c.tipo.h / 2, nome: c.tipo.nome }));
+    const destino = maisLonge(inicio, alvos);
+    const fim = destino && pontoLivrePerto(destino.x, destino.y, livre, 6);
+    const exp = destino && fim ? criarCorridaEntrega(inicio, { ...fim, nome: destino.nome }, livre) : null;
+    if (!exp) return;
+    sessao.expedicao = exp;
+    tocarSfx('ok');
+    sessao.emitir('mensagem', `🚩 Delivery run! Drive through the flags to bring parts to the ${exp.destino}.`, '#93c5fd');
+  }
+
+  private passarExpedicao(dt: number) {
+    const exp = sessao.expedicao;
+    this.desenharExpedicao(dt);
+    if (!exp || sessao.fase !== 'dia' || sessao.emTarefa || sessao.transicao) return;
+    this.avisoAPe = Math.max(0, this.avisoAPe - dt);
+    const { e, passou, aPe } = avancar(exp, this.corpo.x, this.corpo.y, !!sessao.rover?.dirigindo);
+    if (aPe && !this.avisoAPe) { this.avisoAPe = 6; sessao.emitir('mensagem', '🚙 Get in the rover and drive through the flag!', '#fde68a'); }
+    if (!passou) return;
+    sessao.expedicao = e;
+    if (terminada(e)) {
+      sessao.expedicao = null;
+      tocarSfx('sucesso');
+      sessao.emitir('mensagem', `📦 Parts delivered to the ${e.destino}! ${e.fato}`, '#86efac');
+      return;
+    }
+    tocarSfx('encaixe');
+    sessao.emitir('mensagem', `🚩 Flag ${e.atual} of ${e.pontos.length}! Next flag!`, '#86efac');
+  }
+
+  // Flags on the ground: the next one yellow and bouncing, the last one orange (the delivery spot).
+  private desenharExpedicao(dt: number) {
+    const exp = sessao.expedicao;
+    const chave = exp ? `${exp.id}:${exp.atual}:${exp.pontos.length}` : '';
+    if (chave !== this.chaveExp) {
+      this.chaveExp = chave;
+      this.bandeirasExp.forEach((b) => b.destroy());
+      this.bandeirasExp = [];
+      if (exp) exp.pontos.forEach((p, i) => {
+        if (i < exp.atual) return;
+        const ultima = i === exp.pontos.length - 1, proxima = i === exp.atual;
+        const cor = proxima ? 0xfde047 : ultima ? 0xf97316 : 0xffffff;
+        const t = paraTela(P, p.x, p.y, sessao.terreno.altura(p.x, p.y));
+        const g = this.add.graphics()
+          .fillStyle(0x000000, 0.25).fillEllipse(0, 0, 22, 8)
+          .fillStyle(0x1e293b, 1).fillRect(-2.5, -46, 5, 46).fillStyle(0xe2e8f0, 1).fillRect(-1, -45, 2, 44)
+          .fillStyle(cor, 1).fillTriangle(1, -46, 30, -38, 1, -29).lineStyle(2.5, 0x1e293b, 1).strokeTriangle(1, -46, 30, -38, 1, -29)
+          .fillStyle(0xef4444, 1).fillCircle(0, -48, 3.5);
+        const n = this.add.text(11, -38, ultima ? '📦' : String(i + 1), letra(ultima ? 9 : 10, '#1e293b')).setOrigin(0.5);
+        const anel = this.add.ellipse(0, 0, 46, 18).setStrokeStyle(3, cor, 0.9).setVisible(proxima);
+        const c = this.add.container(t.x, t.y, [anel, g, n]).setDepth(profundidade(p.x + 0.5, p.y + 0.5));
+        c.setData('proxima', proxima);
+        this.mapa.add(c);
+        this.bandeirasExp.push(c);
+      });
+    }
+    if (movimentoReduzido()) return;
+    const k = 1 + 0.12 * Math.sin(this.time.now / 180);
+    for (const c of this.bandeirasExp) if (c.getData('proxima')) (c.list[0] as Phaser.GameObjects.Ellipse).setScale(k);
+    void dt;
+  }
+
+  // Driving a while breaks a fender (paralama-tarefa.ts): the rover stops until the child fixes it.
+  // Closing the task without fixing it is fine; the fender breaks again after some more driving.
+  private contarOdometro(d: number) {
+    if (sessao.fase !== 'dia' || sessao.emTarefa || !sessao.rover || d <= 0 || d > 2) return;
+    sessao.odometroRover += d;
+    if (!deveQuebrar(sessao.odometroRover, sessao.paralamaHoje)) return;
+    sessao.paralamaHoje = true;
+    this.corpo.vx = this.corpo.vy = 0; this.input.keyboard?.resetKeys();
+    sessao.emTarefa = true;
+    tocarSfx('soltar');
+    sessao.emitir('mensagem', '🚙 Crack! A fender broke and dust is flying everywhere!', '#fde68a');
+    let feito = false;
+    const terminar = (consertou: boolean) => {
+      if (feito) return; feito = true;
+      sessao.emTarefa = false;
+      if (consertou) { sessao.emitir('mensagem', '🚙 Fender fixed! Drive on.', '#86efac'); return; }
+      sessao.paralamaHoje = false; sessao.odometroRover = 0;
+      sessao.emitir('mensagem', '🚙 The fender is still broken. It will need fixing soon!', '#fde68a');
+    };
+    this.scene.get('ParalamaTarefa').events.once('shutdown', () => this.time.delayedCall(0, () => terminar(false)));
+    this.time.delayedCall(500, () => {
+      this.scene.launch('ParalamaTarefa', { aoConcluir: () => terminar(true) });
+      this.scene.bringToTop('ParalamaTarefa');
+    });
   }
 
   private abastecerRover() {
@@ -1183,6 +1287,8 @@ export class Superficie extends Phaser.Scene {
     const { bloqueado } = sessao.rover?.dirigindo
       ? dirigirRover(sessao.rover, sessao.roverCarregado ? e : null, sessao.terreno, caixas, dt)
       : passo(this.corpo, e, sessao.terreno, caixas, dt);
+    if (sessao.rover?.dirigindo) this.contarOdometro(Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY));
+    this.passarExpedicao(dt);
     // Observe successful controls for the tutorial, without changing movement or physics.
     if (e && (e.dx || e.dy) && Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY) > 0.001 && !this.controlesObservados.has('movimento')) {
       this.controlesObservados.add('movimento'); sessao.emitir('controleUsado', 'movimento');

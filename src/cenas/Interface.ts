@@ -8,7 +8,7 @@ import { configuracoesAbertas, movimentoReduzido } from '../video';
 import { CAPITULOS } from '../capitulos';
 import { calcularLayoutHud } from './layoutHud';
 import { PreferenciaDicas } from './dicasControles';
-import { Guia, AvisoEvento } from './guia';
+import { Guia, AvisoEvento, AvisoExpedicao } from './guia';
 import { tutorialJaVisto } from './tutorial';
 import type { DadosRadar } from './Radar';
 import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, DESCANSO, type Estado } from '../regras';
@@ -80,6 +80,7 @@ export class Interface extends Phaser.Scene {
   private timersChat: Phaser.Time.TimerEvent[] = [];
   private guia?: Guia;
   private avisoEvento?: AvisoEvento;
+  private avisoExpedicao?: AvisoExpedicao;
   private cortina!: Phaser.GameObjects.Rectangle;
 
   constructor() {
@@ -214,6 +215,7 @@ export class Interface extends Phaser.Scene {
     const pausado = sessao.emTarefa || configuracoesAbertas || !!sessao.transicao || this.scene.isActive('MenuJogo');
     this.guia?.atualizar(dt, pausado);
     (this.avisoEvento ??= new AvisoEvento(this, this.layout)).atualizar(dt, pausado);
+    (this.avisoExpedicao ??= new AvisoExpedicao(this, this.layout)).atualizar(dt, pausado);
   }
 
   private criarAlertaSolar() {
