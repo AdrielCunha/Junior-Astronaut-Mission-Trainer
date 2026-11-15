@@ -64,6 +64,10 @@ export const TIPOS: Record<TipoId, Tipo> = {
                 papel: "The crew's new home on Mars." },
 };
 
+// Surface props stay this far (tiles) from every building and from the map center.
+export const MARGEM_DECO = 4;
+export const RAIO_LIVRE_DECO = 13;
+
 export type Construcao = { id: number; tipo: Tipo; gx: number; gy: number; z: number };
 
 export type Motivo = 'ok' | 'fora' | 'ocupado' | 'ingreme' | 'unico';
@@ -125,9 +129,11 @@ export class Grade {
   private cacheCaixas: Caixa[] | null = null;
   private cacheModulos = -1;
   caixas(): Caixa[] {
-    if (this.cacheCaixas && this.cacheModulos === this.lista.length) return this.cacheCaixas;
-    this.cacheModulos = this.lista.length;
-    return this.cacheCaixas = [...this.t.pedras, ...this.lista.map((c) => ({
+    const chave = this.lista.length * 10_000 + this.extras.length;
+    if (this.cacheCaixas && this.cacheModulos === chave) return this.cacheCaixas;
+    this.cacheModulos = chave;
+    // Props are solid too: the commander walks around them, never through.
+    return this.cacheCaixas = [...this.t.pedras, ...this.extras, ...this.lista.map((c) => ({
       x0: c.gx + 0.08, y0: c.gy + 0.08, x1: c.gx + c.tipo.w - 0.08, y1: c.gy + c.tipo.h - 0.08,
       topo: c.z + c.tipo.altura,
     }))];
@@ -140,6 +146,8 @@ export class Grade {
     for (let y = Math.max(1, gy - 9); y <= Math.min(this.n - tipo.h - 1, gy + 9); y++) {
       for (let x = Math.max(1, gx - 9); x <= Math.min(this.n - tipo.w - 1, gx + 9); x++) {
         if (this.pode(tipo, x, y).motivo !== 'ok') continue;
+        // Props keep two free tiles between them so they read as spread out, not piled up.
+        if (this.deco.some(d => x < d.gx + d.w + 2 && x + tipo.w + 2 > d.gx && y < d.gy + d.h + 2 && y + tipo.h + 2 > d.gy)) continue;
         if (this.lista.some(c => x < c.gx + c.tipo.w + 1 && x + tipo.w + 1 > c.gx &&
           y < c.gy + c.tipo.h + 1 && y + tipo.h + 1 > c.gy)) continue;
         // Compare projected silhouettes, not just footprints: tall towers can hide neighbors.
@@ -163,6 +171,27 @@ export class Grade {
       }
     }
     return best ?? this.procurar(tipo, gx, gy);
+  }
+
+  // A spot for a surface prop: flat and free like any other, but far from the map center and at least
+  // MARGEM_DECO tiles from every building, so props fill the open ground instead of crowding the base.
+  // Returns null when there is no such spot near the wanted one (the prop is simply left out).
+  procurarDeco(tipo: Tipo, gx: number, gy: number): { gx: number; gy: number } | null {
+    const centro = this.n / 2;
+    let best: { gx: number; gy: number } | null = null;
+    let score = Infinity;
+    for (let y = Math.max(1, gy - 12); y <= Math.min(this.n - tipo.h - 1, gy + 12); y++) {
+      for (let x = Math.max(1, gx - 12); x <= Math.min(this.n - tipo.w - 1, gx + 12); x++) {
+        if (this.pode(tipo, x, y).motivo !== 'ok') continue;
+        if (Math.hypot(x + tipo.w / 2 - centro, y + tipo.h / 2 - centro) < RAIO_LIVRE_DECO) continue;
+        if (this.lista.some(c => x < c.gx + c.tipo.w + MARGEM_DECO && x + tipo.w + MARGEM_DECO > c.gx &&
+          y < c.gy + c.tipo.h + MARGEM_DECO && y + tipo.h + MARGEM_DECO > c.gy)) continue;
+        if (this.deco.some(d => x < d.gx + d.w + 2 && x + tipo.w + 2 > d.gx && y < d.gy + d.h + 2 && y + tipo.h + 2 > d.gy)) continue;
+        const cost = (x - gx) ** 2 + (y - gy) ** 2 + this.t.inclinacaoMax(x, y, tipo.w, tipo.h) * 0.3;
+        if (cost < score) { score = cost; best = { gx: x, gy: y }; }
+      }
+    }
+    return best;
   }
 
   // Nearest flat spot for a footprint, searching outward from (gx, gy).
