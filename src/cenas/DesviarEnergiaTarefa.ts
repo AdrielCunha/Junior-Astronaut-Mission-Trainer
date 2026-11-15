@@ -22,7 +22,7 @@ const CARTA_PASSO = 96;
 const BAT_X = 24;                 // battery
 const BAT_Y = 66;
 const CELULA_H = 17;
-const INSTRUCAO = 'Tap the systems with a star to turn them on. Do not overload the battery!';
+const INSTRUCAO = 'Turn on the starred systems. Do not overload!';
 const ICONE = 84;
 
 export class DesviarEnergiaTarefa extends Phaser.Scene {
@@ -142,9 +142,9 @@ export class DesviarEnergiaTarefa extends Phaser.Scene {
       const r = rodadaAtual(estado);
       const uso = consumoTotal(estado);
       tEvento.setText(r.evento);
-      tRodada.setText(`Rodada ${Math.min(estado.rodada + 1, RODADAS.length)} de ${RODADAS.length}`);
+      tRodada.setText(`Round ${Math.min(estado.rodada + 1, RODADAS.length)} of ${RODADAS.length}`);
       tMeta.setText('★ Ligue: ' + r.meta.map((id) => SISTEMAS.find((s) => s.id === id)!.nome).join(' + ') + ' (a bateria aguenta ' + r.capacidade + ')');
-      tBat.setText(`${uso} de ${r.capacidade} unidades`);
+      tBat.setText(`${uso} of ${r.capacidade} units`);
       celulas.clear();
       for (let k = 0; k < CAPACIDADE_MAXIMA; k++) {
         const y = BY + (CAPACIDADE_MAXIMA - 1 - k) * CELULA_H * 0.88 + 4;
@@ -178,7 +178,7 @@ export class DesviarEnergiaTarefa extends Phaser.Scene {
       const bloco = this.add.container(JANELA_W / 2, JANELA_H / 2, [
         faixa,
         texto(this, 0, -40, 'Power shared well!', 36, '#ffffff', 0x14532d),
-        texto(this, 0, 24, 'The solar panels of the International Space Station make\nabout 120 kW. Batteries store energy for the part of\nthe orbit when the station is in the shadow.', 15, '#dcfce7', 0x14532d),
+        texto(this, 0, 24, 'Batteries save solar power\nfor when the Sun is hidden.', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
       this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
@@ -210,7 +210,7 @@ export class DesviarEnergiaTarefa extends Phaser.Scene {
         janela.add(aviso);
         this.tweens.add({ targets: aviso, alpha: 0, duration: 700, onComplete: () => aviso.destroy() });
         this.tweens.add({ targets: janela, x: JX + 8, duration: 50, yoyo: true, repeat: 4, onComplete: () => janela.setX(JX) });
-        msg('The breaker tripped! Too much power. Try again.', '#fca5a5');
+        msg('Too much power! Try again.', '#fca5a5');
         this.time.delayedCall(1100, () => {
           estado = tarefa;
           pintar();
@@ -228,7 +228,7 @@ export class DesviarEnergiaTarefa extends Phaser.Scene {
         const anterior = RODADAS[antes];
         // Keep the finished round on screen for a moment before the next event arrives.
         rajada(this, janela, JANELA_W / 2, 160, [0xfde047, 0x86efac, 0xffffff], 16, 120);
-        msg(`Goal reached with ${anterior.capacidade} units! Next round...`, '#86efac');
+        msg(`Done! Next round...`, '#86efac');
         this.time.delayedCall(1500, () => {
           pintar();
           bloqueado = false;

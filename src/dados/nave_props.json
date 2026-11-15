@@ -124,5 +124,61 @@
    2,
    1
   ]
+ },
+ "nave_janela": {
+  "arquivo": "nave/props/nave_janela.png",
+  "w": 107,
+  "h": 170,
+  "escala": 0.5,
+  "ancora": [
+   67.3,
+   97.96
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "nave_radio": {
+  "arquivo": "nave/props/nave_radio.png",
+  "w": 130,
+  "h": 165,
+  "escala": 0.5,
+  "ancora": [
+   69.5,
+   91.09
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "nave_reciclador": {
+  "arquivo": "nave/props/nave_reciclador.png",
+  "w": 137,
+  "h": 157,
+  "escala": 0.5,
+  "ancora": [
+   68.5,
+   83.29
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "nave_chama": {
+  "arquivo": "nave/props/nave_chama.png",
+  "w": 138,
+  "h": 195,
+  "escala": 0.5,
+  "ancora": [
+   69.0,
+   120.65
+  ],
+  "pegada": [
+   1,
+   1
+  ]
  }
 }

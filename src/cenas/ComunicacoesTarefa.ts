@@ -11,7 +11,7 @@ import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
-const INSTRUCAO = 'Turn the knobs until your wave matches the one from Earth.';
+const INSTRUCAO = 'Turn the knobs to match Earth\'s wave.';
 // The radio screen (local coordinates of `janela`).
 const JW = 680, JH = 260;
 const TELA = { x: 20, y: 20, w: JW - 40, h: JH - 70 };
@@ -139,7 +139,7 @@ export class ComunicacoesTarefa extends Phaser.Scene {
       const bloco = this.add.container(JW / 2, JH / 2 - 10, [
         faixa,
         texto(this, 0, -16, 'Communication restored!', 34, '#ffffff', 0x1e293b),
-        texto(this, 0, 28, 'A radio signal takes only about 1.3 seconds to travel from the Moon to Earth.', 15, '#dcfce7', 0x1e293b),
+        texto(this, 0, 28, 'A radio message reaches Earth in 1.3 seconds!', 15, '#dcfce7', 0x1e293b),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
       this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });

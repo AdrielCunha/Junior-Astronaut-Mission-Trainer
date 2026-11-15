@@ -9,7 +9,7 @@ import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, ca
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
 const FOLGA = (QUADRO_H - 500) / 2;   // the frame is taller than the layout was drawn for: centre the content
-const INSTRUCAO = 'Drag each lid onto the hatch of the same color.';
+const INSTRUCAO = 'Drag each lid to its color.';
 const NOMES = ['red', 'blue', 'yellow', 'green'];
 
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;

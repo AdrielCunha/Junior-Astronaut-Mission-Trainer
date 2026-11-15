@@ -11,7 +11,7 @@ const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life S
 const FOLGA = (QUADRO_H - 500) / 2;   // the frame is taller than the layout was drawn for: centre the content
 const JAN_W = 640;
 const JAN_H = 300;
-const INSTRUCAO = 'Drag the levers into the green zones.';
+const INSTRUCAO = 'Drag the levers into the green.';
 const NOMES: Record<string, string> = { turbo: 'Turbo', combustao: 'Fuel', sustentacao: 'Lift' };
 const TRILHO_TOPO = 62;      // window y of value 1
 const TRILHO_BASE = 252;     // window y of value 0
@@ -177,7 +177,7 @@ export class PotenciaMotorTarefa extends Phaser.Scene {
       const bloco = this.add.container(JAN_W / 2, JAN_H / 2, [
         faixa,
         texto(this, 0, -16, 'Engine steady!', 38, '#ffffff', 0x14532d),
-        texto(this, 0, 28, 'The engine pushes gas backward, so the ship moves forward.', 14, '#dcfce7', 0x14532d),
+        texto(this, 0, 28, 'Gas goes back, the ship goes forward!', 14, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
       this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });

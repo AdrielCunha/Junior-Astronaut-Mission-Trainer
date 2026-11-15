@@ -13,9 +13,13 @@ from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
+# SENTADO=1: the seated driver for the Apollo LRV (one column, 8 directions): the same model with
+# its legs stretched straight forward, written next to the walk sheet as <name>_sentado.png.
+SENTADO = os.environ.get('SENTADO') == '1'
 PNG = os.path.join(ROOT, 'public', 'lua', 'astronaut.png' if os.environ.get('SKIN', 'comandante') == 'comandante' else 'astronaut_%s.png' % os.environ['SKIN'])
+if SENTADO: PNG = PNG[:-4] + '_sentado.png'
 JSON = os.path.join(ROOT, 'src', 'dados', 'astronauta.json')
-TMP = os.path.join(HERE, '.cache', 'astro_' + os.environ.get('SKIN', 'comandante'))
+TMP = os.path.join(HERE, '.cache', 'astro_' + os.environ.get('SKIN', 'comandante') + ('_sentado' if SENTADO else ''))
 LIVE = not bpy.app.background
 
 T = 30                     # terrain px per tile step (render_terrain.py)
@@ -172,7 +176,15 @@ for lado in (-1, 1):
 
 
 def pose(fase):
-    """fase None = idle; 0..1 = walk cycle. Moon walk: both feet push, short float, big swing."""
+    """fase None = idle; 0..1 = walk cycle; 'sentado' = seated on the rover. Moon walk: both feet
+    push, short float, big swing."""
+    if fase == 'sentado':
+        # Hips at the standing height (the game puts them on the seat), legs straight forward, no
+        # bent knees, arms reaching forward to the hand controller.
+        corpo.location.z = H * 0.36; corpo.rotation_euler = (0, 0, 0)
+        for p in pernas: p.rotation_euler = (0, -math.pi / 2, 0)
+        for i, b in enumerate(bracos): b.rotation_euler = ((-1 if i else 1) * 0.08, -0.9, 0)
+        return
     if fase is None:
         corpo.location.z = H * 0.36; corpo.rotation_euler = (0, 0, 0)
         for p in pernas: p.rotation_euler = (0, 0, 0)
@@ -226,13 +238,13 @@ if LIVE:
 else:
     import numpy as np, subprocess
     os.makedirs(TMP, exist_ok=True)
-    cols = 1 + WALK
+    cols = 1 if SENTADO else 1 + WALK
     sheet = np.zeros((8 * FRAME, cols * FRAME, 4), np.float32)
     for d in range(8):
         # Direction d faces map angle d * 45 deg, measured in Blender's XY (map gx, -gy).
         root.rotation_euler = (0, 0, math.radians(d * 45))
         for c in range(cols):
-            pose(None if c == 0 else (c - 1) / WALK)
+            pose('sentado' if SENTADO else None if c == 0 else (c - 1) / WALK)
             bpy.context.view_layer.update()
             p = os.path.join(TMP, f'd{d}_{c}.png')
             sc.render.filepath = p
@@ -248,7 +260,7 @@ else:
         subprocess.run(['magick', PNG, '-dither', 'None', '-colors', '255', 'PNG8:' + PNG], check=True)
     except FileNotFoundError:
         print('no magick: quantize', PNG, 'to 255 colors afterwards (Pillow, FASTOCTREE, no dither)')
-    if SKIN == 'comandante': f = open(JSON, 'w')
+    if SKIN == 'comandante' and not SENTADO: f = open(JSON, 'w')
     else: f = open(os.devnull, 'w')
     with f:
         json.dump({'frame': FRAME, 'colunas': cols, 'andar': WALK, 'escala': 1 / SUPER,

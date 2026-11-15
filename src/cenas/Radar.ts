@@ -16,7 +16,7 @@ import { abrirVideo, movimentoReduzido, configuracoesAbertas, video, escolherSki
 import { SKINS } from '../dados/skins';
 import { sessao } from './sessao';
 import type { DadosChegada } from './Chegada';
-import { CONTORNO, botaoFechar, botaoVerde, letra, moldura, pilulaEscura } from '../tarefas/estilo';
+import { CONTORNO, botaoFechar, botaoVerde, criarIconeJogo, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { alternarMudo, estaMudo } from '../audio';
 import { definirVolumeMusica, volumeMusica } from '../audio';
 import { definirVolumeEfeitos, tocarSfx, volumeEfeitos } from '../sfx';
@@ -25,7 +25,20 @@ export type DadosRadar = { aoComecar: () => void; aoExplorar: () => void; contin
 
 // Edit the credits here: [section, [role, name][]]. An empty role centers the name (the team).
 const CREDITOS: [string, [string, string][]][] = [
-  ['THE TEAM', [['', 'Team member 1'], ['', 'Team member 2'], ['', 'Team member 3'], ['', 'Team member 4']]],
+  ['THE TEAM · STAR LEAGUE', [
+    ['Team Owner', 'Adriel dos Santos Cunha (@adrielcunha)'],
+    ['Team Member', 'Andrea da Paixão Ayala (@andreapayala)'],
+    ['Team Member', 'Felipe Sabino Cota (@felipescola)'],
+    ['Team Member', 'Juliana Elen Silva Oliveira (@jeso)'],
+    ['Team Member', 'Matheus Coelho (@matheus-fsc)'],
+    ['Team Member', 'Maria Paula Moreira Rocha (@mariapaulaa)']
+  ]],
+  ['SPECIAL THANKS', [
+    ['Event', 'NASA International Space Apps Challenge 2026 (Itabira - MG)'],
+    ['Local Lead', 'Lucas Assunção Zanon (@Lucaszanon)'],
+    ['Host Venue', 'CEU UNIFEI - Campus Itabira'],
+    ['Event Page', 'spaceappschallenge.org/2026/local-events/itabira/']
+  ]],
   ['NASA DATA', [
     ['Solar storms', 'DONKI · ENLIL'],
     ['Radiation dose', 'OSDR RadLab'],
@@ -36,8 +49,16 @@ const CREDITOS: [string, [string, string][]][] = [
     ['Stars', 'SVS Deep Star Maps · ESA/Gaia/DPAC'],
     ['Planet positions', 'JPL'],
   ]],
-  ['MADE WITH', [['Game engine', 'Phaser 3'], ['Code', 'TypeScript · Vite'], ['3D models', 'Blender'], ['Font', 'Fredoka · SIL OFL'], ['Music', '(add the author)']]],
-  ['AI TOOLS', [['Coding help', 'Claude · Anthropic']]],
+  ['MADE WITH', [
+    ['Game engine', 'Phaser 3'],
+    ['Code', 'TypeScript · Vite'],
+    ['3D models', 'Blender'],
+    ['Font', 'Fredoka · SIL OFL'],
+    ['Music', '(add the author)']
+  ]],
+  ['AI TOOLS', [
+    ['Coding help', 'Claude · Anthropic']
+  ]],
 ];
 
 const VEL_VARREDURA = 0.9;   // rad/s
@@ -423,14 +444,17 @@ export class Radar extends Phaser.Scene {
       [(x, y) => this.imagem(x, y, 34 * u, 22 * u, (g) => g
         .fillStyle(0x22c55e).fillRoundedRect(-13 * u, -8 * u, 24 * u, 16 * u, 3 * u).lineStyle(3 * u, 0xffffff).strokeRoundedRect(-13 * u, -8 * u, 24 * u, 16 * u, 3 * u)
         .fillStyle(0xffffff).fillRect(11 * u, -4 * u, 4 * u, 8 * u).fillStyle(0xbbf7d0).fillRect(-9 * u, -4 * u, 5 * u, 8 * u).fillRect(-2 * u, -4 * u, 5 * u, 8 * u)),
-      'Every morning, pick up the batteries at the Habitat.'],
+      'Get batteries at the Battery Bank every morning.'],
       [(x, y) => [0x3b82f6, 0xeab308, 0xf97316].forEach((c, k) => this.add.circle(x + (k - 1) * 11 * u, y + (k === 1 ? -5 : 4) * u, 7 * u, c).setStrokeStyle(2.5 * u, CONTORNO)),
-        'Give each room a battery: air, shield or rocket. Never enough for all!'],
-      [(x, y) => this.foguete(u * 1.2).setPosition(x, y).setAngle(-40), 'Keep the crew safe from the REAL solar storm and launch to Mars.'],
+        'Give them to the rooms: air, shield or rocket. Choose well!'],
+      [(x, y) => { criarIconeJogo(this, x, y, 'warning', 34 * u); },
+        'Something broke? Follow the orange arrow and fix it!'],
+      [(x, y) => this.foguete(u * 1.2).setPosition(x, y).setAngle(-40), 'Survive a REAL solar storm and fly to Mars!'],
     ];
-    this.janela('HOW TO PLAY', 620, 430, (tela) => {
-      const alt = Math.min(62 * u, (tela.h - 48 * u) / 3);
-      const yTopo = tela.y + (tela.h - (3 * alt + 2 * 12 * u)) / 2;
+    this.janela('HOW TO PLAY', 660, 480, (tela) => {
+      const n = passos.length;
+      const alt = Math.min(62 * u, (tela.h - 48 * u - (n - 1) * 12 * u) / n);
+      const yTopo = tela.y + (tela.h - (n * alt + (n - 1) * 12 * u)) / 2;
       passos.forEach(([icone, texto], i) => {
         const y = yTopo + i * (alt + 12 * u), x = tela.x + 22 * u, w = tela.w - 44 * u;
         pilulaEscura(this.add.graphics(), x, y, w, alt, u);
@@ -446,7 +470,7 @@ export class Radar extends Phaser.Scene {
   private escolherBase(explorarLua: () => void) {
     const u = this.u;
     const bases: [string, 'lua' | 'nave' | 'marte', boolean][] = [['MOON BASE', 'lua', true], ['SPACESHIP', 'nave', false], ['MARS BASE', 'marte', false]];
-    this.janela('EXPLORE A BASE', 700, 420, (tela, fechar) => {
+    this.janela('EXPLORE A BASE', 660, 480, (tela, fechar) => {
       const gap = 18 * u, w = (tela.w - 44 * u - 2 * gap) / 3, h = tela.h - 44 * u;
       bases.forEach(([nome, qual, aberta], i) => {
         const x = tela.x + 22 * u + i * (w + gap), y = tela.y + 22 * u, cx = x + w / 2;
@@ -469,7 +493,7 @@ export class Radar extends Phaser.Scene {
     const u = this.u;
     // Rolling credits, the classic way: one centered column moving up. Each section has a centered
     // heading, then role | name pairs on both sides of the center line. Ends with a thank you.
-    this.janela('CREDITS', 760, 520, (tela) => {
+    this.janela('CREDITS', 660, 480, (tela) => {
       const cx = tela.x + tela.w / 2, gutter = 12 * u;
       const lista = this.add.container(0, 0);
       let y = 0;

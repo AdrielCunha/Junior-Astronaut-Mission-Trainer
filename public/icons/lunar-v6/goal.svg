@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512"><defs>
+<linearGradient id="gW" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c3c1f0"/></linearGradient>
+<linearGradient id="gN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a69f5"/><stop offset="1" stop-color="#1a2a9c"/></linearGradient>
+<linearGradient id="gO" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc94d"/><stop offset="1" stop-color="#ff8200"/></linearGradient>
+<linearGradient id="gB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7be4ff"/><stop offset="1" stop-color="#1b78e4"/></linearGradient>
+<linearGradient id="gG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfff63"/><stop offset="1" stop-color="#35b81c"/></linearGradient>
+<linearGradient id="gY" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff08a"/><stop offset="1" stop-color="#ffb41f"/></linearGradient>
+<linearGradient id="gR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff86a0"/><stop offset="1" stop-color="#d31c49"/></linearGradient>
+<linearGradient id="gV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d97ff"/><stop offset="1" stop-color="#2b3fd0"/></linearGradient>
+<linearGradient id="gM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffa36b"/><stop offset="1" stop-color="#d4471c"/></linearGradient>
+</defs><g transform="translate(64 64) scale(0.9) translate(-64 -64)" fill="#fff3c4" stroke="#fff3c4" stroke-linejoin="round" stroke-linecap="round"><g stroke-width="18" opacity=".22"><path d="M10 48 H66 V18 L120 64 L66 110 V80 H10Z"/></g><g stroke-width="9"><path d="M10 48 H66 V18 L120 64 L66 110 V80 H10Z"/></g></g><g transform="translate(64 64) scale(0.9) translate(-64 -64)"><path d="M10 48 H66 V18 L120 64 L66 110 V80 H10Z" fill="url(#gO)"/><path d="M10 48 H66 V18 L120 64 L66 110 V80 H10Z" fill="url(#gY)" transform="translate(62 64) scale(0.78) translate(-62 -64)"/><path d="M20 56 H60" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".55"/></g></svg>

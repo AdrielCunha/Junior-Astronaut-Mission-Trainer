@@ -12,7 +12,7 @@ import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, ca
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
 const FOLGA = (QUADRO_H - 500) / 2;   // the frame is taller than the layout was drawn for: centre the content
-const INSTRUCAO = 'Turn the pipes to carry oxygen to the rooms.';
+const INSTRUCAO = 'Turn the pipes to bring air to the rooms.';
 const JW = 660, JH = 300;      // the window
 const T = 92;                  // size of one piece
 const BX = 100, BY = 12;       // board origin inside the window
@@ -162,7 +162,7 @@ export class IluminacaoTarefa extends Phaser.Scene {
       const bloco = this.add.container(JW / 2, JH / 2, [
         faixa,
         texto(this, 0, -16, 'Oxygen delivered!', 34, '#ffffff', 0x1e293b),
-        texto(this, 0, 28, 'Air only gets through when the pipes make a complete path.', 15, '#dcfce7', 0x1e293b),
+        texto(this, 0, 28, 'Air needs a complete path to flow!', 15, '#dcfce7', 0x1e293b),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
       this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 450, ease: 'Back.easeOut' });

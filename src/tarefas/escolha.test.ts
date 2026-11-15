@@ -29,3 +29,14 @@ test('the same task does not come twice in a row', () => {
     for (const ultima of todas(sala)) for (let i = 0; i < 20; i++) assert.notEqual(escolher(sala, ultima, () => i / 20)!.id, ultima);
   }
 });
+
+test('the ship window task only comes on the ship, at the Engines', () => {
+  const ids = (mundo?: string) => {
+    const s = new Set<string>();
+    for (let i = 0; i < 200; i++) { const e = escolherEntre('meta', undefined, banco, () => i / 200, mundo); if (e) s.add(e.id); }
+    return s;
+  };
+  assert.ok(ids('nave').has('LimparJanelaTarefa'));
+  assert.ok(!ids('lua').has('LimparJanelaTarefa'));
+  assert.ok(!ids().has('LimparJanelaTarefa'));
+});

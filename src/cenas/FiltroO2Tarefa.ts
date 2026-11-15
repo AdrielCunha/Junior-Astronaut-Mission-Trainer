@@ -9,7 +9,7 @@ import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, ca
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
 const FOLGA = (QUADRO_H - 500) / 2;   // the frame is taller than the layout was drawn for: centre the content
-const INSTRUCAO = 'Drag the vacuum over the dust stains to clean the filter.';
+const INSTRUCAO = 'Drag the vacuum over the dust.';
 
 export class FiltroO2Tarefa extends Phaser.Scene {
   private aoConcluir?: () => void;
@@ -145,7 +145,7 @@ export class FiltroO2Tarefa extends Phaser.Scene {
       const bloco = this.add.container(estado.largura / 2, estado.altura / 2, [
         faixa,
         texto(this, 0, -16, 'Filter clean!', 38, '#ffffff', 0x14532d),
-        texto(this, 0, 28, 'Moon dust sticks to everything, even the air inside the ship.', 15, '#dcfce7', 0x14532d),
+        texto(this, 0, 28, 'Moon dust sticks to everything!', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
       this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
