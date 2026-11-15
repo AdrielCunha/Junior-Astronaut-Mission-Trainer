@@ -23,7 +23,7 @@ import { TIPOS, montarBasePadrao, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, ty
 import { entregar as entregarRegra, custo, pronto } from '../regras';
 import { empuxoDePouso, suprimentoDoDia } from '../engine/suprimentos';
 import { sortearEvento, DOSE_ALARME } from '../engine/eventos';
-import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte } from './sessao';
+import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte, ZOOM_MAX } from './sessao';
 import { fundacao, sombraECarga } from './desenho';
 import { VOO as voo } from './qualidade';
 import { escolher } from '../tarefas';
@@ -883,6 +883,7 @@ export class Superficie extends Phaser.Scene {
     if (!c || !d || !this.textures.exists(CHAVE_FOGUETE)) { fim(); return; }
     sessao.emTarefa = true;
     this.seguir = false;
+    this.posicionar(d.img, c, 'plataforma');   // the pad waits empty, ready to receive the rocket
     const cam = this.cameras.main;
     const m4 = modelos.foguete4, mc = modelos.chama;
     const base = paraTela(P, c.gx, c.gy, c.z);
@@ -1220,6 +1221,7 @@ export class Superficie extends Phaser.Scene {
     // One shared tooltip: names are hidden until the cursor or the commander is on the prop.
     this.dica = this.add.text(0, 0, '', fonte(13, '#f8fafc', {
       align: 'center', wordWrap: { width: 230 }, backgroundColor: 'rgba(15,23,42,0.92)', padding: { x: 10, y: 7 },
+      resolution: (window.devicePixelRatio || 1) * ZOOM_MAX,
     })).setOrigin(0.5, 1).setDepth(1e6 + 1).setVisible(false);
     this.mapa.add(this.dica);
   }
@@ -1259,7 +1261,7 @@ export class Superficie extends Phaser.Scene {
       d = { g: this.add.graphics(), img: this.add.image(0, 0, 'mod_habitat') };
       // Rooms you use carry their name, like the first prototype.
       if (c.tipo.id !== 'painel') {
-        d.rotulo = this.add.text(0, 0, this.nomeDe(c), fonte(13, '#f8fafc', { fontStyle: 'bold', stroke: '#17130f', strokeThickness: 4 }))
+        d.rotulo = this.add.text(0, 0, this.nomeDe(c), fonte(13, '#f8fafc', { fontStyle: 'bold', stroke: '#17130f', strokeThickness: 4, resolution: (window.devicePixelRatio || 1) * ZOOM_MAX }))
           .setOrigin(0.5, 1);
       }
       this.mapa.add([d.g, d.img, ...(d.rotulo ? [d.rotulo] : [])]);
@@ -1281,7 +1283,19 @@ export class Superficie extends Phaser.Scene {
         .setColor(this.emObra(c) ? '#fde68a' : '#f8fafc').setAlign('center');
     }
     if (d.rotulo) {
-      const topo = paraTela(P, c.gx + c.tipo.w / 2, c.gy + c.tipo.h / 2, c.z + c.tipo.altura + 0.6);
+      // The launch pad's own altura is tiny (0.25) but the rocket on top can be very tall,
+      // and the rocket workshop has a high antenna/crane. Calculate visual height from
+      // the model sprite anchor and add sufficient clearance so labels float cleanly above.
+      const modelo = this.modelo(c);
+      const m = QUADROS[modelo];
+      const alturaVisual = m ? (m.ancora[1] * m.escala) / Math.abs(P.ez[1]) : c.tipo.altura;
+      let folga = 0.6;
+      if (c.tipo.id === 'plataforma') {
+        folga = 1.15; // Just a touch higher above the rocket tip
+      } else if (c.tipo.id === 'oficina') {
+        folga = 0.9; // Just above the workshop antenna
+      }
+      const topo = paraTela(P, c.gx + c.tipo.w / 2, c.gy + c.tipo.h / 2, c.z + Math.max(c.tipo.altura, alturaVisual) + folga);
       d.rotulo.setPosition(topo.x, topo.y).setDepth(1e6);
     }
   }
