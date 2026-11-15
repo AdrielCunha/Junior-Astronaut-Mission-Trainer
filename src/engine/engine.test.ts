@@ -102,6 +102,9 @@ test('six solar panels stay aligned in two rows beside a reachable five-slot ban
   const hab = g.lista.find(c => c.tipo.id === 'habitat')!;
   const start = {x: hab.gx+hab.tipo.w+0.7, y: hab.gy+hab.tipo.h/2};
   assert.ok(encontrarCaminho(real,g.caixas(),0.22,start.x,start.y,bank.gx-0.65,bank.gy+2.5));
+  const support = g.lista.find(c => c.tipo.id === 'suporte')!;
+  const screenY = (c: typeof bank) => paraTela(dados.imagem, c.gx+c.tipo.w/2, c.gy+c.tipo.h/2, c.z).y;
+  for (const c of [...panels, bank]) assert.ok(screenY(c) < screenY(support), `${c.tipo.nome} stays behind Life Support`);
 });
 
 test('battery pickup uses the Moon bank, preserves the Mars lander, and displays remaining cartridges', () => {

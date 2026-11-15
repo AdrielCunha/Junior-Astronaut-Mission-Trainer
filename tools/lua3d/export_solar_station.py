@@ -103,7 +103,7 @@ def ancestors(o):
         o = o.parent
 
 if '--banco' not in sys.argv:
-    export('Painel 01 | modulo completo', 'painel', Matrix.Translation((1, -1, 0)) @ Matrix.Diagonal((0.76, 0.76, 0.76, 1)))
+    export('Painel 01 | modulo completo', 'painel', Matrix.Translation((1, -0.5, 0)) @ Matrix.Diagonal((0.76, 0.76, 0.76, 1)))
 if '--painel' not in sys.argv:
     export('Banco de baterias | cinco encaixes', 'bateria', Matrix.Translation((1, -2.2575, 0)) @ Matrix.Diagonal((-0.8, 0.70, 0.80, 1)), bank=True)
 JSON.write_text(json.dumps(models, indent=1, ensure_ascii=False), encoding='utf-8')
