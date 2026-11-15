@@ -5,7 +5,7 @@
 // the task draws in, and the instruction pill at the bottom.
 import Phaser from 'phaser';
 import type { Tarefa } from '../tarefas';
-import { CORES_FESTA, botaoFechar, botaoVerde, letra, moldura, pilulaEscura } from '../tarefas/estilo';
+import { CORES_FESTA, botaoFechar, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { tocarSfx } from '../sfx';
 
 export type DadosTarefa = { tarefa: Tarefa; aoTerminar: () => void };
@@ -68,14 +68,8 @@ export class CenaTarefa extends Phaser.Scene {
       this.tweens.add({ targets: selo, scale: 1, duration: 450, ease: 'Back.easeOut' });
       this.tweens.add({ targets: selo, angle: 6, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 450 });
 
-      // The fact replaces the instruction; a green button closes.
-      const ok = botaoVerde(this, 0, py + pAlt / 2, 'OK!  ▶', 20 * u, Math.min(pAlt, 50 * u), u, () => { tocarSfx('clique'); fechar(); });
-      ok.setX(x0 + largura - 60 * u - ok.width / 2);
-      const pw1 = ok.x - ok.width / 2 - 12 * u - (x0 + 60 * u);
-      pilulaEscura(pill, x0 + 60 * u, py, pw1, pAlt, u);
-      tInstr.setPosition(x0 + 60 * u + pw1 / 2, py + pAlt / 2)
-        .setStyle(letra(13.5 * u, '#e2e8f0', { align: 'center', fontStyle: '500', wordWrap: { width: pw1 - 28 * u } }))
-
+      // The fact replaces the instruction; no button: the overlay closes by itself (Enter or the red X close it sooner).
+      tInstr.setStyle(letra(13.5 * u, '#e2e8f0', { align: 'center', fontStyle: '500', wordWrap: { width: pw0 - 32 * u } }))
         .setText(`Did you know? ${d.tarefa.fato}`);
       this.time.delayedCall(3500, fechar);
       this.input.keyboard?.once('keydown-ENTER', fechar);

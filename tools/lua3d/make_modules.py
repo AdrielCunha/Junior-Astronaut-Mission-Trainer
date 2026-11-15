@@ -9,7 +9,7 @@
 #      { id: { arquivo, w, h, ancora: [x, y], escala } }: ancora = pixel of the footprint's
 #      corner (gx, gy) at floor height; draw the picture there at `escala`.
 import bpy, bmesh, os, json, math, subprocess, sys
-from mathutils import Vector
+from mathutils import Vector, Euler
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0,HERE)
@@ -28,6 +28,11 @@ TIPOS = {
     'habitat': (3, 3), 'suporte': (3, 2), 'blindagem': (2, 2),
     'oficina': (3, 3), 'painel': (2, 1), 'plataforma': (3, 3),
     'antena': (2, 2), 'estufa': (3, 2), 'perfuratriz': (2, 2), 'rover': (2, 1),
+    'usina': (3, 2), 'reciclador': (2, 2), 'eclusa': (2, 1), 'bateria': (2, 2),
+    'impressora': (3, 2), 'radiotelescopio': (3, 3),
+    'deco_rover_velho': (2, 1), 'deco_modulo_descida': (2, 2), 'deco_sonda': (1, 1), 'deco_caixas': (1, 1),
+    'deco_sismografo': (1, 1), 'deco_refletor': (1, 1), 'deco_baliza': (1, 1), 'deco_barris': (1, 1),
+    'deco_bandeira': (1, 1), 'deco_pedras': (1, 1), 'deco_camera': (1, 1), 'deco_amostras': (1, 1), 'deco_lanterna': (1, 1), 'deco_ferramentas': (1, 1), 'deco_carretel': (1, 1), 'deco_mochila': (1, 1),
     'pouso': (2, 2),   # the cargo lander (footprint of its legs)
 }
 
@@ -223,20 +228,30 @@ def blindagem():
     w, h = TIPOS['blindagem']
     # Regolith berm: the shield is Moon dust piled on a bunker, as real designs plan.
     esfera(1.0, 1.0, 0.0, 0.98, 0.98, 0.95, PALETA['solo'][1][1], metade=True)
-    caixa(0.55, 1.55, 1.45, 2.0, 0.0, 0.7, '#eab308')                        # entrance
-    caixa(0.55, 1.62, 1.45, 1.72, 0.48, 0.56, '#1c1917', bevel=0.005, linha=0.01)
-    caixa(0.75, 1.97, 1.25, 2.01, 0.05, 0.45, '#1c1917', bevel=0.005, linha=0.01)
+    # Entrance in the shared language: pale slate body, the shield's yellow as accent, dark bay.
+    caixa(0.5, 1.5, 1.5, 2.0, 0.0, 0.7, '#cbd5e1', bevel=0.03, linha=0.025)
+    caixa(0.47, 1.47, 1.53, 2.03, 0.0, 0.18, '#facc15', bevel=0.02, linha=0.02)       # yellow skirt
+    caixa(0.47, 1.47, 1.53, 2.03, 0.62, 0.74, '#fde047', bevel=0.02, linha=0.02)      # yellow roof edge
+    caixa(0.62, 1.97, 1.38, 2.03, 0.18, 0.58, '#1e293b', bevel=0.005, linha=0.015)    # door bay
+    for x in (0.80, 1.00, 1.20):
+        caixa(x, 2.03, x + 0.04, 2.05, 0.18, 0.58, '#94a3b8', bevel=0, linha=0.005)
+    visor(0.7, 2.06, 1.3, 2.075, 0.62, 0.68, '#8ae8ff')
     cilindro(1.0, 1.0, 0.07, 0.9, 1.35, '#94a3b8', v=12, linha=0.015)       # sensor mast
     esfera(1.0, 1.0, 1.38, 0.1, 0.1, 0.1, '#ef4444', linha=0.015)
-    for x in (0.62,1.28):
-        caixa(x,1.985,x+0.10,2.02,0.18,0.38,'#fde047',linha=0.005)
-    visor(0.78,2.015,1.22,2.025,0.48,0.54,'#ccf9b9')
-    lampada(1,1.84,0.72,0.60)
+    esfera(1.0, 1.0, 0.93, 0.18, 0.18, 0.07, '#38bdf8', linha=0.02)           # skylight
+    for x in (0.62, 1.28):
+        caixa(x, 2.07, x + 0.10, 2.10, 0.22, 0.34, '#fde047', linha=0.005)
+    lampada(1, 1.84, 0.72, 0.60)
 
 
 def oficina():
+    # Same language as the habitat and life support: pale blue-grey body, one saturated accent
+    # (the workshop's orange), dark glass and glowing screens. Light colors only: the toon ramp
+    # multiplies them, so tan or brown here turned to mud next to the other modules.
     w, h = TIPOS['oficina']; piso(w, h)
-    caixa(0.2, 0.2, 2.8, 2.8, 0.12, 0.7, '#f97316')
+    caixa(0.2, 0.2, 2.8, 2.8, 0.12, 0.7, '#cbd5e1')                           # hangar walls
+    caixa(0.17, 0.17, 2.83, 2.83, 0.12, 0.26, '#f97316', bevel=0.02, linha=0.02)  # orange skirt
+    caixa(0.17, 0.17, 2.83, 2.83, 0.62, 0.72, '#fb923c', bevel=0.02, linha=0.02)  # orange eave
     # half-cylinder hangar roof along gy
     bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=1.3, depth=2.6)
     o = bpy.context.active_object
@@ -246,28 +261,52 @@ def oficina():
     o.rotation_euler = (math.radians(90), math.radians(-90), 0); o.location = (1.5, -1.5, 0.7)
     o.scale = (1, 1, 1)
     bpy.ops.object.shade_smooth()
-    _fim(o, '#fdba74', 0, 0.03)
-    caixa(0.8, 2.78, 2.2, 2.84, 0.12, 1.3, '#292524', bevel=0.005, linha=0.015)   # big door
-    for x in (0.95, 1.3, 1.65, 2.0):
-        caixa(x, 2.84, x + 0.05, 2.86, 0.12, 1.3, '#57534e', bevel=0, linha=0.005)
-    # Light arch ribs and door surround make the hangar readable at gameplay scale.
+    _fim(o, '#e2e8f0', 0, 0.03)
+    # Front gable wall: the vault is open at both ends, so close the +gy end with a half-disc
+    # (otherwise the camera looks straight into the hangar above the door).
+    # A half-disc prism built by hand: deleting half a cylinder also deletes its end cap faces.
+    N = 16; ya, yb = -2.72, -2.80
+    pts = [(1.5 + 1.3 * math.cos(math.pi * k / N), y, 0.7 + 1.3 * math.sin(math.pi * k / N))
+           for y in (ya, yb) for k in range(N + 1)]
+    faces = [list(range(N + 1)), list(range(2 * N + 1, N, -1))]
+    faces += [[k, k + 1, N + 2 + k, N + 1 + k] for k in range(N)]
+    faces.append([N, 0, N + 1, 2 * N + 1])                                   # flat underside
+    me = bpy.data.meshes.new('gable'); me.from_pydata(pts, [], faces); me.update()
+    o = bpy.data.objects.new('gable', me); bpy.context.collection.objects.link(o)
+    bpy.context.view_layer.objects.active = o
+    _fim(o, '#cbd5e1', 0, 0.02)
+    # Orange arch ribs: the identity accent, readable at gameplay scale.
     for y in (0.30,1.5,2.72):
         for k in range(16):
             a,b=math.pi*k/16,math.pi*(k+1)/16
-            haste((1.5+1.32*math.cos(a),y,0.7+1.32*math.sin(a)),(1.5+1.32*math.cos(b),y,0.7+1.32*math.sin(b)),0.025,'#e2e8f0',linha=0.005)
-    caixa(0.65,2.83,0.78,2.9,0.12,1.38,'#fed7aa',linha=0.008)
-    caixa(2.22,2.83,2.35,2.9,0.12,1.38,'#fed7aa',linha=0.008)
-    caixa(0.65,2.83,2.35,2.9,1.3,1.4,'#fed7aa',linha=0.008)
+            haste((1.5+1.32*math.cos(a),y,0.7+1.32*math.sin(a)),(1.5+1.32*math.cos(b),y,0.7+1.32*math.sin(b)),0.035,'#f97316',linha=0.006)
+    # Roof skylight strip, like the habitat's.
+    esfera(1.5, 1.5, 2.0, 0.34, 0.5, 0.07, '#38bdf8', linha=0.02)
+    # Big door: dark bay, steel slats, orange surround.
+    caixa(0.8, 2.78, 2.2, 2.84, 0.12, 1.3, '#1e293b', bevel=0.005, linha=0.015)
+    for x in (0.95, 1.3, 1.65, 2.0):
+        caixa(x, 2.84, x + 0.05, 2.86, 0.12, 1.3, '#94a3b8', bevel=0, linha=0.005)
+    caixa(0.65,2.83,0.78,2.9,0.12,1.38,'#f97316',linha=0.008)
+    caixa(2.22,2.83,2.35,2.9,0.12,1.38,'#f97316',linha=0.008)
+    caixa(0.65,2.83,2.35,2.9,1.3,1.4,'#f97316',linha=0.008)
     visor(1.12,2.92,1.88,2.96,1.43,1.55,'#7dd3fc')
     for i in range(3):
         visor(0.91+i*0.44,2.87,1.22+i*0.44,2.885,0.36,0.62,'#ffda91')
     visor(1.18+FASE*0.18,2.965,1.34+FASE*0.18,2.975,1.46,1.52,'#e1ffff')
     lampada(1.5,2.76,1.38,1.35)
+    # Right wall (the side the camera sees): a window strip with glowing screens.
+    caixa(2.8, 0.9, 2.9, 2.1, 0.34, 0.54, '#0f172a', bevel=0.005, linha=0.01)
+    for i in range(3):
+        visor(2.9, 1.0+i*0.34, 2.915, 1.24+i*0.34, 0.38, 0.50, '#8ae8ff')
+    # Beacon mast on the roof ridge, like the shield's sensor mast.
+    cilindro(1.5, 0.55, 0.05, 1.95, 2.45, '#94a3b8', v=12, linha=0.012)
+    esfera(1.5, 0.55, 2.48, 0.1, 0.1, 0.1, '#ef4444', linha=0.015)
     caixa(2.3, 2.3, 2.75, 2.75, 0.12, 0.45, '#facc15', bevel=0.02)              # crate
 
 
 def painel():
     caixa(0.3,0.22,1.7,0.78,0,0.10,PALETA['fundacao'][2],bevel=0.04,linha=0.012)
+    caixa(0.28,0.2,1.72,0.8,0.0,0.05,'#f97316',bevel=0.02,linha=0.012)
     for x in (0.55,1.45):
         haste((x,0.5,0.1),(x,0.5,1.13),0.035,'#94a3b8',linha=0.007)
         haste((x,0.25,0.1),(x,0.5,0.65),0.025,'#64748b',linha=0.005)
@@ -279,7 +318,7 @@ def painel():
         o.location=(x,-0.54-math.sin(angle)*z,1.15+math.cos(angle)*z)
         o.rotation_euler=(angle,0,0)
         _fim(o,cor,0.008,0.005)
-    panel_piece(1,0,1.96,0.96,'#cbd5e1',0.075)
+    panel_piece(1,0,1.96,0.96,'#fb923c',0.075)
     panel_piece(1,0,1.84,0.84,'#172554',0.09)
     for col in range(6):
         for row in range(3):
@@ -288,46 +327,105 @@ def painel():
 
 def plataforma():
     w, h = TIPOS['plataforma']
-    caixa(0.1, 0.1, 2.9, 2.9, 0.0, 0.2, '#64748b', bevel=0.03)
-    cilindro(1.5, 1.5, 1.05, 0.2, 0.23, '#facc15', v=32, linha=0.015)
-    cilindro(1.5, 1.5, 0.92, 0.2, 0.25, '#475569', v=32, linha=0.015)
-    for x in (0.22,2.62):
-        for y in (0.22,2.62):
-            caixa(x,y,x+0.16,y+0.16,0.20,0.30,'#475569',linha=0.008)
-            visor(x+0.025,y+0.025,x+0.135,y+0.135,0.30,0.32,'#ffe6a0')
-    for x in (0.7,1.1,1.5,1.9,2.3):
-        caixa(x,2.82,x+0.2,2.91,0.20,0.22,'#fbbf24',linha=0.003)
-    caixa(0.15, 0.15, 0.55, 0.55, 0.2, 2.6, '#94a3b8', bevel=0.02)             # service tower
+    # Pale slate deck with the workshop's orange edge, dark pad, orange ring, cyan corner lamps.
+    caixa(0.1, 0.1, 2.9, 2.9, 0.0, 0.1, '#f97316', bevel=0.03, linha=0.02)
+    caixa(0.1, 0.1, 2.9, 2.9, 0.1, 0.2, '#cbd5e1', bevel=0.03, linha=0.02)
+    cilindro(1.5, 1.5, 1.05, 0.2, 0.23, '#f97316', v=32, linha=0.015)
+    cilindro(1.5, 1.5, 0.92, 0.2, 0.25, '#334155', v=32, linha=0.015)
+    for x in (0.22, 2.62):
+        for y in (0.22, 2.62):
+            caixa(x, y, x + 0.16, y + 0.16, 0.20, 0.30, '#94a3b8', linha=0.008)
+            visor(x + 0.025, y + 0.025, x + 0.135, y + 0.135, 0.30, 0.32, '#8ae8ff')
+    for x in (0.7, 1.1, 1.5, 1.9, 2.3):
+        caixa(x, 2.82, x + 0.2, 2.91, 0.20, 0.22, '#fb923c', linha=0.003)
+    caixa(0.15, 0.15, 0.55, 0.55, 0.2, 2.6, '#cbd5e1', bevel=0.02)             # service tower
+    caixa(0.13, 0.13, 0.57, 0.57, 0.2, 0.4, '#f97316', bevel=0.02, linha=0.02)
     for z in (0.8, 1.4, 2.0):
-        caixa(0.55, 0.3, 1.1, 0.4, z, z + 0.08, '#94a3b8', bevel=0.005, linha=0.015)
+        caixa(0.55, 0.3, 1.1, 0.4, z, z + 0.08, '#fb923c', bevel=0.005, linha=0.015)
+    cilindro(0.35, 0.35, 0.03, 2.6, 2.85, '#94a3b8', v=8, linha=0.01)
+    esfera(0.35, 0.35, 2.88, 0.08, 0.08, 0.08, '#ef4444', linha=0.012)
+
+
+def aleta(angulo, R, cor, grossura=0.08):
+    """A chunky swept fin: a flat plate leaving the body at `angulo` (degrees in map space)."""
+    r = math.radians(angulo); c, sn = math.cos(r), math.sin(r)
+    perfil = [(R - 0.05, 0.25), (R + 0.5, 0.25), (R + 0.5, 0.48), (R - 0.05, 1.0)]   # (outward, height)
+    def v(u, z, t): return (1.5 + c * u + sn * t, -(1.5 + sn * u - c * t), z)
+    pts = [v(u, z, -grossura) for u, z in perfil] + [v(u, z, grossura) for u, z in perfil]
+    faces = [[0, 1, 2, 3], [7, 6, 5, 4]] + [[i, (i + 1) % 4, 4 + (i + 1) % 4, 4 + i] for i in range(4)]
+    me = bpy.data.meshes.new('aleta'); me.from_pydata(pts, [], faces); me.update()
+    o = bpy.data.objects.new('aleta', me); bpy.context.collection.objects.link(o)
+    bpy.context.view_layer.objects.active = o
+    _fim(o, cor, 0, 0.03)
+
+
+def ogiva(z0, R, L, cor, seg=36, aneis=14):
+    """A pointed ogive nose cone: base radius R at z0, tip L above (tangent ogive profile)."""
+    rho = (R * R + L * L) / (2 * R)
+    pts = []; faces = []
+    for i in range(aneis):
+        x = L * (i / aneis) ** 0.85                       # height above the base
+        r = math.sqrt(max(rho * rho - x * x, 0)) + R - rho    # x measured from the tip is L - x
+        for j in range(seg):
+            a = 2 * math.pi * j / seg
+            pts.append((1.5 + r * math.cos(a), -1.5 + r * math.sin(a), z0 + x))
+    pts.append((1.5, -1.5, z0 + L))
+    for i in range(aneis - 1):
+        for j in range(seg):
+            faces.append([i * seg + j, i * seg + (j + 1) % seg, (i + 1) * seg + (j + 1) % seg, (i + 1) * seg + j])
+    for j in range(seg):
+        faces.append([(aneis - 1) * seg + j, (aneis - 1) * seg + (j + 1) % seg, len(pts) - 1])
+    faces.append(list(range(seg))[::-1])
+    me = bpy.data.meshes.new('ogiva'); me.from_pydata(pts, [], faces); me.update()
+    bm = bmesh.new(); bm.from_mesh(me); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bm.to_mesh(me); bm.free()
+    for f in me.polygons: f.use_smooth = True
+    o = bpy.data.objects.new('ogiva', me); bpy.context.collection.objects.link(o)
+    bpy.context.view_layer.objects.active = o
+    return _fim(o, cor, 0, 0.035)
 
 
 def foguete(etapa):
-    # etapa 0..4: 0 = base ring only, 4 = finished with nose and red band.
+    # etapa 0..4: 0 = base only, 4 = finished. Chubby toy rocket: pointed orange nose cone, pale body,
+    # orange lower section, huge porthole with a dark rim and bright glass, sky-blue fins.
     plataforma()
-    alt = [0.35, 1.0, 1.7, 2.4, 2.9][etapa]
-    cilindro(1.5, 1.5, 0.42, 0.25, 0.25 + alt, '#f8fafc', bevel=0.02)
-    if etapa >= 2: cilindro(1.5, 1.5, 0.425, 0.25 + alt * 0.55, 0.25 + alt * 0.62, '#ef4444')
-    for a in (45, 135, 225, 315):                                              # fins
-        r = math.radians(a)
-        caixa(1.5 + math.cos(r) * 0.42 - 0.07, 1.5 + math.sin(r) * 0.42 - 0.07, 1.5 + math.cos(r) * 0.42 + 0.07, 1.5 + math.sin(r) * 0.42 + 0.07, 0.25, 0.75, '#ef4444', bevel=0.01, linha=0.015)
+    alt = [0.35, 0.8, 1.3, 1.7, 2.0][etapa]
+    R = 0.72
+    BODY = '#f1f5f9'; ACC = '#f97316'; ACC2 = '#fb923c'; ARO = '#1e293b'; VIDRO = '#38bdf8'; ALETA = '#38bdf8'
+    cilindro(1.5, 1.5, R * 0.5, 0.2, 0.34, '#334155', v=24, linha=0.02)           # engine nozzle
+    cilindro(1.5, 1.5, R * 0.56, 0.2, 0.26, '#facc15', v=24, linha=0.02)          # nozzle lip
+    cilindro(1.5, 1.5, R, 0.25, 0.25 + alt, BODY, v=36, linha=0.035)
+    if etapa >= 1:                                                             # orange lower section
+        cilindro(1.5, 1.5, R + 0.025, 0.25, 0.25 + min(alt, 0.55), ACC, v=36, linha=0.03)
+        cilindro(1.5, 1.5, R + 0.045, 0.25 + min(alt, 0.55) - 0.07, 0.25 + min(alt, 0.55), ACC2, v=36, linha=0.025)
+    if etapa >= 3:                                                             # porthole
+        wz = 0.25 + alt * 0.72; d = (R - 0.04) * 0.7071
+        esfera(1.5 + d, 1.5 + d, wz, 0.36, 0.36, 0.36, ARO, linha=0.03)            # thick rim
+        esfera(1.5 + d + 0.10, 1.5 + d + 0.10, wz, 0.27, 0.27, 0.27, VIDRO, linha=0.02)   # glass
+        esfera(1.5 + d + 0.24, 1.5 + d + 0.14, wz + 0.12, 0.07, 0.07, 0.07, '#ffffff', linha=0.004)
+    for a in (0, 90, 180, 270):
+        aleta(a, R, ALETA)
     if etapa == 4:
-        bpy.ops.mesh.primitive_cone_add(vertices=24, radius1=0.42, depth=0.8)
-        o = bpy.context.active_object; o.location = (1.5, -1.5, 0.25 + alt + 0.4)
-        bpy.ops.object.shade_smooth(); _fim(o, '#ef4444', 0, 0.03)
-    else:                                                                      # scaffold
+        top = 0.25 + alt
+        cilindro(1.5, 1.5, R + 0.03, top - 0.05, top + 0.04, ACC2, v=36, linha=0.025)   # collar
+        ogiva(top + 0.04, R + 0.02, 1.7, ACC)                                       # pointed ogive nose cone
+        cilindro(1.5, 1.5, 0.035, top + 1.72, top + 1.9, '#94a3b8', v=8, linha=0.01)   # tip rod
+        esfera(1.5, 1.5, top + 1.92, 0.06, 0.06, 0.06, '#ef4444', linha=0.01)
+    else:                                                                      # scaffold: open frames
         for z in [0.25 + i * 0.45 for i in range(int(alt / 0.45) + 2)]:
-            caixa(0.95, 0.95, 2.05, 2.05, z, z + 0.04, '#94a3b8', bevel=0, linha=0.01)
+            for (x0, y0, x1, y1) in ((0.55, 0.55, 2.45, 0.61), (0.55, 2.39, 2.45, 2.45), (0.55, 0.61, 0.61, 2.39), (2.39, 0.61, 2.45, 2.39)):
+                caixa(x0, y0, x1, y1, z, z + 0.04, ACC2, bevel=0, linha=0.01)
 
 
 def antena():
     # Dish antenna to talk to Earth, on a tripod. At the pole Earth sits near the horizon, so the
-    # dish looks almost sideways.
-    caixa(0.3, 0.3, 1.7, 1.7, 0.0, 0.12, '#57534e', bevel=0.02)
+    # dish looks almost sideways. Same language as the workshop: pale body, orange accent, cyan lights.
+    w, h = TIPOS['antena']; piso(w, h)
     topo = (1.0, 1.0, 1.05)
     for a in (90, 210, 330):
         r = math.radians(a)
-        haste((1 + math.cos(r) * 0.6, 1 + math.sin(r) * 0.6, 0.12), topo, 0.04, '#94a3b8')
+        foot = (1 + math.cos(r) * 0.6, 1 + math.sin(r) * 0.6, 0.12)
+        haste(foot, topo, 0.045, '#cbd5e1', linha=0.014)
+        cilindro(foot[0], foot[1], 0.09, 0.12, 0.2, '#f97316', v=12, linha=0.01)
     bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, radius=1)
     o = bpy.context.active_object
     bm = bmesh.new(); bm.from_mesh(o.data)
@@ -335,18 +433,23 @@ def antena():
     bm.to_mesh(o.data); bm.free()
     o.scale = (0.8, 0.8, 0.8); o.location = (1.0, -1.0, 1.45)
     o.rotation_euler = (math.radians(-55), 0, math.radians(35))       # bowl opens up and toward the viewer
-    bpy.ops.object.shade_smooth(); _fim(o, '#f1f5f9', 0, 0.025)
-    haste(topo, (1.0, 1.0, 1.75), 0.04, '#64748b')
-    esfera(1.0, 1.0, 1.78, 0.08, 0.08, 0.08, '#ef4444', linha=0.012)
+    bpy.ops.object.shade_smooth(); _fim(o, '#e2e8f0', 0, 0.03)
+    haste(topo, (1.0, 1.0, 1.75), 0.04, '#94a3b8', linha=0.012)
+    esfera(1.0, 1.0, 1.78, 0.09, 0.09, 0.09, '#ef4444', linha=0.015)
+    caixa(1.45, 1.35, 1.85, 1.7, 0.12, 0.5, '#cbd5e1')                            # radio box
+    caixa(1.43, 1.33, 1.87, 1.72, 0.12, 0.2, '#f97316', bevel=0.02, linha=0.02)
+    visor(1.5, 1.705, 1.8, 1.72, 0.3, 0.42, '#8ae8ff')
 
 
 def estufa():
-    # Greenhouse: a glass half-tube over rows of green plants.
+    # Greenhouse: a glass half-tube over rows of green plants, with the workshop's orange ribs.
     w, h = TIPOS['estufa']; piso(w, h)
     for y in (0.55, 1.0, 1.45):
-        caixa(0.35, y - 0.12, 2.65, y + 0.12, 0.12, 0.3, '#78350f', bevel=0.01, linha=0.012)
+        caixa(0.35, y - 0.12, 2.65, y + 0.12, 0.12, 0.3, '#cbd5e1', bevel=0.01, linha=0.012)
         for x in (0.6, 1.1, 1.6, 2.1, 2.5):
-            esfera(x, y, 0.38, 0.13, 0.13, 0.12, '#22c55e', linha=0.012)
+            esfera(x, y, 0.38, 0.14, 0.14, 0.13, '#4ade80', linha=0.012)
+    caixa(0.1, 0.03, 2.9, 0.12, 0.12, 0.22, '#f97316', bevel=0.015, linha=0.015)    # orange sills
+    caixa(0.1, 1.88, 2.9, 1.97, 0.12, 0.22, '#f97316', bevel=0.015, linha=0.015)
     bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.95, depth=2.8)
     o = bpy.context.active_object
     bm = bmesh.new(); bm.from_mesh(o.data)
@@ -372,53 +475,564 @@ def estufa():
         for k in range(12):
             a0, a1 = math.pi * k / 12, math.pi * (k + 1) / 12
             haste((x, 1.0 - 0.95 * math.cos(a0), 0.12 + 0.95 * math.sin(a0)),
-                  (x, 1.0 - 0.95 * math.cos(a1), 0.12 + 0.95 * math.sin(a1)), 0.03, '#e2e8f0', linha=0.008)
-
-
-    for x in (0.45,2.55):
-        visor(x,0.64,x+0.06,1.36,0.58,0.63,'#fff0bd')
+                  (x, 1.0 - 0.95 * math.cos(a1), 0.12 + 0.95 * math.sin(a1)), 0.035, '#f97316', linha=0.01)
+    for x in (0.45, 2.55):
+        visor(x, 0.64, x + 0.06, 1.36, 0.58, 0.63, '#fff0bd')
 
 
 def perfuratriz():
     # Ice drill: a derrick over a bore hole, with a tank for the water it melts.
-    caixa(0.1, 0.1, 1.9, 1.9, 0.0, 0.15, '#57534e', bevel=0.02)
+    w, h = TIPOS['perfuratriz']; piso(w, h)
     for (x, y) in ((0.35, 0.35), (1.65, 0.35), (0.35, 1.65), (1.65, 1.65)):
-        haste((x, y, 0.15), (1.0 + (x - 1.0) * 0.2, 1.0 + (y - 1.0) * 0.2, 1.9), 0.05, '#f59e0b')
-    haste((0.35, 1.65, 0.6), (1.65, 1.65, 1.2), 0.03, '#f59e0b')                   # cross braces
-    haste((1.65, 0.35, 0.6), (1.65, 1.65, 1.2), 0.03, '#f59e0b')
-    cilindro(1.0, 1.0, 0.06, 0.0, 1.95, '#475569', v=12, linha=0.012)        # drill string
-    caixa(0.8, 0.8, 1.2, 1.2, 1.85, 2.05, '#f59e0b', bevel=0.01, linha=0.015)
-    cilindro(1.0, 1.0, 0.22, 0.15, 0.3, '#1c1917', v=16, linha=0.012)        # hole
-    cilindro(1.55, 0.45, 0.25, 0.15, 0.85, '#38bdf8', v=16, bevel=0.02)
-    lampada(1,1.45,1.55,0.42,'#e0f3ff')       # water tank
+        haste((x, y, 0.12), (1.0 + (x - 1.0) * 0.2, 1.0 + (y - 1.0) * 0.2, 1.9), 0.05, '#f97316', linha=0.014)
+    haste((0.35, 1.65, 0.6), (1.65, 1.65, 1.2), 0.03, '#fb923c', linha=0.01)                   # cross braces
+    haste((1.65, 0.35, 0.6), (1.65, 1.65, 1.2), 0.03, '#fb923c', linha=0.01)
+    cilindro(1.0, 1.0, 0.06, 0.12, 1.95, '#94a3b8', v=12, linha=0.012)        # drill string
+    caixa(0.75, 0.75, 1.25, 1.25, 1.85, 2.05, '#e2e8f0', bevel=0.02, linha=0.02)
+    caixa(0.72, 0.72, 1.28, 1.28, 1.98, 2.08, '#f97316', bevel=0.015, linha=0.02)
+    visor(0.85, 1.255, 1.15, 1.27, 1.9, 1.96, '#8ae8ff')
+    cilindro(1.0, 1.0, 0.22, 0.12, 0.3, '#1e293b', v=16, linha=0.012)        # hole
+    cilindro(1.55, 0.45, 0.25, 0.12, 0.85, '#38bdf8', v=16, bevel=0.02)       # water tank
+    cilindro(1.55, 0.45, 0.255, 0.4, 0.47, '#e2e8f0', v=16, linha=0.01)
+    cilindro(1.55, 0.45, 0.255, 0.65, 0.72, '#f97316', v=16, linha=0.01)
 
 
 def rover():
     # Lunar Terrain Vehicle style: open frame, two seats, four big wheels, antenna.
-    caixa(0.15, 0.2, 1.85, 0.8, 0.28, 0.42, '#cbd5e1', bevel=0.03)
+    caixa(0.15, 0.2, 1.85, 0.8, 0.28, 0.42, '#e2e8f0', bevel=0.03)
+    caixa(0.15, 0.2, 1.85, 0.8, 0.28, 0.33, '#f97316', bevel=0.03, linha=0.02)     # orange chassis rail
     for x in (0.55, 1.15):
-        caixa(x, 0.3, x + 0.35, 0.7, 0.42, 0.62, '#334155', bevel=0.03, linha=0.015)
-    caixa(1.55, 0.3, 1.85, 0.7, 0.42, 0.55, '#f59e0b', bevel=0.02, linha=0.015)
+        caixa(x, 0.3, x + 0.35, 0.7, 0.42, 0.62, '#475569', bevel=0.03, linha=0.015)
+    caixa(1.55, 0.3, 1.85, 0.7, 0.42, 0.55, '#fb923c', bevel=0.02, linha=0.015)
     for (x, y) in ((0.35, 0.12), (1.65, 0.12), (0.35, 0.88), (1.65, 0.88)):
         bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.2, depth=0.14)
         o = bpy.context.active_object; o.location = (x, -y, 0.2); o.rotation_euler = (math.radians(90), 0, 0)
-        bpy.ops.object.shade_smooth(); _fim(o, '#1f2937', 0, 0.015)
-    cilindro(0.25, 0.5, 0.025, 0.42, 1.1, '#94a3b8', v=8, linha=0.008)
-    esfera(0.25, 0.5, 1.12, 0.12, 0.12, 0.04, '#e2e8f0', linha=0.01)
-    for y in (0.3,0.62):
-        visor(1.84,y,1.87,y+0.08,0.43,0.52,'#ffedbc')
+        bpy.ops.object.shade_smooth(); _fim(o, '#475569', 0, 0.02)
+        bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.09, depth=0.16)
+        o = bpy.context.active_object; o.location = (x, -y + (0.01 if y > 0.5 else -0.01), 0.2); o.rotation_euler = (math.radians(90), 0, 0)
+        bpy.ops.object.shade_smooth(); _fim(o, '#f97316', 0, 0.01)
+    cilindro(0.25, 0.5, 0.025, 0.42, 1.1, '#94a3b8', v=8, linha=0.01)
+    esfera(0.25, 0.5, 1.12, 0.1, 0.1, 0.1, '#ef4444', linha=0.012)
+    for y in (0.3, 0.62):
+        visor(1.84, y, 1.87, y + 0.08, 0.43, 0.52, '#8ae8ff')
 
 
 def pouso():
-    # Cargo lander: gold-foil body, four legs, engine bell, the crate on top.
-    cilindro(1.0, 1.0, 0.62, 0.55, 1.25, '#d4a017', v=8, bevel=0.02)
-    caixa(0.65, 0.65, 1.35, 1.35, 1.25, 1.75, '#a16207', bevel=0.02)
-    caixa(0.65, 0.98, 1.35, 1.02, 1.25, 1.75, '#713f12', bevel=0, linha=0.008)
+    # Cargo lander: pale body with an orange band, four legs, engine bell, the crate on top.
+    cilindro(1.0, 1.0, 0.62, 0.55, 1.25, '#cbd5e1', v=8, bevel=0.02)
+    cilindro(1.0, 1.0, 0.64, 0.82, 0.96, '#f97316', v=8, bevel=0.01, linha=0.02)
+    caixa(0.65, 0.65, 1.35, 1.35, 1.25, 1.75, '#fb923c', bevel=0.02)
+    caixa(0.65, 0.98, 1.35, 1.02, 1.25, 1.75, '#c2410c', bevel=0, linha=0.008)
+    esfera(1.0, 1.0, 1.0, 0.16, 0.16, 0.1, '#38bdf8', linha=0.02)
     bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.3, radius2=0.14, depth=0.35)
-    o = bpy.context.active_object; o.location = (1.0, -1.0, 0.38); bpy.ops.object.shade_smooth(); _fim(o, '#475569', 0, 0.015)
+    o = bpy.context.active_object; o.location = (1.0, -1.0, 0.38); bpy.ops.object.shade_smooth(); _fim(o, '#64748b', 0, 0.02)
     for (x, y) in ((0.15, 0.15), (1.85, 0.15), (0.15, 1.85), (1.85, 1.85)):
-        haste((1.0 + (x - 1.0) * 0.45, 1.0 + (y - 1.0) * 0.45, 0.9), (x, y, 0.05), 0.045, '#94a3b8')
-        cilindro(x, y, 0.13, 0.0, 0.06, '#64748b', v=12, linha=0.01)
+        haste((1.0 + (x - 1.0) * 0.45, 1.0 + (y - 1.0) * 0.45, 0.9), (x, y, 0.05), 0.05, '#cbd5e1', linha=0.014)
+        cilindro(x, y, 0.14, 0.0, 0.07, '#f97316', v=12, linha=0.012)
+
+
+def usina():
+    # Oxygen plant (ISRU), detailed: regolith pile -> hopper -> conveyor -> molten-regolith electrolysis
+    # reactor (glowing furnace window, radiator fins) -> pipes -> O2 storage tank and spheres.
+    w, h = TIPOS['usina']; piso(w, h)
+    CLARO, LARANJA, LARANJA2, ACO, VIDRO = '#e2e8f0', '#f97316', '#fb923c', '#94a3b8', '#8ae8ff'
+    AREIA, AREIA2, AGUA = '#e7d3b0', '#d9c19a', '#38bdf8'
+    HX = (0, math.radians(90), 0)
+
+    # --- regolith feed: pile, hopper on legs, conveyor up to the reactor ---
+    esfera(0.5, 1.5, 0.12, 0.5, 0.36, 0.34, AREIA, linha=0.025, metade=True)
+    esfera(0.78, 1.7, 0.12, 0.22, 0.2, 0.16, AREIA2, linha=0.02, metade=True)
+    for (x, y) in ((0.2, 0.3), (0.62, 0.3), (0.2, 0.72), (0.62, 0.72)):
+        haste((x, y, 0.12), (x, y, 0.6), 0.03, ACO, linha=0.01)
+    caixa(0.12, 0.22, 0.72, 0.82, 0.6, 0.85, LARANJA2, bevel=0.03, linha=0.02)       # hopper body
+    caixa(0.08, 0.18, 0.76, 0.86, 0.85, 0.95, LARANJA, bevel=0.02, linha=0.02)       # rim
+    caixa(0.17, 0.27, 0.71, 0.81, 0.93, 0.97, AREIA, bevel=0.01, linha=0.01)         # dust inside
+    haste((0.72, 0.52, 0.72), (0.88, 0.7, 0.9), 0.07, '#cbd5e1', linha=0.014)        # conveyor
+    haste((0.45, 1.3, 0.2), (0.45, 0.85, 0.62), 0.045, ACO, linha=0.012)            # feed arm from pile
+
+    # --- reactor: vertical tank with bands, glowing window, dome, radiator fins ---
+    cx, cy = 1.4, 0.85
+    cilindro(cx, cy, 0.46, 0.12, 0.2, '#cbd5e1', v=24, linha=0.02)                    # base ring
+    cilindro(cx, cy, 0.42, 0.2, 1.3, CLARO, v=28, linha=0.03)
+    esfera(cx, cy, 1.3, 0.42, 0.42, 0.28, CLARO, linha=0.03, metade=True)
+    for z in (0.34, 0.68, 1.02):
+        cilindro(cx, cy, 0.445, z, z + 0.07, LARANJA, v=28, linha=0.014)
+    cilindro(cx, cy, 0.2, 1.52, 1.78, ACO, v=12, linha=0.02)                          # exhaust stack
+    cilindro(cx, cy, 0.24, 1.74, 1.8, LARANJA, v=12, linha=0.015)
+    esfera(cx, cy, 1.84, 0.07, 0.07, 0.07, '#ef4444', linha=0.012)
+    caixa(cx - 0.2, cy + 0.38, cx + 0.2, cy + 0.46, 0.42, 0.62, '#334155', bevel=0.02, linha=0.015)   # furnace door
+    visor(cx - 0.14, cy + 0.462, cx + 0.14, cy + 0.475, 0.46, 0.58, '#ffb35c')                       # molten glow
+    for z in (0.8, 0.95, 1.1, 1.25):
+        caixa(cx + 0.4, cy - 0.2, cx + 0.62, cy + 0.2, z, z + 0.05, '#cbd5e1', bevel=0.01, linha=0.01)
+    caixa(cx + 0.57, cy - 0.2, cx + 0.62, cy + 0.2, 0.8, 1.3, ACO, bevel=0.005, linha=0.01)
+
+    # --- catwalk + ladder at the reactor's front ---
+    caixa(cx - 0.5, cy + 0.48, cx + 0.5, cy + 0.72, 0.62, 0.67, '#cbd5e1', bevel=0.01, linha=0.012)
+    for x in (cx - 0.46, cx + 0.46):
+        haste((x, cy + 0.7, 0.12), (x, cy + 0.7, 0.64), 0.025, ACO, linha=0.01)
+    haste((cx - 0.46, cy + 0.7, 0.9), (cx + 0.46, cy + 0.7, 0.9), 0.022, LARANJA, linha=0.01)
+    haste((cx - 0.46, cy + 0.7, 0.9), (cx - 0.46, cy + 0.7, 0.66), 0.022, LARANJA, linha=0.01)
+    haste((cx + 0.46, cy + 0.7, 0.9), (cx + 0.46, cy + 0.7, 0.66), 0.022, LARANJA, linha=0.01)
+
+    # --- O2 storage tank (cyan, horizontal) in front, with cradle and bands ---
+    ty, tz = 1.5, 0.5
+    cilindro(1.75, ty, 0.32, tz - 0.65, tz + 0.65, AGUA, v=24, rot=HX, linha=0.025)
+    for x in (1.3, 2.2):
+        cilindro(x, ty, 0.335, tz - 0.05, tz + 0.05, CLARO, v=24, rot=HX, linha=0.012)
+    esfera(1.1, ty, tz, 0.14, 0.32, 0.32, AGUA, linha=0.025)
+    esfera(2.4, ty, tz, 0.14, 0.32, 0.32, AGUA, linha=0.025)
+    for x in (1.4, 2.1):
+        caixa(x - 0.07, ty - 0.3, x + 0.07, ty + 0.3, 0.12, 0.25, LARANJA2, bevel=0.015, linha=0.015)    # cradles
+    visor(1.5, ty + 0.318, 2.0, ty + 0.33, 0.5, 0.58, VIDRO)                           # gauge strip
+
+    # --- two O2 spheres at the back right, with legs and a pipe ---
+    for (x, y) in ((2.35, 0.45), (2.62, 1.0)):
+        esfera(x, y, 0.62, 0.28, 0.28, 0.28, CLARO, linha=0.025)
+        cilindro(x, y, 0.29, 0.58, 0.66, LARANJA, v=20, linha=0.012)
+        for a in (45, 135, 225, 315):
+            r = math.radians(a)
+            haste((x + 0.18 * math.cos(r), y + 0.18 * math.sin(r), 0.45), (x + 0.26 * math.cos(r), y + 0.26 * math.sin(r), 0.12), 0.025, ACO, linha=0.01)
+
+    # --- pipe network: elbows are small flanges ---
+    haste((cx + 0.2, cy, 0.3), (2.2, 0.9, 0.3), 0.05, ACO, linha=0.012)               # reactor -> spheres
+    haste((2.2, 0.9, 0.3), (2.35, 0.55, 0.3), 0.04, ACO, linha=0.012)
+    haste((cx, cy + 0.3, 0.2), (1.5, 1.3, 0.2), 0.05, LARANJA2, linha=0.012)           # reactor -> O2 tank
+    for (x, y, z) in ((2.2, 0.9, 0.3), (1.5, 1.3, 0.2)):
+        cilindro(x, y, 0.07, z - 0.03, z + 0.03, LARANJA, v=12, linha=0.01)
+
+    # --- control cabin with screens, status light tower, hazard skirt ---
+    caixa(2.45, 1.45, 2.92, 1.92, 0.12, 0.85, '#cbd5e1')
+    caixa(2.42, 1.42, 2.95, 1.95, 0.12, 0.2, LARANJA, bevel=0.02, linha=0.02)
+    caixa(2.42, 1.42, 2.95, 1.95, 0.8, 0.9, LARANJA2, bevel=0.02, linha=0.02)
+    visor(2.5, 1.955, 2.88, 1.97, 0.45, 0.68, VIDRO)
+    visor(2.955, 1.5, 2.975, 1.85, 0.45, 0.68, VIDRO)
+    haste((2.7, 1.68, 0.9), (2.7, 1.68, 1.3), 0.03, ACO, linha=0.01)                  # light tower
+    for i, c in enumerate(('#ef4444', '#facc15', '#4ade80')):
+        esfera(2.7, 1.68, 1.05 + i * 0.12, 0.07, 0.07, 0.06, c, linha=0.01)
+    for i in range(8):                                                                    # hazard stripes on the deck edge
+        x0 = 0.14 + i * 0.36
+        caixa(x0, 1.9, x0 + 0.18, 1.95, 0.12, 0.17, '#facc15' if i % 2 else '#334155', bevel=0, linha=0.006)
+
+
+def reciclador():
+    # Water and air recycler (ECLSS), detailed: CO2 scrubber column with louvers, clean-water tank with a
+    # level gauge, a CO2 storage bottle, a pump with its motor, piping with flanges, hazard skirt.
+    w, h = TIPOS['reciclador']; piso(w, h)
+    CLARO, LARANJA, LARANJA2, ACO, VIDRO, AGUA = '#e2e8f0', '#f97316', '#fb923c', '#94a3b8', '#8ae8ff', '#38bdf8'
+    HY = (math.radians(90), 0, 0)
+    # scrubber column
+    cx, cy = 0.62, 0.62
+    cilindro(cx, cy, 0.42, 0.12, 0.2, '#cbd5e1', v=24, linha=0.02)
+    cilindro(cx, cy, 0.36, 0.2, 1.4, CLARO, v=24, linha=0.03)
+    esfera(cx, cy, 1.4, 0.36, 0.36, 0.22, CLARO, linha=0.03, metade=True)
+    for z in (0.38, 0.78, 1.18):
+        cilindro(cx, cy, 0.385, z, z + 0.07, LARANJA, v=24, linha=0.014)
+    for z in (0.52, 0.64, 0.92, 1.04):                                           # air louvers
+        caixa(cx + 0.28, cy - 0.16, cx + 0.4, cy + 0.16, z, z + 0.05, '#94a3b8', bevel=0.005, linha=0.01)
+        caixa(cx - 0.16, cy + 0.28, cx + 0.16, cy + 0.4, z, z + 0.05, '#94a3b8', bevel=0.005, linha=0.01)
+    cilindro(cx, cy, 0.06, 1.55, 1.8, '#94a3b8', v=10, linha=0.012)               # CO2 exhaust
+    esfera(cx, cy, 1.83, 0.08, 0.08, 0.08, '#ef4444', linha=0.012)
+    # clean water tank
+    wx, wy = 1.42, 1.3
+    cilindro(wx, wy, 0.44, 0.12, 0.2, '#cbd5e1', v=24, linha=0.02)
+    cilindro(wx, wy, 0.4, 0.2, 1.0, AGUA, v=24, bevel=0.01, linha=0.03)
+    esfera(wx, wy, 1.0, 0.4, 0.4, 0.24, AGUA, linha=0.03, metade=True)
+    for z in (0.38, 0.7):
+        cilindro(wx, wy, 0.415, z, z + 0.06, CLARO, v=24, linha=0.012)
+    visor(wx - 0.05, wy + 0.395, wx + 0.05, wy + 0.41, 0.3, 0.88, VIDRO)             # level gauge
+    for z in (0.4, 0.55, 0.7):
+        caixa(wx - 0.11, wy + 0.4, wx + 0.11, wy + 0.425, z, z + 0.015, '#1e293b', bevel=0, linha=0.004)
+    # CO2 bottle, tall and thin
+    cilindro(1.6, 0.42, 0.18, 0.12, 0.85, '#cbd5e1', v=16, linha=0.022)
+    esfera(1.6, 0.42, 0.85, 0.18, 0.18, 0.13, '#cbd5e1', linha=0.02, metade=True)
+    cilindro(1.6, 0.42, 0.19, 0.55, 0.62, LARANJA, v=16, linha=0.012)
+    cilindro(1.6, 0.42, 0.04, 0.95, 1.08, '#94a3b8', v=8, linha=0.01)
+    # pump with motor
+    caixa(0.15, 1.15, 0.75, 1.65, 0.12, 0.42, LARANJA2, bevel=0.03, linha=0.02)
+    cilindro(0.45, 1.4, 0.15, 0.42 - 0.28, 0.42 + 0.28, '#e2e8f0', v=16, rot=(0, math.radians(90), 0), linha=0.02)
+    cilindro(0.45, 1.4, 0.17, 0.42 - 0.04, 0.42 + 0.04, LARANJA, v=16, rot=(0, math.radians(90), 0), linha=0.012)
+    visor(0.2, 1.652, 0.7, 1.665, 0.18, 0.3, VIDRO)
+    # pipes with flanges
+    for a, b in (((cx, cy, 0.3), (1.6, 0.42, 0.3)), ((1.6, 0.42, 0.3), (wx, wy, 0.3)),
+                 ((cx, cy + 0.3, 0.3), (0.45, 1.3, 0.42)), ((0.7, 1.4, 0.3), (wx - 0.3, wy, 0.3))):
+        haste(a, b, 0.045, ACO, linha=0.012)
+    for (x, y) in ((1.6, 0.42), (1.2, 0.9)):
+        cilindro(x, y, 0.085, 0.27, 0.34, LARANJA, v=12, linha=0.01)
+    for i in range(7):                                                              # hazard skirt
+        x0 = 0.18 + i * 0.27
+        caixa(x0, 1.9, x0 + 0.13, 1.95, 0.12, 0.17, '#facc15' if i % 2 else '#334155', bevel=0, linha=0.006)
+
+
+def eclusa():
+    # Airlock, detailed: cabin with hatch (hand wheel + status lights), grab bars, steps, tunnel stub,
+    # roof vent and lamp, and a sign panel.
+    w, h = TIPOS['eclusa']; piso(w, h)
+    CLARO, LARANJA, LARANJA2, ACO, VIDRO = '#e2e8f0', '#f97316', '#fb923c', '#94a3b8', '#8ae8ff'
+    A = (math.radians(90), 0, 0); H = (0, math.radians(90), 0)
+    caixa(0.2, 0.1, 1.75, 0.82, 0.12, 0.95, CLARO, bevel=0.05)
+    caixa(0.16, 0.06, 1.79, 0.86, 0.12, 0.24, LARANJA, bevel=0.03, linha=0.02)
+    caixa(0.16, 0.06, 1.79, 0.86, 0.88, 1.0, LARANJA2, bevel=0.03, linha=0.02)
+    cilindro(1.87, 0.46, 0.3, 0.52 - 0.12, 0.52 + 0.12, LARANJA, v=24, rot=H, linha=0.02)   # tunnel stub on +x
+    cilindro(1.99, 0.46, 0.22, 0.52 - 0.02, 0.52 + 0.02, '#1e293b', v=24, rot=H, linha=0.01)
+    # hatch with hand wheel
+    cilindro(0.7, 0.84, 0.31, 0.5 - 0.05, 0.5 + 0.05, LARANJA, v=24, rot=A, linha=0.02)
+    cilindro(0.7, 0.88, 0.25, 0.5 - 0.04, 0.5 + 0.04, '#334155', v=24, rot=A, linha=0.01)
+    cilindro(0.7, 0.93, 0.1, 0.5 - 0.02, 0.5 + 0.02, ACO, v=16, rot=A, linha=0.01)
+    caixa(0.6, 0.945, 0.8, 0.96, 0.495, 0.505, ACO, bevel=0, linha=0.006)
+    caixa(0.695, 0.945, 0.705, 0.96, 0.4, 0.6, ACO, bevel=0, linha=0.006)
+    visor(0.4, 0.845, 0.44, 0.86, 0.72, 0.8, '#ef4444'); visor(0.46, 0.845, 0.5, 0.86, 0.72, 0.8, '#4ade80')
+    visor(1.15, 0.825, 1.6, 0.84, 0.55, 0.78, VIDRO)                                           # window
+    caixa(1.12, 0.82, 1.63, 0.83, 0.52, 0.8, '#334155', bevel=0, linha=0.008)
+    for x in (0.3, 1.1):
+        haste((x, 0.88, 0.3), (x, 0.88, 0.8), 0.022, '#fde68a', linha=0.008)                  # grab bars
+        haste((x, 0.82, 0.3), (x, 0.88, 0.3), 0.022, ACO, linha=0.008)
+        haste((x, 0.82, 0.8), (x, 0.88, 0.8), 0.022, ACO, linha=0.008)
+    for i, z in enumerate((0.12, 0.17)):                                                        # steps
+        caixa(0.45, 0.86 + i * 0.05, 0.95, 0.96, z, z + 0.05, '#facc15' if i else '#334155', bevel=0.005, linha=0.01)
+    caixa(1.15, 0.2, 1.5, 0.55, 1.0, 1.15, '#cbd5e1', bevel=0.02, linha=0.02)                   # roof vent
+    for k in range(3):
+        caixa(1.18 + k * 0.1, 0.2, 1.23 + k * 0.1, 0.55, 1.15, 1.18, ACO, bevel=0, linha=0.006)
+    cilindro(0.5, 0.35, 0.04, 1.0, 1.3, ACO, v=8, linha=0.01)
+    esfera(0.5, 0.35, 1.33, 0.08, 0.08, 0.08, '#ef4444', linha=0.012)
+
+
+def bateria():
+    # Battery bank, detailed: four cells with cooling ribs, terminals, charge bars; a junction box and cables.
+    w, h = TIPOS['bateria']; piso(w, h)
+    CLARO, LARANJA, ACO, VIDRO = '#cbd5e1', '#f97316', '#94a3b8', '#8ae8ff'
+    cels = ((0.15, 0.15, 1.0), (1.2, 0.15, 0.85), (0.15, 1.05, 0.8), (1.2, 1.05, 0.95))
+    jx, jy = 1.0, 0.98
+    caixa(0.88, 0.8, 1.12, 1.0, 0.12, 0.45, '#fb923c', bevel=0.02, linha=0.02)                   # junction box
+    visor(0.93, 1.002, 1.07, 1.012, 0.25, 0.38, '#fff0bd')
+    for i, (x, y, hh) in enumerate(cels):
+        caixa(x, y, x + 0.65, y + 0.65, 0.12, hh, CLARO, bevel=0.04)
+        for k in range(5):                                                                        # cooling ribs
+            caixa(x + 0.06 + k * 0.12, y + 0.65, x + 0.12 + k * 0.12, y + 0.69, 0.18, hh - 0.14, '#e2e8f0', bevel=0, linha=0.006)
+            caixa(x + 0.65, y + 0.06 + k * 0.11, x + 0.69, y + 0.11 + k * 0.11, 0.18, hh - 0.14, '#e2e8f0', bevel=0, linha=0.006)
+        caixa(x - 0.03, y - 0.03, x + 0.68, y + 0.68, hh - 0.08, hh + 0.04, LARANJA, bevel=0.02, linha=0.02)
+        caixa(x - 0.03, y - 0.03, x + 0.68, y + 0.68, 0.12, 0.2, LARANJA, bevel=0.02, linha=0.02)
+        cilindro(x + 0.2, y + 0.33, 0.06, hh + 0.04, hh + 0.14, '#ef4444', v=10, linha=0.01)      # + terminal
+        cilindro(x + 0.45, y + 0.33, 0.06, hh + 0.04, hh + 0.14, '#334155', v=10, linha=0.01)     # - terminal
+        n = 3 + (i % 2)
+        for k in range(4):                                                                        # charge bars (+gy face)
+            visor(x + 0.12 + k * 0.13, y + 0.69, x + 0.2 + k * 0.13, y + 0.705, hh - 0.35, hh - 0.2,
+                  '#4ade80' if k < n else '#334155')
+        haste((x + 0.2, y + 0.33, hh + 0.14), (jx, jy, 0.45), 0.02, '#ef4444' if i % 2 else LARANJA, linha=0.008)
+    caixa(0.28, 0.95, 0.74, 1.0, 0.12, 0.2, '#facc15', bevel=0, linha=0.01)                      # floor bolt plate
+
+
+def impressora():
+    # 3D printer, detailed: rails, gantry with print head and hose, regolith silo, a U-shaped printed
+    # shell in layers, a control box, a pile of feedstock.
+    w, h = TIPOS['impressora']; piso(w, h)
+    CLARO, LARANJA, LARANJA2, ACO, VIDRO = '#e2e8f0', '#f97316', '#fb923c', '#94a3b8', '#8ae8ff'
+    for x in (0.25, 2.65):                                                                        # floor rails
+        caixa(x - 0.05, 0.25, x + 0.1, 1.75, 0.12, 0.17, ACO, bevel=0.005, linha=0.01)
+    for i in range(9):                                                                            # printed shell
+        c = '#e7d3b0' if i % 2 else '#d9c19a'; z0 = 0.12 + i * 0.09
+        caixa(0.75, 0.85, 2.25, 1.0, z0, z0 + 0.09, c, bevel=0.01, linha=0.008)
+        caixa(0.75, 0.85, 0.9, 1.5, z0, z0 + 0.09, c, bevel=0.01, linha=0.008)
+        if i < 7:
+            caixa(2.1, 0.85, 2.25, 1.5, z0, z0 + 0.09, c, bevel=0.01, linha=0.008)
+    for x in (0.18, 2.58):                                                                        # gantry posts
+        caixa(x, 0.8, x + 0.24, 1.2, 0.12, 1.75, LARANJA, bevel=0.03, linha=0.02)
+        caixa(x - 0.04, 0.76, x + 0.28, 1.24, 0.12, 0.25, LARANJA2, bevel=0.02, linha=0.015)
+        haste((x + 0.12, 0.8, 0.3), (x + 0.12, 0.8, 1.5), 0.02, ACO, linha=0.008)
+    caixa(0.15, 0.82, 2.85, 1.18, 1.55, 1.82, CLARO, bevel=0.03)
+    caixa(0.15, 0.82, 2.85, 1.18, 1.55, 1.62, LARANJA, bevel=0.015, linha=0.015)
+    caixa(1.25, 0.76, 1.75, 1.24, 1.15, 1.6, LARANJA2, bevel=0.03)                               # print head
+    cilindro(1.5, 1.0, 0.07, 0.85, 1.15, ACO, v=10, linha=0.012)
+    cilindro(1.5, 1.0, 0.1, 0.8, 0.88, '#334155', v=10, linha=0.01)
+    visor(1.32, 1.245, 1.68, 1.26, 1.3, 1.42, VIDRO)
+    # hose from the silo to the head, in segments
+    pts = [(0.5, 1.55, 1.0), (0.6, 1.35, 1.35), (0.95, 1.1, 1.62), (1.3, 1.0, 1.5)]
+    for a, b in zip(pts, pts[1:]): haste(a, b, 0.035, '#475569', linha=0.01)
+    # regolith silo
+    cilindro(0.45, 1.55, 0.3, 0.55, 1.15, CLARO, v=20, linha=0.025)
+    esfera(0.45, 1.55, 1.15, 0.3, 0.3, 0.18, CLARO, linha=0.025, metade=True)
+    cilindro(0.45, 1.55, 0.315, 0.8, 0.87, LARANJA, v=20, linha=0.012)
+    cilindro(0.45, 1.55, 0.14, 0.4, 0.55, '#cbd5e1', v=12, linha=0.015)
+    for (x, y) in ((0.2, 1.4), (0.7, 1.4), (0.2, 1.8), (0.7, 1.8)):
+        haste((x, y, 0.12), (x + (0.45 - x) * 0.3, y + (1.55 - y) * 0.3, 0.6), 0.025, ACO, linha=0.01)
+    # feedstock pile and control box
+    esfera(2.1, 1.65, 0.12, 0.45, 0.3, 0.36, '#e7d3b0', linha=0.025, metade=True)
+    caixa(2.45, 1.3, 2.9, 1.78, 0.12, 0.62, CLARO)
+    caixa(2.42, 1.27, 2.93, 1.81, 0.12, 0.2, LARANJA, bevel=0.02, linha=0.02)
+    visor(2.5, 1.782, 2.85, 1.795, 0.35, 0.52, VIDRO)
+    cilindro(2.68, 1.5, 0.03, 0.62, 0.9, ACO, v=8, linha=0.01)
+    esfera(2.68, 1.5, 0.93, 0.07, 0.07, 0.07, '#ef4444', linha=0.012)
+
+
+def radiotelescopio():
+    # Radio telescope, detailed: octagonal base with bolts, pedestal and yoke, a dish with an orange rim and
+    # radial ribs, a tripod holding the receiver, a control cabin with a lamp and a cable.
+    w, h = TIPOS['radiotelescopio']; piso(w, h)
+    CLARO, LARANJA, ACO, VIDRO = '#e2e8f0', '#f97316', '#94a3b8', '#8ae8ff'
+    cilindro(1.5, 1.5, 0.75, 0.12, 0.4, CLARO, v=8, bevel=0.02)
+    cilindro(1.5, 1.5, 0.78, 0.22, 0.3, LARANJA, v=8, linha=0.015)
+    for k in range(8):
+        a = math.radians(22.5 + k * 45)
+        cilindro(1.5 + 0.6 * math.cos(a), 1.5 + 0.6 * math.sin(a), 0.035, 0.4, 0.44, ACO, v=6, linha=0.008)
+    cilindro(1.5, 1.5, 0.22, 0.4, 1.2, CLARO, v=12, linha=0.02)
+    cilindro(1.5, 1.5, 0.26, 1.1, 1.2, LARANJA, v=12, linha=0.015)
+    k = 1.25; rot = (math.radians(-55), 0, math.radians(35)); c = Vector((1.5, -1.5, 1.85))
+    M = Euler(rot).to_matrix()
+    def P(lx, ly, lz):
+        v = M @ Vector((lx * k, ly * k, lz * k)) + c
+        return (v.x, -v.y, v.z)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, radius=1)
+    o = bpy.context.active_object
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z > -0.45], context='VERTS')
+    bm.to_mesh(o.data); bm.free()
+    o.scale = (k, k, k); o.location = c; o.rotation_euler = rot
+    bpy.ops.object.shade_smooth(); _fim(o, CLARO, 0, 0.03)
+    rr = math.sqrt(1 - 0.45 ** 2)
+    N = 24
+    for i in range(N):                                                                            # orange rim
+        a0, a1 = 2 * math.pi * i / N, 2 * math.pi * (i + 1) / N
+        haste(P(rr * 1.02 * math.cos(a0), rr * 1.02 * math.sin(a0), -0.45), P(rr * 1.02 * math.cos(a1), rr * 1.02 * math.sin(a1), -0.45), 0.04, LARANJA, linha=0.012)
+    for i in range(8):                                                                            # radial ribs
+        a = 2 * math.pi * i / 8
+        haste(P(0, 0, -1.02), P(rr * 1.02 * math.cos(a), rr * 1.02 * math.sin(a), -0.45), 0.018, ACO, linha=0.008)
+    for r in (0.5, 0.8):                                                                          # concentric rings
+        zr = -math.sqrt(max(1 - r * r, 0)) * 1.02
+        for i in range(16):
+            a0, a1 = 2 * math.pi * i / 16, 2 * math.pi * (i + 1) / 16
+            haste(P(r * math.cos(a0), r * math.sin(a0), zr), P(r * math.cos(a1), r * math.sin(a1), zr), 0.014, ACO, linha=0.006)
+    tip = P(0, 0, 0.75)
+    for a in (90, 210, 330):                                                                      # receiver tripod
+        r = math.radians(a)
+        haste(P(rr * math.cos(r), rr * math.sin(r), -0.45), tip, 0.022, ACO, linha=0.008)
+    cilindro(tip[0], tip[1], 0.07, tip[2] - 0.07, tip[2] + 0.07, LARANJA, v=12, linha=0.012)
+    esfera(tip[0], tip[1], tip[2] + 0.1, 0.07, 0.07, 0.07, '#ef4444', linha=0.012)
+    for sx in (-1, 1):                                                                            # yoke arms
+        haste((1.5, 1.5, 1.2), P(sx * 0.62, 0, -0.78), 0.06, CLARO, linha=0.014)
+    caixa(2.15, 2.0, 2.85, 2.78, 0.12, 0.72, '#cbd5e1')                                          # control cabin
+    caixa(2.12, 1.97, 2.88, 2.81, 0.12, 0.2, LARANJA, bevel=0.02, linha=0.02)
+    caixa(2.12, 1.97, 2.88, 2.81, 0.66, 0.76, '#fb923c', bevel=0.02, linha=0.02)
+    visor(2.25, 2.815, 2.75, 2.83, 0.35, 0.55, VIDRO)
+    visor(2.885, 2.1, 2.9, 2.7, 0.35, 0.55, VIDRO)
+    cilindro(2.3, 2.15, 0.03, 0.76, 1.05, ACO, v=8, linha=0.01)
+    esfera(2.3, 2.15, 1.08, 0.07, 0.07, 0.07, '#ef4444', linha=0.012)
+    haste((2.15, 2.4, 0.2), (1.8, 1.8, 0.2), 0.035, '#475569', linha=0.01)                       # cable to the base
+
+
+# ---------- surface decorations (no deck: they sit straight on the regolith) ----------
+def _gira(o, rot):
+    o.rotation_euler = rot
+    return o
+
+
+def deco_rover_velho():
+    # Abandoned rover: one wheel missing, chassis dusty and sagging on that corner, antenna bent, no seats.
+    CLARO, LARANJA, ACO = '#e2e8f0', '#f97316', '#94a3b8'
+    caixa(0.2, 0.25, 1.8, 0.75, 0.3, 0.4, '#d9c19a', bevel=0.03)
+    caixa(0.2, 0.25, 1.8, 0.75, 0.3, 0.35, LARANJA, bevel=0.03, linha=0.02)
+    _gira(caixa(1.45, 0.25, 1.8, 0.75, 0.4, 0.47, CLARO, bevel=0.02, linha=0.015), (0, 0.12, 0))   # sagging panel
+    caixa(0.5, 0.3, 0.85, 0.7, 0.4, 0.46, '#cbd5e1', bevel=0.02, linha=0.015)                      # empty seat frame
+    for y in (0.3, 0.7):
+        haste((0.55, y, 0.4), (0.55, y, 0.7), 0.025, ACO, linha=0.01)                              # seat posts, no seats
+    for (x, y, ok) in ((0.35, 0.15, True), (1.65, 0.15, True), (0.35, 0.85, True), (1.65, 0.85, False)):
+        if not ok:
+            haste((1.65, 0.75, 0.32), (1.75, 1.1, 0.16), 0.03, ACO, linha=0.01)                     # broken axle
+            continue
+        bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.2, depth=0.14)
+        o = bpy.context.active_object; o.location = (x, -y, 0.2); o.rotation_euler = (math.radians(90), 0, 0)
+        bpy.ops.object.shade_smooth(); _fim(o, '#94a3b8', 0, 0.02)
+        bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.09, depth=0.16)
+        o = bpy.context.active_object; o.location = (x, -y + (0.01 if y > 0.5 else -0.01), 0.2); o.rotation_euler = (math.radians(90), 0, 0)
+        bpy.ops.object.shade_smooth(); _fim(o, LARANJA, 0, 0.01)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.2, depth=0.14)                         # lost wheel, on the ground
+    o = bpy.context.active_object; o.location = (1.5, -1.15, 0.07); bpy.ops.object.shade_smooth(); _fim(o, '#94a3b8', 0, 0.02)
+    haste((0.25, 0.5, 0.4), (0.25, 0.5, 0.95), 0.022, ACO, linha=0.01)                              # bent antenna
+    haste((0.25, 0.5, 0.95), (0.5, 0.58, 1.05), 0.022, ACO, linha=0.01)
+    esfera(0.5, 0.58, 1.07, 0.06, 0.06, 0.06, '#ef4444', linha=0.01)
+    esfera(1.25, 1.2, 0.0, 0.3, 0.22, 0.12, '#e7d3b0', linha=0.02, metade=True)                      # dust drift
+
+
+def deco_modulo_descida():
+    # Old lunar lander descent stage, left behind: gold foil body, four landing legs, ladder, dead engine.
+    OURO, LARANJA, ACO, CLARO = '#fde68a', '#f97316', '#94a3b8', '#e2e8f0'
+    cilindro(1.0, 1.0, 0.55, 0.45, 1.0, OURO, v=8, bevel=0.02)
+    cilindro(1.0, 1.0, 0.58, 0.72, 0.8, LARANJA, v=8, linha=0.015)
+    cilindro(1.0, 1.0, 0.5, 1.0, 1.08, CLARO, v=8, linha=0.02)
+    bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.26, radius2=0.1, depth=0.3)
+    o = bpy.context.active_object; o.location = (1.0, -1.0, 0.3); bpy.ops.object.shade_smooth(); _fim(o, '#64748b', 0, 0.02)
+    for (x, y) in ((0.12, 0.12), (1.88, 0.12), (0.12, 1.88), (1.88, 1.88)):
+        haste((1.0 + (x - 1.0) * 0.45, 1.0 + (y - 1.0) * 0.45, 0.8), (x, y, 0.06), 0.035, CLARO, linha=0.012)
+        haste((1.0 + (x - 1.0) * 0.5, 1.0 + (y - 1.0) * 0.5, 0.52), (x, y, 0.1), 0.02, ACO, linha=0.01)   # strut
+        cilindro(x, y, 0.15, 0.0, 0.05, LARANJA, v=12, linha=0.012)                                         # foot pad
+    haste((1.88, 1.88, 0.1), (1.7, 1.55, 0.68), 0.015, ACO, linha=0.008)                                    # ladder rails
+    haste((1.8, 1.88, 0.1), (1.62, 1.55, 0.68), 0.015, ACO, linha=0.008)
+    caixa(0.8, 1.52, 1.2, 1.57, 0.55, 0.8, '#334155', bevel=0, linha=0.01)                                 # hatch
+
+
+def deco_sonda():
+    # Crashed probe: a round body on one panel, antennas bent, one solar wing snapped off.
+    CLARO, ACO, AZUL = '#e2e8f0', '#94a3b8', '#8ae8ff'
+    esfera(0.55, 0.55, 0.28, 0.24, 0.24, 0.22, CLARO, linha=0.025)
+    cilindro(0.55, 0.55, 0.255, 0.26, 0.31, '#f97316', v=20, linha=0.012)
+    _gira(caixa(0.05, 0.2, 0.37, 0.9, 0.12, 0.16, AZUL, bevel=0.01, linha=0.015), (0.35, 0.1, 0))      # tilted wing
+    _gira(caixa(0.78, 0.3, 1.1, 0.95, 0.04, 0.08, AZUL, bevel=0.01, linha=0.015), (0, 0, 0.5))        # broken wing on ground
+    haste((0.5, 0.55, 0.45), (0.35, 0.55, 0.9), 0.02, ACO, linha=0.008)
+    haste((0.6, 0.6, 0.45), (0.9, 0.9, 0.52), 0.02, ACO, linha=0.008)
+    esfera(0.35, 0.55, 0.93, 0.05, 0.05, 0.05, '#ef4444', linha=0.01)
+    esfera(0.55, 0.55, 0.0, 0.5, 0.4, 0.12, '#e7d3b0', linha=0.015, metade=True)
+
+
+def deco_caixas():
+    # A stack of supply crates with straps, one knocked over.
+    caixa(0.1, 0.1, 0.62, 0.62, 0.0, 0.5, '#fb923c', bevel=0.03)
+    caixa(0.1, 0.1, 0.62, 0.62, 0.22, 0.28, '#fdba74', bevel=0.01, linha=0.01)
+    caixa(0.18, 0.18, 0.54, 0.54, 0.5, 0.8, '#cbd5e1', bevel=0.03)
+    caixa(0.18, 0.18, 0.54, 0.54, 0.62, 0.67, '#f97316', bevel=0.01, linha=0.01)
+    _gira(caixa(0.7, 0.1, 1.0, 0.45, 0.0, 0.3, '#e2e8f0', bevel=0.03), (0, 0, 0.35))
+    _gira(caixa(0.2, 0.75, 0.55, 1.0, 0.0, 0.25, '#fb923c', bevel=0.03), (0.0, 0.2, -0.3))
+    visor(0.625, 0.25, 0.64, 0.45, 0.3, 0.42, '#8ae8ff')
+
+
+def deco_sismografo():
+    # Seismometer: a white dome under a thermal blanket, antenna, little solar cell.
+    CLARO, LARANJA, ACO = '#e2e8f0', '#f97316', '#94a3b8'
+    cilindro(0.5, 0.5, 0.34, 0.0, 0.08, LARANJA, v=16, linha=0.015)
+    esfera(0.5, 0.5, 0.08, 0.28, 0.28, 0.26, CLARO, linha=0.025, metade=True)
+    cilindro(0.5, 0.5, 0.29, 0.14, 0.2, '#fde68a', v=20, linha=0.012)
+    haste((0.5, 0.5, 0.32), (0.5, 0.5, 0.95), 0.02, ACO, linha=0.008)
+    esfera(0.5, 0.5, 0.98, 0.055, 0.055, 0.055, '#ef4444', linha=0.01)
+    _gira(caixa(0.65, 0.65, 0.95, 0.9, 0.05, 0.09, '#8ae8ff', bevel=0.005, linha=0.012), (-0.35, 0, 0))   # solar cell
+
+
+def deco_refletor():
+    # Laser retroreflector (real Apollo experiment): a grid of mirrors on a stand, facing Earth.
+    CLARO, ACO = '#e2e8f0', '#94a3b8'
+    cilindro(0.5, 0.5, 0.35, 0.0, 0.07, '#f97316', v=16, linha=0.015)
+    caixa(0.4, 0.42, 0.6, 0.58, 0.07, 0.33, CLARO, bevel=0.02, linha=0.018)
+    th = math.radians(50); M = Euler((th, 0, 0)).to_matrix(); c = Vector((0.5, -0.5, 0.55))
+    _gira(caixa(0.14, 0.43, 0.86, 0.57, 0.5, 0.56, '#334155', bevel=0.01, linha=0.02), (th, 0, 0))
+    for i in range(5):
+        p = c + M @ Vector(((i - 2) * 0.13, 0, 0.045))
+        o = caixa(-0.05, -0.05, 0.05, 0.05, 0, 0.03, '#8ae8ff', bevel=0.004, linha=0.006)
+        o.location = (p.x, p.y, p.z); o.rotation_euler = (th, 0, 0)
+    haste((0.5, 0.58, 0.3), (0.5, 0.75, 0.05), 0.025, ACO, linha=0.01)                                 # prop leg
+    esfera(0.5, 0.5, 0.0, 0.45, 0.35, 0.1, '#e7d3b0', linha=0.015, metade=True)
+
+
+def deco_baliza():
+    # Beacon pole with orange and white bands and a lamp on top.
+    ACO = '#94a3b8'
+    cilindro(0.5, 0.5, 0.2, 0.0, 0.08, '#f97316', v=12, linha=0.015)
+    for i in range(5):
+        cilindro(0.5, 0.5, 0.045, 0.08 + i * 0.22, 0.08 + (i + 1) * 0.22, '#f97316' if i % 2 == 0 else '#f1f5f9', v=10, linha=0.012)
+    esfera(0.5, 0.5, 1.26, 0.1, 0.1, 0.1, '#fff0bd', linha=0.012)
+    cilindro(0.5, 0.5, 0.12, 1.14, 1.18, ACO, v=12, linha=0.01)
+    for a in (45, 165, 285):
+        r = math.radians(a)
+        haste((0.5 + 0.17 * math.cos(r), 0.5 + 0.17 * math.sin(r), 0.0), (0.5, 0.5, 0.5), 0.015, ACO, linha=0.008)
+
+
+def deco_barris():
+    # Three fuel drums, one lying down.
+    for (x, y, c) in ((0.3, 0.3, '#fb923c'), (0.72, 0.32, '#38bdf8')):
+        cilindro(x, y, 0.2, 0.0, 0.5, c, v=16, bevel=0.0, linha=0.02)
+        cilindro(x, y, 0.21, 0.15, 0.2, '#e2e8f0', v=16, linha=0.01)
+        cilindro(x, y, 0.21, 0.32, 0.37, '#e2e8f0', v=16, linha=0.01)
+        cilindro(x, y, 0.15, 0.5, 0.53, '#334155', v=16, linha=0.008)
+    cilindro(0.5, 0.75, 0.2, 0.2 - 0.25, 0.2 + 0.25, '#e2e8f0', v=16, rot=(0, math.radians(90), 0), linha=0.02)
+    cilindro(0.3, 0.75, 0.205, 0.2 - 0.02, 0.2 + 0.02, '#f97316', v=16, rot=(0, math.radians(90), 0), linha=0.01)
+    cilindro(0.7, 0.75, 0.205, 0.2 - 0.02, 0.2 + 0.02, '#f97316', v=16, rot=(0, math.radians(90), 0), linha=0.01)
+
+
+def deco_bandeira():
+    # A small flag on a pole, planted in the dust, with a base ring of pebbles.
+    cilindro(0.5, 0.5, 0.17, 0.0, 0.05, '#e2e8f0', v=12, linha=0.012)
+    cilindro(0.5, 0.5, 0.022, 0.05, 1.15, '#cbd5e1', v=8, linha=0.01)
+    caixa(0.52, 0.485, 0.98, 0.515, 0.7, 1.12, '#f97316', bevel=0.005, linha=0.012)
+    caixa(0.52, 0.485, 0.98, 0.515, 0.7, 0.78, '#f1f5f9', bevel=0.0, linha=0.008)
+    esfera(0.5, 0.5, 1.17, 0.045, 0.045, 0.045, '#facc15', linha=0.008)
+    for (x, y, r) in ((0.3, 0.6, 0.06), (0.7, 0.68, 0.05), (0.36, 0.3, 0.05)):
+        esfera(x, y, 0.0, r, r, r * 0.8, '#d9c19a', linha=0.008, metade=True)
+
+
+def deco_pedras():
+    # A cluster of boulders in pale grey-beige.
+    for (x, y, rx, rz, c) in ((0.4, 0.45, 0.3, 0.26, '#e7d3b0'), (0.72, 0.35, 0.2, 0.18, '#d9c19a'),
+                              (0.62, 0.72, 0.24, 0.2, '#cbd5e1'), (0.25, 0.75, 0.14, 0.12, '#e7d3b0')):
+        esfera(x, y, 0.0, rx, rx * 0.85, rz, c, linha=0.02, metade=True)
+    esfera(0.5, 0.55, 0.12, 0.12, 0.1, 0.1, '#f1f5f9', linha=0.012, metade=True)
+
+
+def deco_camera():
+    # Science camera on a tripod, lens pointing at the base.
+    ACO = '#94a3b8'
+    for a in (80, 200, 320):
+        r = math.radians(a)
+        haste((0.5, 0.5, 0.62), (0.5 + 0.28 * math.cos(r), 0.5 + 0.28 * math.sin(r), 0.0), 0.022, ACO, linha=0.01)
+    caixa(0.36, 0.4, 0.64, 0.6, 0.62, 0.84, '#e2e8f0', bevel=0.02, linha=0.015)
+    caixa(0.34, 0.38, 0.66, 0.62, 0.62, 0.68, '#f97316', bevel=0.01, linha=0.012)
+    cilindro(0.5, 0.64, 0.07, 0.725, 0.745, '#1e293b', v=14, rot=(math.radians(90), 0, 0), linha=0.008)
+    visor(0.46, 0.62, 0.54, 0.64, 0.7, 0.76, '#8ae8ff')
+    haste((0.5, 0.5, 0.84), (0.5, 0.5, 1.0), 0.015, ACO, linha=0.008)
+    esfera(0.5, 0.5, 1.02, 0.04, 0.04, 0.04, '#ef4444', linha=0.008)
+
+
+def deco_amostras():
+    # Sample case with core tubes and a scoop, as left after a geology walk.
+    caixa(0.15, 0.2, 0.85, 0.65, 0.0, 0.22, '#cbd5e1', bevel=0.03)
+    caixa(0.12, 0.17, 0.88, 0.68, 0.18, 0.26, '#f97316', bevel=0.02, linha=0.015)
+    caixa(0.4, 0.62, 0.6, 0.7, 0.1, 0.18, '#334155', bevel=0.005, linha=0.01)
+    for i, c in enumerate(('#e7d3b0', '#8ae8ff', '#fb923c')):
+        cilindro(0.25 + i * 0.22, 0.85, 0.05, 0.0 + 0.05, 0.4 + 0.05, c, v=10, rot=(math.radians(90), 0, 0), linha=0.01)
+    esfera(0.25, 0.85, 0.05, 0.06, 0.06, 0.06, '#e2e8f0', linha=0.008)
+
+
+def deco_lanterna():
+    # Solar lamp post lighting the path.
+    ACO = '#94a3b8'
+    cilindro(0.5, 0.5, 0.14, 0.0, 0.06, '#f97316', v=10, linha=0.012)
+    cilindro(0.5, 0.5, 0.03, 0.06, 1.0, '#cbd5e1', v=8, linha=0.01)
+    haste((0.5, 0.5, 0.97), (0.7, 0.5, 1.05), 0.025, ACO, linha=0.008)
+    caixa(0.62, 0.43, 0.86, 0.57, 0.98, 1.06, '#334155', bevel=0.01, linha=0.01)
+    emissivo(caixa(0.65, 0.46, 0.83, 0.54, 0.96, 0.98, '#fff0bd', bevel=0.005, linha=0.004), '#fff0bd', 2.4)
+    _gira(caixa(0.3, 0.38, 0.5, 0.62, 1.08, 1.12, '#8ae8ff', bevel=0.005, linha=0.01), (0, -0.4, 0))  # tiny solar cell
+
+
+def deco_ferramentas():
+    # Tool rack: a frame with a shovel, a hammer and a drill hung on it.
+    ACO = '#94a3b8'
+    for x in (0.2, 0.8):
+        haste((x, 0.4, 0.0), (x, 0.4, 0.75), 0.025, '#f97316', linha=0.01)
+    haste((0.2, 0.4, 0.72), (0.8, 0.4, 0.72), 0.025, '#f97316', linha=0.01)
+    haste((0.35, 0.45, 0.65), (0.35, 0.45, 0.1), 0.018, ACO, linha=0.008)        # shovel
+    caixa(0.28, 0.43, 0.42, 0.47, 0.0, 0.12, '#e2e8f0', bevel=0.005, linha=0.01)
+    haste((0.55, 0.45, 0.65), (0.55, 0.45, 0.2), 0.018, '#fb923c', linha=0.008)  # hammer
+    caixa(0.48, 0.43, 0.62, 0.47, 0.6, 0.68, '#475569', bevel=0.005, linha=0.01)
+    caixa(0.67, 0.42, 0.75, 0.48, 0.3, 0.62, '#f97316', bevel=0.01, linha=0.01)  # drill
+    caixa(0.35, 0.55, 0.7, 0.8, 0.0, 0.18, '#cbd5e1', bevel=0.02, linha=0.015)    # tool box
+    caixa(0.33, 0.53, 0.72, 0.82, 0.15, 0.2, '#f97316', bevel=0.01, linha=0.012)
+
+
+def deco_carretel():
+    # A big cable spool with orange cable, plus a loose loop.
+    H = (0, math.radians(90), 0)
+    cilindro(0.5, 0.5, 0.32, 0.5 - 0.3, 0.5 + 0.3, '#cbd5e1', v=24, rot=(0, math.radians(90), 0), linha=0.02)
+    cilindro(0.5, 0.5, 0.19, 0.5 - 0.2, 0.5 + 0.2, '#f97316', v=20, rot=H, linha=0.012)
+    for x in (0.5 - 0.31, 0.5 + 0.31):
+        cilindro(x, 0.5, 0.34, 0.5 - 0.015, 0.5 + 0.015, '#e2e8f0', v=24, rot=H, linha=0.012)
+    cilindro(0.5, 0.5, 0.05, 0.5 - 0.4, 0.5 + 0.4, '#94a3b8', v=8, rot=H, linha=0.01)
+    haste((0.5, 0.82, 0.04), (0.85, 0.88, 0.04), 0.03, '#f97316', linha=0.01)
+    haste((0.85, 0.88, 0.04), (0.9, 0.7, 0.04), 0.03, '#f97316', linha=0.01)
+
+
+def deco_mochila():
+    # A dropped life-support backpack lying next to its helmet.
+    caixa(0.2, 0.25, 0.7, 0.62, 0.0, 0.26, '#e2e8f0', bevel=0.05)
+    caixa(0.2, 0.25, 0.7, 0.62, 0.17, 0.22, '#f97316', bevel=0.02, linha=0.012)
+    cilindro(0.35, 0.28, 0.06, 0.12, 0.3, '#94a3b8', v=8, rot=(math.radians(90), 0, 0), linha=0.008)
+    visor(0.5, 0.625, 0.65, 0.635, 0.08, 0.16, '#8ae8ff')
+    esfera(0.62, 0.8, 0.14, 0.17, 0.17, 0.16, '#f1f5f9', linha=0.018)               # helmet
+    esfera(0.62, 0.8 + 0.1, 0.14, 0.12, 0.09, 0.1, '#8ae8ff', linha=0.008)           # visor
+    esfera(0.58, 0.9, 0.0, 0.16, 0.1, 0.05, '#d9c19a', linha=0.006, metade=True)
 
 
 def chama():
@@ -446,7 +1060,25 @@ def chama():
 MODELOS = {'habitat': habitat, 'suporte': suporte, 'blindagem': blindagem, 'oficina': oficina,
            'painel': painel, 'plataforma': plataforma,
            'antena': antena, 'estufa': estufa, 'perfuratriz': perfuratriz, 'rover': rover,
+           'usina': usina, 'reciclador': reciclador, 'eclusa': eclusa, 'bateria': bateria,
+           'impressora': impressora, 'radiotelescopio': radiotelescopio,
            'pouso': pouso, 'chama': chama}
+MODELOS['deco_rover_velho'] = deco_rover_velho
+MODELOS['deco_modulo_descida'] = deco_modulo_descida
+MODELOS['deco_sonda'] = deco_sonda
+MODELOS['deco_caixas'] = deco_caixas
+MODELOS['deco_sismografo'] = deco_sismografo
+MODELOS['deco_refletor'] = deco_refletor
+MODELOS['deco_baliza'] = deco_baliza
+MODELOS['deco_barris'] = deco_barris
+MODELOS['deco_bandeira'] = deco_bandeira
+MODELOS['deco_pedras'] = deco_pedras
+MODELOS['deco_camera'] = deco_camera
+MODELOS['deco_amostras'] = deco_amostras
+MODELOS['deco_lanterna'] = deco_lanterna
+MODELOS['deco_ferramentas'] = deco_ferramentas
+MODELOS['deco_carretel'] = deco_carretel
+MODELOS['deco_mochila'] = deco_mochila
 for i in range(5): MODELOS[f'foguete{i}'] = (lambda i=i: foguete(i))
 
 def animado(fn,frame):
@@ -482,8 +1114,11 @@ if LIVE and not globals().get('EXPORTAR_MODULOS',False):
     print('scene "Modulos" ready')
 else:
     os.makedirs(OUT, exist_ok=True)
-    saida = {}
+    saida = json.load(open(JSON)) if os.path.exists(JSON) else {}
+    # MODULOS=oficina,oficina_anim1 renders only those and keeps the other entries of modulos.json.
+    so = [n for n in os.environ.get('MODULOS', '').split(',') if n]
     for nome, fn in MODELOS.items():
+        if so and nome not in so: continue
         for o in list(sc.objects):
             if o.type == 'MESH' or (o.type == 'LIGHT' and o.data.type != 'SUN'): bpy.data.objects.remove(o)
         grupo.clear(); fn()
@@ -501,7 +1136,14 @@ else:
         png = os.path.join(OUT, f'{nome}.png')
         sc.render.filepath = png
         bpy.ops.render.render(write_still=True)
-        subprocess.run(['magick', png, '-dither', 'None', '-colors', '255', 'PNG8:' + png], check=True)
+        try:
+            subprocess.run(['magick', png, '-dither', 'None', '-colors', '255', 'PNG8:' + png], check=True)
+        except FileNotFoundError:   # no ImageMagick: same 255-color PNG8 through Pillow, if Blender has it
+            try:
+                from PIL import Image
+                Image.open(png).quantize(255, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(png)
+            except ImportError:
+                print('no magick or Pillow in Blender: quantize', png, 'to 255 colors by hand')
         o0 = Vector((0, 0, 0))
         saida[nome] = {'arquivo': f'lua/modulos/{nome}.png', 'w': W, 'h': H, 'escala': 1 / SUPER,
                        'ancora': [round((o0.dot(right) - cx) * s + W / 2, 2), round(H / 2 - (o0.dot(up) - cy) * s, 2)]}
