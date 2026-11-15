@@ -12,6 +12,7 @@ import constelacoes from '../dados/constelacoes.json';
 import { VOO as voo, LEVE } from './qualidade';
 import { carregarFilme, garantirQuadro, proximoPendente } from './filme';
 import { criarLua, LADO } from './luaShader';
+import { criarPlaneta, diametroPlaneta } from './planetaShader';
 import { PLANETAS, posicao, lua, nomeDaFase, AU_KM, RAIO_LUA_KM, RAIO_SOL_KM, TERRA_LUA_KM } from '../engine/astro';
 import { sessao, suave, fonte, dataBonita, COR, sDeU } from './sessao';
 import { VISTA as vista, giroEm, pontoNaLua, naTela, visivel, solSobreBase, type V3 } from './globo';
@@ -20,6 +21,8 @@ const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
 const ACHATAR = 0.6;
 const GIRO_FILME = giroEm(Date.parse(`2024-05-${String(4 + voo.dia).padStart(2, '0')}T12:00:00Z`));                         // the solar system is drawn tilted, like the map
+const DIA_MARTE_MS = 88775244;               // one Mars day (sol), 24 h 39 min
+const MARTE_MIN_PX = 30;                     // Mars is drawn at least this wide, so you can see its face
 const HORAS_POR_SEG = 6;                     // gentle time drift while you look from space
 
 export class Espaco extends Phaser.Scene {
@@ -28,6 +31,7 @@ export class Espaco extends Phaser.Scene {
   private ceu!: Phaser.GameObjects.Image;
   private escalaCeu = 1;
   private lua!: ReturnType<typeof criarLua>;        // live GPU Moon (luaShader.ts)
+  private marte: ReturnType<typeof criarPlaneta> | null = null;   // live GPU Mars (planetaShader.ts)
   private quadro!: Phaser.GameObjects.Image;          // current flight frame
   private pino!: Phaser.GameObjects.Container;
   private brilho!: Phaser.GameObjects.Arc;            // the colony's lights during the flight
@@ -53,6 +57,9 @@ export class Espaco extends Phaser.Scene {
     this.g = this.add.graphics();
     this.lua = criarLua(this, W / 2, H / 2);
     this.lua.setVisible(false);
+    this.marte = this.textures.exists('planeta_marte')
+      ? criarPlaneta(this, 0, 0, { textura: 'planeta_marte', atmos: 0xfdba74, atmosForca: 0.35 }).setVisible(false) as ReturnType<typeof criarPlaneta>
+      : null;
     const gp = this.add.graphics();
     gp.fillStyle(0xf97316).fillCircle(0, -20, 7).fillTriangle(-5, -16, 5, -16, 0, 0);
     gp.lineStyle(2, COR.contorno).strokeCircle(0, -20, 7);
@@ -204,6 +211,7 @@ export class Espaco extends Phaser.Scene {
     this.legendaNova = '';
     this.pino.setVisible(false);
     this.lua.setVisible(false);
+    this.marte?.setVisible(false);
     this.brilho.setVisible(!!this.pinoVoo);
     if (this.pinoVoo) {
       const { x, y, a } = this.pinoVoo;
@@ -287,7 +295,18 @@ export class Espaco extends Phaser.Scene {
     for (const p of internos) {
       const pos = posicao(p, t);
       const q = tela({ x: pos.x * AU_KM, y: pos.y * AU_KM });
-      const r = Math.max(p.raioKm * kmPx, p.raioKm > 20000 ? 6 : 4);
+      let r = Math.max(p.raioKm * kmPx, p.raioKm > 20000 ? 6 : 4);
+      if (p.nome === 'Mars' && this.marte) {
+        // Live Mars: NASA map in toon colors, lit from the Sun's side, turning one sol per
+        // 24.6 h of the view's clock (6 h per second while you look).
+        r = Math.max(r, MARTE_MIN_PX / 2);
+        this.marte.setVisible(true).setPosition(q.x, q.y).setScale((2 * r) / diametroPlaneta(1));
+        this.marte.setSolTela(sp.x - q.x, sp.y - q.y);
+        this.marte.setGiro(((t / DIA_MARTE_MS) % 1) * 360);
+        this.rotulo(p.nome, q.x, q.y + r + 8, 'Mars\nnext stop (locked)', '#fdba74', rotulos);
+        g.lineStyle(1.5, 0xfb923c, 0.8 * rotulos).strokeCircle(q.x, q.y, r + 5);
+        continue;
+      }
       g.fillStyle(p.cor).fillCircle(q.x, q.y, r);
       g.lineStyle(1.5, COR.contorno).strokeCircle(q.x, q.y, r);
       if (p.nome === 'Earth') {
