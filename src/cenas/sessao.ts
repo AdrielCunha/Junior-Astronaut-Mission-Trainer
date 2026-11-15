@@ -110,7 +110,7 @@ class Sessao {
       estado:this.estado,entregas:this.entregas,pontos:this.pontos,carregando:this.carregando,noHabitat:this.noHabitat,
       tarefasHoje:[...this.tarefasHoje],ultimaTarefa:this.ultimaTarefa,energiaHoje:this.energiaHoje,
       curiosidadeRoverVista:this.curiosidadeRoverVista,diaCargaRover:this.diaCargaRover,rover:this.rover,astronauta:this.posicaoAstronauta,
-      modulos:this.grade.lista.map(c=>({id:c.id,tipo:c.tipo.id,gx:c.gx,gy:c.gy,rotacao:c.rotacao??0})),decoracao:this.grade.deco,
+      modulos:this.grade.lista.map(c=>({id:c.id,tipo:c.tipo.id,gx:c.gx,gy:c.gy,rotacao:c.rotacao??0,copia:c.copia||undefined})),decoracao:this.grade.deco,
       tempestade:{restante:this.tempestade.restante,status:this.tempestade.status},danoTempestade:this.danoTempestade,
       bateriasTempestade:this.bateriasTempestade,desfechoPendente:this.desfechoPendente,ultimoDia:this.ultimoDia,
       evento:this.evento ? {id:this.evento.def.id,construcaoId:this.evento.construcaoId}:null,

@@ -71,7 +71,7 @@ export const TIPOS: Record<TipoId, Tipo> = {
 export const MARGEM_DECO = 4;
 export const RAIO_LIVRE_DECO = 13;
 
-export type Construcao = { id: number; tipo: Tipo; gx: number; gy: number; z: number; rotacao?: number };
+export type Construcao = { id: number; tipo: Tipo; gx: number; gy: number; z: number; rotacao?: number; copia?: boolean };
 
 // Each instance owns its oriented footprint; never mutate the shared catalog.
 export function tipoOrientado(tipo: Tipo, rotacao: number): Tipo {
@@ -81,7 +81,7 @@ export function tipoOrientado(tipo: Tipo, rotacao: number): Tipo {
 
 export type Motivo = 'ok' | 'fora' | 'ocupado' | 'ingreme' | 'unico';
 export type AvaliacaoMovimento = {
-  motivo: 'ok' | 'fora' | 'ocupado' | 'rochas' | 'instavel' | 'ingreme' | 'passagem';
+  motivo: 'ok' | 'fora' | 'ocupado' | 'rochas' | 'instavel' | 'ingreme' | 'passagem' | 'limite';
   inclinacao: number; limite: number;
 };
 
@@ -128,24 +128,25 @@ export class Grade {
     return c;
   }
 
-  podeMover(c: Construcao, gx: number, gy: number, manterPassagem = true, rotacao = c.rotacao??0): AvaliacaoMovimento {
+  podeMover(c: Construcao, gx: number, gy: number, manterPassagem = true, rotacao = c.rotacao??0,copiando=false): AvaliacaoMovimento {
     const {w,h}=tipoOrientado(c.tipo,rotacao),limite=c.tipo.inclinacaoMax??this.t.maxConstruir;
     const resposta=(motivo: AvaliacaoMovimento['motivo'],inclinacao=0): AvaliacaoMovimento=>({motivo,inclinacao,limite});
+    if(copiando && (this.lista.length>=100 || this.proximo>1000))return resposta('limite');
     if (!this.lista.includes(c) || !Number.isInteger(rotacao) || rotacao<0 || rotacao>3 || !Number.isInteger(gx) || !Number.isInteger(gy)
       || gx<0 || gy<0 || gx+w>this.n || gy+h>this.n) return resposta('fora');
     const inclinacao=this.t.inclinacaoMax(gx,gy,w,h);
     // Turning a square in place keeps exactly the same safe footprint, even in a tight layout.
-    if(gx===c.gx && gy===c.gy && w===c.tipo.w && h===c.tipo.h)return resposta('ok',inclinacao);
+    if(!copiando && gx===c.gx && gy===c.gy && w===c.tipo.w && h===c.tipo.h)return resposta('ok',inclinacao);
     for(let y=gy;y<gy+h;y++)for(let x=gx;x<gx+w;x++) {
       const id=this.ocup[y*this.n+x];
-      if(id && id!==c.id)return resposta('ocupado',inclinacao);
+      if(id && (copiando || id!==c.id))return resposta('ocupado',inclinacao);
     }
     const obstaculo=this.t.obstaculoConstrucao(gx,gy,w,h);
     if(obstaculo)return resposta(obstaculo,inclinacao);
     if(inclinacao>limite)return resposta('ingreme',inclinacao);
     // Leave a walkable service gap; moving one module must not seal the next one's entrance.
     for(const outro of manterPassagem ? this.lista : []) {
-      if(outro.id===c.id)continue;
+      if(!copiando && outro.id===c.id)continue;
       const margem=c.tipo.id==='painel' && outro.tipo.id==='painel'?0.25:0.65;
       if(gx<outro.gx+outro.tipo.w+margem && gx+w+margem>outro.gx
         && gy<outro.gy+outro.tipo.h+margem && gy+h+margem>outro.gy)return resposta('passagem',inclinacao);
@@ -166,16 +167,32 @@ export class Grade {
     return avaliacao;
   }
 
-  restaurar(modulos: {id: number; tipo: TipoId; gx: number; gy: number; rotacao?: number}[], decoracao: DecoColocada[]) {
+  duplicar(c:Construcao,gx:number,gy:number,rotacao=c.rotacao??0):Construcao|null {
+    if(this.podeMover(c,gx,gy,true,rotacao,true).motivo!=='ok')return null;
+    const tipo=tipoOrientado(c.tipo,rotacao);
+    const copia:Construcao={id:this.proximo++,tipo,gx,gy,rotacao,copia:true,z:this.t.alturaMax(gx,gy,tipo.w,tipo.h)+.025};
+    for(let y=gy;y<gy+tipo.h;y++)for(let x=gx;x<gx+tipo.w;x++)this.ocup[y*this.n+x]=copia.id;
+    this.lista.push(copia);this.cacheCaixas=null;this.cacheModulos=-1;return copia;
+  }
+
+  remover(c:Construcao):boolean {
+    const i=this.lista.indexOf(c);if(i<0)return false;
+    for(let y=c.gy;y<c.gy+c.tipo.h;y++)for(let x=c.gx;x<c.gx+c.tipo.w;x++)if(this.ocup[y*this.n+x]===c.id)this.ocup[y*this.n+x]=0;
+    this.lista.splice(i,1);this.cacheCaixas=null;this.cacheModulos=-1;return true;
+  }
+
+  restaurar(modulos: {id: number; tipo: TipoId; gx: number; gy: number; rotacao?: number; copia?:boolean}[], decoracao: DecoColocada[]) {
     for (const m of modulos) {
       if (!Object.prototype.hasOwnProperty.call(TIPOS,m.tipo) || !Number.isInteger(m.id)
         || this.lista.some(c=>c.id===m.id) || !Number.isInteger(m.gx) || !Number.isInteger(m.gy)) throw new Error('Invalid saved module');
       const rotacao=m.rotacao??0;
       if(!Number.isInteger(rotacao)||rotacao<0||rotacao>3)throw new Error('Invalid saved module rotation');
-      const c = this.construir(tipoOrientado(TIPOS[m.tipo],rotacao),m.gx,m.gy);
+      const tipo=tipoOrientado(TIPOS[m.tipo],rotacao);
+      const c = this.construir(m.copia?{...tipo,unico:false}:tipo,m.gx,m.gy);
       if (!c) throw new Error('Invalid saved module position');
       c.id = m.id;
       c.rotacao=rotacao;
+      c.copia=m.copia===true;
       for (let y=m.gy;y<m.gy+c.tipo.h;y++) for (let x=m.gx;x<m.gx+c.tipo.w;x++) this.ocup[y*this.n+x]=m.id;
       this.proximo=Math.max(this.proximo,m.id+1);
     }
@@ -194,13 +211,14 @@ export class Grade {
     return p;
   }
 
-  podeMoverDeco(d: DecoColocada,gx:number,gy:number,rotacao=d.rotacao??0,manterPassagem=true): AvaliacaoMovimento {
+  podeMoverDeco(d: DecoColocada,gx:number,gy:number,rotacao=d.rotacao??0,manterPassagem=true,copiando=false): AvaliacaoMovimento {
     const indice=this.deco.indexOf(d),{w,h}=dimensoesDeco(d,rotacao),limite=this.t.maxConstruir;
     const resposta=(motivo:AvaliacaoMovimento['motivo'],inclinacao=0)=>({motivo,inclinacao,limite});
+    if(copiando && this.deco.length>=100)return resposta('limite');
     if(indice<0 || !Number.isInteger(rotacao) || rotacao<0 || rotacao>3 || !Number.isInteger(gx)||!Number.isInteger(gy)||gx<0||gy<0||gx+w>this.n||gy+h>this.n)return resposta('fora');
     const inclinacao=this.t.inclinacaoMax(gx,gy,w,h);
-    if(gx===d.gx && gy===d.gy && w===d.w && h===d.h)return resposta('ok',inclinacao);
-    for(let y=gy;y<gy+h;y++)for(let x=gx;x<gx+w;x++){const id=this.ocup[y*this.n+x];if(id && id!==-(indice+1))return resposta('ocupado',inclinacao);}
+    if(!copiando && gx===d.gx && gy===d.gy && w===d.w && h===d.h)return resposta('ok',inclinacao);
+    for(let y=gy;y<gy+h;y++)for(let x=gx;x<gx+w;x++){const id=this.ocup[y*this.n+x];if(id && (copiando || id!==-(indice+1)))return resposta('ocupado',inclinacao);}
     const obstaculo=this.t.obstaculoConstrucao(gx,gy,w,h);if(obstaculo)return resposta(obstaculo,inclinacao);
     if(inclinacao>limite)return resposta('ingreme',inclinacao);
     if(manterPassagem && this.lista.some(c=>gx<c.gx+c.tipo.w+0.65 && gx+w+0.65>c.gx && gy<c.gy+c.tipo.h+0.65 && gy+h+0.65>c.gy))return resposta('passagem',inclinacao);
@@ -214,6 +232,20 @@ export class Grade {
     Object.assign(d,dim,{gx,gy,rotacao,z:this.t.alturaMax(gx,gy,dim.w,dim.h)+0.01});
     for(let y=gy;y<gy+d.h;y++)for(let x=gx;x<gx+d.w;x++)this.ocup[y*this.n+x]=id;
     this.cacheCaixas=null;this.cacheModulos=-1;return a;
+  }
+
+  duplicarDeco(d:DecoColocada,gx:number,gy:number,rotacao=d.rotacao??0):DecoColocada|null {
+    if(this.podeMoverDeco(d,gx,gy,rotacao,true,true).motivo!=='ok')return null;
+    return this.colocarDeco({...d,...dimensoesDeco(d,rotacao),rotacao},gx,gy);
+  }
+
+  removerDeco(d:DecoColocada):boolean {
+    const i=this.deco.indexOf(d);if(i<0)return false;
+    this.deco.splice(i,1);
+    // Rebuild negative IDs when removing a prop; building IDs remain unchanged.
+    for(let j=0;j<this.ocup.length;j++)if(this.ocup[j]<0)this.ocup[j]=0;
+    this.deco.forEach((p,k)=>{for(let y=p.gy;y<p.gy+p.h;y++)for(let x=p.gx;x<p.gx+p.w;x++)this.ocup[y*this.n+x]=-(k+1);});
+    this.cacheCaixas=null;this.cacheModulos=-1;return true;
   }
 
   // Solid boxes for the physics. A small inset keeps paths between neighbors walkable.

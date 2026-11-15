@@ -1846,5 +1846,509 @@
    3,
    3
   ]
+ },
+ "painel_r1": {
+  "arquivo": "lua/modulos/painel_r1.png",
+  "w": 233,
+  "h": 184,
+  "escala": 0.5,
+  "ancora": [
+   142.85,
+   80.96
+  ],
+  "pegada": [
+   1,
+   2
+  ]
+ },
+ "bateria_carga0_r1": {
+  "arquivo": "lua/modulos/bateria_carga0_r1.png",
+  "w": 429,
+  "h": 304,
+  "escala": 0.5,
+  "ancora": [
+   116.73,
+   78.89
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_carga1_r1": {
+  "arquivo": "lua/modulos/bateria_carga1_r1.png",
+  "w": 429,
+  "h": 304,
+  "escala": 0.5,
+  "ancora": [
+   116.73,
+   78.89
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_carga2_r1": {
+  "arquivo": "lua/modulos/bateria_carga2_r1.png",
+  "w": 429,
+  "h": 304,
+  "escala": 0.5,
+  "ancora": [
+   116.73,
+   78.89
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_carga3_r1": {
+  "arquivo": "lua/modulos/bateria_carga3_r1.png",
+  "w": 429,
+  "h": 304,
+  "escala": 0.5,
+  "ancora": [
+   116.73,
+   78.89
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_carga4_r1": {
+  "arquivo": "lua/modulos/bateria_carga4_r1.png",
+  "w": 429,
+  "h": 304,
+  "escala": 0.5,
+  "ancora": [
+   116.73,
+   78.89
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_carga5_r1": {
+  "arquivo": "lua/modulos/bateria_carga5_r1.png",
+  "w": 429,
+  "h": 304,
+  "escala": 0.5,
+  "ancora": [
+   116.73,
+   78.89
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_r1": {
+  "arquivo": "lua/modulos/bateria_carga5_r1.png",
+  "w": 429,
+  "h": 304,
+  "escala": 0.5,
+  "ancora": [
+   116.73,
+   78.89
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "painel_r2": {
+  "arquivo": "lua/modulos/painel_r2.png",
+  "w": 233,
+  "h": 184,
+  "escala": 0.5,
+  "ancora": [
+   90.15,
+   80.96
+  ],
+  "pegada": [
+   2,
+   1
+  ]
+ },
+ "bateria_carga0_r2": {
+  "arquivo": "lua/modulos/bateria_carga0_r2.png",
+  "w": 427,
+  "h": 305,
+  "escala": 0.5,
+  "ancora": [
+   312.23,
+   79.87
+  ],
+  "pegada": [
+   2,
+   5
+  ]
+ },
+ "bateria_carga1_r2": {
+  "arquivo": "lua/modulos/bateria_carga1_r2.png",
+  "w": 427,
+  "h": 305,
+  "escala": 0.5,
+  "ancora": [
+   312.23,
+   79.87
+  ],
+  "pegada": [
+   2,
+   5
+  ]
+ },
+ "bateria_carga2_r2": {
+  "arquivo": "lua/modulos/bateria_carga2_r2.png",
+  "w": 427,
+  "h": 305,
+  "escala": 0.5,
+  "ancora": [
+   312.23,
+   79.87
+  ],
+  "pegada": [
+   2,
+   5
+  ]
+ },
+ "bateria_carga3_r2": {
+  "arquivo": "lua/modulos/bateria_carga3_r2.png",
+  "w": 427,
+  "h": 305,
+  "escala": 0.5,
+  "ancora": [
+   312.23,
+   79.87
+  ],
+  "pegada": [
+   2,
+   5
+  ]
+ },
+ "bateria_carga4_r2": {
+  "arquivo": "lua/modulos/bateria_carga4_r2.png",
+  "w": 427,
+  "h": 305,
+  "escala": 0.5,
+  "ancora": [
+   312.23,
+   79.87
+  ],
+  "pegada": [
+   2,
+   5
+  ]
+ },
+ "bateria_carga5_r2": {
+  "arquivo": "lua/modulos/bateria_carga5_r2.png",
+  "w": 427,
+  "h": 305,
+  "escala": 0.5,
+  "ancora": [
+   312.23,
+   79.87
+  ],
+  "pegada": [
+   2,
+   5
+  ]
+ },
+ "bateria_r2": {
+  "arquivo": "lua/modulos/bateria_carga5_r2.png",
+  "w": 427,
+  "h": 305,
+  "escala": 0.5,
+  "ancora": [
+   312.23,
+   79.87
+  ],
+  "pegada": [
+   2,
+   5
+  ]
+ },
+ "painel_r3": {
+  "arquivo": "lua/modulos/painel_r3.png",
+  "w": 233,
+  "h": 220,
+  "escala": 0.5,
+  "ancora": [
+   150.15,
+   117.31
+  ],
+  "pegada": [
+   1,
+   2
+  ]
+ },
+ "bateria_carga0_r3": {
+  "arquivo": "lua/modulos/bateria_carga0_r3.png",
+  "w": 429,
+  "h": 292,
+  "escala": 0.5,
+  "ancora": [
+   132.27,
+   81.3
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_carga1_r3": {
+  "arquivo": "lua/modulos/bateria_carga1_r3.png",
+  "w": 429,
+  "h": 292,
+  "escala": 0.5,
+  "ancora": [
+   132.27,
+   81.3
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_carga2_r3": {
+  "arquivo": "lua/modulos/bateria_carga2_r3.png",
+  "w": 429,
+  "h": 292,
+  "escala": 0.5,
+  "ancora": [
+   132.27,
+   81.3
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_carga3_r3": {
+  "arquivo": "lua/modulos/bateria_carga3_r3.png",
+  "w": 429,
+  "h": 292,
+  "escala": 0.5,
+  "ancora": [
+   132.27,
+   81.3
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_carga4_r3": {
+  "arquivo": "lua/modulos/bateria_carga4_r3.png",
+  "w": 429,
+  "h": 292,
+  "escala": 0.5,
+  "ancora": [
+   132.27,
+   81.3
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_carga5_r3": {
+  "arquivo": "lua/modulos/bateria_carga5_r3.png",
+  "w": 429,
+  "h": 292,
+  "escala": 0.5,
+  "ancora": [
+   132.27,
+   81.3
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "bateria_r3": {
+  "arquivo": "lua/modulos/bateria_carga5_r3.png",
+  "w": 429,
+  "h": 292,
+  "escala": 0.5,
+  "ancora": [
+   132.27,
+   81.3
+  ],
+  "pegada": [
+   5,
+   2
+  ]
+ },
+ "deco_generator": {
+  "arquivo": "lua/modulos/deco_generator.png",
+  "w": 128,
+  "h": 129,
+  "escala": 0.5,
+  "ancora": [
+   64.0,
+   58.12
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_generator_r1": {
+  "arquivo": "lua/modulos/deco_generator_r1.png",
+  "w": 128,
+  "h": 129,
+  "escala": 0.5,
+  "ancora": [
+   64.0,
+   58.12
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_generator_r2": {
+  "arquivo": "lua/modulos/deco_generator_r2.png",
+  "w": 128,
+  "h": 129,
+  "escala": 0.5,
+  "ancora": [
+   64.0,
+   58.12
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_generator_r3": {
+  "arquivo": "lua/modulos/deco_generator_r3.png",
+  "w": 128,
+  "h": 129,
+  "escala": 0.5,
+  "ancora": [
+   64.0,
+   58.12
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_canister": {
+  "arquivo": "lua/modulos/deco_canister.png",
+  "w": 101,
+  "h": 130,
+  "escala": 0.5,
+  "ancora": [
+   50.5,
+   68.07
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_canister_r1": {
+  "arquivo": "lua/modulos/deco_canister_r1.png",
+  "w": 101,
+  "h": 130,
+  "escala": 0.5,
+  "ancora": [
+   50.5,
+   68.07
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_canister_r2": {
+  "arquivo": "lua/modulos/deco_canister_r2.png",
+  "w": 101,
+  "h": 130,
+  "escala": 0.5,
+  "ancora": [
+   50.5,
+   68.07
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_canister_r3": {
+  "arquivo": "lua/modulos/deco_canister_r3.png",
+  "w": 101,
+  "h": 130,
+  "escala": 0.5,
+  "ancora": [
+   50.5,
+   68.07
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_toolkit": {
+  "arquivo": "lua/modulos/deco_toolkit.png",
+  "w": 120,
+  "h": 120,
+  "escala": 0.5,
+  "ancora": [
+   60.0,
+   52.71
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_toolkit_r1": {
+  "arquivo": "lua/modulos/deco_toolkit_r1.png",
+  "w": 120,
+  "h": 120,
+  "escala": 0.5,
+  "ancora": [
+   60.0,
+   52.71
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_toolkit_r2": {
+  "arquivo": "lua/modulos/deco_toolkit_r2.png",
+  "w": 120,
+  "h": 120,
+  "escala": 0.5,
+  "ancora": [
+   60.0,
+   52.71
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_toolkit_r3": {
+  "arquivo": "lua/modulos/deco_toolkit_r3.png",
+  "w": 120,
+  "h": 120,
+  "escala": 0.5,
+  "ancora": [
+   60.0,
+   52.71
+  ],
+  "pegada": [
+   1,
+   1
+  ]
  }
 }
