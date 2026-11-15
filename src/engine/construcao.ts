@@ -217,6 +217,16 @@ export const BASE_MARTE: [TipoId, number, number][] = [
   ['painel', -3, -6],
 ];
 
+// The ship (chapter 2): the four rooms of the chapter on both sides of the central corridor,
+// which stays free (the deck is 18 x 12 tiles around the grid center). The Battery Bank is the
+// Power Room where the batteries charge (estacaoSolar.ts); the workshop is the Engines.
+export const BASE_NAVE: [TipoId, number, number][] = [
+  ['oficina', -7, -5],
+  ['suporte', -2, -5],
+  ['blindagem', 3, -5],
+  ['bateria', -2, 2],
+];
+
 export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BASE_PADRAO): Construcao[] {
   const c0 = Math.floor(g.n / 2);
   const feitas: Construcao[] = [];

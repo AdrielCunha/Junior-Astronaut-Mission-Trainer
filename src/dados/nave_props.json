@@ -1,0 +1,128 @@
+{
+ "nave_motores": {
+  "arquivo": "nave/props/nave_motores.png",
+  "w": 363,
+  "h": 315,
+  "escala": 0.5,
+  "ancora": [
+   181.5,
+   124.62
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "nave_beliche": {
+  "arquivo": "nave/props/nave_beliche.png",
+  "w": 195,
+  "h": 217,
+  "escala": 0.5,
+  "ancora": [
+   67.5,
+   114.34
+  ],
+  "pegada": [
+   2,
+   1
+  ]
+ },
+ "nave_mesa": {
+  "arquivo": "nave/props/nave_mesa.png",
+  "w": 195,
+  "h": 172,
+  "escala": 0.5,
+  "ancora": [
+   97.5,
+   57.47
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "nave_esteira": {
+  "arquivo": "nave/props/nave_esteira.png",
+  "w": 177,
+  "h": 147,
+  "escala": 0.5,
+  "ancora": [
+   58.5,
+   47.77
+  ],
+  "pegada": [
+   2,
+   1
+  ]
+ },
+ "nave_plantas": {
+  "arquivo": "nave/props/nave_plantas.png",
+  "w": 135,
+  "h": 163,
+  "escala": 0.5,
+  "ancora": [
+   67.5,
+   89.45
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "nave_bolsas": {
+  "arquivo": "nave/props/nave_bolsas.png",
+  "w": 128,
+  "h": 152,
+  "escala": 0.5,
+  "ancora": [
+   63.1,
+   80.54
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "nave_agua": {
+  "arquivo": "nave/props/nave_agua.png",
+  "w": 111,
+  "h": 149,
+  "escala": 0.5,
+  "ancora": [
+   55.5,
+   81.24
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "nave_medico": {
+  "arquivo": "nave/props/nave_medico.png",
+  "w": 129,
+  "h": 165,
+  "escala": 0.5,
+  "ancora": [
+   64.5,
+   92.92
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "nave_cockpit": {
+  "arquivo": "nave/props/nave_cockpit.png",
+  "w": 189,
+  "h": 180,
+  "escala": 0.5,
+  "ancora": [
+   58.26,
+   81.34
+  ],
+  "pegada": [
+   2,
+   1
+  ]
+ }
+}
