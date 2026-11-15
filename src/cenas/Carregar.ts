@@ -18,6 +18,7 @@ import planetas3d from '../dados/planetas3d.json';
 import { SKINS, chaveSkin } from '../dados/skins';
 import constelacoes from '../dados/constelacoes.json';
 import { ICONES, chaveIcone } from '../dados/icones';
+import { soltarTeclasAoPerderFoco } from '../foco';
 
 const FATOS = [
   'The ground in this game is real: NASA\'s LRO spacecraft measured it with a laser.',
@@ -163,6 +164,7 @@ export class Carregar extends Phaser.Scene {
   }
 
   create() {
+    soltarTeclasAoPerderFoco(this.game);   // keys held when the window loses focus are let go
     sessao.restaurarPartida();
     carregarImagensMundo(this,sessao.mundo,()=>this.iniciarCenas());
   }
