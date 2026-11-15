@@ -9,6 +9,7 @@ import planetas3d from '../dados/planetas3d.json';
 import { fonte, sessao } from './sessao';
 import { movimentoReduzido } from '../video';
 import { criarAstro, ESCALA_ASTRO } from './astroShader';
+import { ROTACAO_DIAS, voltasEm } from '../engine/astro';
 
 export type DadosAstro = { nome: string; x?: number; y?: number; r?: number };
 
@@ -37,8 +38,14 @@ const FICHAS: Record<string, Ficha> = {
 const ORDEM = ['sol', 'mercurio', 'venus', 'terra', 'lua', 'marte'];
 const css = (c: number) => '#' + c.toString(16).padStart(6, '0');
 type Grande = { mapa: string; inclinacao: number; sentido: number; atmos: number[] | null; atmosForca: number; sol: boolean };
-// Seconds per turn on screen (sped up a lot, slow enough to watch the surface go by).
-const GIRO_S: Record<string, number> = { sol: 70, mercurio: 50, venus: 60, terra: 36, lua: 50, marte: 38 };
+// How fast time runs here: the body turns at its real (NASA) pace on this clock. T or the chip
+// below the body change it.
+const ESCALAS: [number, string][] = [[1, '1 hour'], [24, '1 day'], [24 * 7, '1 week']];
+// One turn on its axis, written out (sidereal: relative to the stars).
+const umaVolta = (dias: number) => {
+  const h = Math.abs(dias) * 24;
+  return h < 48 ? `${Math.floor(h)} h ${Math.round((h % 1) * 60)} min` : `${Math.abs(dias).toFixed(1)} Earth days`;
+};
 const grande = (nome: string) => (planetas3d as unknown as Record<string, { grande: Grande }>)[nome].grande;
 
 export class Astro extends Phaser.Scene {
@@ -47,6 +54,9 @@ export class Astro extends Phaser.Scene {
   private emTarefaGuardado = false;
   private corpo?: ReturnType<typeof criarAstro>;
   private raio = 1;                                       // the body's radius on screen, full size
+  private static escala = 0;                              // ESCALAS index, kept from body to body
+  private horas = 0;                                      // hours run on this view's clock
+  private voltas0 = 0;                                    // where the turn starts: the real one, now
   private saindo = false;
 
   constructor() {
@@ -57,6 +67,7 @@ export class Astro extends Phaser.Scene {
     this.dados = d;
     this.saindo = false;
     this.corpo = undefined;
+    this.horas = 0; this.voltas0 = voltasEm(d.nome, Date.now());
     if (!this.emTarefaGuardado) { this.antesEmTarefa = sessao.emTarefa; this.emTarefaGuardado = true; }
     sessao.emTarefa = true;                                // the map and the zoom wait
   }
@@ -192,20 +203,35 @@ export class Astro extends Phaser.Scene {
     botao(`${FICHAS[seguinte].titulo}  ›`, W - 20, yb, 1, 1, '#1e3a8a', () => this.ir(seguinte));
     botao('Close  ✕', W - 20, 22, 1, 0, '#2563eb', () => this.fechar());
     if (W > 640) this.add.text(W / 2, yb - 10, 'Esc closes  ·  arrow keys: next body', fonte(12 * s, '#94a3b8')).setOrigin(0.5, 1);
+    // The clock: one turn takes the real time; the chip says how fast time runs here.
+    const dias = ROTACAO_DIAS[nome] ?? 1;
+    // Above the body on wide screens; top left otherwise (the facts are under the body there).
+    const relogio = this.add.text(lado ? cx : 20, lado ? cy - raio - 14 * s : 20, '', fonte(13 * s, '#e0f2fe', { align: 'center', backgroundColor: '#0f2a5fcc', padding: { x: 12, y: 7 } }))
+      .setOrigin(lado ? 0.5 : 0, lado ? 1 : 0).setInteractive({ useHandCursor: true });
+    const escrever = () => relogio.setText(movimentoReduzido()
+      ? `One turn takes ${umaVolta(dias)}${dias < 0 ? ', backward' : ''}`
+      : `One turn takes ${umaVolta(dias)}${dias < 0 ? ', backward' : ''}\nTime here: 1 second = ${ESCALAS[Astro.escala][1]}  ·  T: faster`);
+    const trocar = () => { Astro.escala = (Astro.escala + 1) % ESCALAS.length; escrever(); };
+    escrever();
+    relogio.on('pointerdown', trocar);
 
     const teclado = this.input.keyboard;
     teclado?.on('keydown-ESC', () => this.fechar());
     teclado?.on('keydown-LEFT', () => this.ir(anterior));
     teclado?.on('keydown-RIGHT', () => this.ir(seguinte));
+    teclado?.on('keydown-T', trocar);
     this.events.once('shutdown', () => teclado?.removeAllListeners());
     if (!voo) this.cameras.main.fadeIn(200, 2, 6, 23);
   }
 
-  update(time: number) {
-    // The turn: continuous, at the body's own pace (Venus backward). Still with reduced motion.
-    if (!this.corpo || movimentoReduzido()) return;
+  update(_time: number, dt = 0) {
+    // The turn: continuous, at the body's real pace on this view's clock (Venus backward). Still
+    // with reduced motion.
+    if (!this.corpo) return;
     const nome = this.dados.nome;
-    this.corpo.setGiro(grande(nome).sentido * (time / 1000) * (2 * Math.PI / (GIRO_S[nome] ?? 40)));
+    if (!movimentoReduzido()) this.horas += (dt / 1000) * ESCALAS[Astro.escala][0];
+    const voltas = this.voltas0 + this.horas / 24 / Math.abs(ROTACAO_DIAS[nome] ?? 1);
+    this.corpo.setGiro(grande(nome).sentido * 2 * Math.PI * (voltas % 1));
   }
 
   private ir(nome: string) {

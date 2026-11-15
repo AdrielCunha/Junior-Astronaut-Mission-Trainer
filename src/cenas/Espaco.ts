@@ -17,7 +17,7 @@ import { caminhoTransferencia, noCaminho, quadroNave, PARTIDA, DIAS_REAIS, DIA_M
 import dadosViagem from '../dados/viagem.json';
 import planetas3d from '../dados/planetas3d.json';
 import ceuEstrelas from '../dados/ceu_estrelas.json';
-import { PLANETAS, posicao, lua, nomeDaFase, AU_KM, RAIO_LUA_KM, RAIO_SOL_KM, TERRA_LUA_KM } from '../engine/astro';
+import { PLANETAS, posicao, lua, voltasEm, nomeDaFase, AU_KM, RAIO_LUA_KM, RAIO_SOL_KM, TERRA_LUA_KM } from '../engine/astro';
 import { sessao, suave, fonte, dataBonita, COR, sDeU } from './sessao';
 import { VISTA as vista, giroEm, pontoNaLua, naTela, visivel, solSobreBase, type V3 } from './globo';
 
@@ -40,8 +40,9 @@ const CAMADAS = [
   { n: 10, v: 70, r: 30, a: 0.05, cor: 0x7dd3fc, rastro: 0, poeira: true },
 ];                     // gentle time drift while you look from space
 
-// Seconds per turn on screen for each body (sped up a lot; Venus turns backward in its frames).
-const GIRO_S: Record<string, number> = { sol: 40, mercurio: 30, venus: 36, terra: 8, lua: 24, marte: 9 };
+// Out at the solar system, time runs at 12 hours per second: the planets go around the Sun and
+// turn on their axes at their real (NASA) pace, all on that one clock.
+const HORAS_SISTEMA = 12;
 
 export class Espaco extends Phaser.Scene {
   private constelacaoAtual?: {img: Phaser.GameObjects.Image; mask?: Phaser.GameObjects.Graphics; progress?: {v:number}};
@@ -211,7 +212,8 @@ export class Espaco extends Phaser.Scene {
   // The brightest stars of the sky in view twinkle a little (make_ceu.py found them).
   // One body's sprite: the rotation frame of the moment and the frame lit from angle luz (the Sun's
   // side on screen, counterclockwise from the right), scaled to radius r.
-  private mostrarCorpo(nome: string, x: number, y: number, r: number, luz: number, alfa = 1) {
+  // voltas: how many times it has turned on its axis (the frames of Venus already turn backward).
+  private mostrarCorpo(nome: string, x: number, y: number, r: number, luz: number, voltas: number, alfa = 1) {
     const s = this.corpos.get(nome);
     if (!s) return;
     const info = (planetas3d as unknown as Record<string, { pequeno: { raio: number; giros: number; direcoes: number } }>)[nome].pequeno;
@@ -219,7 +221,7 @@ export class Espaco extends Phaser.Scene {
     const k = ((Math.round(luz / (2 * Math.PI / n)) % n) + n) % n;
     // Where it is in its turn, in frames: the frame below and the next one over it, faded in by
     // the fraction, so the turn is continuous instead of stepping from frame to frame.
-    const f = movimentoReduzido() ? 0 : ((this.time.now / 1000 / (GIRO_S[nome] ?? 12)) * info.giros) % info.giros;
+    const f = (((voltas % 1) + 1) % 1) * info.giros;
     const j = Math.floor(f), frac = f - j;
     s.setVisible(alfa > 0).setFrame(j * n + k).setPosition(x, y).setScale(r / info.raio).setAlpha(alfa);
     const prox = this.corposProx.get(nome)!;
@@ -388,7 +390,8 @@ export class Espaco extends Phaser.Scene {
     // In the Moon view time runs on (no wrap: a wrap made the Moon jump back), so you watch the
     // Moon turn under the Sun. It restarts from the day's noon only once you are back on the ground.
     if (sessao.vista === 'chao' && !sessao.voo) this.relogio = 0;
-    else if (!sessao.voo && !movimentoReduzido() && !configuracoesAbertas) this.relogio += (dtMs / 1000) * HORAS_POR_SEG;
+    else if (!sessao.voo && !movimentoReduzido() && !configuracoesAbertas)
+      this.relogio += (dtMs / 1000) * Phaser.Math.Linear(HORAS_POR_SEG, HORAS_SISTEMA, suave(2.05, 2.35, sessao.nivel));
     this.brilho.setScale(movimentoReduzido() ? 1 : this.brilho.scaleX);
     this.tweens.getTweensOf(this.brilho).forEach(t=>{t.paused=movimentoReduzido() || !video.efeitos;});
     if (!movimentoReduzido() && !configuracoesAbertas) carregarFilme(this.textures);
@@ -505,7 +508,7 @@ export class Espaco extends Phaser.Scene {
     const relogio = movimentoReduzido() ? 0 : this.time.now / 1000;
     const pulso = 1 + 0.05 * Math.sin(relogio * 1.3) + 0.02 * Math.sin(relogio * 3.1);
     this.solBrilho.setVisible(aSol > 0).setPosition(sp.x, sp.y).setScale((rs * 3.4 * pulso) / 128).setAlpha(aSol * 0.9);
-    this.mostrarCorpo('sol', sp.x, sp.y, rs, 0, aSol);
+    this.mostrarCorpo('sol', sp.x, sp.y, rs, 0, voltasEm('sol', t), aSol);
     this.rotulo('Sun', sp.x, sp.y + rs + 4, 'Sun', '#fde68a', rotulos);
 
     // Planets: Blender models (make_planetas_3d.py), each showing the frame lit from where the Sun
@@ -517,18 +520,21 @@ export class Espaco extends Phaser.Scene {
       const q = tela({ x: pos.x * AU_KM, y: pos.y * AU_KM });
       const [chave, base] = NOMES[p.nome] ?? ['', 8];
       const r = Math.max(p.raioKm * kmPx, base * kc);
-      if (this.corpos.has(chave)) this.mostrarCorpo(chave, q.x, q.y, r, Math.atan2(-(sp.y - q.y), sp.x - q.x));   // lit from the Sun's side
+      if (this.corpos.has(chave)) this.mostrarCorpo(chave, q.x, q.y, r, Math.atan2(-(sp.y - q.y), sp.x - q.x), voltasEm(chave, t));   // lit from the Sun's side
       else g.fillStyle(p.cor).fillCircle(q.x, q.y, r);
       if (p.nome === 'Earth') {
         this.rotulo('Earth', q.x, q.y + r + 4, rotulos > 0.5 ? (P?.fase === 'cruzeiro' ? 'Earth + Moon' : 'Earth + Moon\nyou are here') : 'Earth', '#93c5fd', suave(2.08, 2.2, n));
-        // The Moon goes around it (sped up: one month in 30 s), far enough out to be seen; it
+        // The Moon goes around it at its real angle (NASA phase), far enough out to be seen; it
         // passes behind Earth on the far side of its orbit.
         if (rotulos > 0.05) {
-          const am = Math.atan2(ld.y, ld.x) + th + relogio * (2 * Math.PI / 30), dm = r + 16 * kc;
+          const am = Math.atan2(ld.y, ld.x) + th, dm = r + 16 * kc;
           const mx = q.x + Math.cos(am) * dm, my = q.y - Math.sin(am) * dm * ACHATAR;
           g.lineStyle(1, 0x94a3b8, 0.25 * rotulos).strokeEllipse(q.x, q.y, dm * 2, dm * 2 * ACHATAR);
           this.corpos.get('lua')!.setDepth(Math.sin(am) > 0 ? 0.9 : 1.1);
-          this.mostrarCorpo('lua', mx, my, 6 * kc, Math.atan2(-(sp.y - my), sp.x - mx), rotulos);
+          // Its turn follows its trip around Earth, so the same face keeps looking at Earth (the
+          // frames start with the map's longitude 0 at 200 degrees, make_planetas_3d.py).
+          const voltasLua = (am + Math.PI - (200 * Math.PI) / 180) / (2 * Math.PI);
+          this.mostrarCorpo('lua', mx, my, 6 * kc, Math.atan2(-(sp.y - my), sp.x - mx), voltasLua, rotulos);
         }
       } else if (p.nome === 'Mars') {
         // Chapter 3's destination: shown, locked until the rocket gets there.
@@ -543,7 +549,7 @@ export class Espaco extends Phaser.Scene {
     const marte = posicao(PLANETAS[3], t);
     const dm = Math.hypot(marte.x - terraP.x, marte.y - terraP.y);
     this.definirLegenda(
-      `${dataBonita(t)} · real positions from NASA JPL orbital elements · planet sizes enlarged, distances true, click a body to see it up close\n` +
+      `${dataBonita(t)} · real positions from NASA JPL orbital elements · planet sizes enlarged, distances true · time: 1 second = ${HORAS_SISTEMA} hours · click a body to see it up close\n` +
       (rotulos > 0.5 ? `Mars, your next stop, is ${(dm * AU_KM / 1e6).toFixed(0)} million km away today. Light takes ${(dm * 499 / 60).toFixed(0)} minutes to get there.`
         : `The Moon is ${TERRA_LUA_KM.toLocaleString('en-US')} km from Earth. Light crosses that in 1.3 seconds.`));
 
