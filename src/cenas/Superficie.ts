@@ -1302,11 +1302,11 @@ export class Superficie extends Phaser.Scene {
   // the shield tower's water walls fill with each battery given to it today (the pump runs on
   // them). While just exploring, the walls are shown full.
   private modelo(c: Construcao): Modelo {
-    // Mars: the lander is the crew's home until the dome is built. The heater and the dome
-    // borrow the workshop and habitat pictures until they get their own models.
+    // Mars: the lander is the crew's home until the dome is built. Heating has its own model;
+    // the dome still uses the habitat picture.
     if (sessao.mundo === 'marte') {
       if (c.tipo.id === 'habitat') return 'pouso';
-      if (c.tipo.id === 'aquecedor') return 'oficina';
+      if (c.tipo.id === 'aquecedor') return 'aquecedor';
       if (c.tipo.id === 'cupula') return 'habitat';
     }
     // The ship: the team's air recycler for Life Support, the ship's engine room for the Engines.
@@ -1314,7 +1314,7 @@ export class Superficie extends Phaser.Scene {
       if (c.tipo.id === 'suporte') return 'reciclador';
       if (c.tipo.id === 'oficina') return 'nave_motores' as Modelo;
     }
-    if (c.tipo.id === 'aquecedor') return 'oficina';
+    if (c.tipo.id === 'aquecedor') return 'aquecedor';
     if (c.tipo.id === 'cupula') return 'habitat';
     if (c.tipo.id === 'bateria') return modeloBancoBaterias(sessao.noHabitat, sessao.fase === 'inicio') as Modelo;
     const meta = sessao.estado.meta;

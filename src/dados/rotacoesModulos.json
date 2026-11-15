@@ -1846,5 +1846,47 @@
    3,
    3
   ]
+ },
+ "aquecedor_r1": {
+  "arquivo": "lua/modulos/aquecedor_r1.png",
+  "w": 373,
+  "h": 305,
+  "escala": 0.5,
+  "ancora": [
+   186.21,
+   110.02
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "aquecedor_r2": {
+  "arquivo": "lua/modulos/aquecedor_r2.png",
+  "w": 373,
+  "h": 286,
+  "escala": 0.5,
+  "ancora": [
+   186.79,
+   90.65
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "aquecedor_r3": {
+  "arquivo": "lua/modulos/aquecedor_r3.png",
+  "w": 373,
+  "h": 310,
+  "escala": 0.5,
+  "ancora": [
+   186.79,
+   114.94
+  ],
+  "pegada": [
+   3,
+   3
+  ]
  }
 }
