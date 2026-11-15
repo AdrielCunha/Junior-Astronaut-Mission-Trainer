@@ -6,6 +6,7 @@ import type { Superficie, ObjetoEditor } from './Superficie';
 import { dimensoesDeco } from '../dados/decoracao';
 import { criarIconeJogo, letra } from '../tarefas/estilo';
 import { tocarSfx } from '../sfx';
+import { dispositivoMovel } from '../mobile';
 
 type BotaoEditor = {caixa: Phaser.GameObjects.Container; habilitar: (ativo: boolean) => void};
 type Motivo = AvaliacaoMovimento['motivo'] | 'tripulacao';
@@ -24,6 +25,16 @@ const GUIA = [
   {titulo:'Click to place',icone:'backpack',cor:0xfddd45,teclas:'LEFT CLICK OR E  →  CONFIRM',texto:'Click the chosen spot with the left mouse button, or press E, to place your object. A valid position saves automatically.',dica:'Esc or right click cancels the preview. Place/E confirms, Rotate/R turns, and Cancel/Esc drops the preview. Ctrl/Cmd+Z undoes a move or rotation.'},
 ];
 const CHAVE_GUIA='lunar-odyssey-base-planner-guide-v6';
+// Touch screens have no keyboard: the guide uses gestures and the on-screen action bar only.
+const GUIA_MOVEL = [
+  {titulo:'Move around',icone:'wrench',cor:0x7dd3fc,teclas:'DRAG THE MAP  →  PAN',texto:'Drag empty ground to move the map. Pinch with two fingers or use + and − to zoom.',dica:'To move a selected object instead, drag its highlighted preview.'},
+  {titulo:'Pick an object',icone:'wrench',cor:0xfddd45,teclas:'TAP AN OBJECT OR A ROW IN OBJECTS',texto:'Tap a building or prop on the map, or tap a row in the Objects list. The selected row says Moving.',dica:'Tap OBJECTS to show or hide the list. The arrows at the bottom of the list reach the other objects.'},
+  {titulo:'Turn your object',icone:'energy',cor:0xc4b5fd,teclas:'TAP ROTATE',texto:'Tap Rotate once to turn the selected object by 90 degrees. Tap it again for 180, 270 and back to 0.',dica:'Only the selected object turns, staying upright on the ground. Its ground footprint and placement checks update with each turn.'},
+  {titulo:'Make a copy',icone:'backpack',cor:0xf5b533,teclas:'DUPLICATE  →  DRAG  →  PLACE',texto:'Select an object and tap Duplicate. Drag the copy to a free spot, rotate if needed, then tap Place.',dica:'The original stays in place. Cancel drops only the preview. Undo removes the last confirmed copy.'},
+  {titulo:'Choose safe ground',icone:'shield',cor:0x86efac,teclas:'GREEN = READY  /  RED = BLOCKED',texto:'A green preview means the object fits. A red preview means the spot is blocked. The status line explains why.',dica:'Leave space between buildings, and keep the astronaut and rover clear. Invalid taps keep the preview active.'},
+  {titulo:'Move, then Place',icone:'backpack',cor:0xfddd45,teclas:'DRAG THE OBJECT  →  TAP PLACE',texto:'Drag the selected object to its new spot, or tap the ground. Then tap PLACE to confirm. A valid position saves automatically.',dica:'Cancel drops the preview. Rotate turns, Undo goes back one move. The layout saves itself.'},
+];
+const CHAVE_GUIA_MOVEL='lunar-odyssey-base-planner-guide-touch-v1';
 
 // A paused-world planning overlay. Only a confirmed move mutates the occupancy grid.
 // Terrain/grid/ghost geometry is rebuilt on tile or camera changes, never every frame.
@@ -93,6 +104,13 @@ export class EditorBase extends Phaser.Scene {
   private inspectorVisivel=true;
   private idListaMarcado:number|null|undefined=undefined;
   private ferramentasPainel=new Phaser.Geom.Rectangle();
+  private movel=false;
+  private acaoPainel=new Phaser.Geom.Rectangle();
+  private alturaLinha=42;
+  private espacoLinha=46;
+  private larguraNome=0;
+  private pinca:{dist:number}|null=null;
+  private arrastoObjeto:{gx:number;gy:number;origemX:number;origemY:number}|null=null;
 
   constructor() { super({key:'EditorBase'}); }
 
@@ -105,9 +123,9 @@ export class EditorBase extends Phaser.Scene {
     this.selecionado=null;this.imagemOriginal=null;this.historico=[];this.pausadas=[];
     this.mostrarGrade=true;this.centroGrade='';this.inicioArrasto=null;this.arrastou=false;
     this.passoGuia=-1;this.modalGuia=undefined;this.rotacao=0;
-    this.duplicando=false;
+    this.duplicando=false;this.movel=dispositivoMovel();this.pinca=null;this.arrastoObjeto=null;
     this.alvos=[];this.mascaras.clear();this.alvoPressionado=null;this.pairado=null;this.ponteiroPendente=null;this.ultimoHover=0;this.cameraPendente=false;
-    this.indiceLista=0;this.painelObjetosAberto=this.scale.width>=680;this.linhasLista=[];this.listaConteudo=undefined;this.hoverLista=null;
+    this.indiceLista=0;this.painelObjetosAberto=!this.movel && this.scale.width>=680;this.linhasLista=[];this.listaConteudo=undefined;this.hoverLista=null;
     for(const key of ['Espaco','Superficie','Interface']) {
       const s=this.scene.get(key);
       this.pausadas.push({key,visivel:s.scene.isVisible(),input:s.input.enabled,keyboard:s.input.keyboard?.enabled??false});
@@ -133,6 +151,7 @@ export class EditorBase extends Phaser.Scene {
     this.bloqueiosGrade=new Uint8Array(terreno.n*terreno.n);
     for(let y=0;y<terreno.n;y++)for(let x=0;x<terreno.n;x++)this.bloqueiosGrade[y*terreno.n+x]=Number(!!terreno.obstaculoConstrucao(x,y,1,1)||terreno.inclinacaoEm(x,y)>terreno.maxConstruir);
     this.input.setDefaultCursor('grab');
+    this.input.addPointer(1);   // two fingers: pinch to zoom the map
     this.cameras.main.setSize(this.scale.width,this.scale.height).setScroll(0,0).setZoom(1).setRotation(0);
     this.desenharUI();
     const centro=this.cameraMapa.getWorldPoint(this.scale.width/2,this.scale.height/2);
@@ -140,14 +159,35 @@ export class EditorBase extends Phaser.Scene {
     this.desenharGrade(q?.gx??sessao.terreno.n/2,q?.gy??sessao.terreno.n/2,true);
     this.input.on('pointerdown',(p: Phaser.Input.Pointer)=>{
       if(this.passoGuia>=0)return;
+      // A second finger turns the drag into a pinch; no tap is completed.
+      if(this.input.pointer1.isDown && this.input.pointer2.isDown){
+        this.encerrarArrasto();this.ponteiroPendente=null;
+        this.pinca={dist:Phaser.Math.Distance.Between(this.input.pointer1.x,this.input.pointer1.y,this.input.pointer2.x,this.input.pointer2.y)};
+        return;
+      }
       if(p.button===2){this.inicioArrasto=null;this.limparSelecao();return;}
       if(p.button!==0)return;
       if(this.sobreUI(p))return;
       this.alvoPressionado=this.selecionado?null:this.alvoEm(p)?.objeto??null;
       this.ponteiroPendente=null;
+      this.arrastoObjeto=null;
+      if(p.wasTouch && this.selecionado && this.sobrePrevia(p)){
+        const q=this.chaoDoPonteiro(p);
+        this.arrastoObjeto={gx:this.gx,gy:this.gy,origemX:q.gx,origemY:q.gy};
+      }
       this.inicioArrasto={x:p.x,y:p.y,scrollX:this.cameraMapa.scrollX,scrollY:this.cameraMapa.scrollY,id:p.id};this.arrastou=false;
     });
     this.input.on('pointermove',(p: Phaser.Input.Pointer)=>{
+      if(this.pinca){
+        const a=this.input.pointer1,b=this.input.pointer2;
+        if(!a.isDown || !b.isDown){this.pinca=null;return;}
+        const d=Phaser.Math.Distance.Between(a.x,a.y,b.x,b.y);
+        if(this.pinca.dist>10 && d>10){
+          this.zoom(d/this.pinca.dist,{x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+          this.pinca.dist=d;
+        }
+        return;
+      }
       const inicio=this.inicioArrasto;
       if(inicio && p.id===inicio.id) {
         // A queued move may already see the released pointer. Only pointerup ends the click.
@@ -155,23 +195,41 @@ export class EditorBase extends Phaser.Scene {
         const limite=p.wasTouch?18:12;
         if(Phaser.Math.Distance.Squared(inicio.x,inicio.y,p.x,p.y)>limite*limite)this.arrastou=true;
         if(this.arrastou){
-          this.cameraMapa.setScroll(inicio.scrollX-(p.x-inicio.x)/this.cameraMapa.zoom,inicio.scrollY-(p.y-inicio.y)/this.cameraMapa.zoom);
-          this.cameraPendente=true;this.mostrarHover(null);this.input.setDefaultCursor('grabbing');
+          if(this.arrastoObjeto){
+            if(!this.sobreUI(p))this.moverPreviaArrastada(p);
+          }else{
+            this.cameraMapa.setScroll(inicio.scrollX-(p.x-inicio.x)/this.cameraMapa.zoom,inicio.scrollY-(p.y-inicio.y)/this.cameraMapa.zoom);
+            this.cameraPendente=true;this.mostrarHover(null);this.input.setDefaultCursor('grabbing');
+          }
         }
         return;
       }
       this.ponteiroPendente=p;
     });
     this.input.on('pointerup',(p: Phaser.Input.Pointer)=>{
-      if(p.id!==this.inicioArrasto?.id)return;
+      if(this.pinca){
+        if(!this.input.pointer1.isDown || !this.input.pointer2.isDown)this.pinca=null;
+        this.encerrarArrasto();
+        return;
+      }
+      if(p.id!==this.inicioArrasto?.id){this.ponteiroPendente=null;return;}
       const clicar=!this.arrastou && !this.sobreUI(p) && p.button===0;
+      if(this.arrastou && this.arrastoObjeto && !this.sobreUI(p))this.moverPreviaArrastada(p);
+      const tocouPrevia=!!this.arrastoObjeto;
       const alvo=this.alvoPressionado;
       this.encerrarArrasto();
       this.ponteiroPendente=null;
-      if(clicar){if(this.selecionado){this.apontar(p);this.confirmar();}else this.selecionarEm(p,alvo);}
+      if(clicar){
+        if(this.selecionado){
+          if(!tocouPrevia)this.apontar(p);
+          // Touch has no E key: the tap only moves the preview; the big PLACE button confirms.
+          if(p.wasTouch)this.aviso('Preview moved - tap PLACE to confirm.');
+          else this.confirmar();
+        }else this.selecionarEm(p,alvo);
+      }
     });
-    this.input.on('pointerupoutside',()=>this.encerrarArrasto());
-    this.input.on('gameout',()=>this.encerrarArrasto());
+    this.input.on('pointerupoutside',()=>{this.pinca=null;this.encerrarArrasto();});
+    this.input.on('gameout',()=>{this.pinca=null;this.encerrarArrasto();});
     this.input.on('wheel',(p: Phaser.Input.Pointer,_o:unknown,_dx:number,dy:number)=>{
       if(this.passoGuia>=0 || this.inicioArrasto || !dy)return;
       if(this.painelObjetosAberto && this.listaPainel.contains(p.x,p.y)){this.rolarLista(dy>0?2:-2);return;}
@@ -204,7 +262,7 @@ export class EditorBase extends Phaser.Scene {
       for(const p of this.pausadas){const s=this.scene.get(p.key);s.input.enabled=p.input;if(s.input.keyboard){s.input.keyboard.resetKeys();s.input.keyboard.enabled=p.keyboard;}this.scene.setVisible(p.visivel,p.key);if(this.scene.isPaused(p.key))this.scene.resume(p.key);}
       sessao.salvar();
     });
-    try {if(localStorage.getItem(CHAVE_GUIA)!=='done')this.abrirGuia();}catch{this.abrirGuia();}
+    try {if(localStorage.getItem(this.movel?CHAVE_GUIA_MOVEL:CHAVE_GUIA)!=='done')this.abrirGuia();}catch{this.abrirGuia();}
   }
 
   update(tempo:number) {
@@ -263,7 +321,7 @@ export class EditorBase extends Phaser.Scene {
     this.brilho.setTexture(img.texture.key,img.frame.name).setOrigin(img.originX,img.originY).setPosition(img.x,img.y).setScale(img.scaleX*1.045,img.scaleY*1.045).setTintFill(0xfde047).setAlpha(0.35).setVisible(true);
     this.realce.lineStyle(7/z,0x17263f,0.9).strokeRoundedRect(b.x-5/z,b.y-5/z,b.width+10/z,b.height+10/z,12/z)
       .lineStyle(4/z,0xfde047,1).strokeRoundedRect(b.x-5/z,b.y-5/z,b.width+10/z,b.height+10/z,12/z);
-    this.etiqueta.setText(`${alvo.nome}\nClick to move!`).setBackgroundColor('#fde047').setColor('#17263f').setScale(1/z).setPosition(b.centerX,b.top-12/z).setVisible(true);
+    this.etiqueta.setText(`${alvo.nome}\n${this.movel?'Tap to select!':'Click to move!'}`).setBackgroundColor('#fde047').setColor('#17263f').setScale(1/z).setPosition(b.centerX,b.top-12/z).setVisible(true);
   }
 
   private atualizarDestaque() {
@@ -271,7 +329,7 @@ export class EditorBase extends Phaser.Scene {
     const b=this.fantasma.getBounds(),z=this.cameraMapa.zoom,ok=this.motivo==='ok',cor=ok?0x4ade80:0xff6b6b;
     this.realce.clear().lineStyle(7/z,0x17263f,0.9).strokeRoundedRect(b.x-4/z,b.y-4/z,b.width+8/z,b.height+8/z,12/z)
       .lineStyle(4/z,cor,1).strokeRoundedRect(b.x-4/z,b.y-4/z,b.width+8/z,b.height+8/z,12/z);
-    this.etiqueta.setText(ok?'READY! Click or E to place':'BLOCKED! Try another spot').setBackgroundColor(ok?'#86efac':'#fca5a5').setColor('#17263f').setScale(1/z).setPosition(b.centerX,b.top-12/z).setVisible(true);
+    this.etiqueta.setText(ok?(this.movel?'READY! Tap PLACE to confirm':'READY! Click or E to place'):'BLOCKED! Try another spot').setBackgroundColor(ok?'#86efac':'#fca5a5').setColor('#17263f').setScale(1/z).setPosition(b.centerX,b.top-12/z).setVisible(true);
   }
 
   private botao(x:number,y:number,w:number,h:number,texto:string,acao:()=>void,principal=false): BotaoEditor {
@@ -336,10 +394,43 @@ export class EditorBase extends Phaser.Scene {
     pintar();return {caixa,habilitar:(habilitado)=>{if(ativo===habilitado)return;ativo=habilitado;sobre=false;pressionado=false;zona.input!.enabled=ativo;pintar();}};
   }
 
+  // Touch action button: no keyboard badge, tall enough for a finger. The label and the
+  // symbol share the centre; the primary action gets the large green style.
+  private botaoToque(x:number,y:number,w:number,h:number,titulo:string,simbolo:string,acao:()=>void,principal=false):BotaoEditor {
+    const u=this.u,g=this.add.graphics();
+    const texto=this.add.text(w/2+(simbolo?8*u:0),h/2,titulo,letra((principal?17:14)*u,'#ffffff',{fontStyle:'bold'})).setOrigin(0.5);
+    let tamanho=(principal?17:14)*u;
+    while(texto.width+(simbolo?28*u:12*u)>w && tamanho>11){texto.setFontSize(--tamanho);}
+    const caixa=this.add.container(x,y,[g,texto]);
+    if(simbolo){
+      caixa.addAt(this.add.text(w/2-texto.width/2-8*u,h/2,simbolo,letra((principal?20:17)*u,'#ffffff')).setOrigin(0.5),1);
+    }
+    const zona=this.add.zone(0,0,w,h).setOrigin(0).setInteractive({useHandCursor:true});
+    caixa.add(zona);this.ui.add(caixa);this.botoesArea.push({caixa,w,h});
+    let ativo=true,sobre=false,pressionado=false;
+    const pintar=()=>{
+      g.clear();
+      if(principal)g.fillStyle(0x9e4b12,ativo?0.5:0.15).fillRoundedRect(0,3*u,w,h,12*u);
+      g.fillStyle(!ativo?0x3b4559:principal?(pressionado?0xdb7111:sobre?0xffa13c:0xf58a1f):(sobre?0x21314f:0x101a33))
+        .fillRoundedRect(0,0,w,h,12*u).lineStyle(1.5*u,principal?0xf5b533:0x25345a).strokeRoundedRect(0,0,w,h,12*u);
+      caixa.setAlpha(ativo?1:.42);
+    };
+    zona.on('pointerdown',(_p:unknown,_x:unknown,_y:unknown,e:Phaser.Types.Input.EventData)=>{e.stopPropagation();pressionado=true;pintar();});
+    zona.on('pointerup',(_p:unknown,_x:unknown,_y:unknown,e:Phaser.Types.Input.EventData)=>{e.stopPropagation();const executar=pressionado&&ativo;pressionado=false;this.encerrarArrasto();pintar();if(executar){tocarSfx('clique');acao();}});
+    zona.on('pointerover',()=>{sobre=true;pintar();}).on('pointerout',()=>{sobre=false;pressionado=false;pintar();});
+    pintar();return {caixa,habilitar:(habilitado)=>{if(ativo===habilitado)return;ativo=habilitado;sobre=false;pressionado=false;zona.input!.enabled=ativo;pintar();}};
+  }
+
+  private passosGuia(){return this.movel?GUIA_MOVEL:GUIA;}
+  private chaveGuia(){return this.movel?CHAVE_GUIA_MOVEL:CHAVE_GUIA;}
+
   private desenharUI() {
     // Explicit destruction also removes modal input blockers (Layer.removeAll does not).
     for(const objeto of [...this.ui.list])objeto.destroy();
     this.modalGuia=undefined;this.toast=undefined;this.botoesArea=[];this.linhasLista=[];
+    this.movel=dispositivoMovel();
+    if(this.movel){this.desenharUIMovel();return;}
+    this.alturaLinha=42;this.espacoLinha=46;
     const W=this.scale.width,H=this.scale.height;
     this.u=Math.min(1,W/360);
     const u=this.u,m=10*u,hh=56*u,estreito=W<680,cw=Math.min(300*u,W-2*m-(estreito?58*u:0)),ch=270*u,topo=m+hh+12*u;
@@ -352,6 +443,7 @@ export class EditorBase extends Phaser.Scene {
     const cy=this.painelObjetosAberto?listaY+listaH+12*u:(estreito?topo+44*u:topo);
     this.cabecalho.setTo(m,m,W-2*m,hh);
     this.cartao.setTo(m,cy,cw,ch);
+    this.larguraNome=this.cartao.width-28*u;
     const painel=(x:number,y:number,w:number,h:number)=>this.add.graphics().fillStyle(0x101a33,0.98).fillRoundedRect(x,y,w,h,14*u)
       .lineStyle(1*u,0x25345a,1).strokeRoundedRect(x,y,w,h,14*u);
     this.ui.add(painel(m,m,W-2*m,hh));
@@ -439,6 +531,83 @@ export class EditorBase extends Phaser.Scene {
     if(this.passoGuia>=0)this.desenharGuia();
   }
 
+  // Touch layout: big tappable buttons and no keyboard hints. Objects on the left, tools on
+  // the right, and one bottom action bar with Rotate / Duplicate / Cancel / PLACE.
+  private desenharUIMovel() {
+    const W=this.scale.width,H=this.scale.height;
+    this.u=Math.min(1,W/420);
+    this.inspectorVisivel=true;
+    const u=this.u,m=Math.max(8,Math.round(9*u)),gap=Math.round(8*u);
+    const hh=44,bh=44,by=m;
+    this.alturaLinha=44;this.espacoLinha=46;
+    const painel=(x:number,y:number,w:number,h:number)=>this.add.graphics().fillStyle(0x101a33,0.98).fillRoundedRect(x,y,w,h,14*u)
+      .lineStyle(1*u,0x25345a,1).strokeRoundedRect(x,y,w,h,14*u);
+    // Independent controls in one row leave the map visible between them.
+    this.cabecalho.setTo(0,0,0,0);
+    let bx=W-m;
+    const doneW=70;bx-=doneW;
+    this.botao(bx,by,doneW,bh,'Done',()=>this.scene.stop(),true);
+    const tw=44,th=44,toolsTop=by;
+    bx-=gap+tw;this.btGrade=this.botao(bx,toolsTop,tw,th,'',()=>this.alternarGrade());
+    bx-=gap+tw;const menos=this.botao(bx,toolsTop,tw,th,'\u2212',()=>this.zoom(0.85));
+    bx-=gap+tw;const mais=this.botao(bx,toolsTop,tw,th,'+',()=>this.zoom(1.18));
+    this.ferramentasPainel.setTo(0,0,0,0);
+    for(const b of [mais,menos])(b.caixa.list.find(o=>o instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text).setFontSize(28*u);
+    const corGrade=this.mostrarGrade?0x4ade80:0x94a3b8;
+    const grade=this.add.graphics().lineStyle(2*u,this.mostrarGrade?0xe2e8f0:0x94a3b8);
+    for(let j=0;j<2;j++)for(let i=0;i<2;i++)grade.strokeRect(tw/2-8*u+i*9*u,(7+j*9)*u,7*u,7*u);
+    grade.lineStyle(2*u,corGrade).strokeRoundedRect(0,0,tw,th,11*u);
+    this.btGrade.caixa.add([grade,this.add.text(tw/2,th-9*u,this.mostrarGrade?'ON':'OFF',letra(11*u,this.mostrarGrade?'#4ade80':'#aec6e4',{fontStyle:'bold'})).setOrigin(0.5)]);
+    this.botao(m,by,88,bh,this.painelObjetosAberto?'Close list':'Objects',()=>{this.painelObjetosAberto=!this.painelObjetosAberto;this.desenharUI();});
+    this.undo=this.botao(m+88+gap,by,44,bh,'\u21b6',()=>this.desfazer());
+    this.botao(m+132+2*gap,by,44,bh,'?',()=>this.abrirGuia());
+
+    // Bottom action bar: status line on top, four large touch buttons below.
+    // Short landscape screens get a slightly shorter bar so the map keeps room.
+    const acaoH=72,barraTop=H-m-acaoH;
+    this.acaoPainel.setTo(m,barraTop,W-2*m,acaoH);
+    this.cartao.setTo(m,barraTop,W-2*m,acaoH);
+    this.larguraNome=Math.round((W-2*m)*0.40)-24;
+    this.ui.add(painel(m,barraTop,W-2*m,acaoH));
+    const linhaNome=barraTop+6,linhaStatus=linhaNome;
+    this.nome=this.add.text(m+12,linhaNome,'Select an object',letra(14,'#ffffff',{fontStyle:'bold'})).setOrigin(0,0);
+    this.instrucao=this.add.text(m+14*u,linhaNome+20*u,'',letra(10*u,'#8d9ab8')).setVisible(false);
+    this.selo=criarIconeJogo(this,m+14*u,linhaStatus+8*u,'shield',18*u).setVisible(false);
+    const statusX=m+Math.round((W-2*m)*0.40);
+    this.validacaoIcone=this.add.graphics().setPosition(statusX,linhaStatus+1);
+    this.estado=this.add.text(statusX+18,linhaStatus,'Tap an object',letra(13,'#b9c9df',{fontStyle:'bold'}));
+    this.detalhe=this.add.text(m+14*u,linhaStatus,'',letra(10*u,'#8d9ab8')).setVisible(false);
+    this.medida=this.add.text(m+14*u,linhaStatus,'',letra(10*u,'#8d9ab8')).setVisible(false);
+    this.ui.add([this.nome,this.instrucao,this.selo,this.validacaoIcone,this.estado,this.detalhe,this.medida]);
+
+    const ah=40,ay=barraTop+acaoH-4-ah,iy=m+6,iw=W-2*m-12,bg=Math.round(6*u);
+    const pw=Math.round(iw*0.34),rw=Math.round(iw*0.22),dw=Math.round(iw*0.22),cw2=iw-pw-rw-dw-3*bg;
+    this.girarBotao=this.botaoToque(iy,ay,rw,ah,'Rotate','\u21bb',()=>this.girarPredio());
+    this.duplicarBotao=this.botaoToque(iy+rw+bg,ay,dw,ah,'Duplicate','',()=>this.duplicarSelecionado());
+    this.cancelarBotao=this.botaoToque(iy+rw+dw+2*bg,ay,cw2,ah,'Cancel','\u00d7',()=>this.limparSelecao());
+    this.colocarBotao=this.botaoToque(iy+rw+dw+cw2+3*bg,ay,pw,ah,'Place','\u2713',()=>this.confirmar(),true);
+
+    // Objects list: fills the space between the header and the action bar.
+    this.legendaPainel.setTo(0,0,0,0);
+    const listaY=by+bh+gap;
+    const listaMax=Math.max(0,H-m-acaoH-gap-listaY);
+    if(this.painelObjetosAberto && listaMax>=132*u){
+      const cw=Math.min(300,Math.round(W*0.55));
+      // Header (42) + pagination footer (44) + the visible rows.
+      const linhas=Math.max(1,Math.min(8,Math.floor((listaMax-86*u)/(this.espacoLinha*u))));
+      const listaH=Math.min(listaMax,(86+linhas*this.espacoLinha)*u);
+      this.quantidadeLinhas=linhas;
+      this.listaPainel.setTo(m,listaY,cw,listaH);this.ui.add(painel(m,listaY,cw,listaH));
+      this.ui.add(this.add.text(m+14*u,listaY+14*u,'OBJECTS',letra(13*u,'#f5b533',{fontStyle:'bold',letterSpacing:1.2*u})));
+      this.ui.add(this.add.text(m+cw-14*u,listaY+15*u,`${this.alvos.length} on map`,letra(11*u,'#8d9ab8')).setOrigin(1,0));
+      this.listaConteudo=this.add.container(0,0);this.ui.add(this.listaConteudo);this.desenharLista();
+    }else{
+      this.listaPainel.setTo(0,0,0,0);this.listaConteudo=undefined;this.quantidadeLinhas=0;
+    }
+    this.atualizarFeedback();this.cameraMapa.ignore(this.ui);
+    if(this.passoGuia>=0)this.desenharGuia();
+  }
+
   private objetosFiltrados() {
     const primeiros:AlvoVisivel[]=[];
     for(const id of ORDEM_CONSTRUCAO){const alvo=this.alvos.find(a=>a.objeto.deco?.id===id);if(alvo)primeiros.push(alvo);}
@@ -453,7 +622,7 @@ export class EditorBase extends Phaser.Scene {
     const u=this.u,p=this.listaPainel,lista=this.objetosFiltrados();
     this.indiceLista=Phaser.Math.Clamp(this.indiceLista,0,Math.max(0,lista.length-this.quantidadeLinhas));
     for(const [i,alvo] of lista.slice(this.indiceLista,this.indiceLista+this.quantidadeLinhas).entries()) {
-      const w=p.width-24*u,h=42*u,x=p.x+12*u,y=p.y+42*u+i*46*u;
+      const w=p.width-24*u,h=this.alturaLinha*u,x=p.x+12*u,y=p.y+42*u+i*this.espacoLinha*u;
       const bt=this.botao(x,y,w,h,'',()=>this.selecionarDaLista(alvo.objeto.id));
       c.add(bt.caixa);
       const fundo=bt.caixa.list[0] as Phaser.GameObjects.Graphics;
@@ -461,19 +630,22 @@ export class EditorBase extends Phaser.Scene {
       const img=this.add.image(23*u,h/2,alvo.imagem.texture.key,alvo.imagem.frame.name).setOrigin(0.5);
       img.setScale(Math.min(30*u/img.width,30*u/img.height));bt.caixa.add(img);
       const nome=this.add.text(48*u,h/2,alvo.nome,letra(15*u,'#ffffff',{fontStyle:'bold'})).setOrigin(0,0.5);
-      let letras=alvo.nome.length;while(nome.width>w-110*u && letras>2)nome.setText(alvo.nome.slice(0,--letras)+'...');
+      let letras=alvo.nome.length;while(nome.width>w-(this.movel?58:110)*u && letras>2)nome.setText(alvo.nome.slice(0,--letras)+'...');
       bt.caixa.add(nome);
-      const status=this.add.text(w-10*u,h/2,'Placed',letra(11*u,'#8d9ab8')).setOrigin(1,0.5);bt.caixa.add(status);
+      const status=this.add.text(w-10*u,h/2,'Placed',letra(11*u,'#8d9ab8')).setOrigin(1,0.5).setVisible(!this.movel);bt.caixa.add(status);
       this.linhasLista.push({id:alvo.objeto.id,fundo,status,w,h});
       const zona=bt.caixa.list.find(o=>o.type==='Zone')!;
       zona.on('pointerover',()=>{this.hoverLista=alvo.objeto.id;this.marcarLista(true);})
         .on('pointerout',()=>{if(this.hoverLista===alvo.objeto.id)this.hoverLista=null;this.marcarLista(true);});
     }
-    const y=p.bottom-31*u;
-    const voltar=this.botao(p.x+12*u,y,34*u,24*u,'<',()=>this.rolarLista(-this.quantidadeLinhas));
-    const proximo=this.botao(p.right-46*u,y,34*u,24*u,'>',()=>this.rolarLista(this.quantidadeLinhas));
+    const movel=this.movel;
+    const bw=movel?Math.max(42,Math.round(42*u)):34*u;
+    const bh=movel?Math.max(34,Math.round(34*u)):24*u;
+    const y=movel?p.bottom-bh-5*u:p.bottom-31*u;
+    const voltar=this.botao(p.x+12*u,y,bw,bh,'<',()=>this.rolarLista(-this.quantidadeLinhas));
+    const proximo=this.botao(p.right-12*u-bw,y,bw,bh,'>',()=>this.rolarLista(this.quantidadeLinhas));
     c.add([voltar.caixa,proximo.caixa]);voltar.habilitar(this.indiceLista>0);proximo.habilitar(this.indiceLista+this.quantidadeLinhas<lista.length);
-    c.add(this.add.text(p.centerX,y+12*u,lista.length?`${this.indiceLista+1}-${Math.min(lista.length,this.indiceLista+this.quantidadeLinhas)} / ${lista.length}`:'No objects',letra(11*u,'#8d9ab8')).setOrigin(0.5));
+    c.add(this.add.text(p.centerX,y+bh/2,lista.length?`${this.indiceLista+1}-${Math.min(lista.length,this.indiceLista+this.quantidadeLinhas)} / ${lista.length}`:'No objects',letra((movel?13:11)*u,'#8d9ab8')).setOrigin(0.5));
     this.marcarLista();this.cameraMapa.ignore(this.ui);
   }
 
@@ -495,7 +667,9 @@ export class EditorBase extends Phaser.Scene {
 
   private selecionarDaLista(id:number) {
     const alvo=this.alvos.find(a=>a.objeto.id===id);if(!alvo)return;
+    if(this.movel)this.painelObjetosAberto=false;
     if(this.selecionado?.id!==id){this.limparSelecao(false);this.selecionarAlvo(alvo);}
+    else if(this.movel)this.desenharUI();
     this.localizarSelecionado();
   }
 
@@ -503,8 +677,11 @@ export class EditorBase extends Phaser.Scene {
     if(!this.selecionado)return;
     this.encerrarArrasto();this.ponteiroPendente=null;
     const b=this.fantasma.getBounds(),cam=this.cameraMapa;
-    const esquerda=this.painelObjetosAberto?this.cartao.right+20*this.u:20*this.u;
-    const destino=cam.getWorldPoint((esquerda+this.scale.width-70*this.u)/2,(this.cabecalho.bottom+this.legendaPainel.top)/2);
+    const esquerda=this.painelObjetosAberto?(this.movel?this.listaPainel.right:this.cartao.right)+20*this.u:20*this.u;
+    // On touch the inspector/card is the bottom action bar, so centre on the free map area.
+    const base=this.movel?this.acaoPainel.top:this.legendaPainel.top;
+    const topo=this.movel?this.u*9+44:this.cabecalho.bottom;
+    const destino=cam.getWorldPoint((esquerda+this.scale.width-70*this.u)/2,(topo+base)/2);
     cam.setScroll(cam.scrollX+b.centerX-destino.x,cam.scrollY+b.centerY-destino.y);
     this.sincronizarCamera();this.atualizarDestaque();
   }
@@ -518,7 +695,7 @@ export class EditorBase extends Phaser.Scene {
 
   private encerrarArrasto() {
     if(this.cameraPendente){this.cameraPendente=false;this.sincronizarCamera();}
-    this.inicioArrasto=null;this.arrastou=false;
+    this.inicioArrasto=null;this.arrastou=false;this.arrastoObjeto=null;
     this.alvoPressionado=null;
     this.input.setDefaultCursor(this.selecionado?'crosshair':'grab');
   }
@@ -537,56 +714,59 @@ export class EditorBase extends Phaser.Scene {
     this.encerrarArrasto();this.ponteiroPendente=null;
     this.restaurarImagem();this.duplicando=true;
     this.marcarLista(true);this.posicionar(this.gx,this.gy,true);
-    this.aviso('Copy ready - choose a free spot, then Place or E.');
+    this.aviso(this.movel?'Copy ready - drag it to a free spot, then PLACE.':'Copy ready - choose a free spot, then Place or E.');
   }
 
   private abrirGuia() {
     this.encerrarArrasto();this.ponteiroPendente=null;this.mostrarHover(null);
     this.passoGuia=0;this.desenharUI();
   }
-  private avancarGuia() {if(this.passoGuia<GUIA.length-1){this.passoGuia++;this.desenharUI();}else this.fecharGuia();}
+  private avancarGuia() {if(this.passoGuia<this.passosGuia().length-1){this.passoGuia++;this.desenharUI();}else this.fecharGuia();}
   private fecharGuia() {
     this.encerrarArrasto();this.ponteiroPendente=null;
     this.passoGuia=-1;this.desenharUI();
     this.atualizarDestaque();
-    try{localStorage.setItem(CHAVE_GUIA,'done');}catch{/* Help remains available without storage. */}
+    try{localStorage.setItem(this.chaveGuia(),'done');}catch{/* Help remains available without storage. */}
   }
   private desenharGuia() {
-    const W=this.scale.width,H=this.scale.height,u=this.u;
-    const w=Math.min(600*u,W-24),p=24*u,largura=w-2*p,etapa=GUIA[this.passoGuia];
+    const W=this.scale.width,H=this.scale.height,u=this.u,guia=this.passosGuia();
+    const w=Math.min(600*u,W-24),p=24*u,largura=w-2*p,etapa=guia[this.passoGuia];
     const fundo=this.add.rectangle(0,0,W,H,0x040b18,0.86).setOrigin(0).setInteractive();
     for(const evento of ['pointerdown','pointerup','pointermove'])fundo.on(evento,(_p:unknown,_x:unknown,_y:unknown,e:Phaser.Types.Input.EventData)=>e.stopPropagation());
     // Measure a single centered content column before sizing the card. No absolute text rows.
     const conteudo=this.add.container(0,0);
-    const icone=criarIconeJogo(this,0,23*u,etapa.icone,46*u);conteudo.add(icone);
-    let linha=58*u;
+    const compacto=this.movel && H<480;
+    if(!compacto)conteudo.add(criarIconeJogo(this,0,23*u,etapa.icone,46*u));
+    let linha=(compacto?0:this.movel?50:58)*u;
+    const vao=(compacto?6:this.movel?10:14)*u;
     const texto=(valor:string,tamanho:number,cor:string,bold=false)=>{
       const t=this.add.text(0,linha,valor,letra(tamanho*u,cor,{fontStyle:bold?'bold':'normal',align:'center',wordWrap:{width:largura},lineSpacing:3*u})).setOrigin(0.5,0);
-      conteudo.add(t);linha+=t.height+14*u;return t;
+      conteudo.add(t);linha+=t.height+vao;return t;
     };
-    texto(`FIELD GUIDE  /  ${this.passoGuia+1} OF ${GUIA.length}`,11,'#9cb9d0',true);
+    texto(`FIELD GUIDE  /  ${this.passoGuia+1} OF ${guia.length}`,11,'#9cb9d0',true);
     texto(etapa.titulo,23,'#ffffff',true);
     texto(etapa.teclas,13,'#fddd45',true);
     texto(etapa.texto,15,'#e2e8f0');
-    texto(etapa.dica,12,'#9cb9d0');
-    const rodape=64*u,maxAltura=H-24;
-    const escala=Math.min(1,Math.max(1,maxAltura-rodape-2*p)/linha);
+    if(!compacto)texto(etapa.dica,12,'#9cb9d0');
+    const rodape=(this.movel?76:64)*u,maxAltura=H-24;
+    const escala=Math.min(1,(maxAltura-rodape-2*p)/linha);
     conteudo.setScale(escala);
     const h=linha*escala+rodape+2*p,x=(W-w)/2,y=(H-h)/2;
     conteudo.setPosition(W/2,y+p);
     const g=this.add.graphics().fillStyle(0x13283f,1).fillRoundedRect(x,y,w,h,18*u)
       .lineStyle(2,etapa.cor,0.8).strokeRoundedRect(x,y,w,h,18*u);
     const objetos:Phaser.GameObjects.GameObject[]=[fundo,g,conteudo];
-    for(let i=0;i<GUIA.length;i++)objetos.push(this.add.circle(W/2+(i-(GUIA.length-1)/2)*15*u,y+h-rodape+2*u,3.5*u,i===this.passoGuia?etapa.cor:0x456079));
+    for(let i=0;i<guia.length;i++)objetos.push(this.add.circle(W/2+(i-(guia.length-1)/2)*15*u,y+h-rodape+2*u,3.5*u,i===this.passoGuia?etapa.cor:0x456079));
     this.modalGuia=this.add.container(0,0,objetos);this.ui.add(this.modalGuia);
-    const anterior=this.botao(x+p,y+h-48*u,82*u,34*u,this.passoGuia?'Back':'Skip',()=>{if(this.passoGuia){this.passoGuia--;this.desenharUI();}else this.fecharGuia();});
-    const proximo=this.botao(x+w-p-122*u,y+h-48*u,122*u,34*u,this.passoGuia===GUIA.length-1?'Start planning':'Next',()=>this.avancarGuia(),true);
+    const navY=y+h-(this.movel?58:48)*u,navH=(this.movel?44:34)*u;
+    const anterior=this.botao(x+p,navY,(this.movel?100:82)*u,navH,this.passoGuia?'Back':'Skip',()=>{if(this.passoGuia){this.passoGuia--;this.desenharUI();}else this.fecharGuia();});
+    const proximo=this.botao(x+w-p-(this.movel?136:122)*u,navY,(this.movel?136:122)*u,navH,this.passoGuia===guia.length-1?'Start planning':'Next',()=>this.avancarGuia(),true);
     this.modalGuia.add([anterior.caixa,proximo.caixa]);this.cameraMapa.ignore(this.ui);
   }
 
   private selecionarEm(p: Phaser.Input.Pointer,pressionado:ObjetoEditor|null=null) {
     const alvo=pressionado?this.alvos.find(a=>a.objeto.id===pressionado.id):this.alvoEm(p);
-    if(!alvo){this.aviso('Click a highlighted building or surface object.');return;}
+    if(!alvo){this.aviso(this.movel?'Tap a highlighted building or choose from the list.':'Click a highlighted building or surface object.');return;}
     this.selecionarAlvo(alvo);
   }
 
@@ -603,10 +783,25 @@ export class EditorBase extends Phaser.Scene {
 
   private apontar(p: Phaser.Input.Pointer) {
     if(!this.selecionado)return;
-    const w=this.cameraMapa.getWorldPoint(p.x,p.y),t=sessao.terreno,P=dadosTerreno.imagem;
-    const q=paraChao(P,t,w.x,w.y) ?? paraMapaNaAltura(P,w.x,w.y,this.selecionado.z);
+    const q=this.chaoDoPonteiro(p);
     const tipo=this.tipoAlvo(this.selecionado);
     this.posicionar(Math.floor(q.gx-tipo.w/2),Math.floor(q.gy-tipo.h/2));
+  }
+
+  private chaoDoPonteiro(p:Phaser.Input.Pointer) {
+    const w=this.cameraMapa.getWorldPoint(p.x,p.y),P=dadosTerreno.imagem;
+    return paraChao(P,sessao.terreno,w.x,w.y) ?? paraMapaNaAltura(P,w.x,w.y,this.selecionado!.z);
+  }
+
+  private sobrePrevia(p:Phaser.Input.Pointer) {
+    const q=this.cameraMapa.getWorldPoint(p.x,p.y),b=this.fantasma.getBounds(),folga=12/this.cameraMapa.zoom;
+    return q.x>=b.left-folga && q.x<=b.right+folga && q.y>=b.top-folga && q.y<=b.bottom+folga;
+  }
+
+  private moverPreviaArrastada(p:Phaser.Input.Pointer) {
+    const inicio=this.arrastoObjeto;if(!inicio || !this.selecionado)return;
+    const q=this.chaoDoPonteiro(p);
+    this.posicionar(inicio.gx+Math.round(q.gx-inicio.origemX),inicio.gy+Math.round(q.gy-inicio.origemY));
   }
 
   private avaliar(gx:number,gy:number,manterPassagem=true): AvaliacaoEditor {
@@ -640,12 +835,12 @@ export class EditorBase extends Phaser.Scene {
     this.girarBotao?.habilitar(!!c);this.cancelarBotao?.habilitar(!!c);this.marcarLista();
     this.duplicarBotao?.habilitar(!!c && !this.duplicando);
     this.medida.setVisible(false);
-    if(!c){this.nome.setScale(1).setText('Select an object');this.instrucao.setText('Click the map or choose from the list.');
-      this.estado.setText('Choose an object from the list').setColor('#8d9ab8');this.colocarBotao?.habilitar(false);this.validacaoIcone.clear();return;}
+    if(!c){this.nome.setScale(1).setText('Select an object');this.instrucao.setText(this.movel?'Tap the map to move the preview.':'Click the map or choose from the list.');
+      this.estado.setText(this.movel?'Tap an object or an Objects row':'Choose an object from the list').setColor('#8d9ab8');this.colocarBotao?.habilitar(false);this.validacaoIcone.clear();return;}
     const a=avaliacao??this.avaliar(this.gx,this.gy),ok=a.motivo==='ok';this.motivo=a.motivo;
     const nome=this.alvos.find(v=>v.objeto.id===c.id)?.nome??c.tipo.nome;
     this.nome.setText(this.duplicando?`${nome} (copy)`:nome).setScale(1);
-    this.nome.setScale(Math.min(1,(this.cartao.width-28*this.u)/this.nome.width));
+    this.nome.setScale(Math.min(1,this.larguraNome/this.nome.width));
     const motivos:Record<Motivo,string>={ok:'stable ground',fora:'outside map',ocupado:'occupied',rochas:'rocky ground',instavel:'unstable ground',ingreme:'steep slope',passagem:'keep a gap',tripulacao:'crew nearby',limite:'object limit reached'};
     this.estado.setText(`${ok?'Valid':'Invalid'} spot · ${motivos[a.motivo]}`).setColor(ok?'#3ddc84':'#f87171');
     const u=this.u,g=this.validacaoIcone.clear().lineStyle(1.5*u,ok?0x3ddc84:0xf87171);
@@ -704,9 +899,11 @@ export class EditorBase extends Phaser.Scene {
     if(redesenhar && haviaSelecao)this.desenharUI();else this.atualizarFeedback();
   }
   private aviso(texto:string) {
-    this.toast?.destroy();this.toast=this.add.text(this.scale.width/2,this.cabecalho.bottom+12*this.u,texto,letra(13*this.u,'#ffffff',{
+    this.toast?.destroy();
+    const movel=this.movel && this.acaoPainel.height>0;
+    this.toast=this.add.text(this.scale.width/2,movel?this.acaoPainel.y-8*this.u:this.cabecalho.bottom+12*this.u,texto,letra(13*this.u,'#ffffff',{
       backgroundColor:'#203956',padding:{x:14,y:8},wordWrap:{width:this.scale.width-50},align:'center',
-    })).setOrigin(0.5,0);this.ui.add(this.toast);this.cameraMapa.ignore(this.toast);
+    })).setOrigin(0.5,movel?1:0);this.ui.add(this.toast);this.cameraMapa.ignore(this.toast);
     const t=this.toast;this.time.delayedCall(2200,()=>t.destroy());
   }
 
@@ -737,7 +934,7 @@ export class EditorBase extends Phaser.Scene {
     const p=c.getWorldPoint(this.scale.width/2,this.scale.height/2),q=paraChao(dadosTerreno.imagem,sessao.terreno,p.x,p.y);
     this.desenharGrade(q?.gx??this.gx,q?.gy??this.gy);
   }
-  private zoom(fator:number,p?:Phaser.Input.Pointer) {
+  private zoom(fator:number,p?:{x:number;y:number}) {
     const c=this.cameraMapa,x=p?.x??this.scale.width/2,y=p?.y??this.scale.height/2,antes=c.getWorldPoint(x,y);
     c.setZoom(Phaser.Math.Clamp(c.zoom*fator,0.45,2.4));c.preRender();const depois=c.getWorldPoint(x,y);
     c.scrollX+=antes.x-depois.x;c.scrollY+=antes.y-depois.y;

@@ -1,0 +1,237 @@
+{
+  "url": "http://127.0.0.1:5278/?leve",
+  "cpuSlowdown": 1,
+  "viewport": {
+    "width": 412,
+    "height": 915
+  },
+  "motion": "reduced",
+  "softwareRequested": false,
+  "date": "2026-11-15T21:35:45.788Z",
+  "stages": [],
+  "errors": [],
+  "browser": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/157.0.8103.52",
+    "revision": "@0985600c06a688b9c669e74afde7dacd5aaed047",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+    "jsVersion": "15.7.112.23"
+  },
+  "readyMs": 24523.10000000149,
+  "firstContentfulPaintMs": 7436,
+  "renderer": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164C) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "checks": [
+    {
+      "name": "forecast uses the range instead of the hidden level",
+      "ok": true,
+      "pages": [
+        "LUNAR ODYSSEY",
+        "LUNAR ODYSSEY",
+        "Ship · 1/5",
+        "Oxygen",
+        "60%",
+        "Radiation",
+        "8%",
+        "Trip",
+        "0%",
+        "Ground",
+        "MC",
+        "Mission Control",
+        "Fly to Mars in 5 days!",
+        "Deep space has no shield. Watch the radiation!",
+        "No magnetic shield out here. A CME is coming!",
+        "Forecast: RISING to EXTREME. Shield: 1–3 batteries.",
+        "NEXT  ▶",
+        "SHIP · DAY 1 · MAY 13, 2024",
+        ""
+      ]
+    },
+    {
+      "name": "station success and active expedition are saved",
+      "ok": true,
+      "exp": {
+        "tipo": "ferramenta",
+        "pontos": [
+          {
+            "x": 17.3309034692044,
+            "y": 9.554568655114092
+          },
+          {
+            "x": 6.5,
+            "y": 10
+          }
+        ],
+        "atual": 1,
+        "feitos": [
+          true,
+          false
+        ],
+        "livre": false,
+        "raio": 1.2,
+        "deRover": false,
+        "segurar": 0,
+        "espera": 0,
+        "escondidoAte": 1,
+        "id": "ferramenta",
+        "titulo": "Lost wrench",
+        "destino": "Engines",
+        "escala": 0.35,
+        "fato": "In 2008 an astronaut lost a tool bag on a spacewalk. It circled the Earth for months, and people could see it with binoculars!"
+      }
+    },
+    {
+      "name": "station and expedition survive a real page reload",
+      "ok": true,
+      "done": [
+        "nave_plantas"
+      ],
+      "exp": {
+        "tipo": "ferramenta",
+        "pontos": [
+          {
+            "x": 17.3309034692044,
+            "y": 9.554568655114092
+          },
+          {
+            "x": 6.5,
+            "y": 10
+          }
+        ],
+        "atual": 1,
+        "feitos": [
+          true,
+          false
+        ],
+        "livre": false,
+        "raio": 1.2,
+        "deRover": false,
+        "segurar": 0,
+        "espera": 0,
+        "escondidoAte": 1,
+        "id": "ferramenta",
+        "titulo": "Lost wrench",
+        "destino": "Engines",
+        "escala": 0.35,
+        "fato": "In 2008 an astronaut lost a tool bag on a spacewalk. It circled the Earth for months, and people could see it with binoculars!"
+      },
+      "countdown": 7
+    },
+    {
+      "name": "selected Moon exploration preserves campaign save",
+      "ok": true,
+      "world": "lua",
+      "exploring": true
+    },
+    {
+      "name": "campaign returns after free exploration",
+      "ok": true,
+      "world": "nave",
+      "day": 2
+    },
+    {
+      "name": "restart after victory starts a fresh Moon campaign",
+      "ok": true,
+      "state": {
+        "dia": 1,
+        "oxigenio": 60,
+        "dose": 0,
+        "meta": 0,
+        "obras": {}
+      },
+      "world": "lua"
+    },
+    {
+      "name": "fresh restart persists after reloading",
+      "ok": true,
+      "world": "lua",
+      "phase": "manha"
+    },
+    {
+      "name": "death explanation names oxygen",
+      "ok": true,
+      "texts": [
+        "LUNAR ODYSSEY",
+        "LUNAR ODYSSEY",
+        "Mars · 1/8",
+        "Oxygen",
+        "0%",
+        "Radiation",
+        "8%",
+        "Base",
+        "0%",
+        "Ground",
+        "OUT OF OXYGEN",
+        "MC",
+        "Mission Control",
+        "The crew ran out of oxygen. Power Life Support before ending the day.",
+        "Why: Life Support got too few batteries, so the air ran out.",
+        "92 points!",
+        "Oxygen 0",
+        "NEXT  ▶",
+        ""
+      ]
+    },
+    {
+      "name": "Mars can retry without replaying the whole campaign",
+      "ok": true,
+      "world": "marte",
+      "state": {
+        "dia": 1,
+        "oxigenio": 60,
+        "dose": 8,
+        "meta": 0,
+        "obras": {}
+      }
+    },
+    {
+      "name": "touch jump uses the same character physics",
+      "ok": true,
+      "body": {
+        "x": 24.7,
+        "y": 36.5,
+        "z": 0.25844523142111114,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0.38337894444444465,
+        "raio": 0.22,
+        "noChao": false
+      }
+    },
+    {
+      "name": "science fact remains accessible after the fast close",
+      "ok": true,
+      "notes": [
+        {
+          "titulo": "Fresh lettuce!",
+          "fato": "In 2015 astronauts on the Space Station grew red romaine lettuce and ate it. Plants also make oxygen!"
+        }
+      ],
+      "texts": [
+        "Fresh lettuce!",
+        "In 2015 astronauts on the Space Station grew red romaine lettuce and ate it. Plants also make oxygen!",
+        "BACK",
+        "SCIENCE LOG"
+      ]
+    },
+    {
+      "name": "pausing freezes the landing and its chapter transition",
+      "ok": true,
+      "before": 0.035250000000000004,
+      "after": 0.035250000000000004,
+      "world": "nave"
+    },
+    {
+      "name": "landing resumes once and removes the pause overlay",
+      "ok": true,
+      "world": "marte",
+      "phase": "manha"
+    },
+    {
+      "name": "restart clears the rocket departure animation state",
+      "ok": true,
+      "world": "lua",
+      "departed": false
+    }
+  ],
+  "completed": true
+}

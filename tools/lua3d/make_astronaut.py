@@ -19,8 +19,9 @@ ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 SENTADO = os.environ.get('SENTADO') == '1'
 PNG = os.path.join(ROOT, 'public', 'lua', 'astronaut.png' if os.environ.get('SKIN', 'comandante') == 'comandante' else 'astronaut_%s.png' % os.environ['SKIN'])
 if SENTADO: PNG = PNG[:-4] + '_sentado.png'
+if os.environ.get('ACESSORIO'): PNG = os.path.join(ROOT, 'public', 'lua', 'acessorio_%s.png' % os.environ['ACESSORIO'])
 JSON = os.path.join(ROOT, 'src', 'dados', 'astronauta.json')
-TMP = os.path.join(HERE, '.cache', 'astro_' + os.environ.get('SKIN', 'comandante') + ('_sentado' if SENTADO else ''))
+TMP = os.path.join(HERE, '.cache', 'astro_' + os.environ.get('SKIN', 'comandante') + ('_sentado' if SENTADO else '') + ('_acc_' + os.environ['ACESSORIO'] if os.environ.get('ACESSORIO') else ''))
 LIVE = not bpy.app.background
 
 T = 30                     # terrain px per tile step (render_terrain.py)
@@ -41,6 +42,19 @@ SKINS = {
     'nebulosa':   dict(suit='#ddd6fe', pack='#c4b5fd', accent='#8b5cf6', glint='#f0abfc', boot='#4c1d95'),
     'solar':      dict(suit='#fef08a', pack='#fde047', accent='#d97706', glint='#ffffff', boot='#78350f'),
     'oceano':     dict(suit='#a5f3fc', pack='#67e8f9', accent='#0e7490', glint='#fef9c3', boot='#164e63'),
+    # Different astronauts, prizes of side missions (skins.ts: premio). cw = chunkier torso; the extras
+    # (ears, tails, horns...) are built by personagens_extra.py. Light colors only.
+    'robo':       dict(suit='#cbd5e1', pack='#94a3b8', accent='#38bdf8', glint='#86efac', boot='#475569', cw=1.06),
+    'alien':      dict(suit='#bbf7d0', pack='#86efac', accent='#a855f7', glint='#f0abfc', boot='#166534', cw=0.95),
+    'gato':       dict(suit='#fed7aa', pack='#fdba74', accent='#ea580c', glint='#bef264', boot='#7c2d12'),
+    'urso':       dict(suit='#d6b48a', pack='#c49a6c', accent='#92400e', glint='#fde68a', boot='#78350f', cw=1.12),
+    'coelho':     dict(suit='#fce7f3', pack='#fbcfe8', accent='#ec4899', glint='#ffffff', boot='#9d174d', cw=0.95),
+    'cachorro':   dict(suit='#fde68a', pack='#fcd34d', accent='#b45309', glint='#ffffff', boot='#78350f'),
+    'pinguim':    dict(suit='#bfdbfe', pack='#93c5fd', accent='#f97316', glint='#ffffff', boot='#1e3a8a', cw=1.10),
+    'dino':       dict(suit='#bbf7d0', pack='#4ade80', accent='#facc15', glint='#fef08a', boot='#14532d', cw=1.05),
+    'raposa':     dict(suit='#fdba74', pack='#fb923c', accent='#ffffff', glint='#fef9c3', boot='#7c2d12'),
+    'unicornio':  dict(suit='#f5d0fe', pack='#e879f9', accent='#38bdf8', glint='#fde047', boot='#6b21a8'),
+    'panda':      dict(suit='#f1f5f9', pack='#e2e8f0', accent='#64748b', glint='#bae6fd', boot='#475569', cw=1.10),
 }
 SKIN = os.environ.get('SKIN', 'comandante')
 K = SKINS[SKIN]
@@ -123,6 +137,8 @@ def peca(nome, kind, size, loc, cor, pai=root, bevel=0.0, rot=(0, 0, 0)):
         bpy.ops.mesh.primitive_cube_add(size=1)
     elif kind == 'ball':
         bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=0.5)
+    elif kind == 'cone':
+        bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.5, radius2=0, depth=1)
     else:
         bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.5, depth=1)
     o = bpy.context.active_object
@@ -162,6 +178,67 @@ peca('brilho', 'ball', (H * 0.05, H * 0.10, H * 0.06), (H * 0.205, H * 0.07, H *
 peca('antena', 'cyl', (H * 0.015, H * 0.015, H * 0.09), (-H * 0.05, -H * 0.12, H * 0.37), TRIM, cabeca)
 peca('farol', 'ball', (H * 0.05, H * 0.05, H * 0.05), (-H * 0.05, -H * 0.12, H * 0.43), BEACON, cabeca)
 
+# ---------- accessories (hats etc.): ACESSORIO=<id> renders ONLY these, as an overlay sheet ----------
+# Same frame, camera, 8 directions and head motion as the astronaut, so the game draws the sheet on top of
+# the suit sprite (any skin, walking, carrying or seated). Parts hang from the `cabeca` pivot; the
+# helmet top is at z = 0.37 H. Light colors only (see the novo-item skill). Keep ids in sync with
+# src/dados/acessorios.ts.
+ACESSORIO = os.environ.get('ACESSORIO')
+def acessorio_festa():
+    peca('acc_cone', 'cone', (H * 0.20, H * 0.20, H * 0.34), (0, 0, H * 0.51), '#f472b6', cabeca, rot=(0, 0.12, 0))
+    peca('acc_faixa1', 'cyl', (H * 0.155, H * 0.155, H * 0.035), (H * 0.006, 0, H * 0.45), '#fde047', cabeca, rot=(0, 0.12, 0))
+    peca('acc_faixa2', 'cyl', (H * 0.105, H * 0.105, H * 0.03), (H * 0.012, 0, H * 0.55), '#fde047', cabeca, rot=(0, 0.12, 0))
+    peca('acc_pompom', 'ball', (H * 0.07, H * 0.07, H * 0.07), (H * 0.025, 0, H * 0.69), '#ffffff', cabeca)
+def acessorio_coroa():
+    peca('acc_aro', 'cyl', (H * 0.31, H * 0.31, H * 0.07), (0, 0, H * 0.355), '#fde047', cabeca)
+    for k in range(5):
+        a = k * 2 * math.pi / 5
+        peca(f'acc_ponta{k}', 'cone', (H * 0.075, H * 0.075, H * 0.13), (math.cos(a) * H * 0.125, math.sin(a) * H * 0.125, H * 0.45), '#fde047', cabeca)
+        peca(f'acc_gema{k}', 'ball', (H * 0.04, H * 0.04, H * 0.04), (math.cos(a) * H * 0.125, math.sin(a) * H * 0.125, H * 0.525), '#fb7185', cabeca)
+    peca('acc_joia', 'ball', (H * 0.07, H * 0.07, H * 0.07), (H * 0.15, 0, H * 0.355), '#38bdf8', cabeca)
+def acessorio_cowboy():
+    peca('acc_aba', 'cyl', (H * 0.56, H * 0.50, H * 0.03), (0, 0, H * 0.335), '#fcd9a8', cabeca, bevel=0.0)
+    peca('acc_copa', 'cyl', (H * 0.27, H * 0.27, H * 0.15), (0, 0, H * 0.42), '#fbbf77', cabeca)
+    peca('acc_fita', 'cyl', (H * 0.28, H * 0.28, H * 0.035), (0, 0, H * 0.375), '#f97316', cabeca)
+def acessorio_orelhas():
+    for lado in (-1, 1):
+        peca(f'acc_orelha{lado}', 'cone', (H * 0.16, H * 0.12, H * 0.20), (-H * 0.01, lado * H * 0.12, H * 0.43), '#fbcfe8', cabeca, rot=(-lado * 0.32, 0, 0))
+        peca(f'acc_dentro{lado}', 'cone', (H * 0.09, H * 0.06, H * 0.12), (H * 0.03, lado * H * 0.118, H * 0.42), '#f472b6', cabeca, rot=(-lado * 0.32, 0, 0))
+def acessorio_gorro():
+    peca('acc_gorro', 'ball', (H * 0.43, H * 0.43, H * 0.30), (-H * 0.005, 0, H * 0.335), '#fb923c', cabeca)
+    peca('acc_barra', 'cyl', (H * 0.405, H * 0.405, H * 0.05), (-H * 0.005, 0, H * 0.275), '#ffffff', cabeca)
+    peca('acc_pompom2', 'ball', (H * 0.09, H * 0.09, H * 0.09), (-H * 0.005, 0, H * 0.505), '#ffffff', cabeca)
+def acessorio_laco():
+    peca('acc_no', 'ball', (H * 0.07, H * 0.07, H * 0.07), (-H * 0.01, 0, H * 0.405), '#f472b6', cabeca)
+    for lado in (-1, 1):
+        peca(f'acc_asa{lado}', 'cone', (H * 0.13, H * 0.13, H * 0.16), (-H * 0.01, lado * H * 0.115, H * 0.405), '#f9a8d4', cabeca, rot=(lado * math.pi / 2, 0, 0))
+def acessorio_fones():
+    for lado in (-1, 1):
+        peca(f'acc_concha{lado}', 'cyl', (H * 0.13, H * 0.13, H * 0.06), (0, lado * H * 0.215, H * 0.18), '#f472b6', cabeca, rot=(math.pi / 2, 0, 0))
+        peca(f'acc_almofada{lado}', 'cyl', (H * 0.10, H * 0.10, H * 0.065), (0, lado * H * 0.225, H * 0.18), '#fde047', cabeca, rot=(math.pi / 2, 0, 0))
+    for k in range(9):
+        a = math.pi * (k / 8)           # over the top of the helmet, ear to ear
+        peca(f'acc_arco{k}', 'box', (H * 0.04, H * 0.05, H * 0.04), (0, -math.cos(a) * H * 0.215, H * 0.18 + math.sin(a) * H * 0.215), '#cbd5e1', cabeca, rot=(-(a - math.pi / 2), 0, 0), bevel=0.003)
+def acessorio_oculos():          # round yellow shades on the visor
+    for lado in (-1, 1):
+        peca(f'acc_aro{lado}', 'cyl', (H * 0.17, H * 0.17, H * 0.02), (H * 0.222, lado * H * 0.085, H * 0.215), '#ffffff', cabeca, rot=(0, math.pi / 2, 0))
+        peca(f'acc_lente{lado}', 'cyl', (H * 0.14, H * 0.14, H * 0.024), (H * 0.228, lado * H * 0.085, H * 0.215), '#fde047', cabeca, rot=(0, math.pi / 2, 0))
+    peca('acc_ponte', 'box', (H * 0.02, H * 0.05, H * 0.02), (H * 0.226, 0, H * 0.225), '#ffffff', cabeca)
+def acessorio_oculos_quadrado():  # square cool frames, sky-blue lenses
+    for lado in (-1, 1):
+        peca(f'acc_moldura{lado}', 'box', (H * 0.02, H * 0.17, H * 0.12), (H * 0.222, lado * H * 0.088, H * 0.215), '#f472b6', cabeca, bevel=0.004)
+        peca(f'acc_vidro{lado}', 'box', (H * 0.024, H * 0.13, H * 0.085), (H * 0.23, lado * H * 0.088, H * 0.215), '#7dd3fc', cabeca, bevel=0.003)
+    peca('acc_ponte2', 'box', (H * 0.02, H * 0.05, H * 0.02), (H * 0.226, 0, H * 0.235), '#f472b6', cabeca)
+def acessorio_bigode():
+    for lado in (-1, 1):
+        peca(f'acc_bigode{lado}', 'ball', (H * 0.035, H * 0.11, H * 0.04), (H * 0.222, lado * H * 0.06, H * 0.155), '#fbbf77', cabeca, rot=(lado * 0.45, 0, 0))
+ACESSORIOS = {'festa': acessorio_festa, 'coroa': acessorio_coroa, 'cowboy': acessorio_cowboy, 'orelhas': acessorio_orelhas,
+              'gorro': acessorio_gorro, 'laco': acessorio_laco, 'fones': acessorio_fones,
+              'oculos': acessorio_oculos, 'oculos_quadrado': acessorio_oculos_quadrado, 'bigode': acessorio_bigode}
+exec(compile(open(os.path.join(HERE, 'acessorios_extra.py'), encoding='utf8').read(), 'acessorios_extra.py', 'exec'), globals())
+ACESSORIOS.update(ACESSORIOS_EXTRA)
+if ACESSORIO: ACESSORIOS[ACESSORIO]()
+
 pernas, bracos = [], []
 for lado in (-1, 1):
     quadril = pivo(f'quadril{lado}', (0, lado * H * 0.075, 0), corpo)
@@ -174,6 +251,14 @@ for lado in (-1, 1):
     peca(f'manga{lado}', 'box', (H * 0.098, H * 0.098, H * 0.04), (0, 0, -H * 0.03), ACCENT, ombro, bevel=0.005)
     peca(f'luva{lado}', 'ball', (H * 0.10, H * 0.10, H * 0.10), (0, 0, -H * 0.25), TRIM, ombro)
     bracos.append(ombro)
+exec(compile(open(os.path.join(HERE, 'personagens_extra.py'), encoding='utf8').read(), 'personagens_extra.py', 'exec'), globals())
+if SKIN in PERSONAGENS_EXTRA and not ACESSORIO: PERSONAGENS_EXTRA[SKIN]()
+for _n in ('tronco', 'faixa', 'painel', 'mochila', 'listra'):   # chunkier (or slimmer) torso: leaf parts only, no shear
+    _o = bpy.data.objects.get(_n)
+    if _o and K.get('cw'): _o.scale.x *= K['cw']; _o.scale.y *= K['cw']
+if ACESSORIO:   # overlay only: hide the whole suit (the pieces above are all created by now)
+    for o in sc.objects:
+        if o.type == 'MESH' and not o.name.startswith('acc_'): o.hide_render = True
 
 
 def pose(fase):
@@ -285,7 +370,7 @@ else:
         subprocess.run(['magick', PNG, '-dither', 'None', '-colors', '255', 'PNG8:' + PNG], check=True)
     except FileNotFoundError:
         print('no magick: quantize', PNG, 'to 255 colors afterwards (Pillow, FASTOCTREE, no dither)')
-    if SKIN == 'comandante' and not SENTADO: f = open(JSON, 'w')
+    if SKIN == 'comandante' and not SENTADO and not ACESSORIO: f = open(JSON, 'w')
     else: f = open(os.devnull, 'w')
     with f:
         json.dump({'frame': FRAME, 'colunas': cols, 'andar': WALK, 'escala': 1 / SUPER,

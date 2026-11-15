@@ -2,6 +2,7 @@
 // State shared by the three scenes that run together (Espaco, Superficie, Interface), plus the
 // event bus they talk through. One game = one Sessao. See ARCHITECTURE.md.
 import Phaser from 'phaser';
+import { definirMusicaDaFase } from '../audio';
 import { movimentoReduzido, configuracoesAbertas } from '../video';
 import { localeData } from '../idioma';
 import terrenoJson from '../dados/terreno.json';
@@ -10,6 +11,7 @@ import terrenoNaveJson from '../dados/terreno_nave.json';
 import { definirBotasMagneticas, definirGravidade, G_LUA, G_MARTE, G_TERRA, type Corpo } from '../engine/fisica';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { EVENTOS, haEventoHoje, esperaDoEvento, esperaDoAlarme, alarmeDoDia, type EventoDef } from '../engine/eventos';
+import { sortearCondicoes, type Condicao } from '../engine/condicoes';
 import type { Expedicao } from '../engine/expedicao';
 import { haExploracaoHoje, esperaDaExploracao } from '../engine/exploracao';
 import { lerPartida, gravarPartida, apagarPartida, liberarBases } from '../salvamento';
@@ -102,9 +104,10 @@ export type Eventos = {
 };
 
 class Sessao {
+  puloTouch = false;
   posicaoAstronauta: Corpo | null = null;
   partidaRestaurada = false;
-  explorando = false;       // EXPLORE A BASE in another world: no saving, the real game comes back on reload
+  explorando = false;       // EXPLORE THE BASE in another world: no saving, the real game comes back on reload
   abastecendoRover = false;
   editandoBase = false;
   ultimoDia: RelatorioDia | null = null;
@@ -126,12 +129,15 @@ class Sessao {
     return gravarPartida({versao:1,salvoEm:Date.now(),layout:LAYOUT_VERSAO,mundo:this.mundo,capIdx:this.capIdx,fase:this.fase,
       estado:this.estado,entregas:this.entregas,pontos:this.pontos,carregando:this.carregando,noHabitat:this.noHabitat,
       tarefasHoje:[...this.tarefasHoje],ultimaTarefa:this.ultimaTarefa,energiaHoje:this.energiaHoje,
+      estacoesHoje:[...this.estacoesHoje],exploracaoEm:this.exploracaoEm,expedicao:this.expedicao,
+      corridaHoje:this.corridaHoje,paralamaHoje:this.paralamaHoje,odometroRover:this.odometroRover,ultimaExploracao:this.ultimaExploracao,tempoExpedicao:this.tempoExpedicao,
       curiosidadeRoverVista:this.curiosidadeRoverVista,curiosidadeRoverMarteVista:this.curiosidadeRoverMarteVista,diaCargaRover:this.diaCargaRover,rover:this.rover,astronauta:this.posicaoAstronauta,
       modulos:this.grade.lista.map(c=>({id:c.id,tipo:c.tipo.id,gx:c.gx,gy:c.gy,rotacao:c.rotacao??0,copia:c.copia||undefined})),decoracao:this.grade.deco,
       tempestade:{restante:this.tempestade.restante,status:this.tempestade.status},danoTempestade:this.danoTempestade,
       bateriasTempestade:this.bateriasTempestade,desfechoPendente:this.desfechoPendente,ultimoDia:this.ultimoDia,
       evento:this.evento ? {id:this.evento.def.id,construcaoId:this.evento.construcaoId}:null,
-      eventoEm:this.eventoEm,ultimoEvento:this.ultimoEvento,diasCalmos:this.diasCalmos,tempoCalmo:this.tempoCalmo,pulou:this.pulou});
+      eventoEm:this.eventoEm,ultimoEvento:this.ultimoEvento,diasCalmos:this.diasCalmos,tempoCalmo:this.tempoCalmo,pulou:this.pulou,
+      condicoes:this.condicoes,alarmePendente:!!this.alarmeHoje});
   }
 
   atualizarSalvamento(dt: number) {
@@ -165,14 +171,25 @@ class Sessao {
       this.estado=d.estado; this.entregas=d.entregas; this.pontos=d.pontos;
       this.fase=d.fase; this.carregando=d.carregando; this.noHabitat=d.noHabitat;
       this.tarefasHoje=new Set(d.tarefasHoje); this.ultimaTarefa=d.ultimaTarefa; this.energiaHoje=d.energiaHoje;
+      this.estacoesHoje=new Set(d.estacoesHoje??[]);this.exploracaoEm=d.exploracaoEm??null;this.expedicao=d.expedicao??null;
+      this.corridaHoje=d.corridaHoje??false;this.paralamaHoje=d.paralamaHoje??false;this.odometroRover=d.odometroRover??0;
+      this.ultimaExploracao=d.ultimaExploracao;this.tempoExpedicao=d.tempoExpedicao??0;
+      // Restore the scanner's final spot, not an unfinished overlay.
+      if (this.expedicao?.cena && this.expedicao.atual>=this.expedicao.pontos.length) {
+        const e=this.expedicao,i=e.pontos.length-1;
+        this.expedicao={...e,atual:i,feitos:e.feitos.map((v,k)=>k===i?false:v),espera:0};
+      }
       this.curiosidadeRoverVista=d.curiosidadeRoverVista; this.curiosidadeRoverMarteVista=!!d.curiosidadeRoverMarteVista; this.diaCargaRover=d.diaCargaRover;
       this.rover=d.mundo!=='nave'?d.rover:null; this.posicaoAstronauta=d.astronauta;
       for (const k of [this.posicaoAstronauta,this.rover?.corpo]) if (k) {k.vx=0;k.vy=0;k.vz=0;}
       this.tempestade.restante=d.tempestade.restante; this.tempestade.status=d.tempestade.status;
       this.danoTempestade=d.danoTempestade; this.bateriasTempestade=d.bateriasTempestade;
       this.desfechoPendente=d.desfechoPendente; this.ultimoDia=d.ultimoDia;
-      this.alarmeHoje=d.mundo==='lua'?alarmeDoDia(d.estado.dia)??null:null;
-      const def=d.evento ? EVENTOS.find(e=>e.id===d.evento!.id) ?? (this.alarmeHoje?.id===d.evento.id?this.alarmeHoje:null) : null;
+      this.condicoes=d.condicoes ?? sortearCondicoes(this.C.dias);
+      const alarmeDia=d.mundo==='lua'?alarmeDoDia(d.estado.dia)??null:null;
+      // Still pending only if it had not fired yet (older saves: while its countdown runs).
+      this.alarmeHoje=alarmeDia&&(d.alarmePendente ?? d.eventoEm!==null)?alarmeDia:null;
+      const def=d.evento ? EVENTOS.find(e=>e.id===d.evento!.id) ?? (alarmeDia?.id===d.evento.id?alarmeDia:null) : null;
       this.evento=def && d.evento && this.grade.lista.some(c=>c.id===d.evento!.construcaoId) ? {def,construcaoId:d.evento.construcaoId}:null;
       this.eventoEm=d.eventoEm; this.ultimoEvento=d.ultimoEvento; this.diasCalmos=d.diasCalmos; this.tempoCalmo=d.tempoCalmo??0; this.pulou=d.pulou;
       this.partidaRestaurada=true;
@@ -206,14 +223,21 @@ class Sessao {
   evento: { def: EventoDef; construcaoId: number } | null = null;
   eventoEm: number | null = null;   // seconds of play until today's event happens (null: none today)
   alarmeHoje: EventoDef | null = null;   // today's real NASA event, if the Sun did something
+  condicoes: (Condicao | null)[] = [];   // random condition of each chapter day (engine/condicoes.ts), index 0 = day 1
+  get condicaoHoje(): Condicao | null { return this.condicoes[this.estado.dia - 1] ?? null; }
+  get bateriasHoje() { return Math.max(1, bateriasDoDia(this.estado, this.C) - (this.condicaoHoje === 'sol' ? 1 : 0)); }
   energiaHoje = false;      // the energy task of picking up the batteries was already played today
   odometroRover = 0;        // tiles driven today (paralama-tarefa.ts: the fender breaks after a while)
   paralamaHoje = false;     // the fender already broke (and was fixed) today
   expedicao: Expedicao | null = null;   // flags to drive or walk through (engine/expedicao.ts)
   corridaHoje = false;      // the rover delivery run was already offered today
+  // Side missions (breakdowns, expeditions, the delivery run) wait while a main real-data event is pending or
+  // open, and only one mission at a time.
+  get podeMissaoSecundaria() { return !this.evento && !this.expedicao && this.tempestade.status !== 'alerta' && !this.alarmeHoje; }
   estacoesHoje = new Set<string>();   // ship stations already used today (engine/estacoes.ts)
   exploracaoEm: number | null = null;   // seconds of play until today's exploration event (null: none today)
   ultimaExploracao?: string;
+  tempoExpedicao = 0;
   pistaExpedicao: { nivel: number; texto: string } | null = null;   // hot/cold hint, set by Superficie every frame
   alvoExpedicao: { x: number; y: number } | null = null;            // where the HUD arrow points
   progressoExpedicao = 0;                                           // 0..1 while staying at a spot
@@ -264,6 +288,7 @@ class Sessao {
   usarMundo(m: Mundo) {
     if (m !== this.mundo) this.filmePronto = false;   // the other world's flight film loads next
     this.mundo = m;
+    definirMusicaDaFase(m);
     usarFilme(m);
     const fonte = m === 'marte' ? terrenoMarteJson : m === 'nave' ? terrenoNaveJson : TERRENO_LUA;
     const d = dadosTerreno as unknown as Record<string, unknown>;
@@ -288,6 +313,9 @@ class Sessao {
   }
 
   reiniciar() {
+    this.puloTouch=false;
+    this.tempoExpedicao=0;
+    this.explorando=false;
     this.posicaoAstronauta=null; this.ultimoDia=null; this.danoTempestade=0; this.bateriasTempestade=0;
     this.desfechoPendente=null; this.abastecendoRover=false; this.editandoBase=false; this.partidaRestaurada=false; this.tempoSalvar=0;
     this.grade = new Grade(this.terreno);
@@ -304,6 +332,7 @@ class Sessao {
     this.tarefasHoje.clear(); this.estacoesHoje.clear();
     this.ultimaTarefa = {};
     this.evento = null; this.eventoEm = null; this.alarmeHoje = null; this.energiaHoje = false; this.ultimoEvento = undefined; this.diasCalmos = 0; this.tempoCalmo = 0;
+    this.condicoes = sortearCondicoes(this.C.dias);
     this.odometroRover = 0; this.paralamaHoje = false; this.expedicao = null; this.corridaHoje = false; this.exploracaoEm = null;
     this.emTarefa = false;
     this.vista = 'chao';
@@ -521,11 +550,12 @@ class Sessao {
   }
 
   novoDia() {
+    this.tempoExpedicao=0;
     this.nivelTeste = null;
     this.tempestade.iniciar(this.mundo === 'lua' ? this.dia.nivel : 0);
     this.entregas = nenhuma();
     this.carregando = 0;
-    this.noHabitat = bateriasDoDia(this.estado, this.C);
+    this.noHabitat = this.bateriasHoje;
     this.tarefasHoje.clear(); this.estacoesHoje.clear();
     // Maybe something breaks today; it happens a little while after the morning.
     this.evento = null;

@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { SKINS,SKINS_SPRITES,SKIN_PADRAO,skinUsaProcedural,skinBase,chaveSkin,chaveSkinCarga,chaveSkinSentado,arquivoSkinCarga,arquivoSentado } from './skins.ts';
-test('procedural character is a separate selectable skin while the six original suits remain unchanged',()=>{
-  assert.equal(SKIN_PADRAO,'comandante');assert.equal(SKINS.length,7);assert.equal(SKINS_SPRITES.length,6);
+test('procedural character is a separate selectable skin while the 12 drawn astronauts remain unchanged',()=>{
+  assert.equal(SKIN_PADRAO,'comandante');assert.equal(SKINS.length,13);assert.equal(SKINS_SPRITES.length,12);
   assert.equal(SKINS.find(s=>s.id==='procedural')?.nome,'Explorer 3D');assert.equal(skinUsaProcedural('procedural'),true);
   for(const s of SKINS_SPRITES)assert.equal(skinUsaProcedural(s.id),false);
 });

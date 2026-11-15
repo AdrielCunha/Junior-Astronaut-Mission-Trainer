@@ -4,12 +4,16 @@
 // The frame is shared by every task: metal panel, title pill, red close button, a starry screen
 // the task draws in, and the instruction pill at the bottom.
 import Phaser from 'phaser';
+import { escalaInterface } from '../mobile';
 import type { Tarefa } from '../tarefas';
 import { CORES_FESTA, botaoFechar, criarIconeJogo, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { tocarSfx } from '../sfx';
 import { sessao } from './sessao';
+import { TEMPO_SUCESSO } from './conclusaoTarefa';
+import { registrarDescoberta } from '../descobertas';
 
-export type DadosTarefa = { tarefa: Tarefa; aoTerminar: () => void };
+// aoTerminar(concluiu): true when the task was finished, false when it was closed (the X / Esc) before the end.
+export type DadosTarefa = { tarefa: Tarefa; aoTerminar: (concluiu: boolean) => void };
 
 export class CenaTarefa extends Phaser.Scene {
   private avisoSolar?: Phaser.GameObjects.Container;
@@ -21,7 +25,7 @@ export class CenaTarefa extends Phaser.Scene {
 
   create(d: DadosTarefa) {
     const W = this.scale.width, H = this.scale.height;
-    const u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.62, 1.4);
+    const u = escalaInterface(W, H);
 
     // Blocks clicks to the map and the HUD underneath.
     this.add.rectangle(0, 0, W, H, 0x020617, 0.55).setOrigin(0).setInteractive();
@@ -60,10 +64,10 @@ export class CenaTarefa extends Phaser.Scene {
       if (fechado) return;
       fechado = true;
       this.scene.stop();
-      d.aoTerminar();
+      d.aoTerminar(terminou);
     };
 
-    // Red close button on the top-left corner (closing still delivers the battery).
+    // Red close button on the top-left corner: closing before the end does NOT deliver the battery.
     botaoFechar(this, x0 + 4 * u, y0 + 4 * u, u, () => { tocarSfx('fechar'); fechar(); });
     this.input.keyboard?.once('keydown-ESC', fechar);
 
@@ -71,6 +75,7 @@ export class CenaTarefa extends Phaser.Scene {
     const feito = () => {
       if (terminou || fechado) return;
       terminou = true;
+      registrarDescoberta(d.tarefa.titulo,d.tarefa.fato);
       const cx = tela.x + tela.w / 2, cy = tela.y + tela.h / 2;
 
       tocarSfx('sucesso');
@@ -84,20 +89,25 @@ export class CenaTarefa extends Phaser.Scene {
       // Sticker.
       const selo = this.add.text(cx, tela.y + tela.h * 0.2, 'GREAT JOB!', letra(40 * u, '#fde047', { stroke: '#1e293b', strokeThickness: 8 * u }))
         .setOrigin(0.5).setAngle(-6).setScale(0).setDepth(5);
-      this.tweens.add({ targets: selo, scale: 1, duration: 450, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: selo, scale: 1, duration: 200, ease: 'Back.easeOut' });
       this.tweens.add({ targets: selo, angle: 6, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 450 });
 
       // The fact replaces the instruction; no button: the overlay closes by itself (Enter or the red X close it sooner).
       tInstr.setStyle(letra(13.5 * u, '#e2e8f0', { align: 'center', fontStyle: '500', wordWrap: { width: pw0 - 32 * u } }))
         .setText(`Did you know? ${d.tarefa.fato}`);
-      this.time.delayedCall(3500, fechar);
+      this.time.delayedCall(TEMPO_SUCESSO, fechar);
       this.input.keyboard?.once('keydown-ENTER', fechar);
     };
 
     // shortcut: a resize starts the task over; fine for a task of a few seconds.
-    const redimensionar = () => this.scene.restart(d);
+    const redimensionar = () => terminou ? fechar() : this.scene.restart(d);
     this.scale.on('resize', redimensionar);
-    this.events.once('shutdown', () => { this.scale.off('resize', redimensionar); this.input.setDefaultCursor('default'); });
+    this.events.once('shutdown', () => {
+      fechado = true;
+      this.input.keyboard?.off('keydown-ESC', fechar);
+      this.input.keyboard?.off('keydown-ENTER', fechar);
+      this.scale.off('resize', redimensionar); this.input.setDefaultCursor('default');
+    });
   }
 
   update() {

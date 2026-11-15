@@ -71,9 +71,13 @@ export function desenharRover(g: Phaser.GameObjects.Graphics, p: Projecao, r: Ro
   pecas.sombra.setPosition(solo.x, solo.y + 3).setDepth(prof - 0.02).setVisible(true).setScale(1 - salto * 0.03);
   for (const [img, parte, chave, dz] of [[pecas.corpo, roverLrv.corpo, 'lrv_', 0], [pecas.frente, roverLrv.frente, 'lrv_frente_', 0.2]] as const) {
     const giro = img === pecas.corpo && fase > 0 ? GIRO[fase - 1]?.[d] : undefined;
-    const quadro = giro ?? parte[d];
-    img.setTexture(giro ? `lrv_g${fase}_${d}` : `${chave}${d}`).setOrigin(quadro.ancora[0] / quadro.w, quadro.ancora[1] / quadro.h)
-      .setScale(roverLrv.escala).setPosition(solo.x, solo.y - salto).setDepth(prof + dz).setVisible(true);
+    const quadro = giro ?? parte[d], chaveQuadro = giro ? `lrv_g${fase}_${d}` : `${chave}${d}`;
+    // Only touch the texture when the picture changes (main: fewer uploads on long drives).
+    if (!img.visible || img.texture.key !== chaveQuadro) {
+      img.setTexture(chaveQuadro).setOrigin(quadro.ancora[0] / quadro.w, quadro.ancora[1] / quadro.h)
+        .setScale(roverLrv.escala);
+    }
+    img.setPosition(solo.x, solo.y - salto).setDepth(prof + dz).setVisible(true);
   }
   g.clear().setDepth(prof + 0.05);
   poeira(pecas.poeira, p, r, e, dt, corPoeira, prof, lento);

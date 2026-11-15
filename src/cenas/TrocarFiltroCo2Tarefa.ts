@@ -6,7 +6,7 @@ import {
   criarTarefaFiltroCo2, abrirTrava, soltarFiltroVelho, soltarFiltroNovo, passarTempo, arSeguro, tarefaConcluida,
   type TarefaFiltroCo2, type Ponto,
 } from '../trocar-filtro-co2-tarefa';
-import { FONTE, abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { FONTE, abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
@@ -226,8 +226,8 @@ export class TrocarFiltroCo2Tarefa extends Phaser.Scene {
         texto(this, 0, 34, 'from spare parts to keep breathing!', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       raiz.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-      this.time.delayedCall(2800, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     this.input.on('pointerup', () => {

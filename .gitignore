@@ -31,3 +31,6 @@ __pycache__/
 # Isolated procedural lab
 /node_modules
 /dist-lab/
+# Concept images kept locally, not used by the game
+/habitat_conceitos.png
+/paineis.png

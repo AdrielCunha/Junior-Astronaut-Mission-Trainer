@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import { tocarSfx } from '../sfx';
 import { criarTarefaEscotilhas, soltarTampa, protecao, tarefaConcluida, escotilhasAbertas, type TarefaEscotilhas } from '../fechar-escotilhas-tarefa';
-import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -156,8 +156,8 @@ export class FecharEscotilhasTarefa extends Phaser.Scene {
         texto(this, 0, 28, "The Moon has no air to protect from the Sun's radiation.", 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-      this.time.delayedCall(2800, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     this.input.on('dragstart', (_p: Phaser.Input.Pointer, o: Phaser.GameObjects.Image) => {

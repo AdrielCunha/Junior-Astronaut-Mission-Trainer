@@ -7,7 +7,7 @@ import {
   criarPaineis, limparPoeira, inclinarPainel, potenciaTotal, painelPronto, tarefaConcluida,
   POTENCIA_PRONTA, ANGULO_MAX, type EstadoPaineis,
 } from '../paineis-solares-tarefa';
-import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);
@@ -194,8 +194,8 @@ export class PaineisSolaresTarefa extends Phaser.Scene {
         texto(this, 0, 28, 'Panels make the most power when they face the Sun.', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-      this.time.delayedCall(2800, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     // Phase 1: the pointer is taken into each panel's own (rotated) space to find the dust cells under the brush.

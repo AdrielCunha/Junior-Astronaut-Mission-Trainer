@@ -36,7 +36,7 @@
       "minima": -98,
       "frio": 2,
       "aviso": "Welcome to Mars! The crew landed in Jezero crater, where the Perseverance rover works. The weather and radiation numbers come from Curiosity, in Gale Crater. Tonight will be very cold.",
-      "fato": "Mars air is 100 times thinner than Earth's. Nights get freezing!"
+      "fato": "Mars air is more than 100 times thinner than Earth's. Nights get freezing!"
     },
     {
       "data": "2024-05-19",
@@ -84,7 +84,7 @@
       "minima": -69,
       "frio": 1,
       "aviso": "The clouds of solar material are passing by Mars.",
-      "fato": "On Mars, a roof of soil can block radiation."
+      "fato": "On Mars, rock and soil can give some protection from radiation."
     },
     {
       "data": "2024-05-22",

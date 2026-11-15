@@ -7,6 +7,7 @@
 //   - the Earth, Sun and planets at their real positions for that date (engine/astro.ts).
 // Driven by sessao.u (one zoom scale, see sessao.ts) and sessao.data. See ARCHITECTURE.md.
 import Phaser from 'phaser';
+import { dispositivoMovel } from '../mobile';
 import { movimentoReduzido, configuracoesAbertas, video } from '../video';
 import constelacoes from '../dados/constelacoes.json';
 import { VOO as voo, CHAVE_VOO, LEVE } from './qualidade';
@@ -16,6 +17,7 @@ import { criarPlaneta, diametroPlaneta, giroOlhando, pontoNoPlaneta } from './pl
 import { JEZERO, DIA_MARTE_MS as SOL_MS } from './marte';
 import { caminhoTransferencia, noCaminho, quadroNave, PARTIDA, DIAS_REAIS, DIA_MS } from './transferencia';
 import dadosViagem from '../dados/viagem.json';
+import foguetevoo from '../dados/foguete_voo.json';
 import planetas3d from '../dados/planetas3d.json';
 import ceuEstrelas from '../dados/ceu_estrelas.json';
 import { PLANETAS, posicao, lua, voltasEm, nomeDaFase, AU_KM, RAIO_LUA_KM, RAIO_SOL_KM, TERRA_LUA_KM } from '../engine/astro';
@@ -63,8 +65,8 @@ export class Espaco extends Phaser.Scene {
   private solBrilho!: Phaser.GameObjects.Image;
   private corposProx = new Map<string, Phaser.GameObjects.Sprite>();   // the next turn frame, faded in over it: a smooth turn
   // Chapter 2, the ship: stars and stellar dust streaming past, in parallax layers.
-  private viagem: Phaser.GameObjects.Graphics | null = null;
-  private estrelas: { x: number; y: number; c: number; r: number }[] = [];
+  private viagem: Phaser.GameObjects.Container | null = null;
+  private estrelas: { x: number; y: number; c: number; r: number; img: Phaser.GameObjects.Image }[] = [];
   private escalaCeu = 1;
   private lua!: ReturnType<typeof criarLua>;        // live GPU Moon (luaShader.ts)
   private marte: ReturnType<typeof criarPlaneta> | null = null;   // live GPU Mars (planetaShader.ts)
@@ -103,10 +105,35 @@ export class Espaco extends Phaser.Scene {
     this.ceuMarte = this.add.rectangle(0, 0, W, H, 0xc99a72).setOrigin(0).setDepth(-99).setVisible(false);
     this.viagem = null; this.estrelas = [];
     if (sessao.mundo === 'nave') {
-      this.viagem = this.add.graphics().setDepth(-98);
-      for (let c = 0; c < CAMADAS.length; c++)
-        for (let i = 0; i < CAMADAS[c].n; i++)
-          this.estrelas.push({ x: Math.random() * W, y: Math.random() * H, c, r: CAMADAS[c].r * (0.6 + Math.random() * 0.8) });
+      this.viagem = this.add.container(0, 0).setDepth(-98);
+      for (let c = 0; c < CAMADAS.length; c++) {
+        const camada = CAMADAS[c], chave = `estrela_viagem_${c}`;
+        // Bake circles and trails once; moving images batch without tessellating paths per frame.
+        if (!this.textures.exists(chave)) {
+          const lado = camada.poeira ? 128 : camada.rastro ? 40 : 8;
+          const textura = this.textures.createCanvas(chave, lado, lado)!, ctx = textura.getContext();
+          ctx.fillStyle = '#ffffff';
+          ctx.globalAlpha = camada.poeira ? camada.a : 1;
+          for (const k of camada.poeira ? [1, 0.7, 0.45] : [1]) {
+            ctx.beginPath(); ctx.arc(lado / 2, lado / 2, camada.r * k, 0, Math.PI * 2); ctx.fill();
+          }
+          textura.refresh();
+        }
+        const chaveRastro = `${chave}_rastro`;
+        if (camada.rastro && !this.textures.exists(chaveRastro)) {
+          const textura = this.textures.createCanvas(chaveRastro, 40, 40)!, ctx = textura.getContext();
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = camada.r;
+          ctx.beginPath(); ctx.moveTo(20, 20); ctx.lineTo(20 - RUMO.x * camada.rastro, 20 - RUMO.y * camada.rastro); ctx.stroke();
+          ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(20, 20, camada.r, 0, Math.PI * 2); ctx.fill();
+          textura.refresh();
+        }
+        for (let i = 0; i < camada.n; i++) {
+          const x = Math.random() * W, y = Math.random() * H, r = camada.r * (0.6 + Math.random() * 0.8);
+          const img = this.add.image(x, y, chave).setTint(camada.cor).setAlpha(camada.poeira ? 1 : camada.a).setScale(r / camada.r);
+          this.viagem.add(img);
+          this.estrelas.push({ x, y, c, r, img });
+        }
+      }
     }
     this.escalaCeu = Math.max(W / this.ceu.width, H / this.ceu.height);
     this.ceu.setScale(this.escalaCeu);
@@ -160,7 +187,18 @@ export class Espaco extends Phaser.Scene {
 
     // Only rewrite the caption when it changes: every rewrite redraws the text and uploads it.
     this.legendaNova = '';
-    const legendaPost = () => { if (this.legenda.text !== this.legendaNova) this.legenda.setText(this.legendaNova); };
+    const legendaPost = () => {
+      if (this.legenda.text !== this.legendaNova) this.legenda.setText(this.legendaNova);
+      // Lift the marker and its label just enough to clear the planet caption on phones.
+      if (this.legendaNova && dispositivoMovel()) {
+        const limite = this.legenda.y - this.legenda.height - this.pino.y - 8;
+        const deslocamento = Math.min(0, limite);
+        gp.setY(deslocamento);
+        this.pinoTexto.setY(Math.min(-30 + deslocamento, limite - this.pinoTexto.height));
+      } else {
+        gp.setY(0);this.pinoTexto.setY(-30);
+      }
+    };
     this.events.on('postupdate', legendaPost);
     this.events.once('shutdown', () => this.events.off('postupdate', legendaPost));
 
@@ -168,8 +206,8 @@ export class Espaco extends Phaser.Scene {
     // outside the scene, so a resize (it restarts this scene) cannot load a frame twice.
     this.quadro = this.add.image(W / 2, H / 2, '__DEFAULT').setDepth(10).setVisible(false);
     this.quadro2 = this.add.image(W / 2, H / 2, '__DEFAULT').setDepth(10.5).setVisible(false);
-    this.foguete = this.add.image(0, 0, 'viagem_foguete').setDepth(15).setVisible(false)
-      .setOrigin(0.5, dadosViagem.foguete.ancora[1] / dadosViagem.foguete.h);
+    this.foguete = this.add.image(0, 0, 'foguete_voo').setDepth(15).setVisible(false)
+      .setOrigin(foguetevoo.pe[0] / foguetevoo.w, foguetevoo.pe[1] / foguetevoo.h);
     this.nave = this.add.image(0, 0, 'nave_d0').setDepth(15).setVisible(false);
     this.chamas = this.add.graphics().setDepth(15).setBlendMode(Phaser.BlendModes.ADD);
     this.aqueceu = '';
@@ -345,8 +383,6 @@ export class Espaco extends Phaser.Scene {
 
   // Moves and draws the streaming sky (chapter 2). Still with reduced motion or effects off.
   private viajar(dt: number, W: number, H: number) {
-    const g = this.viagem!;
-    g.clear();
     const anda = !movimentoReduzido() && video.efeitos && !configuracoesAbertas;
     for (const e of this.estrelas) {
       const c = CAMADAS[e.c];
@@ -356,14 +392,9 @@ export class Espaco extends Phaser.Scene {
         if (e.x < -m) e.x += W + 2 * m; if (e.y < -m) e.y += H + 2 * m;
         if (e.x > W + m) e.x -= W + 2 * m; if (e.y > H + m) e.y -= H + 2 * m;
       }
-      if (c.poeira) {
-        for (const k of [1, 0.7, 0.45]) g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r * k);
-      } else if (c.rastro && anda) {
-        g.lineStyle(e.r, c.cor, c.a * 0.5).lineBetween(e.x, e.y, e.x - RUMO.x * c.rastro, e.y - RUMO.y * c.rastro);
-        g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r);
-      } else {
-        g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r);
-      }
+      const chave = `estrela_viagem_${e.c}${c.rastro && anda ? '_rastro' : ''}`;
+      if (e.img.texture.key !== chave) e.img.setTexture(chave);
+      e.img.setPosition(e.x, e.y);
     }
   }
 
@@ -783,7 +814,7 @@ export class Espaco extends Phaser.Scene {
     if (n >= 2.08) return false;
     if (!sessao.voo) this.definirLegenda(
       `Mars · ${dataBonita(t)} · your base in ${JEZERO.nome} (${JEZERO.lat.toFixed(1)}° N, ${JEZERO.lon.toFixed(1)}° E), where NASA's Perseverance rover landed in 2021\n` +
-      `Mars is about half as wide as Earth. A day there, a sol, lasts ${Math.floor(SOL_MS / 3600000)} h ${Math.round((SOL_MS % 3600000) / 60000)} min. Phobos and Deimos are its two small moons.`);
+      `Mars is about half as wide as Earth. A day there, a sol, lasts ${Math.floor(SOL_MS / 3600000)} h ${Math.floor((SOL_MS % 3600000) / 60000)} min. Phobos and Deimos are its two small moons.`);
     return true;
   }
 
@@ -827,7 +858,7 @@ export class Espaco extends Phaser.Scene {
 
   // The rocket from the map, small, nose along (dx, dy), flame out of its base.
   private desenharFoguete(x: number, y: number, dx: number, dy: number, alto: number) {
-    const k = alto / dadosViagem.foguete.h;
+    const k = alto / foguetevoo.h;
     this.foguete.setVisible(true).setDepth(15).setPosition(x, y).setScale(k).setRotation(Math.atan2(dx, -dy));
     const l = alto * 0.55 * Phaser.Math.FloatBetween(0.85, 1.15), w = alto * 0.09;
     const px = -dy, py = dx;

@@ -15,14 +15,14 @@ let COR_SOLO_CLARO = corDe(String(paletaLua.solo[2][1]));
 let COR_SOLO_MEDIO = corDe(String(paletaLua.solo[1][1]));
 let COR_SOLO_SOMBRA = corDe(paletaLua.contorno);
 import { Ambiente } from './ambiente';
-import { configuracoesAbertas, movimentoReduzido, video } from '../video';
+import { configuracoesAbertas, movimentoReduzido, video, atualizarVideo } from '../video';
 import { paraTela, paraChao, profundidade } from '../engine/iso';
 import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
 import { CicloPassada } from '../engine/passada';
 import { encontrarCaminho, type Ponto } from '../engine/caminho';
 import naveProps from '../dados/nave_props.json';
 import { TIPOS, tipoOrientado, montarBasePadrao, montarLayout, ROTACAO_LAYOUT, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
-import { entregar as entregarRegra, custo, pronto } from '../regras';
+import { entregar as entregarRegra, custo, pronto, type Efeito } from '../regras';
 import { empuxoDePouso, suprimentoDoDia, SUPRIMENTOS } from '../engine/suprimentos';
 import { sortearEvento, eventoPorDemora, DOSE_ALARME, DEMORA_PASSO } from '../engine/eventos';
 import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte, ZOOM_MAX } from './sessao';
@@ -36,8 +36,7 @@ import rotacoesModulos from '../dados/rotacoesModulos.json';
 import { origemBaterias, modeloBancoBaterias } from '../engine/estacaoSolar';
 import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
-import dadosViagem from '../dados/viagem.json';
-import { chaveSkin, chaveSkinSentado, chaveSkinCarga } from '../dados/skins';
+import { chaveSkin, chaveSkinSentado, chaveSkinCarga, SKIN_PADRAO } from '../dados/skins';
 import { LAYOUT } from '../dados/layout';
 import { DECORACAO, DECORACAO_MARTE, OBJETOS_CONSTRUCAO, comoTipo, type DecoColocada } from '../dados/decoracao';
 import { CHAVE_FOGUETE } from './Chegada';
@@ -47,8 +46,16 @@ import { dirigirRover, estacionarRover, desembarcar, pontoLivre, RAIO_ROVER } fr
 import { deveQuebrar } from '../paralama-tarefa';
 import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto, alvoDaSeta, pista, moverExpedicao, type Expedicao, type TipoExpedicao } from '../engine/expedicao';
 import { criarExploracao, sortearTipo, AVISOS, type Contexto } from '../engine/exploracao';
-import { ESTACOES, estacaoDisponivel, textoEstacao, estacaoDoModulo, chaveModulo, type Estacao } from '../engine/estacoes';
+import { sortearPremio, textoDoPremio, skinsDePremio, CHANCE_PREMIO_SALA, type Posse, type Premio, type TipoPremio } from '../engine/presentes';
+import { salasComTarefaHoje } from '../engine/tarefasDoDia';
+import { t } from '../idioma';
+import { ACESSORIOS, acessorioPorId, chaveAcessorio } from '../dados/acessorios';
+import { ganharAcessorio, acessoriosGanhos, ganharSkin, skinsGanhas, dicaDeTrocaVista, marcarDicaDeTroca } from '../acessorios';
+import { corPorId, proximaCor, multiplicarTom } from '../dados/cores';
+import { coresGanhas, corDoModulo, ganharCor, pintarModulo, dicaDeTintaVista, marcarDicaDeTinta } from '../cores';
+import { ESTACOES, estacaoDisponivel, textoEstacao, estacaoDoModulo, chaveModulo, itemDaEstacao, type Estacao } from '../engine/estacoes';
 import { desenharRover, direcaoRover, esconderRover, saltoRover, LINHA_QUADRIL_SENTADO, type PecasRover } from './desenharRover';
+import { controleMovel, consumirPuloMovel, dispositivoMovel } from '../mobile';
 
 const P = dadosTerreno.imagem;
 // Mars: warm light on the props and modules (they are rendered under the Moon's light), and the props that make sense in Jezero crater, with
@@ -57,7 +64,7 @@ const P = dadosTerreno.imagem;
 const TOM_MARTE = 0xffdcc4;
 
 // Energy tasks, played when picking up the day's batteries. The long-shadow one only makes sense on the Moon.
-const ENERGIA = ['PaineisSolaresTarefa', 'DesviarEnergiaTarefa', 'SeguirSolTarefa'];
+const ENERGIA = ['PaineisSolaresTarefa', 'DesviarEnergiaTarefa', 'SeguirSolTarefa', 'ReatorTarefa'];
 const ENERGIA_LUA = [...ENERGIA, 'ForaDaSombraTarefa'];
 let ultimaEnergia = '';
 const BONUS_CONSERTO = 1;     // batteries the crew gives for fixing an event
@@ -126,12 +133,14 @@ export class Superficie extends Phaser.Scene {
   private tempoEfeitos = 0;
   private ambiente!: Ambiente;
   private readonly controlesObservados = new Set<'movimento' | 'pulo'>();
+  private readonly limitesOclusao = new Phaser.Geom.Rectangle();
   private corpo!: Corpo;
   private astronautaProcedural!: AstronautaEmJogo;
   private dtAstronauta=0;
   private gCaminhos!: Phaser.GameObjects.Graphics;
   private gAstronauta!: Phaser.GameObjects.Graphics;   // ground shadow; inventory and carried item have their own objects
   private comandante!: Phaser.GameObjects.Sprite;
+  private acessoriosSprites: Phaser.GameObjects.Sprite[] = [];   // face, glasses and hat sheets drawn over the astronaut
   private cargaHud!: Phaser.GameObjects.Container;
   private cargaFundo!: Phaser.GameObjects.Graphics;
   private cargaTexto!: Phaser.GameObjects.Text;
@@ -165,8 +174,6 @@ export class Superficie extends Phaser.Scene {
   private avisoAPe = 0;
   private bloqueioExp = 0;      // seconds before a closed expedition task may open again
   private proxBip = 0;          // seconds until the next hot/cold beep
-  private movelRef: unknown = null;   // the wandering expedition being timed (a new one restarts the clock)
-  private tempoMovel = 0;
   private pecasRover!: PecasRover;
   private dicaRover!: Phaser.GameObjects.Text;
   private fundoDicaRover!: Phaser.GameObjects.Graphics;
@@ -181,11 +188,12 @@ export class Superficie extends Phaser.Scene {
   // The ship (chapter 2): the closed ship, roof on, over everything when zoomed out; the
   // cutaway deck when close. Names on the map fade out under the roof.
   private teto: Phaser.GameObjects.Image | null = null;
-  private plumas: Phaser.GameObjects.Graphics | null = null;   // the ship's Hall thrusters, firing
+  private plumas: Phaser.GameObjects.Container | null = null;   // cached Hall-thruster images
   private nomesNoMapa: Phaser.GameObjects.Text[] = [];
   private decoVisuais: { d: DecoColocada; img: Phaser.GameObjects.Image }[] = [];
   private marcasEstacao: { d: DecoColocada; c: Phaser.GameObjects.Container }[] = [];   // "!" over ship stations
   private marcasEquip = new Map<number, Phaser.GameObjects.Container>();   // "!" over equipment stations, by module id
+  private marcasSala = new Map<number, Phaser.GameObjects.Container>();    // blue "!" over the rooms with a task today
   private dica?: Phaser.GameObjects.Text;                // shared prop tooltip
   private decoSobre: DecoColocada | null = null;         // prop under the cursor
   private decoFixa: DecoColocada | null = null;          // prop just tapped (touch): tooltip stays a few seconds
@@ -201,22 +209,38 @@ export class Superficie extends Phaser.Scene {
   private desenharPlumas() {
     const g = this.plumas;
     if (!g) return;
-    g.clear();
     const lista = (dadosTerreno as unknown as { propulsores?: { x: number; y: number; z: number; r: number }[] }).propulsores ?? [];
     const t = this.time.now / 1000;
     const mexe = !movimentoReduzido() && video.efeitos;
     const px = Math.hypot(P.ex[0], P.ex[1]);           // screen px per tile step, about 33
     lista.forEach((m, i) => {
       const pulso = mexe ? 0.85 + 0.15 * Math.sin(t * 9 + i * 1.7) + 0.05 * Math.sin(t * 23 + i) : 1;
-      for (let k = 14; k >= 0; k--) {
-        const d = k * 0.55;                                  // tiles back from the exit
-        const p = paraTela(P, m.x - d, m.y, m.z);
-        const f = 1 - k / 15;
-        const r = m.r * px * (1 + d * 0.22);
-        g.fillStyle(0x38bdf8, 0.10 * f * pulso).fillCircle(p.x, p.y, r * 1.9);
-        g.fillStyle(0x7dd3fc, 0.22 * f * f * pulso).fillCircle(p.x, p.y, r);
-        if (k < 6) g.fillStyle(0xe0f2fe, 0.5 * (1 - k / 6) * pulso).fillCircle(p.x, p.y, r * 0.45);
+      let img = g.list[i] as Phaser.GameObjects.Image | undefined;
+      if (!img) {
+        const chave = `pluma_nave_${m.r}`;
+        if (!this.textures.exists(chave)) {
+          const textura = this.textures.createCanvas(chave, 320, 208)!, ctx = textura.getContext();
+          // Additive blending also inside the baked texture preserves overlapping light.
+          ctx.globalCompositeOperation = 'lighter';
+          for (let k = 14; k >= 0; k--) {
+            const d = k * 0.55;                                  // tiles back from the exit
+            const x = 288 - d * P.ex[0], y = 176 - d * P.ex[1];
+            const f = 1 - k / 15;
+            const r = m.r * px * (1 + d * 0.22);
+            const circulo = (raio: number, cor: string, alpha: number) => {
+              ctx.globalAlpha = alpha; ctx.fillStyle = cor; ctx.beginPath(); ctx.arc(x, y, raio, 0, Math.PI * 2); ctx.fill();
+            };
+            circulo(r * 1.9, '#38bdf8', 0.10 * f);
+            circulo(r, '#7dd3fc', 0.22 * f * f);
+            if (k < 6) circulo(r * 0.45, '#e0f2fe', 0.5 * (1 - k / 6));
+          }
+          textura.refresh();
+        }
+        const p = paraTela(P, m.x, m.y, m.z);
+        img = this.add.image(p.x - 288, p.y - 176, chave).setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
+        g.add(img);
       }
+      img.setAlpha(pulso);
     });
   }
 
@@ -283,6 +307,8 @@ export class Superficie extends Phaser.Scene {
   }
 
   create() {
+    this.foguetePartiu=false;
+    this.decolagem=null;
     // Scene inspection is available in development or explicitly opted-in benchmark builds.
     if (import.meta.env.DEV || import.meta.env.VITE_MEDIR === '1') Object.assign(window, { superficie: this, sessao });
     this.controlesObservados.clear();   // a NEW GAME restarts this scene: the guide asks to walk and jump again
@@ -332,7 +358,7 @@ export class Superficie extends Phaser.Scene {
     this.mapa.add(this.terreno);
     if (this.teto) this.mapa.add(this.teto);
     // Behind the ship's picture: its structure covers the plumes where it should.
-    this.plumas = nave ? this.add.graphics().setDepth(-1.1e6).setBlendMode(Phaser.BlendModes.ADD) : null;
+    this.plumas = nave ? this.add.container(0, 0).setDepth(-1.1e6) : null;
     if (this.plumas) this.mapa.add(this.plumas);
     this.gCaminhos = this.add.graphics().setDepth(-900_000);
     this.mapa.add(this.gCaminhos);
@@ -356,8 +382,11 @@ export class Superficie extends Phaser.Scene {
 
     this.gAstronauta = this.add.graphics();
     this.astronautaProcedural = new AstronautaEmJogo(this);
-    this.comandante = this.add.sprite(0, 0, chaveSkin(video.skin), 0).setOrigin(sprite.pe[0] / sprite.frame, sprite.pe[1] / sprite.frame)
+    this.comandante = this.add.sprite(0, 0, chaveSkin(this.skinAtiva()), 0).setOrigin(sprite.pe[0] / sprite.frame, sprite.pe[1] / sprite.frame)
       .setScale(sprite.escala);
+    // Face, glasses, hat: three overlay sheets in that order, over the astronaut (dados/acessorios.ts).
+    this.acessoriosSprites = [0, 1, 2].map(() => this.add.sprite(0, 0, '__DEFAULT', 0).setOrigin(sprite.pe[0] / sprite.frame, sprite.pe[1] / sprite.frame)
+      .setScale(sprite.escala).setVisible(false));
     this.cargaFundo=this.add.graphics();
     this.cargaTexto=this.add.text(0,0,'',fonte(15,'#ffffff',{fontStyle:'bold',stroke:'#0b1a4a',strokeThickness:2})).setOrigin(0.5);
     this.cargaHud=this.add.container(0,0,[this.cargaFundo,this.cargaTexto]).setVisible(false);
@@ -372,7 +401,7 @@ export class Superficie extends Phaser.Scene {
     this.mascaraBandeira = this.make.graphics({},false);
     this.bandeira.setMask(this.mascaraBandeira.createGeometryMask());
     this.events.once('shutdown',()=>{this.bandeira.clearMask(true);this.mascaraBandeira.destroy();});
-    this.mapa.add([this.gAstronauta, this.comandante, this.sombraBandeira, this.bandeira]);
+    this.mapa.add([this.gAstronauta, this.comandante, ...this.acessoriosSprites, this.sombraBandeira, this.bandeira]);
     for (const c of sessao.grade.lista) this.desenharModulo(c);
     this.montarDeco();
     this.desenharCaminhos();
@@ -424,6 +453,7 @@ export class Superficie extends Phaser.Scene {
     const kb = this.input.keyboard!;
     this.teclas = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,E') as Record<string, Phaser.Input.Keyboard.Key>;
     kb.on('keydown-E', (ev: KeyboardEvent) => { if (!ev.repeat) this.usarPerto(); });
+    kb.on('keydown-C', (ev: KeyboardEvent) => { if (!ev.repeat) this.alternarPintura(); });
     this.arrastando = false;
     this.apertouNoMapa = false;
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
@@ -504,6 +534,7 @@ export class Superficie extends Phaser.Scene {
   // ---------- input ----------
   private clicar(ptr: Phaser.Input.Pointer) {
     if (!this.podeUsarRover()) return;
+    if (this.pintando) { this.pintarClique(ptr); return; }
     const r = sessao.rover;
     if (r) {
       const p = paraTela(P, r.corpo.x, r.corpo.y, r.corpo.z);
@@ -667,15 +698,47 @@ export class Superficie extends Phaser.Scene {
 
   // Rooms you can use light up under the cursor, like buttons.
   // The resting tint of a module picture: none on the Moon, Mars's warm light on Mars.
-  private tingir(img?: Phaser.GameObjects.Image) {
+  // With a module, its paint color (won in side missions, cores.ts) goes on top of that.
+  private tingir(img?: Phaser.GameObjects.Image, c?: Construcao) {
     if (!img) return;
-    if (sessao.mundo === 'marte') img.setTint(TOM_MARTE); else img.clearTint();
+    const marte = sessao.mundo === 'marte';
+    const cor = c ? corPorId(corDoModulo(sessao.mundo, c.tipo.id)) : undefined;
+    if (cor) img.setTint(marte ? multiplicarTom(TOM_MARTE, cor.tom) : cor.tom);
+    else if (marte) img.setTint(TOM_MARTE); else img.clearTint();
+  }
+
+  // Paint mode (key C): a click on a module goes to the next color won; "no color" brings the original back.
+  private pintando = false;
+  // Also called by the paint button of the mobile controls (mobile.ts).
+  alternarPintura() {
+    if (sessao.emTarefa || configuracoesAbertas || sessao.transicao) return;
+    const toque = dispositivoMovel();
+    if (!this.pintando && !coresGanhas().length) {
+      sessao.emitir('mensagem', `🎨 Win paint colors in side missions, then ${toque ? 'tap the paint button' : 'press C'} to paint your base!`, '#fde68a');
+      return;
+    }
+    this.pintando = !this.pintando;
+    this.input.setDefaultCursor(this.pintando ? 'crosshair' : 'default');
+    sessao.emitir('mensagem', this.pintando
+      ? `🎨 Paint mode: ${toque ? 'tap' : 'click'} a module to change its color. ${toque ? 'Tap the paint button' : 'Press C'} to stop.`
+      : '🎨 Paint mode off.', '#fde68a');
+  }
+  get pintandoAgora() { return this.pintando; }
+  private pintarClique(ptr: Phaser.Input.Pointer) {
+    const q = paraChao(P, sessao.terreno, ptr.worldX, ptr.worldY);
+    const c = q ? sessao.grade.em(q.gx, q.gy) : null;
+    if (!c) return;
+    const nova = proximaCor(corDoModulo(sessao.mundo, c.tipo.id), coresGanhas());
+    pintarModulo(sessao.mundo, c.tipo.id, nova);
+    for (const k of sessao.grade.lista) if (k.tipo.id === c.tipo.id) this.desenharModulo(k);   // same type, same color
+    tocarSfx('clique');
+    sessao.emitir('mensagem', `🎨 ${this.nomeDe(c)}: ${corPorId(nova)?.nome ?? 'original color'}`, '#fde68a');
   }
 
   private destacar(c: Construcao | null) {
     const usavel = c && this.usavel(c) ? c : null;
     if (usavel === this.sobre) return;
-    if (this.sobre) this.tingir(this.desenhos.get(this.sobre.id)?.img);
+    if (this.sobre) this.tingir(this.desenhos.get(this.sobre.id)?.img, this.sobre);
     this.sobre = usavel;
     if (usavel) this.desenhos.get(usavel.id)?.img.setTint(0xfff3c4);
     this.input.setDefaultCursor(usavel ? 'pointer' : 'default');
@@ -684,7 +747,7 @@ export class Superficie extends Phaser.Scene {
   private entrada(): Entrada {
     const t = this.teclas;
     // Screen directions to map axes: up-screen = -gx -gy, right-screen = +gx -gy.
-    let sx = 0, sy = 0;
+    let sx = controleMovel.x, sy = controleMovel.y;
     if (t.W.isDown || t.UP.isDown) sy -= 1;
     if (t.S.isDown || t.DOWN.isDown) sy += 1;
     if (t.A.isDown || t.LEFT.isDown) sx -= 1;
@@ -732,7 +795,10 @@ export class Superficie extends Phaser.Scene {
         }
       }
     }
-    return { dx, dy, pular: Phaser.Input.Keyboard.JustDown(t.SPACE) };
+    const puloMovel=consumirPuloMovel();
+    const pular=Phaser.Input.Keyboard.JustDown(t.SPACE)||puloMovel||sessao.puloTouch;
+    sessao.puloTouch=false;
+    return { dx, dy, pular };
   }
 
   // ---------- batteries ----------
@@ -744,7 +810,7 @@ export class Superficie extends Phaser.Scene {
 
   // Things you can use: where the batteries are, the rooms, and the module that needs fixing today.
   private usavel(c: Construcao) {
-    return c.tipo.id === origemBaterias(sessao.mundo) || !!c.tipo.sala || sessao.evento?.construcaoId === c.id || !!estacaoDoModulo(c.tipo.id);
+    return c.tipo.id === origemBaterias(sessao.mundo) || c.tipo.id === 'habitat' || !!c.tipo.sala || sessao.evento?.construcaoId === c.id || !!estacaoDoModulo(c.tipo.id);
   }
 
   private usarPerto() {
@@ -755,6 +821,15 @@ export class Superficie extends Phaser.Scene {
     const c = sessao.grade.lista.find((m) => this.perto(m) && this.usavel(m));
     if (c) this.usar(c);
   }
+
+  private abrirGuardaroupa() {
+    if (this.scene.isActive('Guardaroupa')) return;
+    tocarSfx('clique');
+    this.scene.launch('Guardaroupa');
+  }
+
+  // The USE button of the touch controls (mobile.ts): the same as E.
+  interagirPerto() { this.usarPerto(); }
 
   // ---------- ship stations (engine/estacoes.ts) ----------
   private pertoDeco(d: DecoColocada) {
@@ -800,8 +875,41 @@ export class Superficie extends Phaser.Scene {
       }
       const premio = ganhoOxigenio > 0 ? ` +${ganhoOxigenio} oxygen.` : '';
       sessao.emitir('mensagem', `✅ ${d.nome}: ${e.acao.toLowerCase()} done!${premio}`, '#86efac');
+      // Sometimes the station gives its own themed item (engine/estacoes.ts), if not owned yet (nor still being made).
+      const item = itemDaEstacao(e, (i) => i.tipo === 'skin'
+        ? skinsGanhas().includes(i.id) || !this.textures.exists(chaveSkin(i.id))
+        : acessoriosGanhos().includes(i.id) || !this.textures.exists(chaveAcessorio(i.id)));
+      if (item) this.aplicarPremio(item);
     } });
     this.scene.bringToTop(e.cena);
+  }
+
+  // Is this room one of the few with a task today?
+  private salaTemTarefaHoje(sala: Efeito) {
+    const salas = sessao.grade.lista.flatMap((m) => m.tipo.sala ? [m.tipo.sala] : []);
+    return salasComTarefaHoje(sessao.estado.dia, sessao.mundo, salas).includes(sala);
+  }
+
+  // A blue "!" (bobbing) over the rooms that have a task today and have not done it yet.
+  private atualizarMarcasSala() {
+    const k = movimentoReduzido() ? 0 : Math.sin(this.time.now / 220) * 3;
+    for (const c of sessao.grade.lista) {
+      const sala = c.tipo.sala;
+      if (!sala) continue;
+      let m = this.marcasSala.get(c.id);
+      if (!m) {
+        const topo = paraTela(P, c.gx + c.tipo.w / 2, c.gy + c.tipo.h / 2, c.z + c.tipo.altura + 1.7);
+        m = this.add.container(topo.x, topo.y, [
+          this.add.circle(0, 0, 13, 0x38bdf8).setStrokeStyle(3, 0x1e293b),
+          this.add.text(0, 0, '!', letra(17, '#1e293b')).setOrigin(0.5),
+        ]).setDepth(1e6).setData('y0', topo.y);
+        this.mapa.add(m);
+        this.marcasSala.set(c.id, m);
+      }
+      const ver = this.mapa.visible && sessao.fase === 'dia' && !sessao.emTarefa && !this.emObra(c) && !sessao.tarefasHoje.has(sala) && this.salaTemTarefaHoje(sala);
+      m.setVisible(ver);
+      if (ver) m.setY((m.getData('y0') as number) + k);
+    }
   }
 
   // The "!" over the stations still to do today (bobbing), hidden when done or at night.
@@ -835,8 +943,10 @@ export class Superficie extends Phaser.Scene {
     if (sessao.emTarefa) return;
     if (sessao.evento?.construcaoId === c.id && sessao.fase === 'dia') { this.consertar(); return; }
     if (estacaoDoModulo(c.tipo.id)) { this.usarEquipamento(c); return; }
+    // The Habitat is the wardrobe (on Mars it is also where the batteries come from: see below).
+    if (c.tipo.id === 'habitat' && sessao.mundo !== 'marte') { this.abrirGuardaroupa(); return; }
     if (!c.tipo.sala && c.tipo.id !== origemBaterias(sessao.mundo)) {
-      sessao.emitir('mensagem', `💡 ${c.tipo.nome}: ${c.tipo.papel}`);
+      sessao.emitir('mensagem', `💡 ${t(c.tipo.nome)}: ${t(c.tipo.papel)}`);
       return;
     }
     if (sessao.fase !== 'dia') {
@@ -844,7 +954,11 @@ export class Superficie extends Phaser.Scene {
       return;
     }
     if (c.tipo.id === origemBaterias(sessao.mundo)) {
-      if (!sessao.noHabitat) { sessao.emitir('mensagem', '🔋 Empty! New batteries tomorrow.'); return; }
+      if (!sessao.noHabitat) {
+        // Mars: the Lander has no batteries left, so it opens the wardrobe instead.
+        if (c.tipo.id === 'habitat') { this.abrirGuardaroupa(); return; }
+        sessao.emitir('mensagem', '🔋 Empty! New batteries tomorrow.'); return;
+      }
       const pegar = () => {
         sessao.carregando += sessao.noHabitat;
         sessao.noHabitat = 0;
@@ -858,33 +972,45 @@ export class Superficie extends Phaser.Scene {
         const cena = ultimaEnergia = lista[Math.floor(Math.random() * lista.length)];
         sessao.emTarefa = true;
         let feito = false;
-        const uma = () => { if (feito) return; feito = true; sessao.emTarefa = false; pegar(); };
-        this.scene.get(cena).events.once('shutdown', () => this.time.delayedCall(0, uma));
-        this.scene.launch(cena, { aoConcluir: uma });
+        const uma = (pulou=false) => { if (feito) return; feito = true; sessao.emTarefa = false; pegar(); if(pulou)sessao.emitir('mensagem','Charging task skipped. Your batteries are ready.','#fde68a'); };
+        this.scene.get(cena).events.once('shutdown', () => this.time.delayedCall(0, () => uma(true)));
+        this.scene.launch(cena, { aoConcluir: () => uma(), pular:'energy' });
         this.scene.bringToTop(cena);
         return;
       }
       pegar();
     } else if (c.tipo.sala) {
       if (!sessao.carregando) { sessao.emitir('mensagem', `✋ No batteries! Get some at the ${sessao.mundo === 'lua' ? 'Battery Bank' : 'Lander'}.`); return; }
-      // The first battery a room gets each day comes with a task from the bank (../tarefas).
+      // Only some rooms have a task on a given day (engine/tarefasDoDia.ts), a different set each day. The first
+      // battery such a room gets comes with a task from the bank (../tarefas). Closing the task (the X / Esc)
+      // before the end does NOT deliver the battery: it stays with the commander and the task can be tried again.
       const sala = c.tipo.sala;
-      const escolha = sessao.tarefasHoje.has(sala) ? undefined : escolher(sala, sessao.ultimaTarefa[sala], Math.random, sessao.mundo);
-      sessao.tarefasHoje.add(sala);
+      const escolha = sessao.tarefasHoje.has(sala) || !this.salaTemTarefaHoje(sala) ? undefined : escolher(sala, sessao.ultimaTarefa[sala], Math.random, sessao.mundo);
       if (escolha) {
+        sessao.tarefasHoje.add(sala);
         sessao.ultimaTarefa[sala] = escolha.id;
         sessao.emTarefa = true;
-        const terminar = () => { sessao.emTarefa = false; this.entregar(c); };
+        const terminar = (concluiu: boolean) => {
+          sessao.emTarefa = false;
+          if (!concluiu) {
+            sessao.tarefasHoje.delete(sala);   // not done: it comes again next time
+            sessao.emitir('mensagem', '✋ Task closed. Your battery is still with you: finish the task to deliver it.', '#fde68a');
+            return;
+          }
+          this.entregar(c);
+          // A finished standard task gives a prize 70% of the times (engine/presentes.ts).
+          if (Math.random() < CHANCE_PREMIO_SALA) this.darPremio('sala');
+        };
         if ('tarefa' in escolha) {
           const dados: DadosTarefa = { tarefa: escolha.tarefa, aoTerminar: terminar };
           this.scene.launch('Tarefa', dados);
         } else {
-          // A ready scene: the battery goes in when it ends, or when it is closed (the red X / Esc).
-          let entregue = false;
-          const uma = () => { if (entregue) return; entregue = true; terminar(); };
+          // A ready scene: the battery goes in only when the task is finished; closing it (X / Esc) leaves it with you.
+          let encerrada = false;
+          const uma = (concluiu: boolean) => { if (encerrada) return; encerrada = true; terminar(concluiu); };
           const cena = this.scene.get(escolha.cena);
-          cena.events.once('shutdown', () => this.time.delayedCall(0, uma));
-          this.scene.launch(escolha.cena, { aoConcluir: uma });
+          cena.events.once('shutdown', () => this.time.delayedCall(0, () => uma(false)));
+          this.scene.launch(escolha.cena, { aoConcluir: () => uma(true) });
           this.scene.bringToTop(escolha.cena);
         }
         return;
@@ -920,7 +1046,7 @@ export class Superficie extends Phaser.Scene {
       this.plantarBandeira(gx, gy);
       return;
     }
-    sessao.emitir('mensagem', '🚙 Walk to the rover, then press E.', '#fde68a');
+    sessao.emitir('mensagem', dispositivoMovel() ? 'Move closer to the rover and tap USE to drive.' : 'Walk closer to the rover and press E to drive.', '#fde68a');
   }
 
   private alternarRover() {
@@ -935,7 +1061,9 @@ export class Superficie extends Phaser.Scene {
       if (!sessao.roverCarregado) {
         this.rota = []; this.alvoRover = false; this.alvoUsar = null; this.recolherBandeira();
         if (sessao.carregando < 1) {
-          sessao.emitir('mensagem', `🚙 Rover needs 1 battery. Bring one from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}!`, '#fde68a');
+          sessao.emitir('mensagem', dispositivoMovel()
+            ? `Rover battery empty. Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}, then tap USE to install it. One battery lasts all day.`
+            : `Rover battery empty. Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}, then press E or click the rover to install it. One battery lasts all day.`, '#fde68a');
           return;
         }
         this.abastecerRover();
@@ -947,7 +1075,9 @@ export class Superficie extends Phaser.Scene {
     }
     this.rota = []; this.alvoUsar = null; this.alvoRover = false;
     this.recolherBandeira(); this.seguir = true;
-    sessao.emitir('mensagem', r.dirigindo ? '🚙 WASD to drive. E to get out.' : '🧑 On foot! E near the rover to drive.', '#93c5fd');
+    sessao.emitir('mensagem', dispositivoMovel()
+      ? r.dirigindo ? 'Rover: use the joystick to drive and tap USE to get out.' : 'Back on foot! Tap USE near the rover to drive again.'
+      : r.dirigindo ? 'Rover: WASD / arrows to drive, E or click the rover to get out. Click the ground to drive there.' : 'Back on foot! Press E near the rover to drive again.', '#93c5fd');
     sessao.emitir('estado');
     const vista = sessao.mundo === 'marte' ? sessao.curiosidadeRoverMarteVista : sessao.curiosidadeRoverVista;
     if (r.dirigindo && !vista) this.scene.launch('CuriosidadeRover');
@@ -960,7 +1090,7 @@ export class Superficie extends Phaser.Scene {
   // explore the map.
   private iniciarCorrida() {
     const r = sessao.rover;
-    if (!r?.dirigindo || sessao.mundo === 'nave' || sessao.fase !== 'dia' || !sessao.roverCarregado || sessao.corridaHoje || sessao.expedicao) return;
+    if (!r?.dirigindo || sessao.mundo === 'nave' || sessao.fase !== 'dia' || !sessao.roverCarregado || sessao.corridaHoje || !sessao.podeMissaoSecundaria) return;
     sessao.corridaHoje = true;
     const caixas = sessao.grade.caixas();
     const livre = (x: number, y: number) => pontoLivre(sessao.terreno, caixas, x, y, RAIO_ROVER + 0.2);
@@ -976,14 +1106,15 @@ export class Superficie extends Phaser.Scene {
     const exp = destino && fim ? criarCorridaEntrega(inicio, { ...fim, nome: destino.nome }, livre) : null;
     if (!exp) return;
     sessao.expedicao = exp;
+    sessao.tempoExpedicao=0;
     tocarSfx('ok');
-    sessao.emitir('mensagem', `🚩 Delivery run! Drive through the flags to bring parts to the ${exp.destino}.`, '#93c5fd');
+    sessao.emitir('mensagem', `Side mission: 🚩 Delivery run! Drive through the flags to bring parts to the ${exp.destino}.`, '#93c5fd');
   }
 
   // Exploration events: a little while after the morning (from day 2), something sends the commander out of
   // the base. It waits if another expedition or a task is open.
   private passarExploracao(dt: number) {
-    if (sessao.exploracaoEm === null || sessao.fase !== 'dia' || sessao.emTarefa || sessao.transicao || this.pouso || sessao.vista !== 'chao' || sessao.expedicao) return;
+    if (sessao.exploracaoEm === null || sessao.fase !== 'dia' || sessao.emTarefa || sessao.transicao || this.pouso || sessao.vista !== 'chao' || !sessao.podeMissaoSecundaria) return;
     sessao.exploracaoEm = Math.max(0, sessao.exploracaoEm - dt);
     if (sessao.exploracaoEm > 0) return;
     sessao.exploracaoEm = null;
@@ -1000,7 +1131,7 @@ export class Superficie extends Phaser.Scene {
     sessao.ultimaExploracao = t;
     this.bloqueioExp = 0;
     tocarSfx('aviso');
-    sessao.emitir('mensagem', AVISOS[t], '#93c5fd');
+    sessao.emitir('mensagem', `Side mission: ${AVISOS[t]}`, '#93c5fd');
     return true;
   }
 
@@ -1031,9 +1162,8 @@ export class Superficie extends Phaser.Scene {
     // A wandering spot (the dust devil) moves on while the day is being played.
     let exp2 = exp;
     if (exp.movel) {
-      if (this.movelRef !== exp.movel) { this.movelRef = exp.movel; this.tempoMovel = 0; }
-      if (!sessao.emTarefa && !sessao.transicao) this.tempoMovel += dt;
-      exp2 = moverExpedicao(exp, this.tempoMovel);
+      if (!sessao.emTarefa && !sessao.transicao) sessao.tempoExpedicao += dt;
+      exp2 = moverExpedicao(exp, sessao.tempoExpedicao);
       sessao.expedicao = exp2;
     }
     const x = this.corpo.x, y = this.corpo.y;
@@ -1080,6 +1210,54 @@ export class Superficie extends Phaser.Scene {
       redemoinho: '🌪 You caught the dust devil!',
     };
     sessao.emitir('mensagem', `${msgs[e.tipo] ?? ''} ${e.fato}`, '#86efac');
+    this.darPremio(e.tipo);
+  }
+
+  // ONE prize per side mission (engine/presentes.ts): mostly customization (astronauts, hats and glasses,
+  // faces, base paint), sometimes oxygen or less radiation, and rarely a battery. Items whose picture is not
+  // ready yet count as owned, so they are never drawn.
+  private darPremio(tipo: TipoPremio) {
+    const posse: Posse = {
+      oxigenio: sessao.estado.oxigenio, dose: sessao.estado.dose,
+      acessorios: [...acessoriosGanhos(), ...ACESSORIOS.filter((a) => !this.textures.exists(chaveAcessorio(a.id))).map((a) => a.id)],
+      cores: coresGanhas(),
+      skins: [...skinsGanhas(), ...skinsDePremio().filter((id) => !this.textures.exists(chaveSkin(id)))],
+    };
+    this.aplicarPremio(sortearPremio(tipo, posse));
+  }
+
+  // Gives one prize (from the draw, or a station's own item) and says so; the first of a kind teaches how to use it.
+  private aplicarPremio(premio: Premio) {
+    let ensina: 'roupa' | 'tinta' | null = null;
+    switch (premio.tipo) {
+      case 'bateria': sessao.carregando += premio.qtd; break;
+      case 'oxigenio': sessao.estado = { ...sessao.estado, oxigenio: sessao.estado.oxigenio + premio.qtd }; sessao.emitir('estado'); break;
+      case 'radiacao': sessao.estado = { ...sessao.estado, dose: sessao.estado.dose - premio.qtd }; sessao.emitir('estado'); break;
+      case 'cor': if (ganharCor(premio.id)) ensina = 'tinta'; break;
+      case 'skin': if (ganharSkin(premio.id)) { atualizarVideo({ skin: premio.id }); ensina = 'roupa'; } break;
+      case 'acessorio': {
+        const item = acessorioPorId(premio.id);
+        if (item && ganharAcessorio(item.id)) {
+          atualizarVideo(item.espaco === 'cabeca' ? { acessorio: item.id } : item.espaco === 'rosto' ? { rosto: item.id } : { carinha: item.id });
+          ensina = 'roupa';
+        }
+        break;
+      }
+    }
+    this.time.delayedCall(600, () => sessao.emitir('mensagem', textoDoPremio(premio), '#fde047'));
+    // The first cosmetic prize shows how to change clothes, and the first paint color how to paint (once each).
+    if (ensina === 'roupa' && !dicaDeTrocaVista()) {
+      marcarDicaDeTroca();
+      const tecla = dispositivoMovel() ? 'tap USE' : 'press E';
+      const onde = sessao.mundo === 'marte' ? 'the Lander (when it has no batteries)' : 'the Habitat';
+      this.time.delayedCall(3200, () => sessao.emitir('mensagem', `👕 It is on! To change clothes: walk to ${onde} and ${tecla} for the wardrobe.`, '#fde047'));
+    }
+    if (ensina === 'tinta' && !dicaDeTintaVista()) {
+      marcarDicaDeTinta();
+      this.time.delayedCall(3200, () => sessao.emitir('mensagem', dispositivoMovel()
+        ? '🎨 To paint your base: tap the 🎨 button, then tap a module. Tap again to try each color.'
+        : '🎨 To paint your base: press C, then click a module. Click again to try each color. C stops.', '#fde047'));
+    }
   }
 
   // The last spot opens a task (the ice scanner). Closing it early puts the expedition back one step, and the
@@ -1305,10 +1483,12 @@ export class Superficie extends Phaser.Scene {
     }
     sessao.eventoEm -= dt;
     if (sessao.eventoEm > 0) return;
-    sessao.eventoEm = null;
     const presentes = sessao.grade.lista.map((c) => c.tipo.id);
     const alarme = sessao.alarmeHoje && presentes.includes(sessao.alarmeHoje.modulo) ? sessao.alarmeHoje : null;
-    sessao.alarmeHoje = null;
+    sessao.alarmeHoje = null;   // also drops an alarm whose module is gone, so it cannot block side missions
+    // A side breakdown waits (countdown held at 0) while a side mission runs or the storm alert is on. The alarm never waits.
+    if (!alarme && (sessao.expedicao || sessao.tempestade.status === 'alerta')) { sessao.eventoEm = 0; return; }
+    sessao.eventoEm = null;
     const def = alarme ?? sortearEvento(presentes, sessao.ultimoEvento);
     const modulos = def ? sessao.grade.lista.filter((c) => c.tipo.id === def.modulo) : [];
     if (!def || !modulos.length) return;
@@ -1316,7 +1496,8 @@ export class Superficie extends Phaser.Scene {
     sessao.ultimoEvento = def.id;
     sessao.diasCalmos = 0;
     sessao.tempoCalmo = 0;
-    sessao.emitir('mensagem', def.aviso.replace('{nasa}', sessao.dia.curto), def.alarme ? '#fca5a5' : '#fde68a');
+    const aviso = def.aviso.replace('{nasa}', sessao.dia.curto);
+    sessao.emitir('mensagem', def.alarme ? aviso : `Side mission: ${aviso}`, def.alarme ? '#fca5a5' : '#fde68a');
     if (def.alarme) for (let k = 0; k < 3; k++) this.time.delayedCall(k * 380, () => tocarSfx('aviso'));
   }
 
@@ -1419,11 +1600,11 @@ export class Superficie extends Phaser.Scene {
   // With reduced motion it just calls `fim`.
   decolar(fim: () => void) {
     const pad = sessao.grade.lista.find((c) => c.tipo.id === 'plataforma');
-    if (!pad || movimentoReduzido() || !this.textures.exists('viagem_foguete')) { fim(); return; }
+    if (!pad || movimentoReduzido() || !this.textures.exists(CHAVE_FOGUETE)) { fim(); return; }
     this.foguetePartiu = true;
     this.desenharModulo(pad);
-    const f = dadosViagem.foguete;
-    const img = this.add.image(0, 0, 'viagem_foguete').setOrigin(f.ancora[0] / f.w, f.ancora[1] / f.h).setScale(f.escala);
+    // The same rocket as the finished pad and the launch film (foguete_voo), not the old trip sprite.
+    const img = this.add.image(0, 0, CHAVE_FOGUETE).setOrigin(foguetevoo.pe[0] / foguetevoo.w, foguetevoo.pe[1] / foguetevoo.h).setScale(modelos.foguete4.escala);
     const chama = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
     this.mapa.add([chama, img]);
     const cx = pad.gx + pad.tipo.w / 2, cy = pad.gy + pad.tipo.h / 2;
@@ -1667,7 +1848,11 @@ export class Superficie extends Phaser.Scene {
 
   // ---------- loop ----------
   update(_t: number, dtMs: number) {
-    const dt = Math.min(0.05, dtMs / 1000);
+    // The ship must not lose elapsed time on 50–100 ms frames. Physics subdivides them.
+    // Keep the other worlds' existing timing, and bound recovery after a suspended tab.
+    const dt = sessao.mundo === 'nave'
+      ? Math.max(0, Math.min(0.1, this.game.loop.rawDelta / 1000))
+      : Math.min(0.05, dtMs / 1000);
     this.aplicarZoom();
     const escudo = sessao.grade.lista.find(c => c.tipo.id === 'blindagem');
     const emergencia = sessao.fase === 'dia' && sessao.tempestade.status === 'alerta';
@@ -1748,7 +1933,7 @@ export class Superficie extends Phaser.Scene {
       const terra = pulo(G_TERRA);
       if (sessao.mundo === 'nave') {
         sessao.emitir('mensagem',
-          '🧑 No gravity here! Magnet boots keep you on the floor.', '#93c5fd');
+          '🧑 Floating in space! Magnet boots keep you on the floor.', '#93c5fd');
       } else {
         const mundo = sessao.mundo === 'marte' ? { nome: 'Mars', g: G_MARTE, cor: '#fdba74' } : { nome: 'Moon', g: G_LUA, cor: '#93c5fd' };
         const vezes = pulo(mundo.g).altura / terra.altura;
@@ -1796,9 +1981,14 @@ export class Superficie extends Phaser.Scene {
       const p = paraTela(P, r.corpo.x, r.corpo.y, r.corpo.z + 1.25);
       const carregado = sessao.roverCarregado;
       // Only when standing next to it: not from afar, not while driving.
-      const acao = carregado ? 'E / click: Drive Apollo LRV' : sessao.carregando ? 'E / click: Install 1 battery & drive' : `Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}`;
-      this.dicaRover.setPosition(p.x, p.y).setVisible(this.podeUsarRover() && !r.dirigindo && this.pertoRover())
-        .setText(`Battery: ${carregado ? 'charged' : 'empty'}\n${acao}`);
+      const tecla = dispositivoMovel() ? 'USE' : 'E / click';
+      const acao = carregado ? `${tecla}: Drive Apollo LRV` : sessao.carregando ? `${tecla}: Install 1 battery & drive` : `Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}`;
+      const cam=this.cameras.main,wrap=Math.min(320,this.scale.width-64);
+      if(this.dicaRover.style.wordWrapWidth!==wrap)this.dicaRover.setWordWrapWidth(wrap,true);
+      this.dicaRover.setScale(1/cam.zoom).setText(`Battery: ${carregado ? 'charged' : 'empty'}\n${acao}`);
+      const metade=this.dicaRover.displayWidth/2,pad=12/cam.zoom;
+      this.dicaRover.setPosition(Phaser.Math.Clamp(p.x,cam.worldView.left+metade+pad,cam.worldView.right-metade-pad),p.y)
+        .setVisible(this.podeUsarRover() && !r.dirigindo && this.pertoRover() && cam.worldView.contains(p.x,p.y));
       fundoRotulo(this.fundoDicaRover, this.dicaRover, 0.72);
     }
     sessao.parado = Math.hypot(this.corpo.vx, this.corpo.vy) < 0.05 && this.corpo.noChao;
@@ -1812,8 +2002,12 @@ export class Superficie extends Phaser.Scene {
     }
     if(this.mapa.visible) this.ambiente.update(dt,this.corpo,sessao.grade.lista,sessao.rover,{ativo:this.astronautaProcedural.passosLunaresAtivos,contato:contatoLunar});
     const ativo=this.scene.isVisible() && !document.hidden && this.input.enabled && (sessao.fase==='dia'||sessao.fase==='inicio');
-    const proximidade=sessao.grade.lista.filter(c=>c.tipo.sala || c.tipo.id==='habitat')
-      .reduce((v,c)=>Math.max(v,1/(1+Math.hypot(c.gx+c.tipo.w/2-this.corpo.x,c.gy+c.tipo.h/2-this.corpo.y)**2*0.2)),0);
+    let proximidade=0;
+    for(const c of sessao.grade.lista) {
+      if(!c.tipo.sala && c.tipo.id!=='habitat') continue;
+      const dx=c.gx+c.tipo.w/2-this.corpo.x,dy=c.gy+c.tipo.h/2-this.corpo.y;
+      proximidade=Math.max(proximidade,1/(1+(dx*dx+dy*dy)*0.2));
+    }
     this.sons.atualizar(sessao.rover?.dirigindo?Math.hypot(this.corpo.vx,this.corpo.vy)/6.4:0,proximidade,ativo);
     sessao.posicaoAstronauta=this.corpo;
     sessao.atualizarSalvamento(dtMs);
@@ -1821,12 +2015,14 @@ export class Superficie extends Phaser.Scene {
     this.animarModulos(dt);
     this.atualizarDica(dt);
     this.atualizarEstacoes();
+    this.atualizarMarcasSala();
 
     // Camera follows the commander on the ground.
     if (sessao.vista === 'chao' && !sessao.voo && this.seguir && !this.pouso) {
       const pe = paraTela(P, this.corpo.x, this.corpo.y, this.corpo.z);
       const cam = this.cameras.main;
-      cam.centerOn(Phaser.Math.Linear(cam.midPoint.x, pe.x, 0.12), Phaser.Math.Linear(cam.midPoint.y, pe.y, 0.12));
+      const suavizacao = 1 - Math.pow(1 - 0.12, dt * 60);
+      cam.centerOn(Phaser.Math.Linear(cam.midPoint.x, pe.x, suavizacao), Phaser.Math.Linear(cam.midPoint.y, pe.y, suavizacao));
     }
   }
 
@@ -1893,7 +2089,7 @@ export class Superficie extends Phaser.Scene {
   // Surface props (old rover, probe, beacon...): placed once on free flat ground, solid, each with its name.
   private montarDeco() {
     const g = sessao.grade, c0 = Math.floor(g.n / 2);
-    this.decoVisuais = []; this.marcasEstacao = []; this.marcasEquip = new Map(); this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
+    this.decoVisuais = []; this.marcasEstacao = []; this.marcasEquip = new Map(); this.marcasSala = new Map(); this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
     if (!g.deco.length) {
       // Each world has its own props and facts (Mars: DECORACAO_MARTE).
       const lista = sessao.mundo === 'nave' ? DECO_NAVE : sessao.mundo === 'marte' ? DECORACAO_MARTE : DECORACAO;
@@ -1994,7 +2190,7 @@ export class Superficie extends Phaser.Scene {
     d.g.clear();
     fundacao(d.g, P, c, (x, y) => sessao.terreno.altura(x, y));
     this.posicionar(d.img, c, this.modelo(c));
-    if (this.sobre !== c) this.tingir(d.img);
+    if (this.sobre !== c) this.tingir(d.img, c);
     // Sort by the module's back corner (where its picture is anchored), not its front corner:
     // using the front corner pushed every module in front of the commander, so the astronaut
     // disappeared under it whenever walking next to a wall.
@@ -2085,7 +2281,7 @@ export class Superficie extends Phaser.Scene {
     for (const c of sessao.grade.lista) {
       const d = this.desenhos.get(c.id);
       if (!d) continue;
-      const bounds = d.img.getBounds();
+      const bounds = d.img.getBounds(this.limitesOclusao);
       const overlaps = bounds.contains(feet.x, feet.y - 15) || bounds.contains(feet.x, feet.y - 26);
       const behind = k.x < c.gx + c.tipo.w && k.y < c.gy + c.tipo.h && k.z < c.z + c.tipo.altura - 0.1;
       const normal = profundidade(c.gx + c.tipo.w, c.gy + c.tipo.h);
@@ -2098,13 +2294,39 @@ export class Superficie extends Phaser.Scene {
     }
   }
 
+  // The accessories follow the astronaut sprite: same position, depth just above, same frame. The sheets have
+  // the walking sheet's layout (8 rows x 9 columns); the seated sheet has one column, so there it is column 0.
+  // The carrying sheet keeps the head where the walking one has it.
+  private desenharChapeu() {
+    const dirigindo = sessao.rover?.dirigindo ?? false;
+    const f = Number(this.comandante.frame.name);
+    const quadro = dirigindo ? this.direcao * sprite.colunas : Number.isFinite(f) ? f : 0;
+    [video.carinha, video.rosto, video.acessorio].forEach((id, i) => {
+      const s = this.acessoriosSprites[i], chave = chaveAcessorio(id);
+      if (!id || !this.textures.exists(chave)) { s.setVisible(false); return; }
+      if (s.texture.key !== chave) s.setTexture(chave);
+      s.setVisible(this.comandante.visible).setFrame(quadro).setPosition(this.comandante.x, this.comandante.y).setDepth(this.comandante.depth + 0.01 * (i + 1));
+    });
+  }
+
+  // The astronaut being worn, or the commander while its picture is not ready (or was never won).
+  private skinAtiva() {
+    const id = video.skin;
+    return this.textures.exists(chaveSkin(id)) && this.textures.exists(chaveSkinSentado(id)) ? id : SKIN_PADRAO;
+  }
+
   private desenharComandante() {
+    this.desenharComandanteBase();
+    this.desenharChapeu();
+  }
+
+  private desenharComandanteBase() {
     const dirigindo = sessao.rover?.dirigindo ?? false;
     this.comandante.setVisible(true);
     this.gAstronauta.setVisible(!dirigindo);
     // On the rover: the seated sheet (the same model, legs forward), whole, hips on the seat.
-    const comCarga = sessao.carregando > 0 && !dirigindo && this.textures.exists(chaveSkinCarga(video.skin));
-    const textura = dirigindo ? chaveSkinSentado(video.skin) : comCarga ? chaveSkinCarga(video.skin) : chaveSkin(video.skin);
+    const comCarga = sessao.carregando > 0 && !dirigindo && this.textures.exists(chaveSkinCarga(this.skinAtiva()));
+    const textura = dirigindo ? chaveSkinSentado(this.skinAtiva()) : comCarga ? chaveSkinCarga(this.skinAtiva()) : chaveSkin(this.skinAtiva());
     if (this.comandante.texture.key !== textura) this.comandante.setTexture(textura);
     if (dirigindo) {
       const r = sessao.rover!;

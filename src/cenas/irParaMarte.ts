@@ -9,7 +9,7 @@ import terrenoNave from '../dados/terreno_nave.json';
 import naveProps from '../dados/nave_props.json';
 import { sessao, type Mundo } from './sessao';
 
-const OUTRAS = ['Base', 'Viagem', 'MarteVista', 'Radar', 'Tarefa', 'TerrenoMarte', 'NaveTarefa', 'CuriosidadeRover', 'EditorBase'];
+const OUTRAS = ['Base', 'Viagem', 'MarteVista', 'Radar', 'Tarefa', 'TerrenoMarte', 'NaveTarefa', 'CuriosidadeRover', 'EditorBase', 'MenuJogo'];
 
 // Pictures each world needs that the loading screen did not load.
 const IMAGENS: Partial<Record<Mundo, [string, string][]>> = {
@@ -29,8 +29,8 @@ export function iniciarMundo3D(cena: Phaser.Scene, mundo: Mundo, capIdx: number,
     const sm = cena.game.scene;
     sessao.usarMundo(mundo);
     sessao.comecarCapitulo(capIdx, dose, pontos);
-    sessao.fase = explorar ? 'inicio' : 'manha';      // no title screen: the first morning (with the intro)
     sessao.explorando = explorar;
+    sessao.fase = explorar ? 'inicio' : 'manha';
     for (const k of OUTRAS) if (sm.getScene(k) && (sm.isActive(k) || sm.isPaused(k) || sm.isSleeping(k))) sm.stop(k);
     for (const k of ['Espaco', 'Superficie', 'Interface']) {
       if (sm.isActive(k) || sm.isPaused(k)) sm.stop(k);
@@ -44,7 +44,7 @@ export function iniciarMundo3D(cena: Phaser.Scene, mundo: Mundo, capIdx: number,
   cena.load.start();
 }
 
-// EXPLORE A BASE: walk around a world with no mission and no saving.
+// EXPLORE THE BASE: walk around a world with no mission and no saving.
 export const explorarMundo3D = (cena: Phaser.Scene, mundo: Mundo) => iniciarMundo3D(cena, mundo, ['lua', 'nave', 'marte'].indexOf(mundo), 0, [], true);
 // Chapter 2, the ship, after leaving the Moon.
 export const iniciarNave3D = (cena: Phaser.Scene, dose: number, pontos: number[]) => iniciarMundo3D(cena, 'nave', 1, dose, pontos);

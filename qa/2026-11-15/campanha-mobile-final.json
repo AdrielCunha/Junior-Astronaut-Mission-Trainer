@@ -1,0 +1,2484 @@
+{
+  "url": "http://127.0.0.1:5173/?leve",
+  "cpuSlowdown": 1,
+  "viewport": {
+    "width": 412,
+    "height": 915
+  },
+  "motion": "reduced",
+  "softwareRequested": false,
+  "date": "2026-11-15T19:36:14.146Z",
+  "stages": [],
+  "errors": [],
+  "browser": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/157.0.8103.52",
+    "revision": "@0985600c06a688b9c669e74afde7dacd5aaed047",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+    "jsVersion": "15.7.112.23"
+  },
+  "readyMs": 6122.5,
+  "firstContentfulPaintMs": 1200,
+  "renderer": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164C) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "cases": [
+    {
+      "name": "title",
+      "evidence": {
+        "texts": [
+          {
+            "text": "EARTH",
+            "bounds": {
+              "type": 5,
+              "x": 42.06,
+              "y": 297.95,
+              "width": 23,
+              "height": 8
+            }
+          },
+          {
+            "text": "1 · MOON BASE",
+            "bounds": {
+              "type": 5,
+              "x": 66.64,
+              "y": 633.4499999999999,
+              "width": 48,
+              "height": 8
+            }
+          },
+          {
+            "text": "YOU ARE HERE",
+            "bounds": {
+              "type": 5,
+              "x": 66.13999938964844,
+              "y": 560.25,
+              "width": 49,
+              "height": 8
+            }
+          },
+          {
+            "text": "2 · DEEP SPACE",
+            "bounds": {
+              "type": 5,
+              "x": 291.86,
+              "y": 657.85,
+              "width": 50,
+              "height": 8
+            }
+          },
+          {
+            "text": "3 · MARS",
+            "bounds": {
+              "type": 5,
+              "x": 339.94,
+              "y": 316.25,
+              "width": 28,
+              "height": 8
+            }
+          },
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 36,
+              "y": 157.1812865497076,
+              "width": 345,
+              "height": 58.63742690058481
+            }
+          },
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 33.5,
+              "y": 153.6812865497076,
+              "width": 345,
+              "height": 58.63742690058481
+            }
+          },
+          {
+            "text": "JUNIOR ASTRONAUT MISSION TRAINER",
+            "bounds": {
+              "type": 5,
+              "x": 118,
+              "y": 215.36315789473684,
+              "width": 176,
+              "height": 9
+            }
+          },
+          {
+            "text": "LAUNCH MISSION  ▶",
+            "bounds": {
+              "type": 5,
+              "x": 149,
+              "y": 449.5,
+              "width": 114,
+              "height": 16
+            }
+          },
+          {
+            "text": "EXPLORE A BASE",
+            "bounds": {
+              "type": 5,
+              "x": 164.5,
+              "y": 489.5,
+              "width": 83,
+              "height": 14
+            }
+          },
+          {
+            "text": "HOW TO PLAY",
+            "bounds": {
+              "type": 5,
+              "x": 130.5,
+              "y": 527,
+              "width": 62,
+              "height": 13
+            }
+          },
+          {
+            "text": "CREDITS",
+            "bounds": {
+              "type": 5,
+              "x": 231.5,
+              "y": 527,
+              "width": 38,
+              "height": 13
+            }
+          },
+          {
+            "text": "Real NASA data · the May 2024 solar storm",
+            "bounds": {
+              "type": 5,
+              "x": 12,
+              "y": 900,
+              "width": 137,
+              "height": 8
+            }
+          },
+          {
+            "text": "Press ENTER to launch",
+            "bounds": {
+              "type": 5,
+              "x": 327,
+              "y": 900,
+              "width": 73,
+              "height": 8
+            }
+          }
+        ],
+        "audio": "http://127.0.0.1:5173/audio/lunar-odyssey-theme.ogg"
+      }
+    },
+    {
+      "name": "lua:morning",
+      "evidence": {
+        "mundo": "lua",
+        "day": 1,
+        "texts": [
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 29.285714285714292,
+              "y": 10,
+              "width": 91.42857142857142,
+              "height": 16
+            }
+          },
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 29.285714285714292,
+              "y": 8,
+              "width": 91.42857142857142,
+              "height": 16
+            }
+          },
+          {
+            "text": "Day 1 of 8 · May 5, 2024",
+            "bounds": {
+              "type": 5,
+              "x": 33,
+              "y": 27.5,
+              "width": 84,
+              "height": 9
+            }
+          },
+          {
+            "text": "Oxygen",
+            "bounds": {
+              "type": 5,
+              "x": 298,
+              "y": 9,
+              "width": 34,
+              "height": 14
+            }
+          },
+          {
+            "text": "60%",
+            "bounds": {
+              "type": 5,
+              "x": 373,
+              "y": 11.025,
+              "width": 16,
+              "height": 9.950000000000001
+            }
+          },
+          {
+            "text": "Radiation",
+            "bounds": {
+              "type": 5,
+              "x": 298,
+              "y": 43,
+              "width": 42,
+              "height": 14
+            }
+          },
+          {
+            "text": "0%",
+            "bounds": {
+              "type": 5,
+              "x": 375,
+              "y": 45.025,
+              "width": 12,
+              "height": 9.950000000000003
+            }
+          },
+          {
+            "text": "Rocket",
+            "bounds": {
+              "type": 5,
+              "x": 298,
+              "y": 77,
+              "width": 31,
+              "height": 14
+            }
+          },
+          {
+            "text": "0%",
+            "bounds": {
+              "type": 5,
+              "x": 375,
+              "y": 79.025,
+              "width": 12,
+              "height": 9.949999999999989
+            }
+          },
+          {
+            "text": "Ground",
+            "bounds": {
+              "type": 5,
+              "x": 373,
+              "y": 538,
+              "width": 24,
+              "height": 8
+            }
+          },
+          {
+            "text": "MC",
+            "bounds": {
+              "type": 5,
+              "x": 47.560001373291016,
+              "y": 367.67999267578125,
+              "width": 14,
+              "height": 11
+            }
+          },
+          {
+            "text": "Mission Control",
+            "bounds": {
+              "type": 5,
+              "x": 76.88000000000001,
+              "y": 347.84,
+              "width": 62.999999999999986,
+              "height": 11
+            }
+          },
+          {
+            "text": "Our rocket broke on the trip. Build a new one to fly to Mars!",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 367.59999877929687,
+              "width": 235,
+              "height": 27.24000000000001
+            }
+          },
+          {
+            "text": "A flare flashed on the Sun.",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 419.3399853515625,
+              "width": 132,
+              "height": 13
+            }
+          },
+          {
+            "text": "Calm Sun. No Shield needed today.",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 461.4999890136719,
+              "width": 171,
+              "height": 13
+            }
+          },
+          {
+            "text": "5 batteries today.",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 503.65999267578127,
+              "width": 87,
+              "height": 13
+            }
+          },
+          {
+            "text": "NEXT  ▶",
+            "bounds": {
+              "type": 5,
+              "x": 182,
+              "y": 574.5,
+              "width": 48,
+              "height": 14
+            }
+          },
+          {
+            "text": "DAY 1 · MAY 5, 2024",
+            "bounds": {
+              "type": 5,
+              "x": 148,
+              "y": 306.15999999999997,
+              "width": 116,
+              "height": 15
+            }
+          },
+          {
+            "text": "",
+            "bounds": {
+              "type": 5,
+              "x": 384,
+              "y": 393,
+              "width": 2,
+              "height": 14
+            }
+          }
+        ],
+        "forecast": [
+          0,
+          1
+        ],
+        "actual": 0,
+        "audio": "http://127.0.0.1:5173/audio/lunar-odyssey-theme.ogg"
+      }
+    },
+    {
+      "name": "lua:keyboard-walk-jump",
+      "evidence": {
+        "before": {
+          "x": 34.7,
+          "y": 31.5,
+          "z": -0.09400000000000003,
+          "vx": 0,
+          "vy": 0,
+          "vz": 0,
+          "raio": 0.22,
+          "noChao": true
+        },
+        "after": {
+          "x": 34.141479261412,
+          "y": 29.744281155852413,
+          "z": -0.005208070919115751,
+          "vx": 0,
+          "vy": -1.1784626997969525,
+          "vz": 0.5508156111111111,
+          "raio": 0.22,
+          "noChao": false
+        },
+        "distance": 1.8424152830260139
+      }
+    },
+    {
+      "name": "lua:pause",
+      "evidence": {
+        "scenes": [
+          {
+            "key": "Espaco",
+            "paused": true
+          },
+          {
+            "key": "Superficie",
+            "paused": true
+          },
+          {
+            "key": "Interface",
+            "paused": true
+          }
+        ],
+        "moved": 0,
+        "resumed": true
+      }
+    },
+    {
+      "name": "lua:rover-spam",
+      "evidence": [
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        }
+      ]
+    },
+    {
+      "name": "lua:planner",
+      "evidence": {
+        "opened": true,
+        "active": true,
+        "editando": false,
+        "worldActive": true
+      }
+    },
+    {
+      "name": "nave:morning",
+      "evidence": {
+        "mundo": "nave",
+        "day": 1,
+        "texts": [
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 29.285714285714292,
+              "y": 10,
+              "width": 91.42857142857142,
+              "height": 16
+            }
+          },
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 29.285714285714292,
+              "y": 8,
+              "width": 91.42857142857142,
+              "height": 16
+            }
+          },
+          {
+            "text": "Ship · Day 1 of 5 · May 13, 2024",
+            "bounds": {
+              "type": 5,
+              "x": 23.5,
+              "y": 27.708333333333332,
+              "width": 103,
+              "height": 8.583333333333332
+            }
+          },
+          {
+            "text": "Oxygen",
+            "bounds": {
+              "type": 5,
+              "x": 298,
+              "y": 9,
+              "width": 34,
+              "height": 14
+            }
+          },
+          {
+            "text": "60%",
+            "bounds": {
+              "type": 5,
+              "x": 373,
+              "y": 11.025,
+              "width": 16,
+              "height": 9.950000000000001
+            }
+          },
+          {
+            "text": "Radiation",
+            "bounds": {
+              "type": 5,
+              "x": 298,
+              "y": 43,
+              "width": 42,
+              "height": 14
+            }
+          },
+          {
+            "text": "8%",
+            "bounds": {
+              "type": 5,
+              "x": 375,
+              "y": 45.025,
+              "width": 12,
+              "height": 9.950000000000003
+            }
+          },
+          {
+            "text": "Trip",
+            "bounds": {
+              "type": 5,
+              "x": 298,
+              "y": 77,
+              "width": 19,
+              "height": 14
+            }
+          },
+          {
+            "text": "0%",
+            "bounds": {
+              "type": 5,
+              "x": 375,
+              "y": 79.025,
+              "width": 12,
+              "height": 9.949999999999989
+            }
+          },
+          {
+            "text": "Ground",
+            "bounds": {
+              "type": 5,
+              "x": 373,
+              "y": 538,
+              "width": 24,
+              "height": 8
+            }
+          },
+          {
+            "text": "MC",
+            "bounds": {
+              "type": 5,
+              "x": 47.560001373291016,
+              "y": 367.67999267578125,
+              "width": 14,
+              "height": 11
+            }
+          },
+          {
+            "text": "Mission Control",
+            "bounds": {
+              "type": 5,
+              "x": 76.88000000000001,
+              "y": 347.84,
+              "width": 62.999999999999986,
+              "height": 11
+            }
+          },
+          {
+            "text": "Fly to Mars in 5 days!",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 372.2599987792969,
+              "width": 105,
+              "height": 13
+            }
+          },
+          {
+            "text": "Deep space has no shield. Watch the radiation!",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 414.42000244140627,
+              "width": 230,
+              "height": 13
+            }
+          },
+          {
+            "text": "No magnetic shield out here. A CME is coming!",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 456.58000610351564,
+              "width": 228,
+              "height": 13
+            }
+          },
+          {
+            "text": "Storm: HIGH! The Shield needs 2 batteries.",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 498.740009765625,
+              "width": 208,
+              "height": 13
+            }
+          },
+          {
+            "text": "NEXT  ▶",
+            "bounds": {
+              "type": 5,
+              "x": 182,
+              "y": 574.5,
+              "width": 48,
+              "height": 14
+            }
+          },
+          {
+            "text": "SHIP · DAY 1 · MAY 13, 2024",
+            "bounds": {
+              "type": 5,
+              "x": 127,
+              "y": 306.15999999999997,
+              "width": 158,
+              "height": 15
+            }
+          },
+          {
+            "text": "",
+            "bounds": {
+              "type": 5,
+              "x": 384,
+              "y": 393,
+              "width": 2,
+              "height": 14
+            }
+          }
+        ],
+        "forecast": [
+          1,
+          3
+        ],
+        "actual": 2,
+        "audio": "http://127.0.0.1:5173/audio/Beneath_the_Silver_Tide.ogg"
+      }
+    },
+    {
+      "name": "nave:keyboard-walk-jump",
+      "evidence": {
+        "before": {
+          "x": 11.7,
+          "y": 15.5,
+          "z": 0,
+          "vx": 0,
+          "vy": 0,
+          "vz": 0,
+          "raio": 0.22,
+          "noChao": true
+        },
+        "after": {
+          "x": 11.144330161730913,
+          "y": 13.56092514902897,
+          "z": 0.04683485744972227,
+          "vx": 0,
+          "vy": -1.3424026997969496,
+          "vz": 0.3086633611111108,
+          "raio": 0.22,
+          "noChao": false
+        },
+        "distance": 2.017121772930508
+      }
+    },
+    {
+      "name": "nave:pause",
+      "evidence": {
+        "scenes": [
+          {
+            "key": "Espaco",
+            "paused": true
+          },
+          {
+            "key": "Superficie",
+            "paused": true
+          },
+          {
+            "key": "Interface",
+            "paused": true
+          }
+        ],
+        "moved": 0,
+        "resumed": true
+      }
+    },
+    {
+      "name": "nave:station-save",
+      "evidence": {
+        "doneBefore": [
+          "nave_plantas"
+        ],
+        "persistedField": null,
+        "availableAfterRestoreSimulation": true
+      }
+    },
+    {
+      "name": "marte:morning",
+      "evidence": {
+        "mundo": "marte",
+        "day": 1,
+        "texts": [
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 29.285714285714292,
+              "y": 10,
+              "width": 91.42857142857142,
+              "height": 16
+            }
+          },
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 29.285714285714292,
+              "y": 8,
+              "width": 91.42857142857142,
+              "height": 16
+            }
+          },
+          {
+            "text": "Mars · Day 1 of 8 · May 18, 2024",
+            "bounds": {
+              "type": 5,
+              "x": 23.5,
+              "y": 27.786363636363635,
+              "width": 103,
+              "height": 8.427272727272726
+            }
+          },
+          {
+            "text": "Oxygen",
+            "bounds": {
+              "type": 5,
+              "x": 298,
+              "y": 9,
+              "width": 34,
+              "height": 14
+            }
+          },
+          {
+            "text": "60%",
+            "bounds": {
+              "type": 5,
+              "x": 373,
+              "y": 11.025,
+              "width": 16,
+              "height": 9.950000000000001
+            }
+          },
+          {
+            "text": "Radiation",
+            "bounds": {
+              "type": 5,
+              "x": 298,
+              "y": 43,
+              "width": 42,
+              "height": 14
+            }
+          },
+          {
+            "text": "13%",
+            "bounds": {
+              "type": 5,
+              "x": 373.5,
+              "y": 45.025,
+              "width": 15,
+              "height": 9.950000000000003
+            }
+          },
+          {
+            "text": "Base",
+            "bounds": {
+              "type": 5,
+              "x": 298,
+              "y": 77,
+              "width": 23,
+              "height": 14
+            }
+          },
+          {
+            "text": "0%",
+            "bounds": {
+              "type": 5,
+              "x": 375,
+              "y": 79.025,
+              "width": 12,
+              "height": 9.949999999999989
+            }
+          },
+          {
+            "text": "Ground",
+            "bounds": {
+              "type": 5,
+              "x": 373,
+              "y": 538,
+              "width": 24,
+              "height": 8
+            }
+          },
+          {
+            "text": "MC",
+            "bounds": {
+              "type": 5,
+              "x": 47.560001373291016,
+              "y": 367.67999267578125,
+              "width": 14,
+              "height": 11
+            }
+          },
+          {
+            "text": "Mission Control",
+            "bounds": {
+              "type": 5,
+              "x": 76.88000000000001,
+              "y": 347.84,
+              "width": 62.999999999999986,
+              "height": 11
+            }
+          },
+          {
+            "text": "Build a whole base in 8 days!",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 372.2599987792969,
+              "width": 142,
+              "height": 13
+            }
+          },
+          {
+            "text": "Give batteries to a building site to build it.",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 414.42000244140627,
+              "width": 206,
+              "height": 13
+            }
+          },
+          {
+            "text": "Mars nights are freezing. Build the Heating early!",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 456.58000610351564,
+              "width": 242,
+              "height": 13
+            }
+          },
+          {
+            "text": "Welcome to Mars! A very cold night is coming.",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 498.740009765625,
+              "width": 227,
+              "height": 13
+            }
+          },
+          {
+            "text": "NEXT  ▶",
+            "bounds": {
+              "type": 5,
+              "x": 182,
+              "y": 574.5,
+              "width": 48,
+              "height": 14
+            }
+          },
+          {
+            "text": "MARS · DAY 1 · MAY 18, 2024",
+            "bounds": {
+              "type": 5,
+              "x": 123.5,
+              "y": 306.15999999999997,
+              "width": 165,
+              "height": 15
+            }
+          },
+          {
+            "text": "",
+            "bounds": {
+              "type": 5,
+              "x": 384,
+              "y": 393,
+              "width": 2,
+              "height": 14
+            }
+          }
+        ],
+        "forecast": [
+          0,
+          1
+        ],
+        "actual": 0,
+        "audio": "http://127.0.0.1:5173/audio/Across_the_Crimson_Basin-aero.ogg"
+      }
+    },
+    {
+      "name": "marte:keyboard-walk-jump",
+      "evidence": {
+        "before": {
+          "x": 24.7,
+          "y": 36.5,
+          "z": 0.15360000000000004,
+          "vx": 0,
+          "vy": 0,
+          "vz": 0,
+          "raio": 0.22,
+          "noChao": true
+        },
+        "after": {
+          "x": 23.91514542737204,
+          "y": 34.54721388256539,
+          "z": 0.24889686179365775,
+          "vx": -0.991917735559117,
+          "vy": -1.687736771553229,
+          "vz": 0.4812714166666668,
+          "raio": 0.22,
+          "noChao": false
+        },
+        "distance": 2.1046069278182014
+      }
+    },
+    {
+      "name": "marte:pause",
+      "evidence": {
+        "scenes": [
+          {
+            "key": "Espaco",
+            "paused": true
+          },
+          {
+            "key": "Superficie",
+            "paused": true
+          },
+          {
+            "key": "Interface",
+            "paused": true
+          }
+        ],
+        "moved": 0,
+        "resumed": true
+      }
+    },
+    {
+      "name": "marte:rover-spam",
+      "evidence": [
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        },
+        {
+          "exited": true,
+          "finite": true,
+          "free": true
+        }
+      ]
+    },
+    {
+      "name": "marte:planner",
+      "evidence": {
+        "opened": true,
+        "active": true,
+        "editando": false,
+        "worldActive": true
+      }
+    },
+    {
+      "name": "marte:zoom-return",
+      "evidence": {
+        "opened": true,
+        "closed": true,
+        "locked": false
+      }
+    },
+    {
+      "name": "marte:final-save",
+      "evidence": {
+        "saved": true,
+        "mundo": "marte",
+        "fase": "fim",
+        "day": 9,
+        "goal": 100
+      }
+    },
+    {
+      "name": "marte:play-again-after-reload",
+      "evidence": {
+        "mundo": "marte",
+        "fase": "fim",
+        "day": 9,
+        "goal": 100,
+        "radar": true
+      }
+    }
+  ],
+  "campaign": [
+    {
+      "mundo": "lua",
+      "log": [
+        {
+          "day": 1,
+          "before": {
+            "dia": 1,
+            "oxigenio": 60,
+            "dose": 0,
+            "meta": 0,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "meta",
+            "meta",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 2,
+            "oxigenio": 50,
+            "dose": 1,
+            "meta": 20,
+            "obras": {}
+          },
+          "result": null
+        },
+        {
+          "day": 2,
+          "before": {
+            "dia": 2,
+            "oxigenio": 50,
+            "dose": 1,
+            "meta": 20,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "meta",
+            "meta",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 3,
+            "oxigenio": 40,
+            "dose": 2,
+            "meta": 40,
+            "obras": {}
+          },
+          "result": null
+        },
+        {
+          "day": 3,
+          "before": {
+            "dia": 3,
+            "oxigenio": 40,
+            "dose": 2,
+            "meta": 40,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "meta",
+            "meta",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 4,
+            "oxigenio": 30,
+            "dose": 3,
+            "meta": 60,
+            "obras": {}
+          },
+          "result": null
+        },
+        {
+          "day": 4,
+          "before": {
+            "dia": 4,
+            "oxigenio": 30,
+            "dose": 3,
+            "meta": 60,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "meta",
+            "meta",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 5,
+            "oxigenio": 20,
+            "dose": 4,
+            "meta": 80,
+            "obras": {}
+          },
+          "result": null
+        },
+        {
+          "day": 5,
+          "before": {
+            "dia": 5,
+            "oxigenio": 20,
+            "dose": 4,
+            "meta": 80,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "blindagem",
+            "meta",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 6,
+            "oxigenio": 10,
+            "dose": 5,
+            "meta": 95,
+            "obras": {}
+          },
+          "result": null
+        },
+        {
+          "day": 6,
+          "before": {
+            "dia": 6,
+            "oxigenio": 10,
+            "dose": 5,
+            "meta": 95,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "blindagem",
+            "oxigenio",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 7,
+            "oxigenio": 10,
+            "dose": 6,
+            "meta": 100,
+            "obras": {}
+          },
+          "result": null
+        },
+        {
+          "day": 7,
+          "before": {
+            "dia": 7,
+            "oxigenio": 10,
+            "dose": 6,
+            "meta": 100,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "blindagem",
+            "blindagem",
+            "oxigenio",
+            "meta"
+          ],
+          "after": {
+            "dia": 8,
+            "oxigenio": 10,
+            "dose": 7,
+            "meta": 100,
+            "obras": {}
+          },
+          "result": null
+        },
+        {
+          "day": 8,
+          "before": {
+            "dia": 8,
+            "oxigenio": 10,
+            "dose": 7,
+            "meta": 100,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "blindagem",
+            "oxigenio",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 9,
+            "oxigenio": 10,
+            "dose": 8,
+            "meta": 100,
+            "obras": {}
+          },
+          "result": "vitoria"
+        }
+      ],
+      "skips": 8,
+      "result": "vitoria",
+      "endTexts": [
+        {
+          "text": "LUNAR ODYSSEY",
+          "bounds": {
+            "type": 5,
+            "x": 29.285714285714292,
+            "y": 10,
+            "width": 91.42857142857142,
+            "height": 16
+          }
+        },
+        {
+          "text": "LUNAR ODYSSEY",
+          "bounds": {
+            "type": 5,
+            "x": 29.285714285714292,
+            "y": 8,
+            "width": 91.42857142857142,
+            "height": 16
+          }
+        },
+        {
+          "text": "Day 8 of 8 · May 12, 2024",
+          "bounds": {
+            "type": 5,
+            "x": 30.5,
+            "y": 27.5,
+            "width": 89,
+            "height": 9
+          }
+        },
+        {
+          "text": "Oxygen",
+          "bounds": {
+            "type": 5,
+            "x": 298,
+            "y": 9,
+            "width": 34,
+            "height": 14
+          }
+        },
+        {
+          "text": "10%",
+          "bounds": {
+            "type": 5,
+            "x": 373.5,
+            "y": 11.025,
+            "width": 15,
+            "height": 9.950000000000001
+          }
+        },
+        {
+          "text": "Radiation",
+          "bounds": {
+            "type": 5,
+            "x": 298,
+            "y": 43,
+            "width": 42,
+            "height": 14
+          }
+        },
+        {
+          "text": "8%",
+          "bounds": {
+            "type": 5,
+            "x": 375,
+            "y": 45.025,
+            "width": 12,
+            "height": 9.950000000000003
+          }
+        },
+        {
+          "text": "Rocket",
+          "bounds": {
+            "type": 5,
+            "x": 298,
+            "y": 77,
+            "width": 31,
+            "height": 14
+          }
+        },
+        {
+          "text": "100%",
+          "bounds": {
+            "type": 5,
+            "x": 371.5,
+            "y": 79.025,
+            "width": 19,
+            "height": 9.949999999999989
+          }
+        },
+        {
+          "text": "Ground",
+          "bounds": {
+            "type": 5,
+            "x": 373,
+            "y": 538,
+            "width": 24,
+            "height": 8
+          }
+        },
+        {
+          "text": "MC",
+          "bounds": {
+            "type": 5,
+            "x": 47.560001373291016,
+            "y": 367.67999267578125,
+            "width": 14,
+            "height": 11
+          }
+        },
+        {
+          "text": "Mission Control",
+          "bounds": {
+            "type": 5,
+            "x": 76.88000000000001,
+            "y": 347.84,
+            "width": 62.999999999999986,
+            "height": 11
+          }
+        },
+        {
+          "text": "Real NASA storm data from May 2024. Batteries, oxygen and the rocket are game rules.",
+          "bounds": {
+            "type": 5,
+            "x": 114.08000152587891,
+            "y": 367.59999877929687,
+            "width": 229,
+            "height": 23.24000000000001
+          }
+        },
+        {
+          "text": "PLAY CHAPTER 1 AGAIN",
+          "bounds": {
+            "type": 5,
+            "x": 75.20199584960938,
+            "y": 574.5,
+            "width": 133,
+            "height": 14
+          }
+        },
+        {
+          "text": "Board the ship  ▶",
+          "bounds": {
+            "type": 5,
+            "x": 242.79800415039062,
+            "y": 574.5,
+            "width": 94,
+            "height": 14
+          }
+        },
+        {
+          "text": "LAUNCH! TO MARS!",
+          "bounds": {
+            "type": 5,
+            "x": 148,
+            "y": 306.15999999999997,
+            "width": 116,
+            "height": 15
+          }
+        },
+        {
+          "text": "",
+          "bounds": {
+            "type": 5,
+            "x": 384,
+            "y": 393,
+            "width": 2,
+            "height": 14
+          }
+        }
+      ],
+      "state": {
+        "dia": 9,
+        "oxigenio": 10,
+        "dose": 8,
+        "meta": 100,
+        "obras": {}
+      },
+      "pontos": []
+    },
+    {
+      "mundo": "nave",
+      "log": [
+        {
+          "day": 1,
+          "before": {
+            "dia": 1,
+            "oxigenio": 60,
+            "dose": 8,
+            "meta": 0,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "blindagem",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 2,
+            "oxigenio": 45,
+            "dose": 9,
+            "meta": 24,
+            "obras": {}
+          },
+          "result": null
+        },
+        {
+          "day": 2,
+          "before": {
+            "dia": 2,
+            "oxigenio": 45,
+            "dose": 9,
+            "meta": 24,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "blindagem",
+            "blindagem",
+            "meta"
+          ],
+          "after": {
+            "dia": 3,
+            "oxigenio": 30,
+            "dose": 10,
+            "meta": 36,
+            "obras": {}
+          },
+          "result": null
+        },
+        {
+          "day": 3,
+          "before": {
+            "dia": 3,
+            "oxigenio": 30,
+            "dose": 10,
+            "meta": 36,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "blindagem",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 4,
+            "oxigenio": 15,
+            "dose": 11,
+            "meta": 60,
+            "obras": {}
+          },
+          "result": null
+        },
+        {
+          "day": 4,
+          "before": {
+            "dia": 4,
+            "oxigenio": 15,
+            "dose": 11,
+            "meta": 60,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "oxigenio",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 5,
+            "oxigenio": 10,
+            "dose": 12,
+            "meta": 84,
+            "obras": {}
+          },
+          "result": null
+        },
+        {
+          "day": 5,
+          "before": {
+            "dia": 5,
+            "oxigenio": 10,
+            "dose": 12,
+            "meta": 84,
+            "obras": {}
+          },
+          "plan": [
+            "blindagem",
+            "oxigenio",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 6,
+            "oxigenio": 5,
+            "dose": 13,
+            "meta": 100,
+            "obras": {}
+          },
+          "result": "vitoria"
+        }
+      ],
+      "skips": 5,
+      "result": "vitoria",
+      "endTexts": [
+        {
+          "text": "LUNAR ODYSSEY",
+          "bounds": {
+            "type": 5,
+            "x": 29.285714285714292,
+            "y": 10,
+            "width": 91.42857142857142,
+            "height": 16
+          }
+        },
+        {
+          "text": "LUNAR ODYSSEY",
+          "bounds": {
+            "type": 5,
+            "x": 29.285714285714292,
+            "y": 8,
+            "width": 91.42857142857142,
+            "height": 16
+          }
+        },
+        {
+          "text": "Ship · Day 5 of 5 · May 17, 2024",
+          "bounds": {
+            "type": 5,
+            "x": 23.5,
+            "y": 27.708333333333332,
+            "width": 103,
+            "height": 8.583333333333332
+          }
+        },
+        {
+          "text": "Oxygen",
+          "bounds": {
+            "type": 5,
+            "x": 298,
+            "y": 9,
+            "width": 34,
+            "height": 14
+          }
+        },
+        {
+          "text": "5%",
+          "bounds": {
+            "type": 5,
+            "x": 375,
+            "y": 11.025,
+            "width": 12,
+            "height": 9.950000000000001
+          }
+        },
+        {
+          "text": "Radiation",
+          "bounds": {
+            "type": 5,
+            "x": 298,
+            "y": 43,
+            "width": 42,
+            "height": 14
+          }
+        },
+        {
+          "text": "13%",
+          "bounds": {
+            "type": 5,
+            "x": 373.5,
+            "y": 45.025,
+            "width": 15,
+            "height": 9.950000000000003
+          }
+        },
+        {
+          "text": "Trip",
+          "bounds": {
+            "type": 5,
+            "x": 298,
+            "y": 77,
+            "width": 19,
+            "height": 14
+          }
+        },
+        {
+          "text": "100%",
+          "bounds": {
+            "type": 5,
+            "x": 371.5,
+            "y": 79.025,
+            "width": 19,
+            "height": 9.949999999999989
+          }
+        },
+        {
+          "text": "Ground",
+          "bounds": {
+            "type": 5,
+            "x": 373,
+            "y": 538,
+            "width": 24,
+            "height": 8
+          }
+        },
+        {
+          "text": "MC",
+          "bounds": {
+            "type": 5,
+            "x": 47.560001373291016,
+            "y": 367.67999267578125,
+            "width": 14,
+            "height": 11
+          }
+        },
+        {
+          "text": "Mission Control",
+          "bounds": {
+            "type": 5,
+            "x": 76.88000000000001,
+            "y": 347.84,
+            "width": 62.999999999999986,
+            "height": 11
+          }
+        },
+        {
+          "text": "Real deep-space data from NASA BioSentinel, May 2024. The 7-month trip is shortened to 5 days.",
+          "bounds": {
+            "type": 5,
+            "x": 114.08000152587891,
+            "y": 367.59999877929687,
+            "width": 231,
+            "height": 23.24000000000001
+          }
+        },
+        {
+          "text": "Build ship",
+          "bounds": {
+            "type": 5,
+            "x": 117.20199584960938,
+            "y": 574.5,
+            "width": 53,
+            "height": 14
+          }
+        },
+        {
+          "text": "Land on Mars  ▶",
+          "bounds": {
+            "type": 5,
+            "x": 204.79800415039062,
+            "y": 574.5,
+            "width": 90,
+            "height": 14
+          }
+        },
+        {
+          "text": "MARS ORBIT REACHED!",
+          "bounds": {
+            "type": 5,
+            "x": 136,
+            "y": 306.15999999999997,
+            "width": 140,
+            "height": 15
+          }
+        },
+        {
+          "text": "",
+          "bounds": {
+            "type": 5,
+            "x": 384,
+            "y": 393,
+            "width": 2,
+            "height": 14
+          }
+        }
+      ],
+      "state": {
+        "dia": 6,
+        "oxigenio": 5,
+        "dose": 13,
+        "meta": 100,
+        "obras": {}
+      },
+      "pontos": [
+        202
+      ]
+    },
+    {
+      "mundo": "marte",
+      "log": [
+        {
+          "day": 1,
+          "before": {
+            "dia": 1,
+            "oxigenio": 60,
+            "dose": 13,
+            "meta": 0,
+            "obras": {}
+          },
+          "plan": [
+            "aquecimento",
+            "aquecimento",
+            "aquecimento",
+            "aquecimento",
+            "blindagem"
+          ],
+          "after": {
+            "dia": 2,
+            "oxigenio": 50,
+            "dose": 14,
+            "meta": 15,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 1
+            }
+          },
+          "result": null
+        },
+        {
+          "day": 2,
+          "before": {
+            "dia": 2,
+            "oxigenio": 50,
+            "dose": 14,
+            "meta": 15,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 1
+            }
+          },
+          "plan": [
+            "aquecimento",
+            "blindagem",
+            "blindagem",
+            "blindagem",
+            "oxigenio"
+          ],
+          "after": {
+            "dia": 3,
+            "oxigenio": 40,
+            "dose": 15,
+            "meta": 30,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 1
+            }
+          },
+          "result": null
+        },
+        {
+          "day": 3,
+          "before": {
+            "dia": 3,
+            "oxigenio": 40,
+            "dose": 15,
+            "meta": 30,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 1
+            }
+          },
+          "plan": [
+            "aquecimento",
+            "blindagem",
+            "blindagem",
+            "oxigenio",
+            "oxigenio"
+          ],
+          "after": {
+            "dia": 4,
+            "oxigenio": 30,
+            "dose": 16,
+            "meta": 40,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 3
+            }
+          },
+          "result": null
+        },
+        {
+          "day": 4,
+          "before": {
+            "dia": 4,
+            "oxigenio": 30,
+            "dose": 16,
+            "meta": 40,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 3
+            }
+          },
+          "plan": [
+            "aquecimento",
+            "blindagem",
+            "meta",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 5,
+            "oxigenio": 20,
+            "dose": 17,
+            "meta": 55,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 3,
+              "meta": 3
+            }
+          },
+          "result": null
+        },
+        {
+          "day": 5,
+          "before": {
+            "dia": 5,
+            "oxigenio": 20,
+            "dose": 17,
+            "meta": 55,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 3,
+              "meta": 3
+            }
+          },
+          "plan": [
+            "aquecimento",
+            "blindagem",
+            "meta",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 6,
+            "oxigenio": 10,
+            "dose": 18,
+            "meta": 70,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 3,
+              "meta": 6
+            }
+          },
+          "result": null
+        },
+        {
+          "day": 6,
+          "before": {
+            "dia": 6,
+            "oxigenio": 10,
+            "dose": 18,
+            "meta": 70,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 3,
+              "meta": 6
+            }
+          },
+          "plan": [
+            "aquecimento",
+            "oxigenio",
+            "meta",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 7,
+            "oxigenio": 10,
+            "dose": 19,
+            "meta": 85,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 3,
+              "meta": 9
+            }
+          },
+          "result": null
+        },
+        {
+          "day": 7,
+          "before": {
+            "dia": 7,
+            "oxigenio": 10,
+            "dose": 19,
+            "meta": 85,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 3,
+              "meta": 9
+            }
+          },
+          "plan": [
+            "aquecimento",
+            "oxigenio",
+            "meta",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 8,
+            "oxigenio": 10,
+            "dose": 20,
+            "meta": 100,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 3,
+              "meta": 12
+            }
+          },
+          "result": null
+        },
+        {
+          "day": 8,
+          "before": {
+            "dia": 8,
+            "oxigenio": 10,
+            "dose": 20,
+            "meta": 100,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 3,
+              "meta": 12
+            }
+          },
+          "plan": [
+            "aquecimento",
+            "oxigenio",
+            "meta",
+            "meta",
+            "meta"
+          ],
+          "after": {
+            "dia": 9,
+            "oxigenio": 10,
+            "dose": 21,
+            "meta": 100,
+            "obras": {
+              "aquecimento": 2,
+              "blindagem": 3,
+              "oxigenio": 3,
+              "meta": 12
+            }
+          },
+          "result": "vitoria"
+        }
+      ],
+      "skips": 8,
+      "result": "vitoria",
+      "endTexts": [
+        {
+          "text": "LUNAR ODYSSEY",
+          "bounds": {
+            "type": 5,
+            "x": 29.285714285714292,
+            "y": 10,
+            "width": 91.42857142857142,
+            "height": 16
+          }
+        },
+        {
+          "text": "LUNAR ODYSSEY",
+          "bounds": {
+            "type": 5,
+            "x": 29.285714285714292,
+            "y": 8,
+            "width": 91.42857142857142,
+            "height": 16
+          }
+        },
+        {
+          "text": "Mars · Day 8 of 8 · May 25, 2024",
+          "bounds": {
+            "type": 5,
+            "x": 23.5,
+            "y": 27.898230088495573,
+            "width": 103,
+            "height": 8.203539823008853
+          }
+        },
+        {
+          "text": "Oxygen",
+          "bounds": {
+            "type": 5,
+            "x": 298,
+            "y": 9,
+            "width": 34,
+            "height": 14
+          }
+        },
+        {
+          "text": "10%",
+          "bounds": {
+            "type": 5,
+            "x": 373.5,
+            "y": 11.025,
+            "width": 15,
+            "height": 9.950000000000001
+          }
+        },
+        {
+          "text": "Radiation",
+          "bounds": {
+            "type": 5,
+            "x": 298,
+            "y": 43,
+            "width": 42,
+            "height": 14
+          }
+        },
+        {
+          "text": "21%",
+          "bounds": {
+            "type": 5,
+            "x": 373.5,
+            "y": 45.025,
+            "width": 15,
+            "height": 9.950000000000003
+          }
+        },
+        {
+          "text": "Base",
+          "bounds": {
+            "type": 5,
+            "x": 298,
+            "y": 77,
+            "width": 23,
+            "height": 14
+          }
+        },
+        {
+          "text": "100%",
+          "bounds": {
+            "type": 5,
+            "x": 371.5,
+            "y": 79.025,
+            "width": 19,
+            "height": 9.949999999999989
+          }
+        },
+        {
+          "text": "Ground",
+          "bounds": {
+            "type": 5,
+            "x": 373,
+            "y": 538,
+            "width": 24,
+            "height": 8
+          }
+        },
+        {
+          "text": "MC",
+          "bounds": {
+            "type": 5,
+            "x": 47.560001373291016,
+            "y": 367.67999267578125,
+            "width": 14,
+            "height": 11
+          }
+        },
+        {
+          "text": "Mission Control",
+          "bounds": {
+            "type": 5,
+            "x": 76.88000000000001,
+            "y": 347.84,
+            "width": 62.999999999999986,
+            "height": 11
+          }
+        },
+        {
+          "text": "On a new planet, the weather says what to build first.",
+          "bounds": {
+            "type": 5,
+            "x": 114.08000152587891,
+            "y": 367.59999877929687,
+            "width": 239,
+            "height": 27.24000000000001
+          }
+        },
+        {
+          "text": "Real Mars data from the Curiosity rover, May 2024. The base is a game model.",
+          "bounds": {
+            "type": 5,
+            "x": 114.08000152587891,
+            "y": 414.6799853515625,
+            "width": 224,
+            "height": 23.24000000000001
+          }
+        },
+        {
+          "text": "PLAY AGAIN FROM THE MOON",
+          "bounds": {
+            "type": 5,
+            "x": 121,
+            "y": 574.5,
+            "width": 170,
+            "height": 14
+          }
+        },
+        {
+          "text": "MISSION COMPLETE!",
+          "bounds": {
+            "type": 5,
+            "x": 144,
+            "y": 306.15999999999997,
+            "width": 124,
+            "height": 15
+          }
+        },
+        {
+          "text": "",
+          "bounds": {
+            "type": 5,
+            "x": 384,
+            "y": 393,
+            "width": 2,
+            "height": 14
+          }
+        }
+      ],
+      "state": {
+        "dia": 9,
+        "oxigenio": 10,
+        "dose": 21,
+        "meta": 100,
+        "obras": {
+          "aquecimento": 2,
+          "blindagem": 3,
+          "oxigenio": 3,
+          "meta": 12
+        }
+      },
+      "pontos": [
+        202,
+        192
+      ]
+    }
+  ],
+  "afterReplay": {
+    "mundo": "marte",
+    "fase": "fim",
+    "estado": {
+      "dia": 9,
+      "oxigenio": 10,
+      "dose": 21,
+      "meta": 100,
+      "obras": {
+        "aquecimento": 2,
+        "blindagem": 3,
+        "oxigenio": 3,
+        "meta": 12
+      }
+    },
+    "pontos": [
+      202,
+      192
+    ],
+    "carregando": 0,
+    "emTarefa": true,
+    "scenes": [
+      "Espaco",
+      "Superficie",
+      "Interface",
+      "Radar"
+    ]
+  },
+  "completed": true
+}

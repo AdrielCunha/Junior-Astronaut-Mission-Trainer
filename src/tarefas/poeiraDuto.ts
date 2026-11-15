@@ -15,7 +15,7 @@ export const poeiraDuto: Tarefa = {
   sala: 'oxigenio',
   titulo: 'Life Support · Air Duct',
   instrucao: 'Drag the rocks out of the air duct!',
-  fato: 'Apollo astronauts brought back 382 kg of Moon rocks!',
+  fato: 'Apollo astronauts brought back 382 kg of Moon rocks and soil!',
 
   montar(cena, { x, y, w, h, u }, feito) {
     const alturaBarra = 34 * u;
@@ -142,7 +142,7 @@ export const poeiraDuto: Tarefa = {
         const seta = cena.add.text(sx, sy, lado < 0 ? '‹‹' : '››', letra(30 * u, '#bae6fd', { stroke: '#1e293b', strokeThickness: 5 * u })).setOrigin(0.5).setAlpha(0);
         cena.tweens.add({ targets: seta, x: sx + lado * 30 * u, alpha: { from: 1, to: 0 }, duration: 650, delay: k * 110, repeat: -1 });
       }
-      cena.time.delayedCall(350, feito);
+      cena.time.delayedCall(50, feito);
     }
   },
 };

@@ -6,7 +6,7 @@ import {
   criarTarefaComunicacoes, ajustarFrequencia, ajustarGanho, alinhamento, ondasAlinhadas, passar, progressoDaTrava,
   tarefaConcluida, ciclosDaOnda, amplitudeDaOnda, type TarefaComunicacoes,
 } from '../comunicacoes-tarefa';
-import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
@@ -139,11 +139,11 @@ export class ComunicacoesTarefa extends Phaser.Scene {
       const bloco = this.add.container(JW / 2, JH / 2 - 10, [
         faixa,
         texto(this, 0, -16, 'Communication restored!', 34, '#ffffff', 0x1e293b),
-        texto(this, 0, 28, 'A radio message reaches Earth in 1.3 seconds!', 15, '#dcfce7', 0x1e293b),
+        texto(this, 0, 28, 'From the Moon, a radio message reaches Earth in 1.3 seconds!', 15, '#dcfce7', 0x1e293b),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-      this.time.delayedCall(2800, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     const desenharOnda = (g: Phaser.GameObjects.Graphics, ciclos: number, amp: number, fase: number, ruido: number, cy: number, meia: number) => {

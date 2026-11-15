@@ -72,9 +72,11 @@ export function definirAmbienteMusica(ambiente: AmbienteAudio) {
   carregarFaixa(a, MUSICAS_POR_AMBIENTE[ambienteAtual]);
 
   if (!mudo && (estavaTocando || iniciado)) {
-    a.play().catch(() => {});
+    tocar();
   }
 }
+
+export function definirMusicaDaFase(fase: Exclude<AmbienteAudio, 'inicio'>) { definirAmbienteMusica(fase); }
 
 function esperarInteracao() {
   window.addEventListener('pointerdown', primeiraInteracao);

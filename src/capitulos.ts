@@ -75,7 +75,7 @@ export const CAPITULOS: Capitulo[] = [
     metaIncompleta: 'The rocket was not ready in time.',
     licoes: [
       'Every battery is a choice: air, shield or rocket.',
-      'The Moon has no air to block radiation. A shield helps!',
+      'The Moon has almost no air to block radiation. A shield helps!',
       'Scientists watch the Sun to warn astronauts in time.',
     ],
     creditos: 'Storm data: NASA DONKI + LRO/CRaTER via OSDR RadLab. Archived, May 2024.',
@@ -101,12 +101,12 @@ export const CAPITULOS: Capitulo[] = [
     vitoria: ['Mars orbit reached!', 'You crossed a real solar storm and reached Mars!'],
     metaIncompleta: 'The engines needed more power. We missed Mars.',
     licoes: [
-      'In deep space, water walls protect the crew.',
+      'In deep space, water walls help protect the crew.',
       'A closed ship must clean its air all the time.',
-      'A real trip to Mars takes about 7 months!',
+      'A real trip to Mars takes about 7 to 10 months!',
     ],
     creditos: 'Storm data: NASA DONKI + BioSentinel via OSDR RadLab. Archived, May 2024.',
-    notaDados: 'Real deep-space data from NASA BioSentinel, May 2024. The 7-month trip is shortened to 5 days.',
+    notaDados: 'Real deep-space data from NASA BioSentinel, May 2024. The 7 to 10 month trip is shortened to 5 days.',
   },
   {
     numero: 3,
@@ -134,7 +134,7 @@ export const CAPITULOS: Capitulo[] = [
     metaIncompleta: 'The base was not finished in time.',
     licoes: [
       'Mars air is thin: it cannot keep the heat in.',
-      'NASA can predict when storms reach each planet.',
+      'NASA models try to predict when storms reach each planet.',
       'On a new planet, the weather says what to build first.',
     ],
     creditos: 'Data: NASA DONKI + Curiosity RAD via OSDR RadLab + Curiosity REMS. Archived, May 2024.',

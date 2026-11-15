@@ -1,0 +1,999 @@
+{
+  "url": "http://127.0.0.1:5173/?leve",
+  "cpuSlowdown": 1,
+  "viewport": {
+    "width": 412,
+    "height": 915
+  },
+  "motion": "reduced",
+  "softwareRequested": false,
+  "date": "2026-11-15T19:38:40.678Z",
+  "stages": [],
+  "errors": [],
+  "browser": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/157.0.8103.52",
+    "revision": "@0985600c06a688b9c669e74afde7dacd5aaed047",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+    "jsVersion": "15.7.112.23"
+  },
+  "readyMs": 6692,
+  "firstContentfulPaintMs": 1244,
+  "renderer": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164C) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "cases": [
+    {
+      "name": "station-complete-and-save",
+      "evidence": {
+        "done": [
+          "nave_plantas"
+        ],
+        "day": 1,
+        "dose": 42,
+        "points": [
+          200
+        ],
+        "saved": {
+          "versao": 1,
+          "salvoEm": 1794771529293,
+          "layout": "cxoa4c",
+          "mundo": "nave",
+          "capIdx": 1,
+          "fase": "dia",
+          "estado": {
+            "dia": 1,
+            "oxigenio": 60,
+            "dose": 42,
+            "meta": 0,
+            "obras": {}
+          },
+          "entregas": {
+            "oxigenio": 0,
+            "blindagem": 0,
+            "meta": 0,
+            "aquecimento": 0
+          },
+          "pontos": [
+            200
+          ],
+          "carregando": 0,
+          "noHabitat": 3,
+          "tarefasHoje": [],
+          "ultimaTarefa": {},
+          "energiaHoje": false,
+          "curiosidadeRoverVista": false,
+          "curiosidadeRoverMarteVista": false,
+          "diaCargaRover": null,
+          "rover": null,
+          "astronauta": {
+            "x": 11.7,
+            "y": 15.5,
+            "z": 0,
+            "vx": 0,
+            "vy": 0,
+            "vz": 0,
+            "raio": 0.22,
+            "noChao": true
+          },
+          "modulos": [
+            {
+              "id": 1,
+              "tipo": "oficina",
+              "gx": 5,
+              "gy": 6,
+              "rotacao": 0
+            },
+            {
+              "id": 2,
+              "tipo": "suporte",
+              "gx": 9,
+              "gy": 6,
+              "rotacao": 0
+            },
+            {
+              "id": 3,
+              "tipo": "blindagem",
+              "gx": 13,
+              "gy": 6,
+              "rotacao": 0
+            },
+            {
+              "id": 4,
+              "tipo": "bateria",
+              "gx": 9,
+              "gy": 13,
+              "rotacao": 0
+            }
+          ],
+          "decoracao": [
+            {
+              "id": "nave_beliche",
+              "nome": "Crew Bunks",
+              "info": "In space you grow a little taller, because your back stretches out!",
+              "w": 2,
+              "h": 1,
+              "altura": 1.6,
+              "gx": 3,
+              "gy": 14,
+              "z": 0.01
+            },
+            {
+              "id": "nave_beliche",
+              "nome": "Crew Bunks",
+              "info": "In space you grow a little taller, because your back stretches out!",
+              "w": 2,
+              "h": 1,
+              "altura": 1.6,
+              "gx": 3,
+              "gy": 16,
+              "z": 0.01
+            },
+            {
+              "id": "nave_agua",
+              "nome": "Water Tanks",
+              "info": "Water tanks. Water is also a good shield against radiation, so tanks often line the walls.",
+              "w": 1,
+              "h": 1,
+              "altura": 1.2,
+              "rotacao": 3,
+              "gx": 5,
+              "gy": 14,
+              "z": 0.01
+            },
+            {
+              "id": "nave_medico",
+              "nome": "Medical Kit",
+              "info": "Close your eyes in space and you may see tiny flashes of light!",
+              "w": 1,
+              "h": 1,
+              "altura": 1.3,
+              "gx": 20,
+              "gy": 16,
+              "z": 0.01
+            },
+            {
+              "id": "nave_bolsas",
+              "nome": "Cargo Bags",
+              "info": "Soft cargo bags hold spare parts, clothes and food for the long trip.",
+              "w": 1,
+              "h": 1,
+              "altura": 0.9,
+              "rotacao": 3,
+              "gx": 3,
+              "gy": 10,
+              "z": 0.01
+            },
+            {
+              "id": "nave_mesa",
+              "nome": "Galley",
+              "info": "In space, tears do not fall. They stick to your eyes like little bubbles!",
+              "w": 2,
+              "h": 2,
+              "altura": 1.1,
+              "gx": 15,
+              "gy": 15,
+              "z": 0.01
+            },
+            {
+              "id": "nave_reciclador",
+              "nome": "Water Recycler",
+              "info": "Astronauts' pee is cleaned and turned into drinking water. Yes, really!",
+              "w": 1,
+              "h": 1,
+              "altura": 1.2,
+              "rotacao": 3,
+              "gx": 3,
+              "gy": 8,
+              "z": 0.01
+            },
+            {
+              "id": "nave_plantas",
+              "nome": "Veggie Garden",
+              "info": "A small veggie garden. Astronauts on the Space Station have grown and eaten lettuce in space.",
+              "w": 1,
+              "h": 1,
+              "altura": 1.1,
+              "gx": 13,
+              "gy": 13,
+              "z": 0.01
+            },
+            {
+              "id": "nave_esteira",
+              "nome": "Treadmill",
+              "info": "Astronauts run every day, held down by bungee cords, to keep their bones and muscles strong.",
+              "w": 2,
+              "h": 1,
+              "altura": 1.15,
+              "gx": 19,
+              "gy": 14,
+              "z": 0.01
+            },
+            {
+              "id": "nave_janela",
+              "nome": "Window",
+              "info": "A car would need more than 60 years to drive to Mars. Our ship takes about 7 months!",
+              "w": 1,
+              "h": 1,
+              "altura": 1.35,
+              "gx": 3,
+              "gy": 6,
+              "z": 0.01
+            },
+            {
+              "id": "nave_chama",
+              "nome": "Flame Test",
+              "info": "With no gravity, a flame is round like a ball, not pointy!",
+              "w": 1,
+              "h": 1,
+              "altura": 1.5,
+              "gx": 20,
+              "gy": 6,
+              "z": 0.01
+            },
+            {
+              "id": "nave_cockpit",
+              "nome": "Cockpit",
+              "info": "Where the pilots steer the ship. On the way to Mars the computer does most of the flying.",
+              "w": 2,
+              "h": 1,
+              "altura": 1.1,
+              "gx": 17,
+              "gy": 6,
+              "z": 0.01
+            },
+            {
+              "id": "nave_radio",
+              "nome": "Radio",
+              "info": "Hello, Earth! A message can take 20 minutes to get there. No quick chats!",
+              "w": 1,
+              "h": 1,
+              "altura": 1.4,
+              "rotacao": 3,
+              "gx": 16,
+              "gy": 8,
+              "z": 0.01
+            }
+          ],
+          "tempestade": {
+            "restante": 45000,
+            "status": "inativa"
+          },
+          "danoTempestade": 0,
+          "bateriasTempestade": 0,
+          "desfechoPendente": null,
+          "ultimoDia": null,
+          "evento": null,
+          "eventoEm": null,
+          "diasCalmos": 1,
+          "tempoCalmo": 0,
+          "pulou": false
+        }
+      }
+    },
+    {
+      "name": "station-after-real-reload",
+      "evidence": {
+        "done": [],
+        "mundo": "nave",
+        "day": 1,
+        "dose": 42,
+        "points": [
+          200
+        ],
+        "radar": true
+      }
+    },
+    {
+      "name": "explore-ship-labels",
+      "evidence": {
+        "mundo": "nave",
+        "texts": [
+          {
+            "text": "EARTH",
+            "bounds": {
+              "type": 5,
+              "x": 42.06,
+              "y": 297.95,
+              "width": 23,
+              "height": 8
+            }
+          },
+          {
+            "text": "1 · MOON BASE",
+            "bounds": {
+              "type": 5,
+              "x": 66.64,
+              "y": 633.4499999999999,
+              "width": 48,
+              "height": 8
+            }
+          },
+          {
+            "text": "YOU ARE HERE",
+            "bounds": {
+              "type": 5,
+              "x": 66.13999938964844,
+              "y": 560.25,
+              "width": 49,
+              "height": 8
+            }
+          },
+          {
+            "text": "2 · DEEP SPACE",
+            "bounds": {
+              "type": 5,
+              "x": 291.86,
+              "y": 657.85,
+              "width": 50,
+              "height": 8
+            }
+          },
+          {
+            "text": "3 · MARS",
+            "bounds": {
+              "type": 5,
+              "x": 339.94,
+              "y": 316.25,
+              "width": 28,
+              "height": 8
+            }
+          },
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 36,
+              "y": 157.1812865497076,
+              "width": 345,
+              "height": 58.63742690058481
+            }
+          },
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 33.5,
+              "y": 153.6812865497076,
+              "width": 345,
+              "height": 58.63742690058481
+            }
+          },
+          {
+            "text": "JUNIOR ASTRONAUT MISSION TRAINER",
+            "bounds": {
+              "type": 5,
+              "x": 118,
+              "y": 215.36315789473684,
+              "width": 176,
+              "height": 9
+            }
+          },
+          {
+            "text": "CONTINUE MISSION  ▶",
+            "bounds": {
+              "type": 5,
+              "x": 143,
+              "y": 449.5,
+              "width": 126,
+              "height": 16
+            }
+          },
+          {
+            "text": "NEW GAME",
+            "bounds": {
+              "type": 5,
+              "x": 178,
+              "y": 489.5,
+              "width": 56,
+              "height": 14
+            }
+          },
+          {
+            "text": "EXPLORE A BASE",
+            "bounds": {
+              "type": 5,
+              "x": 164.5,
+              "y": 526.5,
+              "width": 83,
+              "height": 14
+            }
+          },
+          {
+            "text": "HOW TO PLAY",
+            "bounds": {
+              "type": 5,
+              "x": 130.5,
+              "y": 564,
+              "width": 62,
+              "height": 13
+            }
+          },
+          {
+            "text": "CREDITS",
+            "bounds": {
+              "type": 5,
+              "x": 231.5,
+              "y": 564,
+              "width": 38,
+              "height": 13
+            }
+          },
+          {
+            "text": "Real NASA data · the May 2024 solar storm",
+            "bounds": {
+              "type": 5,
+              "x": 12,
+              "y": 900,
+              "width": 137,
+              "height": 8
+            }
+          },
+          {
+            "text": "Press ENTER to continue",
+            "bounds": {
+              "type": 5,
+              "x": 321,
+              "y": 900,
+              "width": 79,
+              "height": 8
+            }
+          },
+          {
+            "text": "MOON BASE",
+            "bounds": {
+              "type": 5,
+              "x": 83.5,
+              "y": 452.86,
+              "width": 51,
+              "height": 11
+            }
+          },
+          {
+            "text": "GO!  ▶",
+            "bounds": {
+              "type": 5,
+              "x": 95,
+              "y": 483.4599914550781,
+              "width": 28,
+              "height": 11
+            }
+          },
+          {
+            "text": "SPACESHIP",
+            "bounds": {
+              "type": 5,
+              "x": 183,
+              "y": 452.86,
+              "width": 46,
+              "height": 11
+            }
+          },
+          {
+            "text": "COMING SOON",
+            "bounds": {
+              "type": 5,
+              "x": 182,
+              "y": 484.96,
+              "width": 48,
+              "height": 8
+            }
+          },
+          {
+            "text": "MARS BASE",
+            "bounds": {
+              "type": 5,
+              "x": 278.5,
+              "y": 452.86,
+              "width": 49,
+              "height": 11
+            }
+          },
+          {
+            "text": "COMING SOON",
+            "bounds": {
+              "type": 5,
+              "x": 279,
+              "y": 484.96,
+              "width": 48,
+              "height": 8
+            }
+          },
+          {
+            "text": "BACK",
+            "bounds": {
+              "type": 5,
+              "x": 193,
+              "y": 543.5,
+              "width": 26,
+              "height": 12
+            }
+          },
+          {
+            "text": "EXPLORE A BASE",
+            "bounds": {
+              "type": 5,
+              "x": 161.5,
+              "y": 327,
+              "width": 89,
+              "height": 13
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "explore-moon-selected-from-ship",
+      "evidence": {
+        "mundo": "nave",
+        "fase": "dia",
+        "day": 1,
+        "radar": false
+      }
+    },
+    {
+      "name": "exploration-before-save",
+      "evidence": {
+        "countdown": 2,
+        "savedCountdown": null,
+        "day": 2
+      }
+    },
+    {
+      "name": "exploration-after-real-reload",
+      "evidence": {
+        "countdown": null,
+        "expedition": null,
+        "day": 2,
+        "mundo": "nave"
+      }
+    },
+    {
+      "name": "death-message-oxygen-with-rocket-ready",
+      "evidence": {
+        "state": {
+          "dia": 1,
+          "oxigenio": 0,
+          "dose": 42,
+          "meta": 100,
+          "obras": {}
+        },
+        "pages": [
+          [
+            "LUNAR ODYSSEY",
+            "LUNAR ODYSSEY",
+            "Day 1 of 8 · May 5, 2024",
+            "Oxygen",
+            "0%",
+            "Radiation",
+            "42%",
+            "Rocket",
+            "100%",
+            "Ground",
+            "W",
+            "A",
+            "S",
+            "D",
+            "Walk! Or click the ground",
+            "Skip ✕",
+            "OUT OF OXYGEN",
+            "MC",
+            "Mission Control",
+            "The rocket was not ready in time.",
+            "158 points!",
+            "Oxygen 0",
+            "Health 58",
+            "NEXT  ▶",
+            ""
+          ],
+          [
+            "LUNAR ODYSSEY",
+            "LUNAR ODYSSEY",
+            "Day 1 of 8 · May 5, 2024",
+            "Oxygen",
+            "0%",
+            "Radiation",
+            "42%",
+            "Rocket",
+            "100%",
+            "Ground",
+            "MC",
+            "Mission Control",
+            "Rocket 100",
+            "Every battery is a choice: air, shield or rocket.",
+            "The Moon has no air to block radiation. A shield helps!",
+            "Scientists watch the Sun to warn astronauts in time.",
+            "NEXT  ▶",
+            "OUT OF OXYGEN",
+            ""
+          ],
+          [
+            "LUNAR ODYSSEY",
+            "LUNAR ODYSSEY",
+            "Day 1 of 8 · May 5, 2024",
+            "Oxygen",
+            "0%",
+            "Radiation",
+            "42%",
+            "Rocket",
+            "100%",
+            "Ground",
+            "MC",
+            "Mission Control",
+            "Real NASA storm data from May 2024. Batteries, oxygen and the rocket are game rules.",
+            "PLAY AGAIN",
+            "OUT OF OXYGEN",
+            ""
+          ]
+        ]
+      }
+    },
+    {
+      "name": "mars-death-actions",
+      "evidence": {
+        "state": {
+          "dia": 1,
+          "oxigenio": 0,
+          "dose": 42,
+          "meta": 0,
+          "obras": {}
+        },
+        "pages": [
+          [
+            "LUNAR ODYSSEY",
+            "LUNAR ODYSSEY",
+            "Mars · Day 1 of 8 · May 18, 2024",
+            "Oxygen",
+            "0%",
+            "Radiation",
+            "42%",
+            "Base",
+            "0%",
+            "Ground",
+            "OUT OF OXYGEN",
+            "MC",
+            "Mission Control",
+            "The base was not finished in time.",
+            "58 points!",
+            "Oxygen 0",
+            "Health 58",
+            "NEXT  ▶",
+            ""
+          ],
+          [
+            "LUNAR ODYSSEY",
+            "LUNAR ODYSSEY",
+            "Mars · Day 1 of 8 · May 18, 2024",
+            "Oxygen",
+            "0%",
+            "Radiation",
+            "42%",
+            "Base",
+            "0%",
+            "Ground",
+            "MC",
+            "Mission Control",
+            "Base 0",
+            "Mars air is thin: it cannot keep the heat in.",
+            "NASA can predict when storms reach each planet.",
+            "On a new planet, the weather says what to build first.",
+            "NEXT  ▶",
+            "OUT OF OXYGEN",
+            ""
+          ],
+          [
+            "LUNAR ODYSSEY",
+            "LUNAR ODYSSEY",
+            "Mars · Day 1 of 8 · May 18, 2024",
+            "Oxygen",
+            "0%",
+            "Radiation",
+            "42%",
+            "Base",
+            "0%",
+            "Ground",
+            "MC",
+            "Mission Control",
+            "Real Mars data from the Curiosity rover, May 2024. The base is a game model.",
+            "PLAY AGAIN FROM THE MOON",
+            "OUT OF OXYGEN",
+            ""
+          ]
+        ]
+      }
+    },
+    {
+      "name": "restart-after-death-saved",
+      "evidence": {
+        "saved": "fim"
+      }
+    },
+    {
+      "name": "restart-after-death-reloaded",
+      "evidence": {
+        "mundo": "marte",
+        "fase": "fim",
+        "oxygen": 0,
+        "radar": true
+      }
+    },
+    {
+      "name": "mars-exploration-menu-label",
+      "evidence": [
+        {
+          "text": "SETTINGS",
+          "bounds": {
+            "type": 5,
+            "x": 181.5,
+            "y": 430,
+            "width": 49,
+            "height": 14
+          }
+        },
+        {
+          "text": "SAVE & MAIN MENU",
+          "bounds": {
+            "type": 5,
+            "x": 159.5,
+            "y": 468,
+            "width": 93,
+            "height": 14
+          }
+        },
+        {
+          "text": "Autosave on this device · ESC to continue",
+          "bounds": {
+            "type": 5,
+            "x": 150,
+            "y": 496.5,
+            "width": 112,
+            "height": 8
+          }
+        },
+        {
+          "text": "CONTINUE  ▶",
+          "bounds": {
+            "type": 5,
+            "x": 174.5,
+            "y": 523.5,
+            "width": 63,
+            "height": 12
+          }
+        },
+        {
+          "text": "Day 1 · May 18, 2024",
+          "bounds": {
+            "type": 5,
+            "x": 165.5,
+            "y": 394,
+            "width": 81,
+            "height": 11
+          }
+        },
+        {
+          "text": "MISSION PAUSED",
+          "bounds": {
+            "type": 5,
+            "x": 163.5,
+            "y": 347,
+            "width": 85,
+            "height": 13
+          }
+        }
+      ]
+    },
+    {
+      "name": "small-mobile-mars-result",
+      "evidence": {
+        "texts": [
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 22.4,
+              "y": 10.5,
+              "width": 91.19999999999999,
+              "height": 15
+            }
+          },
+          {
+            "text": "LUNAR ODYSSEY",
+            "bounds": {
+              "type": 5,
+              "x": 22.4,
+              "y": 8.5,
+              "width": 91.19999999999999,
+              "height": 15
+            }
+          },
+          {
+            "text": "Mars · Day 8 of 8 · May 25, 2024",
+            "bounds": {
+              "type": 5,
+              "x": 22.5,
+              "y": 27.32323232323232,
+              "width": 91,
+              "height": 7.353535353535353
+            }
+          },
+          {
+            "text": "Oxygen",
+            "bounds": {
+              "type": 5,
+              "x": 216,
+              "y": 8.5,
+              "width": 33,
+              "height": 13
+            }
+          },
+          {
+            "text": "60%",
+            "bounds": {
+              "type": 5,
+              "x": 284.5,
+              "y": 9.620454545454546,
+              "width": 14,
+              "height": 9.759090909090908
+            }
+          },
+          {
+            "text": "Radiation",
+            "bounds": {
+              "type": 5,
+              "x": 216,
+              "y": 38.5,
+              "width": 41,
+              "height": 13
+            }
+          },
+          {
+            "text": "42%",
+            "bounds": {
+              "type": 5,
+              "x": 284.5,
+              "y": 39.62045454545455,
+              "width": 14,
+              "height": 9.7590909090909
+            }
+          },
+          {
+            "text": "Base",
+            "bounds": {
+              "type": 5,
+              "x": 216,
+              "y": 68.5,
+              "width": 22,
+              "height": 13
+            }
+          },
+          {
+            "text": "100%",
+            "bounds": {
+              "type": 5,
+              "x": 283.5,
+              "y": 69.62045454545455,
+              "width": 16,
+              "height": 9.7590909090909
+            }
+          },
+          {
+            "text": "Ground",
+            "bounds": {
+              "type": 5,
+              "x": 283,
+              "y": 358,
+              "width": 24,
+              "height": 8
+            }
+          },
+          {
+            "text": "MC",
+            "bounds": {
+              "type": 5,
+              "x": 47.560001373291016,
+              "y": 194.17999267578125,
+              "width": 14,
+              "height": 11
+            }
+          },
+          {
+            "text": "Mission Control",
+            "bounds": {
+              "type": 5,
+              "x": 76.88000000000001,
+              "y": 174.33999999999997,
+              "width": 62.999999999999986,
+              "height": 11
+            }
+          },
+          {
+            "text": "On a new planet, the weather says what to build first.",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 194.09999877929687,
+              "width": 146,
+              "height": 27.24000000000001
+            }
+          },
+          {
+            "text": "Real Mars data from the Curiosity rover, May 2024. The base is a game model.",
+            "bounds": {
+              "type": 5,
+              "x": 114.08000152587891,
+              "y": 241.18000061035156,
+              "width": 147,
+              "height": 35.48000000000002
+            }
+          },
+          {
+            "text": "PLAY AGAIN FROM THE MOON",
+            "bounds": {
+              "type": 5,
+              "x": 75,
+              "y": 401,
+              "width": 170,
+              "height": 14
+            }
+          },
+          {
+            "text": "MISSION COMPLETE!",
+            "bounds": {
+              "type": 5,
+              "x": 98,
+              "y": 132.66,
+              "width": 124,
+              "height": 15
+            }
+          },
+          {
+            "text": "",
+            "bounds": {
+              "type": 5,
+              "x": 294,
+              "y": 223.5,
+              "width": 2,
+              "height": 13
+            }
+          }
+        ],
+        "width": 320,
+        "height": 568
+      }
+    },
+    {
+      "name": "credits-placeholder",
+      "evidence": [
+        {
+          "text": "Music",
+          "bounds": {
+            "type": 5,
+            "x": 131,
+            "y": 742.5902709960938,
+            "width": 23,
+            "height": 11
+          }
+        },
+        {
+          "text": "(add the author)",
+          "bounds": {
+            "type": 5,
+            "x": 166,
+            "y": 742.5902709960938,
+            "width": 62,
+            "height": 11
+          }
+        },
+        {
+          "text": "Claude · Anthropic",
+          "bounds": {
+            "type": 5,
+            "x": 166,
+            "y": 794.0902709960938,
+            "width": 69,
+            "height": 11
+          }
+        }
+      ]
+    }
+  ],
+  "completed": true
+}

@@ -8,7 +8,7 @@ export const ROVER_APOLLO = {
     'All three rovers are still on the Moon today!',
   ],
   fonte: 'NASA · Apollo Lunar Roving Vehicle',
-  url: 'https://www.nasa.gov/pdf/58199main_Exploring.The.Moon.pdf',
+  url: 'https://ares.jsc.nasa.gov/interaction/lmdp/documents/58199main_exploring_the_moon.pdf',
 } as const;
 
 // On Mars the same rover is parked by the Lander, but the real Apollo rovers never left the Moon: this panel

@@ -79,6 +79,16 @@ function podePassar(c: Chao, caixas: Caixa[], k: Corpo, nx: number, ny: number):
 
 // Advances one body by dt seconds. Returns what happened, for sounds and messages.
 export function passo(k: Corpo, e: Entrada | null, c: Chao, caixas: Caixa[], dt: number): { pousou: boolean; bloqueado: boolean } {
+  // Recover slow frames with small collision steps, without repeating a jump on landing.
+  if (dt > 1 / 30) {
+    const tempo = Math.min(dt, 0.1), passos = Math.ceil(tempo * 60);
+    let pousou = false, bloqueado = false;
+    for (let i = 0; i < passos; i++) {
+      const resultado = passo(k, i && e?.pular ? { ...e, pular: false } : e, c, caixas, tempo / passos);
+      pousou ||= resultado.pousou; bloqueado ||= resultado.bloqueado;
+    }
+    return { pousou, bloqueado };
+  }
   // Horizontal: steer toward the wanted velocity; little control in the air (no air on the Moon
   // to push against: once you jump, you mostly keep going).
   const len = e ? Math.hypot(e.dx, e.dy) : 0;

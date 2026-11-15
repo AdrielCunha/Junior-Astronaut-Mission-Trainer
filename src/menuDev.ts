@@ -11,6 +11,7 @@ export function instalarMenuDev(jogo: Phaser.Game) {
   const estilo = document.createElement('style');
   estilo.textContent = `
     #mission-dev-launch{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:10010;border:2px solid #fff;border-radius:999px;background:#17263f;color:#fddd45;padding:6px 14px;font:bold 13px Fredoka,system-ui;cursor:pointer}
+    @media (hover:none) and (pointer:coarse){#mission-dev-launch{left:max(12px,env(safe-area-inset-left));bottom:auto;top:calc(max(10px,env(safe-area-inset-top)) + 3px);transform:none;z-index:60;font-size:11px;padding:5px 9px;opacity:.85}}
     #mission-dev{box-sizing:border-box;width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:22px;border:3px solid white;border-radius:26px;background:#14243e;color:white;box-shadow:0 8px 0 #070e24;font:16px Fredoka,system-ui}
     #mission-dev::backdrop{background:#040c20aa} #mission-dev h2{color:#ffd93b;margin:0 0 6px;font-size:28px} #mission-dev p{font-size:13px;color:#bfd6ef;margin:8px 0 16px}
     #mission-dev button,#mission-dev select,#mission-dev input[type=number]{font:inherit;border:2px solid #bddfff;border-radius:12px;padding:8px;background:#203956;color:white;box-sizing:border-box}
@@ -24,7 +25,6 @@ export function instalarMenuDev(jogo: Phaser.Game) {
   const dialog = document.createElement('dialog'); dialog.id = 'mission-dev';
   dialog.setAttribute('aria-labelledby', 'mission-dev-title');
   dialog.innerHTML = `<button type="button" class="dev-close" aria-label="Close developer menu">×</button><h2 id="mission-dev-title">DEV TOOLS</h2><p>Temporary test controls — changes affect the current mission.<br>F2 opens / closes this menu. The game waits while it is open.</p>
-    <div class="dev-actions"><button type="button" data-action="edit"><img src="icons/lunar-v6/wrench.png" alt="" width="24" height="24" style="vertical-align:middle;margin-right:8px">EDIT BASE &amp; OBJECTS</button></div><p>Moon / Mars surface: click to select, R to turn, click or E to place.</p>
     <div id="dev-values"></div><div class="dev-actions"><button type="button" class="dev-green" data-action="apply">Apply values</button><button type="button" data-action="check">Check mission result</button><button type="button" data-action="finish">Test end of chapter</button><button type="button" class="dev-red" data-action="storm">Trigger solar storm · ${PRAZO_TEMPESTADE_MS / 1000}s</button></div>
     <hr><label for="dev-chapter">Jump to chapter (starts a fresh chapter)</label><select id="dev-chapter">${CAPITULOS.map((c, i) => `<option value="${i}">${c.numero}. ${c.titulo}</option>`).join('')}</select><button type="button" data-action="chapter">Open chapter</button><output aria-live="polite"></output>`;
   document.body.append(abrir, dialog);
@@ -88,11 +88,6 @@ export function instalarMenuDev(jogo: Phaser.Game) {
   dialog.addEventListener('keydown', event => { if (event.key === 'F2') { event.preventDefault(); fechar(); } });
   dialog.querySelectorAll<HTMLButtonElement>('[data-action]').forEach(botao => botao.addEventListener('click', () => {
     const acao = botao.dataset.action;
-    if(acao==='edit') {
-      if(!disponivel() || jogo.scene.isPaused('Base') || sessao.editandoBase || sessao.mundo==='nave' || sessao.vista!=='chao' || (sessao.fase!=='dia' && sessao.fase!=='inicio')) {status('Open the Moon or Mars surface during the day to edit.');return;}
-      fechar();
-      (jogo.scene.getScene('Interface') as Interface).abrirEditor();return;
-    }
     if (acao === 'chapter') {
       const indice = Number(dialog.querySelector<HTMLSelectElement>('#dev-chapter')!.value);
       const capitulo = CAPITULOS[indice];

@@ -16,6 +16,7 @@ import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 import dadosViagem from '../dados/viagem.json';
 import planetas3d from '../dados/planetas3d.json';
+import { ACESSORIOS, chaveAcessorio } from '../dados/acessorios';
 import { SKINS_SPRITES, chaveSkin, chaveSkinSentado, arquivoSentado, chaveSkinCarga, arquivoSkinCarga } from '../dados/skins';
 import constelacoes from '../dados/constelacoes.json';
 import { ICONES, chaveIcone } from '../dados/icones';
@@ -157,6 +158,8 @@ export class Carregar extends Phaser.Scene {
     this.load.image('foguete_voo', 'lua/modulos/foguete_voo.png');   // launch film and landing (Chegada.ts)
     carregarRover(this.load);   // the Apollo LRV in 16 headings (desenharRover.ts)
     for (const [id, b] of Object.entries(bandeiras)) this.load.image(`bandeira_${id}`, b.arquivo);
+    for (const a of ACESSORIOS) this.load.spritesheet(chaveAcessorio(a.id), a.arquivo, { frameWidth: sprite.frame, frameHeight: sprite.frame });
+    // Explorer 3D has no sheets of its own: it uses the commander's (SKINS_SPRITES leaves it out).
     for (const sk of SKINS_SPRITES) this.load.spritesheet(chaveSkin(sk.id), sk.arquivo, { frameWidth: sprite.frame, frameHeight: sprite.frame });
     for (const sk of SKINS_SPRITES) this.load.spritesheet(chaveSkinSentado(sk.id), arquivoSentado(sk.arquivo), { frameWidth: sprite.frame, frameHeight: sprite.frame });
     this.load.image('viagem_foguete', dadosViagem.foguete.arquivo);

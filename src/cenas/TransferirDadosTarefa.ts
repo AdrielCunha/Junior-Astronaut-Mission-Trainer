@@ -6,7 +6,7 @@ import {
   criarTransferenciaAntena, avancarTransferencia, posicaoDaTerra, forcaDoSinal, sinalBom, blocosEnviados, transferenciaConcluida,
   type TransferenciaAntena,
 } from '../transferir-dados-tarefa';
-import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 704;
@@ -205,7 +205,7 @@ export class TransferirDadosTarefa extends Phaser.Scene {
       const brilho = this.add.rectangle(0, 0, estado.largura, estado.altura, 0xffffff, 0.5).setOrigin(0);
       janela.add(brilho);
       this.tweens.add({ targets: brilho, alpha: 0, duration: 900 });
-      this.time.delayedCall(950, () => rajada(this, janela, estado.terra.x, posicaoDaTerra(estado, tempo).y, [0xfde047, 0x86efac, 0x7dd3fc, 0xf9a8d4], 26, 170));
+      this.time.delayedCall(50, () => rajada(this, janela, estado.terra.x, posicaoDaTerra(estado, tempo).y, [0xfde047, 0x86efac, 0x7dd3fc, 0xf9a8d4], 26, 170));
       const faixa = this.add.graphics()
         .fillStyle(0x16a34a, 1).fillRoundedRect(-270, -58, 540, 116, 40)
         .lineStyle(5, 0x1e293b, 1).strokeRoundedRect(-270, -58, 540, 116, 40);
@@ -215,8 +215,8 @@ export class TransferirDadosTarefa extends Phaser.Scene {
         texto(this, 0, 28, 'Radio waves carry our messages to Earth!', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 1100, ease: 'Back.easeOut' });
-      this.time.delayedCall(3500, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     const aCadaQuadro = (_t: number, delta: number) => {

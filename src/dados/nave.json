@@ -76,7 +76,7 @@
       "dosePico": 58.2,
       "curto": "Solar clouds pass by. Keep the engines on!",
       "aviso": "More clouds of solar material are passing by. The engines need power to reach Mars on time!",
-      "fato": "Water is a great radiation shield. Ships may wrap the crew in water tanks!"
+      "fato": "Water can shield against radiation. Ships may store water around the crew as a storm shelter!"
     },
     {
       "data": "2024-05-17",
@@ -89,7 +89,7 @@
       "dosePico": 44.3,
       "curto": "Mars is close! Arrive tonight.",
       "aviso": "Mars is close! Tonight the ship must reach Mars.",
-      "fato": "A real trip to Mars takes about 7 months. Here it takes 5 days!"
+      "fato": "A real trip to Mars takes about 7 to 10 months. Here it takes 5 days!"
     }
   ]
 }

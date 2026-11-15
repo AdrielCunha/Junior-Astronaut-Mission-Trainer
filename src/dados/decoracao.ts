@@ -21,7 +21,7 @@ const REFLETOR = 'Laser reflector. Scientists shoot lasers from Earth at it to m
 const BALIZA = 'A beacon that blinks so rovers and astronauts can find their way home.';
 const BARRIS = 'Drums of rocket fuel. Fuel is heavy, so every kilo flown from Earth costs a lot.';
 const BANDEIRA = 'A mission flag. With no wind on the Moon, flags need a rod along the top to look like they wave.';
-const PEDRAS = 'Boulders thrown out by meteorites. With no air, nothing smooths them: they stay sharp for millions of years.';
+const PEDRAS = 'Boulders thrown out by meteorites. With no wind or rain, they wear away very slowly.';
 const CAMERA = 'A science camera taking photos of the sky. With no air, stars shine without twinkling.';
 const AMOSTRAS = 'A case of lunar soil and rock samples. They are sent to labs on Earth to learn how the Moon formed.';
 const LANTERNA = 'A solar lamp. It stores sunlight in the day to glow when the long lunar night comes.';
@@ -62,7 +62,7 @@ export const DECORACAO: Deco[] = [
   { id: 'ferramentas', nome: 'Tool Rack', info: FERRAMENTAS, w: 1, h: 1, altura: 0.75, dx: 24, dy: 4 },
   { id: 'carretel', nome: 'Cable Spool', info: CARRETEL, w: 1, h: 1, altura: 0.7, dx: -18, dy: 11 },
   { id: 'mochila', nome: 'Lost Backpack', info: MOCHILA, w: 1, h: 1, altura: 0.3, dx: 7, dy: -25 },
-  { id: 'queijo', nome: 'Moon Cheese', info: QUEIJO, w: 1, h: 1, altura: 1.0, dx: -25, dy: -12 },
+  { id: 'queijo', nome: 'Not Moon Cheese', info: QUEIJO, w: 1, h: 1, altura: 1.0, dx: -25, dy: -12 },
 ];
 
 // Mars (chapter 3, Jezero crater): its own props, each with a real fact told simply for young kids.
@@ -71,28 +71,28 @@ const marte = (id: string, nome: string, info: string, dx: number, dy: number, a
   ({ id, nome, info, w, h, altura, dx, dy });
 
 export const DECORACAO_MARTE: Deco[] = [
-  marte('rocha_vulcao', 'Volcano Rock', 'The biggest volcano in the solar system is on Mars! It is as tall as 7,000 elephants standing on top of each other.', 16, 11, 0.7),
+  marte('rocha_vulcao', 'Volcano Rock', 'The biggest volcano in the solar system is on Mars! It is taller than 7,000 elephants standing on top of each other.', 16, 11, 0.7),
   marte('ingenuity', 'Ingenuity Helicopter', 'A tiny helicopter flew here! It was the first to fly on another planet. It was meant to fly 5 times and flew 72!', -24, 3, 0.9),
   marte('seixos', 'Round Pebbles', 'These rocks are round like marbles. Long ago a river rolled them. This crater was once a lake!', 13, -16, 0.35),
   marte('meteorito', 'Mars Meteorite', 'Some rocks from Mars fell on Earth! A big crash threw them into space.', 1, 26, 0.4),
-  marte('gelo', 'Dry Ice Frost', 'It snows on Mars! But the snow is frozen air, called dry ice.', -16, -15, 0.5),
-  marte('estacao_tempo', 'Weather Station', 'Brrr! Most of the time, Mars is colder than your freezer.', 19, 1, 1.1),
+  marte('gelo', 'Dry Ice Frost', 'It snows on Mars! Some of the snow is frozen carbon dioxide, called dry ice.', -16, -15, 0.5),
+  marte('estacao_tempo', 'Weather Station', 'Brrr! On average, Mars is colder than your freezer.', 19, 1, 1.1),
   marte('pedras', 'Rusty Rocks', 'Why is Mars red? Its dust is rusty, like an old bike!', -18, 16, 0.35),
   marte('camera', 'Sky Camera', 'On Mars, sunsets are blue! On Earth they are orange.', 3, -21, 1.0),
-  marte('rover_velho', 'Old Rover', 'This rover was built to work for 3 months. It kept going for almost 15 years!', 24, 10, 1.1, 2, 1),
+  marte('rover_velho', 'Old Rover', "Rovers like NASA's Opportunity were built to work for 3 months. Opportunity kept going for almost 15 years!", 24, 10, 1.1, 2, 1),
   marte('modulo_descida', 'Sky Crane Wreck', 'A robot landed here all by itself. Mars is too far for anyone on Earth to steer it in time.', -21, 8, 1.1, 2, 2),
   marte('amostras', 'Sample Tubes', 'Rocks sealed in tubes. One day a rocket may carry them to Earth!', 15, 21, 0.3),
-  marte('sismografo', 'Seismometer', 'Mars shakes too! This listened to more than 1,000 marsquakes.', -22, -5, 1.0),
+  marte('sismografo', 'Seismometer', "Mars shakes too! NASA's InSight lander, in another part of Mars, heard 1,319 marsquakes.", -22, -5, 1.0),
   marte('barris', 'Oxygen Maker', 'A robot here made oxygen out of Mars air. Astronauts need it to breathe!', -7, 23, 0.55),
-  marte('mochila', 'Lost Backpack', 'Mars pulls you down less than Earth. You could jump almost 3 times higher here!', -9, -19, 0.3),
-  marte('caixas', 'Supply Crates', 'A year on Mars is almost 2 Earth years. You would wait twice as long for your birthday!', 26, -5, 0.8),
-  marte('bandeira', 'Mission Flag', 'A day on Mars is 40 minutes longer than yours. Just enough for two cartoons!', -2, -19, 1.2),
+  marte('mochila', 'Lost Backpack', 'Mars pulls you down less than Earth. You could jump about 2.6 times higher here!', -9, -19, 0.3),
+  marte('caixas', 'Supply Crates', 'A year on Mars is almost 2 Earth years. You would wait almost twice as long for your birthday!', 26, -5, 0.8),
+  marte('bandeira', 'Mission Flag', 'A day on Mars is about 40 minutes longer than yours. Just enough for two cartoons!', -2, -19, 1.2),
   marte('lanterna', 'Solar Lamp', 'Mars is far from the Sun, so sunlight here is weaker. Solar panels work extra hard!', 16, -10, 1.1),
-  marte('carretel', 'Cable Spool', 'Dust storms on Mars can cover the whole planet for months!', -13, 18, 0.7),
-  marte('baliza', 'Beacon', 'Mars has two little moons shaped like potatoes: Phobos and Deimos!', -2, 22, 1.3),
+  marte('carretel', 'Cable Spool', 'Dust storms on Mars can grow to cover much of the planet!', -13, 18, 0.7),
+  marte('baliza', 'Beacon', 'Mars has two small, lumpy moons: Phobos and Deimos! They may be captured asteroids.', -2, 22, 1.3),
   marte('marciano', 'Mini Martian', 'Hi! Just kidding. Nobody has ever found life on Mars. But we are still looking!', 8, -24, 0.8),
-  marte('casa_sem_teto', 'Roof Not Included', 'Real Mars homes hide underground to stay safe from space rays. Ours is up here so you can see it. We know, we know!', 21, -14, 0.95),
-  marte('sonda', 'Crashed Probe', 'Landing on Mars is very hard. About half of the robots sent here did not make it.', 9, -17, 0.9),
+  marte('casa_sem_teto', 'Roof Not Included', 'Scientists plan to build Mars homes underground to stay safe from space rays. Ours is up here so you can see it. We know, we know!', 21, -14, 0.95),
+  marte('sonda', 'Crashed Probe', 'Landing on Mars is very hard. Many robots sent here did not make it.', 9, -17, 0.9),
 ];
 
 // The grid only needs a footprint to find a free spot; props never count as buildings.

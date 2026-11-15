@@ -28,7 +28,22 @@ export function passoAtual(c: ContextoGuia): Passo {
   return 'fim';
 }
 
-export function descrever(passo: Passo, _c?: ContextoGuia): Descricao | null {
+export function descrever(passo: Passo, c?: ContextoGuia, movel = false): Descricao | null {
+  // Touch screens: the joystick and the USE / JUMP buttons instead of the keys.
+  if (movel) {
+    switch (passo) {
+      case 'mover': return { teclas: ['MOVE'], texto: 'Move with the joystick', alvo: null };
+      case 'pular': return { teclas: ['JUMP'], texto: 'Tap JUMP! Moon gravity is weak', alvo: null };
+      case 'banco': return { teclas: ['USE'], texto: 'Get batteries at the Battery Bank', alvo: 'banco' };
+      case 'suporte': return { teclas: ['USE'], texto: 'Give 1 battery to Life Support', alvo: 'suporte' };
+      case 'oficina': return { teclas: ['USE'], texto: 'Now 1 to the Rocket Workshop', alvo: 'oficina' };
+      case 'resto': return { teclas: ['USE'], texto: 'Give the rest to any room', alvo: 'salas' };
+      case 'fim': return (c?.carregando ?? 0) > 0 || (c?.noHabitat ?? 0) > 0
+        ? { teclas: ['USE'], texto: 'Deliver the remaining batteries', alvo: 'salas' }
+        : { teclas: ['END DAY'], texto: 'All used! Tap END DAY', alvo: 'fim' };
+      default: return null;
+    }
+  }
   switch (passo) {
     case 'mover': return { teclas: ['W', 'A', 'S', 'D'], texto: 'Walk! Or click the ground', alvo: null };
     case 'pular': return { teclas: ['SPACE'], texto: 'Jump! Moon gravity is weak', alvo: null };
