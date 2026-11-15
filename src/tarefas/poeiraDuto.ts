@@ -15,7 +15,7 @@ export const poeiraDuto: Tarefa = {
   sala: 'oxigenio',
   titulo: 'Life Support · Air Duct',
   instrucao: 'Drag the rocks out of the air duct!',
-  fato: 'Apollo astronauts brought back 382 kg of Moon rocks!',
+  fato: 'Apollo astronauts brought back 382 kg of Moon rocks and soil!',
 
   montar(cena, { x, y, w, h, u }, feito) {
     const alturaBarra = 34 * u;

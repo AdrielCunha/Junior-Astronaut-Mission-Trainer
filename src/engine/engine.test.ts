@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Terreno, type DadosTerreno } from './terreno.ts';
 import { paraTela, paraChao, type Projecao } from './iso.ts';
-import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, definirGravidade, METROS_POR_TILE_CORPO } from './fisica.ts';
+import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, definirGravidade, METROS_POR_TILE_CORPO, type Chao } from './fisica.ts';
 import { Grade, TIPOS, BASE_PADRAO, BASE_MARTE, SETORES_SUPRIMENTOS, montarBasePadrao } from './construcao.ts';
 import { posicao, PLANETAS, lua } from './astro.ts';
 import { SUPRIMENTOS, empuxoDePouso } from './suprimentos.ts';
@@ -15,6 +15,30 @@ import { origemBaterias, modeloBancoBaterias } from './estacaoSolar.ts';
 
 const dados = JSON.parse(readFileSync(new URL('../dados/terreno.json', import.meta.url), 'utf8')) as DadosTerreno & { imagem: Projecao };
 const real = new Terreno(dados);
+
+test('slow frames preserve walking time and still stop at thin walls', () => {
+  const t: Chao = { n: 100, maxAndar: 20, altura: () => 0, inclinacaoEm: () => 0 };
+  const entrada = { dx: 1, dy: 0, pular: false };
+  const distancias = [10, 15, 20, 30, 60].map(fps => {
+    const k = novoCorpo(2, 2, 0); k.noChao = true;
+    for (let i = 0; i < fps * 2; i++) passo(k, entrada, t, [], 1 / fps);
+    return k.x;
+  });
+  assert.ok(Math.max(...distancias) - Math.min(...distancias) < 0.05, String(distancias));
+  for (const fps of [10, 15, 20]) {
+    const k = novoCorpo(2, 2, 0); k.noChao = true;
+    const caixas = [{ x0: 4, x1: 4.02, y0: 0, y1: 10, topo: 3 }];
+    for (let i = 0; i < fps * 2; i++) passo(k, entrada, t, caixas, 1 / fps);
+    assert.ok(k.x + k.raio <= 4, `wall crossed at ${fps} FPS: ${k.x}`);
+  }
+});
+
+test('physics recovery after a suspended tab remains bounded', () => {
+  const t: Chao = { n: 100, maxAndar: 20, altura: () => 0, inclinacaoEm: () => 0 };
+  const k = novoCorpo(2, 2, 0); k.noChao = true;
+  passo(k, { dx: 1, dy: 0, pular: false }, t, [], 10);
+  assert.ok(k.x < 2.4);
+});
 
 // A flat 10 x 10 test map with one steep tile column at gx = 5.
 const plano = (): Terreno => {

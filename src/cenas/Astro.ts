@@ -17,35 +17,35 @@ type Ficha = { titulo: string; tipo: string; cor: number; raioKm: number; dados:
 // NASA planetary fact sheets (nssdc.gsfc.nasa.gov/planetary/factsheet) and NASA Science.
 const FICHAS: Record<string, Ficha> = {
   sol: { titulo: 'The Sun', tipo: 'Our star', cor: 0xfdba74, raioKm: 696000,
-    fato: 'Its light takes 8 minutes and 20 seconds to reach Earth. The dark spots are sunspots: cooler patches where magnetic fields hold the heat in.',
-    dados: [['Radius', '696,000 km'], ['Turns once in', '25 days (equator)'], ['Surface', 'about 5,500 °C'], ['Gravity', '274 m/s²'], ['Age', '4.6 billion years'], ['Made of', 'hydrogen and helium']] },
+    fato: "Its light takes 8 minutes and 20 seconds to reach Earth. The dark spots are sunspots: slightly cooler areas where the Sun's magnetic field pokes out.",
+    dados: [['Radius', '696,000 km'], ['Turns once in', '25 days (equator)'], ['Surface', 'about 5,500 °C'], ['Gravity', '274 m/s²'], ['Age', '4.5 billion years'], ['Made of', 'hydrogen and helium']] },
   mercurio: { titulo: 'Mercury', tipo: 'The smallest planet, closest to the Sun', cor: 0xcbd5e1, raioKm: 2440,
     fato: 'It turns so slowly that one day, sunrise to sunrise, lasts 176 Earth days: two of its years.',
     dados: [['Radius', '2,440 km'], ['Day', '176 Earth days'], ['Year', '88 Earth days'], ['From the Sun', '58 million km'], ['Gravity', '3.7 m/s²'], ['Temperature', '-180 to 430 °C']] },
   venus: { titulo: 'Venus', tipo: 'The hottest planet', cor: 0xfde68a, raioKm: 6052,
-    fato: 'It spins backward, and so slowly that its day is longer than its year. Its thick clouds of sulfuric acid trap the heat.',
-    dados: [['Radius', '6,052 km'], ['Day', '243 Earth days, backward'], ['Year', '225 Earth days'], ['From the Sun', '108 million km'], ['Gravity', '8.9 m/s²'], ['Temperature', '465 °C, day and night']] },
+    fato: 'It spins backward, and so slowly that one spin takes longer than its year. Its thick air traps the heat, and its clouds are made of sulfuric acid.',
+    dados: [['Radius', '6,052 km'], ['Day', '243 Earth days, backward'], ['Year', '225 Earth days'], ['From the Sun', '108 million km'], ['Gravity', '8.9 m/s²'], ['Temperature', 'about 465 °C']] },
   terra: { titulo: 'Earth', tipo: 'Our home', cor: 0x93c5fd, raioKm: 6371,
-    fato: 'Its magnetic field and thick air shield us from most space radiation. On the Moon and on the way to Mars there is no such shield.',
+    fato: "Its magnetic field and thick air shield us from much of the Sun's harmful radiation. On the Moon and on the way to Mars there is no such shield.",
     dados: [['Radius', '6,371 km'], ['Day', '24 hours'], ['Year', '365.25 days'], ['From the Sun', '150 million km'], ['Gravity', '9.8 m/s²'], ['Temperature', 'about 15 °C average']] },
   lua: { titulo: 'The Moon', tipo: "Earth's only natural satellite", cor: 0xe2e8f0, raioKm: 1737,
     fato: 'It turns once for every trip around Earth, so it always shows us the same face. Your base is at its south pole.',
     dados: [['Radius', '1,737 km'], ['Day', '29.5 Earth days'], ['From Earth', '384,400 km'], ['Gravity', '1.62 m/s²'], ['Air', 'almost none'], ['Temperature', '-173 to 127 °C']] },
   marte: { titulo: 'Mars', tipo: 'The red planet, your next stop', cor: 0xfdba74, raioKm: 3390,
-    fato: 'Its red comes from rust: iron oxide in its dust. It has the tallest volcano in the solar system, Olympus Mons, about 22 km high.',
-    dados: [['Radius', '3,390 km'], ['Day', '24 h 40 min (a sol)'], ['Year', '687 Earth days'], ['From the Sun', '228 million km'], ['Gravity', '3.7 m/s²'], ['Moons', 'Phobos and Deimos']] },
+    fato: 'Its red comes from rust: iron oxide in its dust. It has the largest volcano in the solar system, Olympus Mons, more than 20 km high.',
+    dados: [['Radius', '3,390 km'], ['Day', '24 h 39 min (a sol)'], ['Year', '687 Earth days'], ['From the Sun', '228 million km'], ['Gravity', '3.7 m/s²'], ['Moons', 'Phobos and Deimos']] },
   jupiter: { titulo: 'Jupiter', tipo: 'The biggest planet, a ball of gas', cor: 0xfcd9a8, raioKm: 69911,
     fato: 'The Great Red Spot is a storm wider than Earth that has been blowing for hundreds of years. Jupiter has no ground to stand on.',
-    dados: [['Radius', '69,911 km'], ['Day', '9 h 56 min'], ['Year', '11.9 Earth years'], ['From the Sun', '778 million km'], ['Gravity', '24.8 m/s²'], ['Moons', '95 known']] },
+    dados: [['Radius', '69,911 km'], ['Day', '9 h 55 min'], ['Year', '11.9 Earth years'], ['From the Sun', '778 million km'], ['Gravity', '24.8 m/s²'], ['Moons', '95 known']] },
   saturno: { titulo: 'Saturn', tipo: 'The ringed planet', cor: 0xfde68a, raioKm: 58232,
     fato: 'Its rings are billions of chunks of ice and rock, from grains of dust to the size of a house, but in most places they are only about 10 m thick.',
     dados: [['Radius', '58,232 km'], ['Day', '10 h 39 min'], ['Year', '29.4 Earth years'], ['From the Sun', '1.43 billion km'], ['Gravity', '10.4 m/s²'], ['Moons', '274 known']] },
   urano: { titulo: 'Uranus', tipo: 'The planet that rolls on its side', cor: 0xa5f3fc, raioKm: 25362,
-    fato: 'Its axis is tipped over by 98 degrees, so each pole gets about 42 years of sunlight and then 42 years of darkness.',
-    dados: [['Radius', '25,362 km'], ['Day', '17 h 14 min, backward'], ['Year', '84 Earth years'], ['From the Sun', '2.87 billion km'], ['Gravity', '8.7 m/s²'], ['Temperature', 'about -195 °C']] },
+    fato: 'Its axis is tipped over by 98 degrees, so for many years the Sun shines over one pole while the other half has a dark winter 21 years long.',
+    dados: [['Radius', '25,362 km'], ['Day', '17 h 14 min, backward'], ['Year', '84 Earth years'], ['From the Sun', '2.87 billion km'], ['Gravity', '8.7 m/s²'], ['Temperature', 'about -197 °C']] },
   netuno: { titulo: 'Neptune', tipo: 'The windiest planet, the farthest from the Sun', cor: 0x93c5fd, raioKm: 24622,
-    fato: 'Its winds blow at more than 2,000 km/h, the fastest in the solar system. It was found in 1846 with math, before anyone saw it.',
-    dados: [['Radius', '24,622 km'], ['Day', '16 h 6 min'], ['Year', '165 Earth years'], ['From the Sun', '4.5 billion km'], ['Gravity', '11.2 m/s²'], ['Moons', '16 known']] },
+    fato: 'Its winds blow at about 2,000 km/h, the fastest in the solar system. It was found in 1846 with math, before anyone saw it.',
+    dados: [['Radius', '24,622 km'], ['Day', '16 h 7 min'], ['Year', '165 Earth years'], ['From the Sun', '4.5 billion km'], ['Gravity', '11.2 m/s²'], ['Moons', '16 known']] },
 };
 // The bodies that have a map (make_planetas_3d.py), from the Sun out.
 const ORDEM = ['sol', 'mercurio', 'venus', 'terra', 'lua', 'marte', 'jupiter', 'saturno', 'urano', 'netuno']
@@ -198,7 +198,7 @@ export class Astro extends Phaser.Scene {
       .fillStyle(0x34d399, 1).fillRect(0, yf + 8 * s, 4 * s, tf.height + 8 * s);
     painel.addAt(caixaFato, painel.getIndex(tf));
     y += tf.height + 22 * s;
-    y += texto('Source: NASA planetary fact sheets', 11 * s, '#64748b').height;
+    y += texto('Sources: NASA planetary fact sheets and NASA Science', 11 * s, '#64748b').height;
 
     // In place: centered on the body's height when beside it, under it otherwise.
     const py = lado ? Phaser.Math.Clamp(cy - y / 2, 70, Math.max(70, H - y - 70)) : Math.min(cy + raio + 20 * s, Math.max(70, H - y - 70));

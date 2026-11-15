@@ -7,6 +7,7 @@ import { t, idioma, escolherIdioma } from './idioma.ts';
 test('English is the default and changes nothing', () => {
   assert.equal(idioma, 'en');
   assert.equal(t('Heating'), 'Heating');
+  assert.equal(t('EXPLORE THE BASE'), 'EXPLORE THE BASE');
   assert.equal(t('Chapter 1 of 3: The Moon base'), 'Chapter 1 of 3: The Moon base');
 });
 
@@ -22,6 +23,10 @@ test('Portuguese: exact texts, patterns and their parts', () => {
     assert.equal(t('Chapter 2'), 'Capítulo 2');
     assert.equal(t('1 battery'), '1 bateria');
     assert.equal(t('3 batteries'), '3 baterias');
+    assert.equal(t('CONTINUE MISSION'), 'CONTINUAR MISSÃO');
+    assert.equal(t('LAUNCH MISSION'), 'LANÇAR MISSÃO');
+    assert.equal(t('NEXT MORNING'), 'PRÓXIMA MANHÃ');
+    assert.equal(t('EXPLORE THE BASE'), 'EXPLORAR A BASE');
     // Case changed by the scene, decorations around the text, lines translated one by one.
     assert.equal(t('heating'), 'aquecimento');
     assert.equal(t('HEATING'), 'AQUECIMENTO');

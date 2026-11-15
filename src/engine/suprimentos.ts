@@ -15,10 +15,10 @@ export const SUPRIMENTOS: Suprimento[] = [
     fato: 'Astronauts already grow lettuce on the Space Station!' },
   { dia: 5, tipo: 'perfuratriz',
     aviso: 'An Ice Drill lands today!',
-    fato: 'Moon ice can become water, air and rocket fuel!' },
+    fato: 'Moon ice could become water, oxygen and rocket fuel!' },
   { dia: 6, tipo: 'rover',
     aviso: 'A Rover lands today!',
-    fato: 'NASA is building a new Moon car for Artemis astronauts!' },
+    fato: 'NASA is working on a new Moon car for Artemis astronauts!' },
 ];
 
 export const suprimentoDoDia = (dia: number) => SUPRIMENTOS.find((s) => s.dia === dia);

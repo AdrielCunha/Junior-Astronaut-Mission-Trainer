@@ -53,6 +53,7 @@ export class Interface extends Phaser.Scene {
   private capsula!: { caixa: Phaser.GameObjects.Container; atualizar: (valores: number[]) => void };
   private layout!: ReturnType<typeof calcularLayoutHud>;
   private objetivo!: Phaser.GameObjects.Container;
+  private estrelaObjetivo!: ReturnType<typeof criarIconeJogo>;
   private textos: Record<string, Phaser.GameObjects.Text> = {};
   private painel: Phaser.GameObjects.GameObject[] = [];
   private acaoPrincipal?: () => void;
@@ -145,9 +146,9 @@ export class Interface extends Phaser.Scene {
     const l = this.layout, fim = l.fimDia;
     // On touch screens this button keeps the desktop web size even when the rest of the HUD shrinks.
     const uFim = dispositivoMovel() ? Math.max(l.u, 1) : l.u;
-    const fonteFim = Math.round(17 * uFim);
+    const fonteFim = Math.round(21 * uFim);
     this.btFim = botaoVerde(this, Math.round(fim.x + fim.w / 2), Math.round(fim.y + fim.h / 2), 'END DAY', fonteFim, fim.h, uFim,
-      () => this.terminarDia(), { largura: fim.w, altura: fim.h, pulsar: false, pararPropagacao: true, animarHover: true });
+      () => this.terminarDia(), { largura: fim.w, altura: fim.h, pulsar: false, pararPropagacao: true, animarHover: true, cor: 0x16e05f, corHover: 0x6ef5a0 });
     this.textoFim = this.btFim.getData('texto');
     // Draw the arrow as artwork, not an emoji glyph, so it is white on every device.
     this.iconeFim = this.add.graphics();
@@ -186,7 +187,6 @@ export class Interface extends Phaser.Scene {
     kb.on('keydown-H', () => sessao.irPara(U_INICIAL));
     kb.on('keydown-M', () => { if (!configuracoesAbertas) alternarMudo(); });
     kb.on('keydown-ESC', () => this.abrirMenu());
-    kb.on('keydown-B', () => this.abrirEditor());
     kb.on('keydown-ENTER', () => { if (!configuracoesAbertas) this.acaoPrincipal?.(); });
 
     sessao.ouvir(this, 'mensagem', (s, cor) => this.mensagem(s, cor));
@@ -468,11 +468,12 @@ export class Interface extends Phaser.Scene {
     this.capsula = movel ? criarCapsulaRecursosMovel(this, l.capsula, u, rotulosRecursos) : criarCapsulaRecursos(this, l.capsula, u, rotulosRecursos);
     const o = l.objetivo;
     this.objetivo = criarPilula(this, o.x, o.y, o.w, o.h, u, 0xfde047);
-    const estrela = criarIconeJogo(this, pad + px(10), Math.round(o.h / 2), 'star', px(24));
+    const estrela = this.estrelaObjetivo = criarIconeJogo(this, pad + px(10), Math.round(o.h / 2), 'star', px(24));
     const tamanhoObjetivo = movel ? 15 : 12;
-    this.textos.tarefa = this.add.text(px(30), Math.round(o.h / 2), '', letra(px(tamanhoObjetivo), '#0b1a4a', {
-      fontStyle: '700', wordWrap: { width: movel ? 0 : o.w - px(30) - pad }, lineSpacing: 0,
-    })).setOrigin(0, 0.5);
+    const inicioTexto = px(30), larguraTexto = Math.max(1, o.w - inicioTexto - pad);
+    this.textos.tarefa = this.add.text(inicioTexto + larguraTexto / 2, Math.round(o.h / 2), '', letra(px(tamanhoObjetivo), '#0b1a4a', {
+      fontStyle: '700', align: 'center', wordWrap: { width: movel ? 0 : larguraTexto }, lineSpacing: 0,
+    })).setOrigin(0.5);
     this.objetivo.add([estrela, this.textos.tarefa]);
     // Pulse only the star; the second-row elements stay on the same baseline.
     if (!movimentoReduzido()) this.tweens.add({ targets: estrela, alpha: 0.45, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -540,6 +541,8 @@ export class Interface extends Phaser.Scene {
     } else {
       this.textos.tarefa.setScale(Math.min(1, alturaDisponivel / this.textos.tarefa.height));
     }
+    const esquerdaTexto = this.textos.tarefa.x - this.textos.tarefa.displayWidth / 2;
+    this.estrelaObjetivo.setX(Math.max(Math.round(12*this.layout.u), esquerdaTexto - Math.round(16*this.layout.u)));
 
     const menu=sessao.fase === 'inicio';
     this.textoFim.setText(menu ? 'MENU' : 'END DAY');
@@ -547,9 +550,9 @@ export class Interface extends Phaser.Scene {
       // The translated label may be wider than English; keep the arrow inside the pill.
       let tamanho=Math.round(17*Math.max(this.layout.u,1));
       this.textoFim.setFontSize(tamanho);
-      while(this.textoFim.width>this.layout.fimDia.w-32 && tamanho>10)this.textoFim.setFontSize(--tamanho);
+      while(this.textoFim.width>this.layout.fimDia.w-38 && tamanho>10)this.textoFim.setFontSize(--tamanho);
     }
-    const tamanhoIcone=8*(dispositivoMovel()?Math.max(this.layout.u,1):this.layout.u);
+    const tamanhoIcone=dispositivoMovel()?14*Math.max(this.layout.u,1):18*this.layout.u;
     const distancia=(this.textoFim.width+tamanhoIcone+8)/2;
     this.textoFim.setX(menu?6:-6);
     const x=menu?-distancia:distancia;
@@ -558,7 +561,10 @@ export class Interface extends Phaser.Scene {
       x+(menu?tamanhoIcone/2:-tamanhoIcone/2),tamanhoIcone/2,
       x+(menu?-tamanhoIcone/2:tamanhoIcone/2),0,
     );
-    this.btFim.setVisible(sessao.fase === 'dia' || sessao.fase === 'inicio');
+    const mostrarFim = (sessao.fase === 'dia' || sessao.fase === 'inicio')
+      && !(sessao.explorando && (sessao.mundo === 'nave' || sessao.mundo === 'marte'));
+    this.btFim.setVisible(mostrarFim);
+    if (this.btFim.input) this.btFim.input.enabled = mostrarFim;
   }
 
   painelAberto() { return this.painel.length > 0; }
@@ -990,9 +996,8 @@ export class Interface extends Phaser.Scene {
       });
       let x = x0 + largura / 2 - (larguras.reduce((a, b) => a + b, 0) + gap * (lista.length - 1)) / 2;
       return lista.map((b, i) => {
-        const setaBranca = /^(NEXT|GO!|GOT IT)\s+▶$/.test(b.texto);
         const bt = botaoVerde(this, x + larguras[i] / 2, rodape.y + rodape.h / 2, b.texto, tam, alturaBt, k, () => { tocarSfx('clique'); b.acao(); },
-          { pulsar: false, pararPropagacao: true, animarHover: true, setaBranca, ...(b.principal ? {} : { cor: 0x475569 }) });
+          { pulsar: false, pararPropagacao: true, animarHover: true, ...(b.principal ? {} : { cor: 0x475569 }) });
         x += larguras[i] + gap;
         return bt.setVisible(false);
       });

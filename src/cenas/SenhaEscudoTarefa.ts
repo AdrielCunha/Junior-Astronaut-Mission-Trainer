@@ -69,7 +69,7 @@ export class SenhaEscudoTarefa extends Phaser.Scene {
         luz.setFillStyle(0x22c55e); this.tweens.killTweensOf(luz); luz.setAlpha(1);
         caixas.forEach((c) => c.setColor('#fde047'));
         msg('Door locked! The crew is safe from the flare.', '#86efac');
-        vitoria(this, tela, LW, LH, 'Shield locked!', 'A flare reaches the Moon in just 8 minutes!', this.aoConcluir);
+        vitoria(this, tela, LW, LH, 'Shield locked!', "A flare's light reaches the Moon in about 8 minutes!", this.aoConcluir);
       } else {
         msg('Wrong code! Look for the numbers in the corners of the map.', '#fca5a5');
         tremer();
