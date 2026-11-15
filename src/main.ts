@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { CAPITULOS } from './capitulos';
 import { inicioDoCapitulo } from './regras';
-import { forcarEvento, proximoCapitulo, type EstadoTeste, type ParamEvento } from './test-harness';
+import { forcarEvento, type EstadoTeste, type ParamEvento } from './test-harness';
 import { Espaco } from './cenas/Espaco';
 import { Superficie } from './cenas/Superficie';
 import { Interface } from './cenas/Interface';
@@ -36,6 +36,7 @@ import { FecharEscotilhasTarefa } from './cenas/FecharEscotilhasTarefa';
 import { PaineisSolaresTarefa } from './cenas/PaineisSolaresTarefa';
 import { BANCO } from './tarefas';
 import { sessao } from './cenas/sessao';
+import { iniciarMundo3D } from './cenas/irParaMarte';
 import { instalarMenuDev } from './menuDev';
 
 // Carregar (loading screen) loads the assets, then starts three scenes that run together, bottom to top: Espaco (stars, Moon, planets), Superficie (the map,
@@ -136,17 +137,32 @@ const createDebugHarness = () => {
     }, 'rgba(96, 165, 250, 0.8)'));
   };
 
+  // Switches the running game to a chapter, the same way the game does after a chapter ends
+  // (iniciarMundo3D: swaps the world, starts the chapter and restarts Espaco/Superficie/Interface).
+  // Keeps the crew's dose and the scores of the chapters before it.
+  const irParaCapitulo = (numero: number) => {
+    const alvo = Math.min(Math.max(1, numero), CAPITULOS.length);
+    const jogo = (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__;
+    // The loader needs a running scene: any active one will do.
+    const cena = jogo?.scene.getScenes(true)[0];
+    if (!jogo || !cena) {
+      painelMensagem.textContent = `Chapter ${alvo}: game is not ready yet.`;
+      return;
+    }
+    const idx = alvo - 1;
+    iniciarMundo3D(cena, CAPITULOS[idx].tema, idx, sessao.estado.dose, sessao.pontos.slice(0, idx));
+    estadoBase.capitulo = alvo;
+    estadoBase.dia = 1;
+    estadoBase.evento = 'capitulo';
+    estadoBase.estado = inicioDoCapitulo(CAPITULOS[idx].config);
+    estadoBase.dados = { nivel: 0, frio: 0 };
+    atualizarStatus();
+    painelMensagem.textContent = `Chapter ${alvo} (${CAPITULOS[idx].tema}) started.`;
+    console.info('QA chapter set:', estadoBase);
+  };
+
   const botaoCapitulo = (numero: number) => {
-    capitulosTab.appendChild(criarBotaoPadrao(`Chapter ${numero}`, '#111827', () => {
-      const alvo = Math.min(Math.max(1, numero), CAPITULOS.length);
-      estadoBase.capitulo = alvo;
-      estadoBase.dia = 1;
-      estadoBase.evento = 'capitulo';
-      estadoBase.estado = inicioDoCapitulo(CAPITULOS[alvo - 1].config);
-      estadoBase.dados = { nivel: 0, frio: 0 };
-      atualizarStatus();
-      console.info('QA chapter set:', estadoBase);
-    }, 'rgba(148, 163, 184, 0.5)'));
+    capitulosTab.appendChild(criarBotaoPadrao(`Chapter ${numero}`, '#111827', () => irParaCapitulo(numero), 'rgba(148, 163, 184, 0.5)'));
   };
 
   const painelMensagem = document.createElement('div');
@@ -432,10 +448,8 @@ const createDebugHarness = () => {
   botaoEvento('No oxygen', 'queda-oxigenio');
 
   const avancar = criarBotaoPadrao('Next chapter', '#052e16', () => {
-    const avancado = proximoCapitulo(estadoBase, Math.min(estadoBase.capitulo + 1, CAPITULOS.length));
-    Object.assign(estadoBase, avancado);
-    atualizarStatus();
-    console.info('QA chapter advanced:', estadoBase);
+    // Follows the game's own chapter, not the panel's copy (the player may have advanced by playing).
+    irParaCapitulo(Math.min(sessao.capIdx + 2, CAPITULOS.length));
   }, 'rgba(34, 197, 94, 0.8)');
   eventosTab.appendChild(avancar);
 

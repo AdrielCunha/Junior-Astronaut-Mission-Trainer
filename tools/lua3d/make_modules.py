@@ -42,6 +42,7 @@ TIPOS = {
     'deco_rover_velho': (2, 1), 'deco_modulo_descida': (2, 2), 'deco_sonda': (1, 1), 'deco_caixas': (1, 1),
     'deco_sismografo': (1, 1), 'deco_refletor': (1, 1), 'deco_baliza': (1, 1), 'deco_barris': (1, 1),
     'deco_bandeira': (1, 1), 'deco_pedras': (1, 1), 'deco_camera': (1, 1), 'deco_amostras': (1, 1), 'deco_lanterna': (1, 1), 'deco_ferramentas': (1, 1), 'deco_carretel': (1, 1), 'deco_mochila': (1, 1),
+    'deco_rocha_vulcao': (1, 1), 'deco_ingenuity': (1, 1), 'deco_seixos': (1, 1), 'deco_meteorito': (1, 1), 'deco_gelo': (1, 1), 'deco_estacao_tempo': (1, 1),
     'pouso': (2, 2),   # the cargo lander (footprint of its legs)
 }
 
@@ -1324,6 +1325,140 @@ def deco_mochila():
     esfera(0.58, 0.9, 0.0, 0.16, 0.1, 0.05, '#d9c19a', linha=0.006, metade=True)
 
 
+# ---------- Mars props (chapter 3): each one carries a real fact for kids (src/dados/decoracao.ts) ----------
+def cone(cx, cy, r1, r2, z0, z1, cor, v=20, linha=0.02):
+    bpy.ops.mesh.primitive_cone_add(vertices=v, radius1=r1, radius2=r2, depth=z1 - z0)
+    o = bpy.context.active_object; o.location = (cx, -cy, (z0 + z1) / 2)
+    bpy.ops.object.shade_smooth()
+    return _fim(o, cor, 0, linha)
+
+
+def pedra(cx, cy, cz, rx, ry, rz, cor, sub=1, rot=(0, 0, 0), linha=0.015):
+    """A faceted rock: a low-poly ico sphere, squashed and turned."""
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=sub, radius=1)
+    o = bpy.context.active_object
+    o.scale = (rx, ry, rz); o.location = (cx, -cy, cz); o.rotation_euler = rot
+    return _fim(o, cor, 0, linha)
+
+
+def deco_rocha_vulcao():
+    # A little volcano-shaped rock: rusty red cone, a glowing lava crater with lava streaks running
+    # down the sides the camera sees, bubbly holes of volcanic rock and loose lava pebbles around it.
+    cone(0.5, 0.5, 0.42, 0.14, 0.0, 0.62, '#fdba74', v=10, linha=0.025)
+    cone(0.5, 0.5, 0.44, 0.36, 0.0, 0.12, '#fb923c', v=10, linha=0.02)                        # darker foot ring
+    cilindro(0.5, 0.5, 0.12, 0.6, 0.64, '#f97316', v=12, linha=0.01)                          # crater rim
+    emissivo(cilindro(0.5, 0.5, 0.09, 0.62, 0.645, '#fb923c', v=12, linha=0.004), '#fdba74', 2.6)   # lava pool
+    for (dx, dy) in ((0.11, 0.06), (0.04, 0.12)):                                             # lava streaks (+gx, +gy faces)
+        p0 = (0.5 + dx * 0.9, 0.5 + dy * 0.9, 0.6); p1 = (0.5 + dx * 3.0, 0.5 + dy * 3.0, 0.16)
+        emissivo(haste(p0, p1, 0.035, '#ef4444', linha=0.004), '#f87171', 1.6)
+    for (x, y, z) in ((0.72, 0.62, 0.3), (0.62, 0.76, 0.25), (0.78, 0.48, 0.18), (0.5, 0.82, 0.12), (0.66, 0.68, 0.45)):
+        esfera(x, y, z, 0.035, 0.035, 0.03, '#b45309', linha=0.004)                           # gas bubble holes
+    for (x, y, r, c) in ((0.14, 0.86, 0.07, '#fca5a5'), (0.88, 0.2, 0.06, '#e0805a'), (0.9, 0.86, 0.05, '#fdba74')):
+        pedra(x, y, r * 0.6, r, r, r * 0.8, c, rot=(0.3, 0.2, 0.5), linha=0.01)
+
+
+def deco_ingenuity():
+    # The Ingenuity helicopter: a small gold box on four springy legs, two stacked rotors with
+    # bright blades, a solar panel on top of the mast, a camera eye, on a little marked airfield.
+    OURO, ACO, AZUL = '#fde68a', '#94a3b8', '#38bdf8'
+    cilindro(0.5, 0.5, 0.44, 0.0, 0.02, '#fed7aa', v=24, linha=0.01)                          # airfield disk
+    for a in range(0, 360, 45):                                                                # orange marker dots
+        r = math.radians(a)
+        cilindro(0.5 + 0.38 * math.cos(r), 0.5 + 0.38 * math.sin(r), 0.03, 0.02, 0.035, '#f97316', v=10, linha=0.005)
+    caixa(0.4, 0.4, 0.6, 0.6, 0.2, 0.38, OURO, bevel=0.025, linha=0.015)                      # body (foil)
+    caixa(0.39, 0.39, 0.61, 0.61, 0.27, 0.3, '#f97316', bevel=0.005, linha=0.008)             # orange band
+    visor(0.47, 0.6, 0.53, 0.615, 0.22, 0.27, '#8ae8ff')                                       # camera eye
+    for (x, y) in ((0.42, 0.42), (0.58, 0.42), (0.42, 0.58), (0.58, 0.58)):                   # legs + feet
+        fx, fy = 0.5 + (x - 0.5) * 3.4, 0.5 + (y - 0.5) * 3.4
+        haste((x, y, 0.22), (fx, fy, 0.03), 0.012, '#e2e8f0', linha=0.006)
+        cilindro(fx, fy, 0.03, 0.02, 0.04, ACO, v=10, linha=0.005)
+    haste((0.5, 0.5, 0.38), (0.5, 0.5, 0.8), 0.018, ACO, linha=0.006)                          # mast
+    for (z, ang, cor) in ((0.5, 20, AZUL), (0.62, 70, '#a78bfa')):                             # two rotors
+        for k in (0, 180):
+            r = math.radians(ang + k)
+            o = caixa(-0.2, -0.04, 0.2, 0.04, z, z + 0.015, cor, bevel=0.006, linha=0.008)
+            o.location = (0.5 + 0.22 * math.cos(r), -(0.5 + 0.22 * math.sin(r)), z + 0.008); o.rotation_euler = (0, 0, -r)
+        cilindro(0.5, 0.5, 0.035, z - 0.01, z + 0.02, '#e2e8f0', v=12, linha=0.006)            # hub
+    caixa(0.39, 0.42, 0.61, 0.58, 0.8, 0.82, '#334155', bevel=0.005, linha=0.008)             # solar panel frame
+    visor(0.4, 0.43, 0.6, 0.57, 0.82, 0.83, '#3b82f6')
+    for i in range(1, 4):
+        caixa(0.4 + i * 0.05, 0.43, 0.405 + i * 0.05, 0.57, 0.83, 0.835, '#bfdbfe', bevel=0, linha=0.002)
+
+
+def deco_seixos():
+    # Old lakebed: a slab of striped rock (layers left by a river, each a different color) and
+    # smooth round pebbles like marbles, with a dry stream groove.
+    for i, c in enumerate(('#fdba74', '#fcd34d', '#fca5a5', '#fde68a', '#fb923c')):            # layered slab
+        z0 = i * 0.06
+        caixa(0.1 + i * 0.03, 0.12 + i * 0.02, 0.62 - i * 0.02, 0.5 - i * 0.02, z0, z0 + 0.06, c, bevel=0.015, linha=0.01)
+    caixa(0.05, 0.62, 0.95, 0.74, 0.0, 0.012, '#fed7aa', bevel=0.003, linha=0.004)              # dry stream bed
+    for (x, y, r, c) in ((0.72, 0.3, 0.07, '#e2e8f0'), (0.82, 0.48, 0.055, '#f9a8d4'), (0.62, 0.62, 0.06, '#fcd34d'),
+                         (0.3, 0.68, 0.05, '#93c5fd'), (0.45, 0.82, 0.065, '#fdba74'), (0.85, 0.75, 0.05, '#c4b5fd'),
+                         (0.18, 0.82, 0.045, '#86efac'), (0.9, 0.18, 0.04, '#fca5a5')):
+        esfera(x, y, r * 0.85, r, r * 0.9, r * 0.85, c, linha=0.008)
+
+
+def deco_meteorito():
+    # A meteorite from space sitting in its own small crater: a pitted dark-blue stone with
+    # shiny metal flecks and green crystals (olivine, found in real Mars meteorites).
+    esfera(0.5, 0.5, 0.0, 0.46, 0.42, 0.06, '#fdba74', linha=0.012, metade=True)                # crater rim
+    esfera(0.5, 0.5, 0.0, 0.34, 0.3, 0.03, '#fed7aa', linha=0.006, metade=True)                 # crater floor
+    pedra(0.5, 0.5, 0.2, 0.24, 0.2, 0.18, '#7c8aa5', sub=2, rot=(0.2, 0.3, 0.6), linha=0.02)
+    for (x, y, z) in ((0.62, 0.62, 0.24), (0.7, 0.5, 0.18), (0.52, 0.68, 0.14), (0.6, 0.42, 0.34)):
+        esfera(x, y, z, 0.03, 0.03, 0.025, '#334155', linha=0.003)                             # pits
+    for (x, y, z) in ((0.66, 0.6, 0.3), (0.56, 0.7, 0.24), (0.72, 0.42, 0.22)):
+        emissivo(esfera(x, y, z, 0.022, 0.022, 0.022, '#fde047', linha=0.003), '#fef08a', 1.8)  # metal flecks
+    for (x, y, z, rz) in ((0.68, 0.66, 0.16, 0.3), (0.45, 0.72, 0.2, -0.4), (0.74, 0.52, 0.3, 0.8)):
+        o = pedra(x, y, z, 0.03, 0.03, 0.05, '#4ade80', sub=1, rot=(0.4, 0, rz), linha=0.004)   # green crystals
+    for (x, y, r) in ((0.12, 0.2, 0.04), (0.86, 0.84, 0.035), (0.2, 0.85, 0.03)):
+        pedra(x, y, r * 0.5, r, r, r * 0.7, '#94a3b8', linha=0.005)                            # thrown-out bits
+
+
+def deco_gelo():
+    # Dry ice frost: a cluster of pale blue and white crystals on a frosted rock, with frost patches.
+    esfera(0.5, 0.5, 0.0, 0.45, 0.4, 0.02, '#f0f9ff', linha=0.006, metade=True)                 # frost patch
+    pedra(0.45, 0.45, 0.08, 0.26, 0.22, 0.14, '#e2e8f0', rot=(0.1, 0.2, 0.4), linha=0.015)
+    esfera(0.45, 0.45, 0.17, 0.2, 0.17, 0.05, '#ffffff', linha=0.006, metade=True)              # snow cap
+    for (x, y, h, r, c) in ((0.5, 0.5, 0.48, 0.07, '#bae6fd'), (0.62, 0.42, 0.34, 0.05, '#e0f2fe'), (0.4, 0.6, 0.36, 0.055, '#a5f3fc'),
+                            (0.68, 0.64, 0.26, 0.045, '#c7d2fe'), (0.32, 0.38, 0.28, 0.04, '#ffffff'), (0.78, 0.8, 0.18, 0.04, '#bae6fd')):
+        z0 = 0.0 if (x > 0.65 and y > 0.6) else 0.14
+        o = cone(x, y, r, 0.0, z0, z0 + h, c, v=6, linha=0.008)                                 # crystal spike
+        o.rotation_euler = ((x - 0.5) * 0.9, (y - 0.5) * 0.9, 0)
+        emissivo(esfera(x, y, z0 + 0.01, r * 0.6, r * 0.6, r * 0.4, '#e0f2fe', linha=0.002), '#e0f2fe', 0.9)
+    for (x, y) in ((0.15, 0.82), (0.85, 0.2), (0.88, 0.5)):
+        esfera(x, y, 0.0, 0.06, 0.05, 0.03, '#ffffff', linha=0.004, metade=True)                # little snow drifts
+
+
+def deco_estacao_tempo():
+    # Weather station: a striped mast on an orange box, a spinning wind cup sensor, a wind vane,
+    # a big red-bulb thermometer and a screen that reads the cold, plus a solar panel.
+    ACO = '#94a3b8'
+    caixa(0.25, 0.3, 0.75, 0.75, 0.0, 0.22, '#f97316', bevel=0.03, linha=0.02)                 # battery box
+    caixa(0.24, 0.29, 0.76, 0.76, 0.22, 0.26, '#e2e8f0', bevel=0.015, linha=0.012)
+    caixa(0.36, 0.745, 0.66, 0.765, 0.05, 0.19, '#1e293b', bevel=0.005, linha=0.006)           # screen frame
+    visor(0.37, 0.76, 0.65, 0.77, 0.06, 0.18, '#8ae8ff')
+    texto3d('-60°', 0.51, 0.775, 0.12, 0.08, '#1e3a8a')
+    for i in range(6):                                                                         # striped mast
+        cilindro(0.5, 0.5, 0.03, 0.26 + i * 0.12, 0.38 + i * 0.12, '#f1f5f9' if i % 2 else '#38bdf8', v=12, linha=0.008)
+    haste((0.5, 0.5, 0.95), (0.5, 0.5, 1.02), 0.012, ACO)
+    for a in (0, 120, 240):                                                                    # wind cups
+        r = math.radians(a + 30)
+        p = (0.5 + 0.13 * math.cos(r), 0.5 + 0.13 * math.sin(r), 1.02)
+        haste((0.5, 0.5, 1.02), p, 0.008, ACO, linha=0.004)
+        esfera(*p, 0.04, 0.04, 0.035, '#facc15', linha=0.006)
+    haste((0.5, 0.5, 0.8), (0.78, 0.5, 0.8), 0.01, ACO, linha=0.005)                           # wind vane arm
+    o = caixa(0.74, 0.49, 0.84, 0.51, 0.75, 0.86, '#a78bfa', bevel=0.004, linha=0.006)          # vane tail
+    esfera(0.5, 0.5, 1.1, 0.035, 0.035, 0.035, '#ef4444', linha=0.006)                          # top light
+    # Thermometer standing on the right side of the box, with a red bulb.
+    caixa(0.78, 0.55, 0.84, 0.61, 0.02, 0.5, '#f8fafc', bevel=0.01, linha=0.01)
+    emissivo(caixa(0.795, 0.6, 0.825, 0.615, 0.08, 0.3, '#ef4444', bevel=0.002, linha=0.003), '#f87171', 1.6)
+    emissivo(esfera(0.81, 0.6, 0.06, 0.045, 0.045, 0.045, '#ef4444', linha=0.006), '#f87171', 1.6)
+    for k in range(5):
+        caixa(0.835, 0.6, 0.845, 0.615, 0.12 + k * 0.07, 0.13 + k * 0.07, '#334155', bevel=0, linha=0.002)
+    _gira(caixa(0.06, 0.25, 0.26, 0.6, 0.18, 0.2, '#3b82f6', bevel=0.004, linha=0.008), (0, -0.5, 0))   # solar panel
+    haste((0.2, 0.45, 0.0), (0.18, 0.45, 0.17), 0.012, ACO, linha=0.005)
+
+
 def chama():
     # Rocket exhaust: a bright cone, drawn under the lander and flickered by the game.
     bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.05, radius2=0.28, depth=1.2)
@@ -1368,6 +1503,12 @@ MODELOS['deco_lanterna'] = deco_lanterna
 MODELOS['deco_ferramentas'] = deco_ferramentas
 MODELOS['deco_carretel'] = deco_carretel
 MODELOS['deco_mochila'] = deco_mochila
+MODELOS['deco_rocha_vulcao'] = deco_rocha_vulcao
+MODELOS['deco_ingenuity'] = deco_ingenuity
+MODELOS['deco_seixos'] = deco_seixos
+MODELOS['deco_meteorito'] = deco_meteorito
+MODELOS['deco_gelo'] = deco_gelo
+MODELOS['deco_estacao_tempo'] = deco_estacao_tempo
 for i in range(5): MODELOS[f'foguete{i}'] = (lambda i=i: foguete(i))
 
 def agua(n):

@@ -10,6 +10,7 @@ import { definirGravidade, G_LUA, G_MARTE, G_TERRA, type Corpo } from '../engine
 import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { EVENTOS, haEventoHoje, esperaDoEvento, esperaDoAlarme, alarmeDoDia, type EventoDef } from '../engine/eventos';
 import { lerPartida, gravarPartida } from '../salvamento';
+import { LAYOUT, LAYOUT_VERSAO } from '../dados/layout';
 import { Grade, TIPOS, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
 import { VOO as voo } from './qualidade';
@@ -105,11 +106,11 @@ class Sessao {
 
   salvar() {
     if (!this.grade.lista.length || this.partida || this.abastecendoRover) return false;
-    return gravarPartida({versao:1,salvoEm:Date.now(),mundo:this.mundo,capIdx:this.capIdx,fase:this.fase,
+    return gravarPartida({versao:1,salvoEm:Date.now(),layout:LAYOUT_VERSAO,mundo:this.mundo,capIdx:this.capIdx,fase:this.fase,
       estado:this.estado,entregas:this.entregas,pontos:this.pontos,carregando:this.carregando,noHabitat:this.noHabitat,
       tarefasHoje:[...this.tarefasHoje],ultimaTarefa:this.ultimaTarefa,energiaHoje:this.energiaHoje,
       curiosidadeRoverVista:this.curiosidadeRoverVista,diaCargaRover:this.diaCargaRover,rover:this.rover,astronauta:this.posicaoAstronauta,
-      modulos:this.grade.lista.map(c=>({id:c.id,tipo:c.tipo.id,gx:c.gx,gy:c.gy})),decoracao:this.grade.deco,
+      modulos:this.grade.lista.map(c=>({id:c.id,tipo:c.tipo.id,gx:c.gx,gy:c.gy,...(c.girado?{girado:true}:{})})),decoracao:this.grade.deco,
       tempestade:{restante:this.tempestade.restante,status:this.tempestade.status},danoTempestade:this.danoTempestade,
       bateriasTempestade:this.bateriasTempestade,desfechoPendente:this.desfechoPendente,ultimoDia:this.ultimoDia,
       evento:this.evento ? {id:this.evento.def.id,construcaoId:this.evento.construcaoId}:null,
@@ -128,7 +129,20 @@ class Sessao {
     if (!d) return false;
     try {
       this.capIdx=d.capIdx; this.usarMundo(d.mundo);
-      this.grade.restaurar(d.modulos,d.decoracao);
+      // A save from before the current layout: each module moves to the layout's spot for its type
+      // (ids and progress stay), and the props are placed again from the layout (empty list).
+      const plano = d.layout === LAYOUT_VERSAO ? null : LAYOUT[d.mundo]?.modulos;
+      if (plano?.length) {
+        const usados = new Set<number>();
+        const modulos = d.modulos.map(m => {
+          const k = plano.findIndex(([id], i) => id === m.tipo && !usados.has(i));
+          if (k < 0) return m;
+          usados.add(k);
+          const [, gx, gy, rot] = plano[k];
+          return { id: m.id, tipo: m.tipo, gx, gy, ...(rot ? { girado: true } : {}) };
+        });
+        this.grade.restaurar(modulos,[],true);
+      } else this.grade.restaurar(d.modulos,d.decoracao);
       this.estado=d.estado; this.entregas=d.entregas; this.pontos=d.pontos;
       this.fase=d.fase; this.carregando=d.carregando; this.noHabitat=d.noHabitat;
       this.tarefasHoje=new Set(d.tarefasHoje); this.ultimaTarefa=d.ultimaTarefa; this.energiaHoje=d.energiaHoje;

@@ -71,7 +71,12 @@ export const TIPOS: Record<TipoId, Tipo> = {
 export const MARGEM_DECO = 4;
 export const RAIO_LIVRE_DECO = 13;
 
-export type Construcao = { id: number; tipo: Tipo; gx: number; gy: number; z: number };
+// `girado`: turned a quarter (the picture is mirrored, which in the isometric view reads as a
+// 90-degree turn): its `tipo` is a copy with w and h swapped (see girar).
+export type Construcao = { id: number; tipo: Tipo; gx: number; gy: number; z: number; girado?: boolean };
+
+// A footprint turned a quarter: w x h becomes h x w (the picture is drawn mirrored).
+export const girar = (t: Tipo): Tipo => ({ ...t, w: t.h, h: t.w });
 
 export type Motivo = 'ok' | 'fora' | 'ocupado' | 'ingreme' | 'unico';
 
@@ -119,14 +124,19 @@ export class Grade {
     return c;
   }
 
-  restaurar(modulos: {id: number; tipo: TipoId; gx: number; gy: number}[], decoracao: DecoColocada[]) {
+  // `tolerante`: a module whose saved spot is taken goes to the nearest free one instead of
+  // failing (used when a save is moved to a new layout).
+  restaurar(modulos: {id: number; tipo: TipoId; gx: number; gy: number; girado?: boolean}[], decoracao: DecoColocada[], tolerante = false) {
     for (const m of modulos) {
       if (!Object.prototype.hasOwnProperty.call(TIPOS,m.tipo) || !Number.isInteger(m.id)
         || this.lista.some(c=>c.id===m.id) || !Number.isInteger(m.gx) || !Number.isInteger(m.gy)) throw new Error('Invalid saved module');
-      const c = this.construir(TIPOS[m.tipo],m.gx,m.gy);
+      const t = m.girado ? girar(TIPOS[m.tipo]) : TIPOS[m.tipo];
+      let c = this.construir(t,m.gx,m.gy);
+      if (!c && tolerante) { const p = this.procurarComEspaco(t,m.gx,m.gy); c = p && this.construir(t,p.gx,p.gy); }
       if (!c) throw new Error('Invalid saved module position');
+      if (m.girado) c.girado = true;
       c.id = m.id;
-      for (let y=m.gy;y<m.gy+c.tipo.h;y++) for (let x=m.gx;x<m.gx+c.tipo.w;x++) this.ocup[y*this.n+x]=m.id;
+      for (let y=c.gy;y<c.gy+c.tipo.h;y++) for (let x=c.gx;x<c.gx+c.tipo.w;x++) this.ocup[y*this.n+x]=m.id;
       this.proximo=Math.max(this.proximo,m.id+1);
     }
     for (const d of decoracao) {
@@ -282,6 +292,23 @@ export const BASE_NAVE: [TipoId, number, number][] = [
   ['blindagem', 3, -5],
   ['bateria', -2, 2],
 ];
+
+// The base drawn in the layout editor (src/dados/layout.json): each module at its own tile, turned
+// or not. A spot that does not fit any more (the ground changed) falls back to the nearest free one.
+export type LayoutModulo = [TipoId, number, number, number];
+export function montarLayout(g: Grade, modulos: LayoutModulo[]): Construcao[] {
+  const feitas: Construcao[] = [];
+  for (const [id, gx, gy, rot] of modulos) {
+    if (!Object.prototype.hasOwnProperty.call(TIPOS, id)) continue;
+    const t = rot ? girar(TIPOS[id]) : TIPOS[id];
+    const p = g.pode(t, gx, gy).motivo === 'ok' ? { gx, gy } : g.procurarComEspaco(t, gx, gy);
+    const c = p && g.construir(t, p.gx, p.gy);
+    if (!c) continue;
+    if (rot) c.girado = true;
+    feitas.push(c);
+  }
+  return feitas;
+}
 
 export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BASE_PADRAO): Construcao[] {
   const c0 = Math.floor(g.n / 2);

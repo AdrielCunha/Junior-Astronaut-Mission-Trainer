@@ -528,5 +528,65 @@
    294.77,
    78.36
   ]
+ },
+ "deco_rocha_vulcao": {
+  "arquivo": "lua/modulos/deco_rocha_vulcao.png",
+  "w": 147,
+  "h": 142,
+  "escala": 0.5,
+  "ancora": [
+   73.5,
+   64.04
+  ]
+ },
+ "deco_ingenuity": {
+  "arquivo": "lua/modulos/deco_ingenuity.png",
+  "w": 143,
+  "h": 130,
+  "escala": 0.5,
+  "ancora": [
+   71.5,
+   54.89
+  ]
+ },
+ "deco_seixos": {
+  "arquivo": "lua/modulos/deco_seixos.png",
+  "w": 133,
+  "h": 103,
+  "escala": 0.5,
+  "ancora": [
+   64.54,
+   30.28
+  ]
+ },
+ "deco_meteorito": {
+  "arquivo": "lua/modulos/deco_meteorito.png",
+  "w": 146,
+  "h": 113,
+  "escala": 0.5,
+  "ancora": [
+   73.0,
+   37.72
+  ]
+ },
+ "deco_gelo": {
+  "arquivo": "lua/modulos/deco_gelo.png",
+  "w": 139,
+  "h": 116,
+  "escala": 0.5,
+  "ancora": [
+   69.5,
+   42.1
+  ]
+ },
+ "deco_estacao_tempo": {
+  "arquivo": "lua/modulos/deco_estacao_tempo.png",
+  "w": 105,
+  "h": 146,
+  "escala": 0.5,
+  "ancora": [
+   54.0,
+   76.35
+  ]
  }
 }

@@ -19,7 +19,7 @@ import { paraTela, paraChao, profundidade } from '../engine/iso';
 import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
 import { encontrarCaminho, type Ponto } from '../engine/caminho';
 import naveProps from '../dados/nave_props.json';
-import { TIPOS, montarBasePadrao, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
+import { TIPOS, montarBasePadrao, montarLayout, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
 import { entregar as entregarRegra, custo, pronto } from '../regras';
 import { empuxoDePouso, suprimentoDoDia, SUPRIMENTOS } from '../engine/suprimentos';
 import { sortearEvento, DOSE_ALARME } from '../engine/eventos';
@@ -35,7 +35,8 @@ import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 import dadosViagem from '../dados/viagem.json';
 import { chaveSkin } from '../dados/skins';
-import { DECORACAO, comoTipo, type DecoColocada } from '../dados/decoracao';
+import { LAYOUT } from '../dados/layout';
+import { DECORACAO, DECORACAO_MARTE, comoTipo, type DecoColocada } from '../dados/decoracao';
 import { CHAVE_FOGUETE } from './Chegada';
 import foguetevoo from '../dados/foguete_voo.json';
 import { tocarMotor, tocarSfx, criarAmbienteSonoro } from '../sfx';
@@ -47,10 +48,7 @@ const P = dadosTerreno.imagem;
 // their Mars names. Real: Perseverance's sky crane crashed near its landing site, and it left
 // sample tubes on the crater floor for a future mission to bring back.
 const TOM_MARTE = 0xffdcc4;
-const DECO_MARTE: Record<string, string | null> = {
-  modulo_descida: 'Sky Crane Wreck', amostras: 'Sample Tubes', refletor: null, rover_velho: null, sonda: null,
-  sismografo: 'Seismometer', bandeira: 'Mission Flag',
-};
+
 const ENERGIA = ['PaineisSolaresTarefa', 'DesviarEnergiaTarefa'];   // energy tasks: played when picking up the day's batteries
 const BONUS_CONSERTO = 1;     // batteries the crew gives for fixing an event
 const ALCANCE = 1.3;          // tiles from a module's edge to use it
@@ -63,17 +61,31 @@ type Modelo = keyof typeof modelos;
 type Quadro = { w: number; h: number; ancora: number[]; escala: number; pegada?: number[] };
 const QUADROS = { ...modelos, ...naveProps } as unknown as Record<string, Quadro>;
 const PEGADA_MODELO: Record<string, [number, number]> = { pouso: [2, 2], reciclador: [2, 2] };
-// Ship props (chapter 2): offsets in tiles from the grid center, inside the deck, off the corridor.
+// Ship props (chapter 2): each one has a fixed spot in a zone that makes sense (offsets in tiles from
+// the grid center, 12; the deck is gx 3..20, gy 6..17; gy 6 is the far wall with the portholes, gy 17
+// the cut-away side toward the camera, gx 3 the engines). The corridor (gy 10..12) stays clear.
+//   tail, front: the crew's bedroom (bunks side by side, water tanks that shield the sleepers)
+//   tail, far corner: cargo bags behind the Engines room
+//   middle, front: the galley (the table on its own, the veggie garden a tile away)
+//   far wall: the water recycler next to Life Support, the window
+//   nose: the cockpit with the radio beside it and the flame experiment behind it
+//   nose, front: health corner (treadmill and medical kit)
+// Zones keep at least one free tile between them so each one reads as its own room.
+// If a spot is taken, the prop falls back to the nearest free one (Grade.procurarComEspaco).
 const DECO_NAVE = [
-  { id: 'nave_cockpit', info: 'Where the pilots steer the ship. On the way to Mars the computer does most of the flying.', nome: 'Cockpit', w: 2, h: 1, altura: 1.0, dx: 7, dy: -1.5 },
-  { id: 'nave_beliche', info: 'Sleeping bags strapped to the wall. In zero gravity you can sleep standing up!', nome: 'Crew Bunks', w: 2, h: 1, altura: 1.4, dx: -8, dy: 4 },
-  { id: 'nave_beliche', info: 'Sleeping bags strapped to the wall. In zero gravity you can sleep standing up!', nome: 'Crew Bunks', w: 2, h: 1, altura: 1.4, dx: -8, dy: 2 },
-  { id: 'nave_mesa', info: 'The galley. Food comes in pouches, and drinks are sipped through straws so they do not float away.', nome: 'Galley', w: 2, h: 2, altura: 0.9, dx: 3, dy: 3 },
-  { id: 'nave_esteira', info: 'Astronauts run every day, held down by bungee cords, to keep their bones and muscles strong.', nome: 'Treadmill', w: 2, h: 1, altura: 1.1, dx: 6, dy: 4 },
-  { id: 'nave_plantas', info: 'A small veggie garden. Astronauts on the Space Station have grown and eaten lettuce in space.', nome: 'Veggie Garden', w: 1, h: 1, altura: 1.1, dx: 8, dy: -5 },
-  { id: 'nave_bolsas', info: 'Soft cargo bags hold spare parts, clothes and food for the long trip.', nome: 'Cargo Bags', w: 1, h: 1, altura: 1.0, dx: -5, dy: 4 },
-  { id: 'nave_agua', info: 'Water tanks. Water is also a good shield against radiation, so tanks often line the walls.', nome: 'Water Tanks', w: 1, h: 1, altura: 1.0, dx: 6, dy: -5 },
-  { id: 'nave_medico', info: 'The medical kit. The crew trains to treat each other, because no doctor is close by.', nome: 'Medical Kit', w: 1, h: 1, altura: 1.1, dx: 8, dy: 5 },
+  { id: 'nave_beliche', info: 'In space you grow a little taller, because your back stretches out!', nome: 'Crew Bunks', w: 2, h: 1, altura: 1.6, dx: -9, dy: 2 },
+  { id: 'nave_beliche', info: 'In space you grow a little taller, because your back stretches out!', nome: 'Crew Bunks', w: 2, h: 1, altura: 1.6, dx: -9, dy: 4 },
+  { id: 'nave_agua', info: 'Water tanks. Water is also a good shield against radiation, so tanks often line the walls.', nome: 'Water Tanks', w: 1, h: 1, altura: 1.2, dx: -7, dy: 2 },
+  { id: 'nave_medico', info: 'Close your eyes in space and you may see tiny flashes of light!', nome: 'Medical Kit', w: 1, h: 1, altura: 1.3, dx: 8, dy: 4 },
+  { id: 'nave_bolsas', info: 'Soft cargo bags hold spare parts, clothes and food for the long trip.', nome: 'Cargo Bags', w: 1, h: 1, altura: 0.9, dx: -9, dy: -5 },
+  { id: 'nave_mesa', info: 'In space, tears do not fall. They stick to your eyes like little bubbles!', nome: 'Galley', w: 2, h: 2, altura: 1.1, dx: 1, dy: 2 },
+  { id: 'nave_reciclador', info: "Astronauts' pee is cleaned and turned into drinking water. Yes, really!", nome: 'Water Recycler', w: 1, h: 1, altura: 1.2, dx: 1, dy: -6 },
+  { id: 'nave_plantas', info: 'A small veggie garden. Astronauts on the Space Station have grown and eaten lettuce in space.', nome: 'Veggie Garden', w: 1, h: 1, altura: 1.1, dx: 4, dy: 2 },
+  { id: 'nave_esteira', info: 'Astronauts run every day, held down by bungee cords, to keep their bones and muscles strong.', nome: 'Treadmill', w: 2, h: 1, altura: 1.15, dx: 5, dy: 4 },
+  { id: 'nave_janela', info: 'A car would need more than 60 years to drive to Mars. Our ship takes about 7 months!', nome: 'Window', w: 1, h: 1, altura: 1.35, dx: 3, dy: -6 },
+  { id: 'nave_chama', info: 'With no gravity, a flame is round like a ball, not pointy!', nome: 'Flame Test', w: 1, h: 1, altura: 1.5, dx: 7, dy: -6 },
+  { id: 'nave_cockpit', info: 'Where the pilots steer the ship. On the way to Mars the computer does most of the flying.', nome: 'Cockpit', w: 2, h: 1, altura: 1.1, dx: 7, dy: -3 },
+  { id: 'nave_radio', info: 'Hello, Earth! A message can take 20 minutes to get there. No quick chats!', nome: 'Radio', w: 1, h: 1, altura: 1.4, dx: 5, dy: -3 },
 ];
 
 // A cargo lander bringing one piece of equipment (see engine/suprimentos.ts).
@@ -210,9 +222,14 @@ export class Superficie extends Phaser.Scene {
     this.mapa.add(this.gCaminhos);
     this.ambiente = new Ambiente(this,this.mapa,P,sessao.terreno,sessao.mundo);
 
-    // The crew's base is already there (engine/construcao.ts, BASE_PADRAO). On Mars only the
-    // lander and the panels are; the rooms are construction sites (BASE_MARTE).
-    if (!sessao.grade.lista.length) montarBasePadrao(sessao.grade, marte ? BASE_MARTE : nave ? BASE_NAVE : undefined);
+    // The crew's base is already there, where the layout editor put it (LAYOUT; without one, the
+    // planner in engine/construcao.ts). On Mars only the lander and the panels are; the rooms are
+    // construction sites.
+    if (!sessao.grade.lista.length) {
+      const plano = LAYOUT[sessao.mundo]?.modulos;
+      if (plano?.length) montarLayout(sessao.grade, plano);
+      else montarBasePadrao(sessao.grade, marte ? BASE_MARTE : nave ? BASE_NAVE : undefined);
+    }
     // Labels and construction sites follow the rules state.
     sessao.ouvir(this, 'estado', () => { for (const c of sessao.grade.lista) if (c.tipo.sala || c.tipo.id === 'bateria') this.desenharModulo(c); });
     // The commander starts by the Habitat, or by the Power Room on the ship.
@@ -1263,34 +1280,42 @@ export class Superficie extends Phaser.Scene {
   private posicionar(img: Phaser.GameObjects.Image, c: Construcao, id: Modelo) {
     const m = QUADROS[id];
     // A picture drawn for a smaller footprint (the lander, the air recycler) is centered on the module's.
-    const pg = m.pegada ?? PEGADA_MODELO[id];
+    // A turned module (c.girado) has its footprint swapped and the picture mirrored around the anchor.
+    const pg0 = m.pegada ?? PEGADA_MODELO[id], pg = pg0 && c.girado ? [pg0[1], pg0[0]] : pg0;
     const kx = pg ? (c.tipo.w - pg[0]) / 2 : 0, ky = pg ? (c.tipo.h - pg[1]) / 2 : 0;
     const p = paraTela(P, c.gx + kx, c.gy + ky, c.z);
-    img.setTexture(`mod_${id}`).setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala).setPosition(p.x, p.y);
+    const ox = m.ancora[0] / m.w;
+    img.setTexture(`mod_${id}`).setOrigin(c.girado ? 1 - ox : ox, m.ancora[1] / m.h).setScale(m.escala)
+      .setFlipX(!!c.girado).setPosition(p.x, p.y);
   }
 
   // Surface props (old rover, probe, beacon...): placed once on free flat ground, solid, each with its name.
   private montarDeco() {
     const g = sessao.grade, c0 = Math.floor(g.n / 2);
-    const marte = sessao.mundo === 'marte';
     this.decoVisuais = []; this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
     if (!g.deco.length) {
-      // On Mars, only the props that fit there, under their Mars names (DECO_MARTE).
-      for (const d of sessao.mundo === 'nave' ? DECO_NAVE : DECORACAO) {
-        const nome = marte && d.id in DECO_MARTE ? DECO_MARTE[d.id] : d.nome;
-        if (!nome) continue;
-        // On the ship the props stay inside the deck; on the ground they spread away from the base.
-        const p = sessao.mundo === 'nave' ? g.procurarComEspaco(comoTipo(d), c0 + d.dx, c0 + d.dy) : g.procurarDeco(comoTipo(d), c0 + d.dx, c0 + d.dy);
-        if (p) g.colocarDeco({ id: d.id, nome, info: d.info, w: d.w, h: d.h, altura: d.altura }, p.gx, p.gy);
-      }
+      // Each world has its own props and facts (Mars: DECORACAO_MARTE).
+      const lista = sessao.mundo === 'nave' ? DECO_NAVE : sessao.mundo === 'marte' ? DECORACAO_MARTE : DECORACAO;
+      const plano = LAYOUT[sessao.mundo]?.itens ?? [];
+      lista.forEach((d, k) => {
+        // The layout editor's spot (same id at the same place in the list), else the old search.
+        const l = plano[k]?.[0] === d.id ? plano[k] : null;
+        const girado = !!l?.[3];
+        const w = girado ? d.h : d.w, h = girado ? d.w : d.h;
+        const tipo = comoTipo({ ...d, w, h }), x = l ? l[1] : c0 + d.dx, y = l ? l[2] : c0 + d.dy;
+        const p = g.pode(tipo, x, y).motivo === 'ok' && (l || sessao.mundo === 'nave') ? { gx: x, gy: y }
+          : sessao.mundo !== 'nave' ? g.procurarDeco(tipo, x, y) : g.procurarComEspaco(tipo, x, y);
+        if (p) g.colocarDeco({ id: d.id, nome: d.nome, info: d.info, w, h, altura: d.altura, ...(girado ? { girado } : {}) }, p.gx, p.gy);
+      });
     }
     for (const d of g.deco) {
       const chave = d.id.startsWith('nave_') ? d.id : `deco_${d.id}`;   // the ship's props have their own pictures
       const m = QUADROS[chave];
       const p = paraTela(P, d.gx, d.gy, d.z);
+      // A turned prop is the same picture mirrored around its anchor pixel.
       const img = this.add.image(p.x, p.y, `mod_${chave}`)
-        .setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala)
-        .setDepth(profundidade(d.gx + d.w, d.gy + d.h));
+        .setOrigin(d.girado ? 1 - m.ancora[0] / m.w : m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala)
+        .setFlipX(!!d.girado).setDepth(profundidade(d.gx + d.w, d.gy + d.h));
       if (sessao.mundo === 'marte') img.setTint(TOM_MARTE);
       this.mapa.add(img);
       this.decoVisuais.push({ d, img });

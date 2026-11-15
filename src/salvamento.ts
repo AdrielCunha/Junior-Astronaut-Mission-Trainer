@@ -7,11 +7,11 @@ import type { Fase, Mundo, RelatorioDia } from './cenas/sessao';
 
 const CHAVE = 'lunar-odyssey-save-v1';
 export type DadosPartida = {
-  versao: 1; salvoEm: number; mundo: Mundo; capIdx: number; fase: Fase;
+  versao: 1; salvoEm: number; layout?: string; mundo: Mundo; capIdx: number; fase: Fase;
   estado: Estado; entregas: Alocacao; pontos: number[]; carregando: number; noHabitat: number;
   tarefasHoje: Efeito[]; ultimaTarefa: Partial<Record<Efeito,string>>; energiaHoje: boolean;
   curiosidadeRoverVista: boolean; diaCargaRover: number | null; rover: Rover | null; astronauta: Corpo | null;
-  modulos: {id: number; tipo: TipoId; gx: number; gy: number}[]; decoracao: DecoColocada[];
+  modulos: {id: number; tipo: TipoId; gx: number; gy: number; girado?: boolean}[]; decoracao: DecoColocada[];
   tempestade: {restante: number; status: 'inativa' | 'alerta' | 'protegida' | 'atingida'};
   danoTempestade: number; bateriasTempestade: number;
   desfechoPendente: {tipo: 'protegida' | 'atingida'; baterias: number} | null;

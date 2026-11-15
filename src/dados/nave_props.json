@@ -15,12 +15,12 @@
  },
  "nave_beliche": {
   "arquivo": "nave/props/nave_beliche.png",
-  "w": 195,
-  "h": 217,
+  "w": 207,
+  "h": 235,
   "escala": 0.5,
   "ancora": [
-   67.5,
-   114.34
+   73.38,
+   130.71
   ],
   "pegada": [
    2,
@@ -29,12 +29,12 @@
  },
  "nave_mesa": {
   "arquivo": "nave/props/nave_mesa.png",
-  "w": 195,
-  "h": 172,
+  "w": 210,
+  "h": 180,
   "escala": 0.5,
   "ancora": [
-   97.5,
-   57.47
+   105.0,
+   63.6
   ],
   "pegada": [
    2,
@@ -44,11 +44,11 @@
  "nave_esteira": {
   "arquivo": "nave/props/nave_esteira.png",
   "w": 177,
-  "h": 147,
+  "h": 159,
   "escala": 0.5,
   "ancora": [
    58.5,
-   47.77
+   59.87
   ],
   "pegada": [
    2,
@@ -57,12 +57,12 @@
  },
  "nave_plantas": {
   "arquivo": "nave/props/nave_plantas.png",
-  "w": 135,
-  "h": 163,
+  "w": 136,
+  "h": 166,
   "escala": 0.5,
   "ancora": [
-   67.5,
-   89.45
+   68.41,
+   92.55
   ],
   "pegada": [
    1,
@@ -71,12 +71,12 @@
  },
  "nave_bolsas": {
   "arquivo": "nave/props/nave_bolsas.png",
-  "w": 128,
-  "h": 152,
+  "w": 129,
+  "h": 148,
   "escala": 0.5,
   "ancora": [
-   63.1,
-   80.54
+   64.53,
+   76.7
   ],
   "pegada": [
    1,
@@ -85,12 +85,12 @@
  },
  "nave_agua": {
   "arquivo": "nave/props/nave_agua.png",
-  "w": 111,
-  "h": 149,
+  "w": 140,
+  "h": 157,
   "escala": 0.5,
   "ancora": [
-   55.5,
-   81.24
+   70.0,
+   82.41
   ],
   "pegada": [
    1,
@@ -99,12 +99,12 @@
  },
  "nave_medico": {
   "arquivo": "nave/props/nave_medico.png",
-  "w": 129,
-  "h": 165,
+  "w": 133,
+  "h": 170,
   "escala": 0.5,
   "ancora": [
-   64.5,
-   92.92
+   66.5,
+   97.46
   ],
   "pegada": [
    1,
@@ -114,14 +114,70 @@
  "nave_cockpit": {
   "arquivo": "nave/props/nave_cockpit.png",
   "w": 189,
-  "h": 180,
+  "h": 176,
   "escala": 0.5,
   "ancora": [
-   58.26,
-   81.34
+   56.82,
+   86.18
   ],
   "pegada": [
    2,
+   1
+  ]
+ },
+ "nave_janela": {
+  "arquivo": "nave/props/nave_janela.png",
+  "w": 107,
+  "h": 170,
+  "escala": 0.5,
+  "ancora": [
+   67.3,
+   97.96
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "nave_radio": {
+  "arquivo": "nave/props/nave_radio.png",
+  "w": 130,
+  "h": 165,
+  "escala": 0.5,
+  "ancora": [
+   69.5,
+   91.09
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "nave_reciclador": {
+  "arquivo": "nave/props/nave_reciclador.png",
+  "w": 137,
+  "h": 157,
+  "escala": 0.5,
+  "ancora": [
+   68.5,
+   83.29
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "nave_chama": {
+  "arquivo": "nave/props/nave_chama.png",
+  "w": 138,
+  "h": 195,
+  "escala": 0.5,
+  "ancora": [
+   69.0,
+   120.65
+  ],
+  "pegada": [
+   1,
    1
   ]
  }
