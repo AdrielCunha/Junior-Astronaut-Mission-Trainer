@@ -11,8 +11,7 @@
 #   src/dados/bandeiras.json
 
 import bpy, bmesh, os, json, math, subprocess
-from mathutils import Vector
-from PIL import Image, ImageDraw
+from mathutils import Vector, Matrix
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
@@ -22,8 +21,8 @@ CACHE_TEX = os.path.join(HERE, '.cache', 'bandeiras')
 
 LIVE = not bpy.app.background
 T = 30
-SUPER = 2
-PAD = 12
+SUPER = 4
+PAD = 20
 
 LIGHT = [(0.0, '#3a3550'), (0.10, '#8a7f92'), (0.35, '#c9c0c4'), (0.55, '#ece5df'), (0.75, '#fffaf0')]
 OUTLINE = '#17130f'
@@ -35,74 +34,10 @@ def rgb(h, a=1.0):
     return (*[c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in srgb], a)
 
 
-# ---------- Generate Flag Cloth Textures with PIL ----------
+# The original team emblem is versioned with the generator, not read from Downloads at runtime.
 def gerar_texturas_tecido():
-    os.makedirs(CACHE_TEX, exist_ok=True)
-    w, h = 512, 340
-
-    # 1. Lua (Moon Flag): deep space blue, gold border, crescent moon with craters & stars
-    img_lua = Image.new('RGBA', (w, h), (15, 23, 42, 255))   # slate-900
-    d = ImageDraw.Draw(img_lua)
-    # Border
-    d.rectangle([12, 12, w - 13, h - 13], outline=(234, 179, 8, 255), width=8)   # gold
-    d.rectangle([20, 20, w - 21, h - 21], outline=(248, 250, 252, 180), width=3) # white inner
-    # Full moon base disc
-    cx, cy, r = 240, 170, 75
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(226, 232, 240, 255))
-    # Crescent cutout to form a glowing lunar crescent
-    d.ellipse([cx - r + 30, cy - r - 12, cx + r + 30, cy + r - 12], fill=(15, 23, 42, 255))
-    # Crater spots on crescent
-    d.ellipse([cx - 35, cy - 20, cx - 18, cy - 5], fill=(148, 163, 184, 255))
-    d.ellipse([cx - 45, cy + 15, cx - 32, cy + 28], fill=(148, 163, 184, 255))
-    d.ellipse([cx - 20, cy + 38, cx - 10, cy + 48], fill=(148, 163, 184, 255))
-    # Stars
-    def estrela(x, y, s, cor):
-        d.polygon([(x, y - s), (x + s * 0.3, y - s * 0.3), (x + s, y), (x + s * 0.3, y + s * 0.3),
-                   (x, y + s), (x - s * 0.3, y + s * 0.3), (x - s, y), (x - s * 0.3, y - s * 0.3)], fill=cor)
-    estrela(370, 95, 18, (253, 224, 71, 255))
-    estrela(395, 230, 14, (253, 224, 71, 255))
-    estrela(340, 215, 10, (248, 250, 252, 255))
-    estrela(120, 90, 12, (253, 224, 71, 255))
-    estrela(100, 235, 14, (248, 250, 252, 255))
-    tex_lua = os.path.join(CACHE_TEX, 'tecido_lua.png')
-    img_lua.save(tex_lua)
-
-    # 2. Marte (Mars Flag): dark charcoal, rust-orange ring, red planet with ice cap
-    img_marte = Image.new('RGBA', (w, h), (24, 24, 27, 255))  # zinc-900
-    d = ImageDraw.Draw(img_marte)
-    d.rectangle([12, 12, w - 13, h - 13], outline=(234, 88, 12, 255), width=8)   # orange-600
-    d.rectangle([20, 20, w - 21, h - 21], outline=(254, 215, 170, 180), width=3) # orange-200
-    cx, cy, r = 240, 170, 75
-    # Mars globe
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(194, 65, 12, 255))        # orange-700
-    # Canyons & dark surface features
-    d.ellipse([cx - 40, cy - 15, cx + 50, cy + 35], fill=(154, 52, 18, 255))
-    # North polar ice cap
-    d.chord([cx - 42, cy - r + 2, cx + 42, cy - r + 38], start=180, end=360, fill=(255, 255, 255, 255))
-    # Moons: Phobos & Deimos
-    d.ellipse([375, 120, 395, 140], fill=(214, 211, 209, 255))
-    d.ellipse([345, 225, 357, 237], fill=(168, 162, 158, 255))
-    tex_marte = os.path.join(CACHE_TEX, 'tecido_marte.png')
-    img_marte.save(tex_marte)
-
-    # 3. Terra (Earth Flag): deep navy, cyan border, Blue Marble globe
-    img_terra = Image.new('RGBA', (w, h), (11, 19, 43, 255))
-    d = ImageDraw.Draw(img_terra)
-    d.rectangle([12, 12, w - 13, h - 13], outline=(56, 189, 248, 255), width=8)  # sky-400
-    d.rectangle([20, 20, w - 21, h - 21], outline=(255, 255, 255, 180), width=3)
-    cx, cy, r = 240, 170, 75
-    # Ocean
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(37, 99, 235, 255))         # blue-600
-    # Continents
-    d.ellipse([cx - 50, cy - 45, cx + 15, cy + 20], fill=(34, 197, 94, 255))     # green-500
-    d.ellipse([cx + 10, cy - 25, cx + 55, cy + 30], fill=(34, 197, 94, 255))
-    d.ellipse([cx - 30, cy + 25, cx + 20, cy + 62], fill=(34, 197, 94, 255))
-    # Clouds
-    d.arc([cx - 60, cy - 60, cx + 40, cy + 40], start=20, end=140, fill=(255, 255, 255, 180), width=8)
-    tex_terra = os.path.join(CACHE_TEX, 'tecido_terra.png')
-    img_terra.save(tex_terra)
-
-    return {'lua': tex_lua, 'marte': tex_marte, 'terra': tex_terra}
+    emblem = os.path.join(HERE, 'assets', 'Emblema_orbital_da_Liga_Estelar.png')
+    return {planet: emblem for planet in ('lua', 'marte', 'terra')}
 
 
 # ---------- Scene Setup ----------
@@ -153,6 +88,19 @@ def material_tecido(caminho_tex):
     # Image Texture
     img_node = N.new('ShaderNodeTexImage')
     img_node.image = bpy.data.images.load(caminho_tex)
+    img_node.extension = 'CLIP'
+    # Keep the full rectangular emblem inside the broad part of the triangular pennant.
+    uv = N.new('ShaderNodeTexCoord')
+    offset = N.new('ShaderNodeVectorMath'); offset.operation='SUBTRACT'
+    offset.inputs[1].default_value=(0.035,0.28,0)
+    scale = N.new('ShaderNodeVectorMath'); scale.operation='MULTIPLY'
+    scale.inputs[1].default_value=(2,1/0.44,1)
+    L.new(uv.outputs['UV'],offset.inputs[0]); L.new(offset.outputs['Vector'],scale.inputs[0])
+    L.new(scale.outputs['Vector'],img_node.inputs['Vector'])
+    badge = N.new('ShaderNodeMix'); badge.data_type='RGBA'
+    badge.inputs[6].default_value=rgb('#07172e')
+    L.new(img_node.outputs['Alpha'],badge.inputs['Factor'])
+    L.new(img_node.outputs['Color'],badge.inputs[7])
     # Toon shading over the texture
     dif = N.new('ShaderNodeBsdfDiffuse'); s2r = N.new('ShaderNodeShaderToRGB')
     L.new(dif.outputs['BSDF'], s2r.inputs['Shader'])
@@ -161,8 +109,8 @@ def material_tecido(caminho_tex):
     for e, (p, c) in zip(cr.elements, LIGHT): e.position = p; e.color = rgb(c)
     L.new(s2r.outputs['Color'], r.inputs['Fac'])
     mix = N.new('ShaderNodeMix'); mix.data_type = 'RGBA'; mix.blend_type = 'MULTIPLY'
-    mix.inputs['Factor'].default_value = 0.95
-    L.new(img_node.outputs['Color'], mix.inputs[6])
+    mix.inputs['Factor'].default_value = 0.25
+    L.new(badge.outputs[2], mix.inputs[6])
     L.new(r.outputs['Color'], mix.inputs[7])
     out = N.new('ShaderNodeOutputMaterial')
     L.new(mix.outputs[2], out.inputs['Surface'])
@@ -190,44 +138,48 @@ def adicionar_contorno(obj, espessura=0.015):
 # ---------- Build the 3D Flag Model ----------
 def construir_bandeira(caminho_tex):
     objetos = []
+    largura = 1.4
+    source = bpy.data.images.load(caminho_tex, check_existing=True)
+    aspect = source.size[0] / source.size[1]
+    altura = largura / aspect / math.cos(math.radians(30))
+    z_topo = 2.15
+    z_base = z_topo - altura
 
     # 1. Base stake / ground ring (at Z = 0)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.06, depth=0.04)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.09, depth=0.04)
     base = bpy.context.active_object; base.location = (0, 0, 0.02)
     base.data.materials.append(toon_cor('#64748b'))   # slate-500
     adicionar_contorno(base, 0.012)
     objetos.append(base)
 
-    # 2. Vertical Mast / Flagpole (from Z = 0 to Z = 0.95)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.016, depth=0.96)
-    mastro = bpy.context.active_object; mastro.location = (0, 0, 0.48)
+    # 2. Taller destination mast, anchored at the selected map point.
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.022, depth=2.2)
+    mastro = bpy.context.active_object; mastro.location = (0, 0, 1.1)
     mastro.data.materials.append(toon_cor('#e2e8f0'))  # slate-200 (aluminum)
     adicionar_contorno(mastro, 0.012)
     objetos.append(mastro)
 
-    # 3. Golden finial sphere on top of the mast (at Z = 0.96)
+    # 3. Golden finial above the fabric.
     bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=12, radius=0.032)
-    ponta = bpy.context.active_object; ponta.location = (0, 0, 0.96)
+    ponta = bpy.context.active_object; ponta.location = (0, 0, 2.2)
     ponta.data.materials.append(toon_cor('#f59e0b'))  # amber-500 gold
     adicionar_contorno(ponta, 0.012)
     objetos.append(ponta)
 
-    # 4. Apollo horizontal crossbar rod (along +X at Z = 0.92)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.009, depth=0.48)
+    # 4. Rigid crossbar holds the emblem toward the isometric camera.
+    support = right * largura + Vector((0,0,-altura/2))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.012, depth=support.length)
     barra = bpy.context.active_object
-    barra.rotation_euler = (0, math.radians(90), 0)
-    barra.location = (0.24, 0, 0.92)
+    barra.rotation_mode='QUATERNION'
+    barra.rotation_quaternion=support.to_track_quat('Z','Y')
+    barra.location = support/2 + Vector((0,0,z_topo))
     barra.data.materials.append(toon_cor('#cbd5e1'))  # slate-300
     adicionar_contorno(barra, 0.01)
     objetos.append(barra)
 
     # 5. Flag cloth with gentle ripples / wave
     # Grid of vertices with sine wave displacement along X
-    nx, nz = 16, 8
-    largura = 0.46
-    altura = 0.32
-    z_topo = 0.92
-    z_base = z_topo - altura
+    nx, nz = 32, 16
 
     bm = bmesh.new()
     verts_grid = []
@@ -239,8 +191,10 @@ def construir_bandeira(caminho_tex):
             u_frac = i / nx
             x = 0.01 + u_frac * largura
             # Subtle gentle wave along X, slightly larger near the free edge
-            y = 0.018 * math.sin(u_frac * math.pi * 2.2) * (0.3 + 0.7 * u_frac)
-            v = bm.verts.new((x, y, z))
+            wave = 0.008 * math.sin(u_frac * math.pi * 2.2) * u_frac
+            triangular_z = z_base + altura/2 + (v_frac-0.5)*altura*(1-u_frac)
+            pos = right * x + Vector((0,0,triangular_z)) + Vector((to_cam.x,to_cam.y,0)).normalized()*wave
+            v = bm.verts.new(pos)
             row.append(v)
         verts_grid.append(row)
 
@@ -255,18 +209,26 @@ def construir_bandeira(caminho_tex):
         for loop in face.loops:
             v = loop.vert
             # Map X to U, Z to V
-            u = (v.co.x - 0.01) / largura
+            u = (v.co.dot(right) - 0.01) / largura
             val_v = (v.co.z - z_base) / altura
             loop[uv_layer].uv = (u, val_v)
 
+    bmesh.ops.remove_doubles(bm, verts=list(bm.verts), dist=0.00001)
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
     me = bpy.data.meshes.new('tecido_mesh')
     bm.to_mesh(me); bm.free()
     tecido = bpy.data.objects.new('tecido', me)
     sc.collection.objects.link(tecido)
     tecido.data.materials.append(material_tecido(caminho_tex))
-    adicionar_contorno(tecido, 0.01)
+    adicionar_contorno(tecido, 0.005)
     objetos.append(tecido)
 
+    # Turn the complete model in world space: diagonal crossbar and receding fabric,
+    # while the mast stays upright and its foot remains exactly on the destination.
+    bpy.context.view_layer.update()
+    turn = Matrix.Rotation(math.radians(-30), 4, 'Z')
+    for obj in objetos:
+        obj.matrix_world = turn @ obj.matrix_world
     return objetos
 
 
@@ -290,7 +252,7 @@ def main():
     tex_map = gerar_texturas_tecido()
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    if LIVE:
+    if LIVE and not globals().get('EXPORTAR_BANDEIRAS', False):
         # Arrange all 3 flags side by side in Blender scene
         off_x = 0
         for nome, tex in tex_map.items():
@@ -328,7 +290,7 @@ def main():
         bpy.ops.render.render(write_still=True)
 
         # Optimize PNG palette using ImageMagick
-        subprocess.run(['magick', png, '-dither', 'None', '-colors', '255', 'PNG8:' + png], check=True)
+        subprocess.run(['magick', png, '-strip', png], check=True)
 
         o0 = Vector((0, 0, 0))
         ancora_x = round((o0.dot(right) - cx) * s + W / 2, 2)

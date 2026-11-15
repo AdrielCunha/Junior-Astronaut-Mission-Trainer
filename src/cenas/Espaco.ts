@@ -7,6 +7,7 @@
 //   - the Earth, Sun and planets at their real positions for that date (engine/astro.ts).
 // Driven by sessao.u (one zoom scale, see sessao.ts) and sessao.data. See ARCHITECTURE.md.
 import Phaser from 'phaser';
+import { movimentoReduzido, configuracoesAbertas, video } from '../video';
 import constelacoes from '../dados/constelacoes.json';
 import { VOO as voo, LEVE } from './qualidade';
 import { carregarFilme } from './filme';
@@ -22,6 +23,8 @@ const GIRO_FILME = giroEm(Date.parse(`2024-05-${String(4 + voo.dia).padStart(2, 
 const HORAS_POR_SEG = 6;                     // gentle time drift while you look from space
 
 export class Espaco extends Phaser.Scene {
+  private constelacaoAtual?: {img: Phaser.GameObjects.Image; mask?: Phaser.GameObjects.Graphics; progress?: {v:number}};
+  private modoConstelacao = '';
   private ceu!: Phaser.GameObjects.Image;
   private escalaCeu = 1;
   private lua!: ReturnType<typeof criarLua>;        // live GPU Moon (luaShader.ts)
@@ -41,7 +44,9 @@ export class Espaco extends Phaser.Scene {
 
   create() {
     const W = this.scale.width, H = this.scale.height;
-    this.ceu = this.add.image(W / 2, H / 2, 'ceu');
+    this.ceu = this.add.image(W / 2, H / 2, 'ceu').setDepth(-100);
+    this.modoConstelacao = '';
+    this.events.once('shutdown',()=>this.limparConstelacao());
     this.escalaCeu = Math.max(W / this.ceu.width, H / this.ceu.height);
     this.ceu.setScale(this.escalaCeu);
 
@@ -69,12 +74,9 @@ export class Espaco extends Phaser.Scene {
     // outside the scene, so a resize (it restarts this scene) cannot load a frame twice.
     this.quadro = this.add.image(W / 2, H / 2, '__DEFAULT').setDepth(10).setVisible(false);
     this.aqueceu = false;
-    carregarFilme(this.textures);
+    if (!movimentoReduzido()) carregarFilme(this.textures);
 
-    if (!LEVE) {
-      this.time.addEvent({ delay: 5500, loop: true, callback: () => this.tracarConstelacao() });
-      this.time.delayedCall(1500, () => this.tracarConstelacao());
-    }
+    this.time.addEvent({delay: LEVE ? 9000 : 5500,loop:true,callback:()=>this.tracarConstelacao()});
   }
 
   private legendaNova = '';
@@ -97,22 +99,34 @@ export class Espaco extends Phaser.Scene {
 
   // A thin constellation figure draws itself, stays a moment and fades.
   private tracarConstelacao() {
-    if (!constelacoes.length) return;
+    if (!constelacoes.length || !video.efeitos || configuracoesAbertas) return;
+    if(movimentoReduzido() && this.constelacaoAtual)return;
+    this.limparConstelacao();
     const i = Phaser.Math.Between(0, constelacoes.length - 1);
     const c = constelacoes[i];
     const s = this.escalaCeu;
     const x = this.ceu.x + (c.x - this.ceu.width / 2) * s, y = this.ceu.y + (c.y - this.ceu.height / 2) * s;
-    const img = this.add.image(x, y, `const${i}`).setOrigin(0).setScale(s).setAlpha(0.32).setDepth(-1)
+    const img = this.add.image(x, y, `const${i}`).setOrigin(0).setScale(s).setAlpha(0.32).setDepth(-90)
       .setBlendMode(Phaser.BlendModes.ADD).setTint(0xbfdbfe);
+    this.constelacaoAtual={img};
+    if(movimentoReduzido()){img.setAlpha(0.16);return;}
     const mask = this.make.graphics({}, false);
     const m = img.createGeometryMask(mask); img.setMask(m);
     const w = c.w * s, h = c.h * s;
     const prog = { v: 0 };
+    this.constelacaoAtual={img,mask,progress:prog};
     this.tweens.add({
       targets: prog, v: 1, duration: 2200, ease: 'Sine.easeInOut',
       onUpdate: () => { mask.clear().fillStyle(0xffffff).fillRect(x, y, w * prog.v, h); },
-      onComplete: () => this.tweens.add({ targets: img, alpha: 0, delay: 2000, duration: 1200, onComplete: () => { img.destroy(); mask.destroy(); } }),
+      onComplete: () => this.tweens.add({ targets: img, alpha: 0, delay: 2000, duration: 1200, onComplete: () => this.limparConstelacao() }),
     });
+  }
+
+  private limparConstelacao() {
+    const c=this.constelacaoAtual;if(!c)return;
+    this.tweens.killTweensOf(c.img);
+    if(c.progress)this.tweens.killTweensOf(c.progress);
+    c.img.clearMask(true);c.mask?.destroy();c.img.destroy();this.constelacaoAtual=undefined;
   }
 
   private rotulo(id: string, x: number, y: number, s: string, cor: string, alpha: number) {
@@ -122,6 +136,8 @@ export class Espaco extends Phaser.Scene {
   }
 
   update(_t: number, dtMs: number) {
+    const mode=!video.efeitos?'off':movimentoReduzido()?'static':'animated';
+    if(mode!==this.modoConstelacao && !configuracoesAbertas){this.modoConstelacao=mode;this.limparConstelacao();if(mode!=='off')this.tracarConstelacao();}
     const W = this.scale.width, H = this.scale.height;
     sessao.passo(dtMs / 1000);     // Espaco runs first: every layer sees the same zoom this frame
     if (!this.aqueceu && sessao.filmePronto) { this.aqueceu = true; this.aquecer(); }
@@ -164,7 +180,10 @@ export class Espaco extends Phaser.Scene {
     // In the Moon view time runs on (no wrap: a wrap made the Moon jump back), so you watch the
     // Moon turn under the Sun. It restarts from the day's noon only once you are back on the ground.
     if (sessao.vista === 'chao' && !sessao.voo) this.relogio = 0;
-    else if (!sessao.voo) this.relogio += (dtMs / 1000) * HORAS_POR_SEG;
+    else if (!sessao.voo && !movimentoReduzido() && !configuracoesAbertas) this.relogio += (dtMs / 1000) * HORAS_POR_SEG;
+    this.brilho.setScale(movimentoReduzido() ? 1 : this.brilho.scaleX);
+    this.tweens.getTweensOf(this.brilho).forEach(t=>{t.paused=movimentoReduzido() || !video.efeitos;});
+    if (!movimentoReduzido() && !configuracoesAbertas) carregarFilme(this.textures);
     const t = sessao.data + this.relogio * 3600000;
     this.ceu.setAlpha(0.55 + 0.45 * suave(0.6, 1.6, n));
     this.g.clear();
@@ -184,7 +203,7 @@ export class Espaco extends Phaser.Scene {
     // The live Moon's angle never jumps: during a flight it turns to the angle the film was
     // rendered at (chapter day 1, noon), and after landing it turns on to today's.
     const alvoGiro = sessao.voo?.tipo === 'filme' ? GIRO_FILME : giroEm(t);
-    if (this.giroMostrado === null) this.giroMostrado = alvoGiro;
+    if (this.giroMostrado === null || movimentoReduzido()) this.giroMostrado = alvoGiro;
     const falta = ((alvoGiro - this.giroMostrado + 540) % 360) - 180;
     this.giroMostrado += falta * (1 - Math.exp(-(dtMs / 1000) * 5));
     const giro = this.giroMostrado;

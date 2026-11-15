@@ -6,13 +6,15 @@
 // glides to the framing of the flight's first frame and the terrain dissolves into it (Espaco
 // plays the frames) while the base stays visible, live.
 import Phaser from 'phaser';
+import { Ambiente } from './ambiente';
+import { configuracoesAbertas, movimentoReduzido, video } from '../video';
 import { paraTela, paraChao, profundidade } from '../engine/iso';
 import { passo, novoCorpo, G, G_LUA, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
 import { encontrarCaminho, type Ponto } from '../engine/caminho';
-import { TIPOS, montarBasePadrao, type Construcao, type TipoId } from '../engine/construcao';
+import { TIPOS, montarBasePadrao, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
 import { empuxoDePouso, suprimentoDoDia } from '../engine/suprimentos';
 import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte } from './sessao';
-import { fundacao, baseDe, sombraECarga } from './desenho';
+import { fundacao, sombraECarga } from './desenho';
 import { VOO as voo } from './qualidade';
 import { sortear } from '../tarefas';
 import type { DadosTarefa } from './Tarefa';
@@ -22,6 +24,8 @@ import sprite from '../dados/astronauta.json';
 
 const P = dadosTerreno.imagem;
 const ALCANCE = 1.3;          // tiles from a module's edge to use it
+const ESCALA_MARCADOR = 0.62; // Compact destination marker; keep the source emblem crisp.
+const PROFUNDIDADE_MARCADOR = 900_000; // Above world objects, below room labels and the HUD.
 const ALTURA_POUSO = 14;      // tiles at character scale (about 50 m): where the lander appears
 type Modelo = keyof typeof modelos;
 
@@ -34,9 +38,14 @@ type Pouso = {
 };
 
 export class Superficie extends Phaser.Scene {
+  private tempoEfeitos = 0;
+  private ambiente!: Ambiente;
   private corpo!: Corpo;
+  private gCaminhos!: Phaser.GameObjects.Graphics;
   private gAstronauta!: Phaser.GameObjects.Graphics;   // shadow + carried batteries
   private comandante!: Phaser.GameObjects.Sprite;
+  private sombraBandeira!: Phaser.GameObjects.Graphics;
+  private mascaraBandeira!: Phaser.GameObjects.Graphics;
   private bandeira!: Phaser.GameObjects.Image;         // flag marking the chosen destination
   private direcao = 1;                                  // sprite row: map angle / 45 deg
   private desenhos = new Map<number, { g: Phaser.GameObjects.Graphics; img: Phaser.GameObjects.Image; rotulo?: Phaser.GameObjects.Text }>();
@@ -65,14 +74,18 @@ export class Superficie extends Phaser.Scene {
   }
 
   create() {
-    // Dev server only: lets browser tests drive the game. Removed from the production build.
-    if (import.meta.env.DEV) Object.assign(window, { superficie: this, sessao });
+    // Scene inspection is available in development or explicitly opted-in benchmark builds.
+    if (import.meta.env.DEV || import.meta.env.VITE_MEDIR === '1') Object.assign(window, { superficie: this, sessao });
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
     this.desenhos.clear();
     this.pouso = null;
+    this.tempoEfeitos = 0;
     this.mapa = this.add.layer().setDepth(0);
     this.terreno = this.add.image(0, 0, 'terreno').setOrigin(0).setDepth(-1e6);
     this.mapa.add(this.terreno);
+    this.gCaminhos = this.add.graphics().setDepth(-900_000);
+    this.mapa.add(this.gCaminhos);
+    this.ambiente = new Ambiente(this,this.mapa,P,sessao.terreno);
 
     // The crew's base is already there (engine/construcao.ts, BASE_PADRAO).
     if (!sessao.grade.lista.length) montarBasePadrao(sessao.grade);
@@ -87,10 +100,15 @@ export class Superficie extends Phaser.Scene {
     const bInfo = bandeiras.lua;
     this.bandeira = this.add.image(0, 0, 'bandeira_lua')
       .setOrigin(bInfo.ancora[0] / bInfo.w, bInfo.ancora[1] / bInfo.h)
-      .setScale(bInfo.escala)
+      .setScale(bInfo.escala * ESCALA_MARCADOR)
       .setVisible(false);
-    this.mapa.add([this.gAstronauta, this.comandante, this.bandeira]);
+    this.sombraBandeira = this.add.graphics().setDepth(PROFUNDIDADE_MARCADOR-1).setVisible(false);
+    this.mascaraBandeira = this.make.graphics({},false);
+    this.bandeira.setMask(this.mascaraBandeira.createGeometryMask());
+    this.events.once('shutdown',()=>{this.bandeira.clearMask(true);this.mascaraBandeira.destroy();});
+    this.mapa.add([this.gAstronauta, this.comandante, this.sombraBandeira, this.bandeira]);
     for (const c of sessao.grade.lista) this.desenharModulo(c);
+    this.desenharCaminhos();
 
     const pe = paraTela(P, this.corpo.x, this.corpo.y, this.corpo.z);
     this.cameras.main.centerOn(pe.x, pe.y);
@@ -165,7 +183,7 @@ export class Superficie extends Phaser.Scene {
     }
     if (sessao.vista !== 'chao' || sessao.voo) this.recolherBandeira();
     this.mapa.setVisible(this.mapa.alpha > 0.001);
-    this.input.enabled = sessao.vista === 'chao' && !sessao.voo && !sessao.emTarefa;
+    this.input.enabled = sessao.vista === 'chao' && !sessao.voo && !sessao.emTarefa && !configuracoesAbertas && !sessao.transicao;
   }
 
   // ---------- input ----------
@@ -209,19 +227,55 @@ export class Superficie extends Phaser.Scene {
     this.bandeira.setTexture(`bandeira_${planeta}`);
     this.bandeira.setOrigin(bInfo.ancora[0] / bInfo.w, bInfo.ancora[1] / bInfo.h);
     this.bandeira.setPosition(pe.x, pe.y);
-    this.bandeira.setDepth(profundidade(gx, gy) - 0.5);
+    this.bandeira.setDepth(PROFUNDIDADE_MARCADOR);
     this.bandeira.setVisible(true).setAlpha(1);
 
-    // Bounce-in drop animation when planting the flag
+    this.encaixarBandeira(gx,gy,bInfo.w*bInfo.escala*ESCALA_MARCADOR,bInfo.h*bInfo.escala*ESCALA_MARCADOR);
+    const cr = sessao.terreno.crateras.find(c=>Math.hypot(gx-c.x,gy-c.y)<c.raio*0.86);
+    const t = cr ? Math.hypot(gx-cr.x,gy-cr.y)/cr.raio : 1;
+    const descida = cr ? cr.profundidade*(1-(t/0.86)**2)**1.3*Math.abs(P.ez[1]) : 0;
+
+    // Settle into the crater floor rather than appearing at rim height.
     this.tweens.killTweensOf(this.bandeira);
-    this.bandeira.setScale(bInfo.escala * 0.3, bInfo.escala * 1.3);
+    const escala = bInfo.escala * ESCALA_MARCADOR;
+    if(movimentoReduzido()) {this.bandeira.setScale(escala);return;}
+    this.bandeira.setScale(escala * 0.8).setY(pe.y-descida);
     this.tweens.add({
       targets: this.bandeira,
-      scaleX: bInfo.escala,
-      scaleY: bInfo.escala,
+      y: pe.y,
+      scaleX: escala,
+      scaleY: escala,
       duration: 250,
-      ease: 'Back.easeOut',
+      ease: 'Sine.easeOut',
     });
+  }
+
+  private encaixarBandeira(gx: number,gy: number,width: number,height: number) {
+    const t=sessao.terreno;
+    const foot=paraTela(P,gx,gy,t.altura(gx,gy));
+    // A terrain horizon for each sprite column. Foreground rim can hide the mast base,
+    // while the marker's foreground depth still keeps it readable near buildings.
+    const left=foot.x-12,right=foot.x+width+12,top=foot.y-height*2-24;
+    const edge: {x:number;y:number}[]=[];
+    const inside=t.crateras.find(c=>Math.hypot(gx-c.x,gy-c.y)<c.raio*1.25);
+    for(let x=left;x<=right+2;x+=2) {
+      const offset=(x-foot.x)/(P.ex[0]-P.ey[0]);
+      let horizon=Infinity;
+      const reach=inside?inside.raio*2.5:0.12;
+      for(let d=0;d<=reach;d+=0.06) {
+        const xx=gx+offset+d,yy=gy-offset+d;
+        if(!t.dentro(xx,yy))continue;
+        horizon=Math.min(horizon,paraTela(P,xx,yy,t.altura(xx,yy)-0.025).y);
+      }
+      edge.push({x,y:Number.isFinite(horizon)?horizon:foot.y+height});
+    }
+    this.mascaraBandeira.clear().fillStyle(0xffffff).fillPoints([{x:left,y:top},{x:right+2,y:top},...edge.reverse()],true);
+    const shadow=[];
+    for(let i=0;i<24;i++) {
+      const a=i*Math.PI*2/24,x=gx+Math.cos(a)*0.15,y=gy+Math.sin(a)*0.11;
+      shadow.push(paraTela(P,x,y,t.altura(x,y)+0.006));
+    }
+    this.sombraBandeira.clear().fillStyle(0x302b28,0.35).fillPoints(shadow,true).setVisible(true);
   }
 
   /** Smoothly folds and hides the destination flag when arriving or changing path. */
@@ -383,9 +437,11 @@ export class Superficie extends Phaser.Scene {
     if (this.pouso || sessao.grade.lista.some((c) => c.tipo.id === tipo)) return;
     const hab = sessao.grade.lista.find((c) => c.tipo.id === 'habitat')!;
     const t = TIPOS[tipo];
-    const p = sessao.grade.procurar(t, hab.gx + 6, hab.gy - 6) ?? sessao.grade.procurar(t, hab.gx, hab.gy);
+    const [dx, dy] = SETORES_SUPRIMENTOS[tipo] ?? [6, -6];
+    const center = Math.floor(sessao.terreno.n / 2);
+    const p = sessao.grade.procurarComEspaco(t, center + dx, center + dy);
     if (!p) return;
-    const chao = sessao.terreno.alturaMedia(p.gx, p.gy, t.w, t.h);
+    const chao = sessao.terreno.alturaMax(p.gx, p.gy, t.w, t.h) + 0.025;
     const img = this.add.image(0, 0, 'mod_pouso');
     const chama = this.add.image(0, 0, 'mod_chama').setBlendMode(Phaser.BlendModes.ADD);
     const sombra = this.add.ellipse(0, 0, 60, 26, 0x000000, 0.25);
@@ -413,6 +469,7 @@ export class Superficie extends Phaser.Scene {
       const c = sessao.grade.construir(t, L.gx, L.gy);
       if (c) {
         this.desenharModulo(c);
+        this.desenharCaminhos();
         const d = this.desenhos.get(c.id)!;
         d.img.setAlpha(0); d.rotulo?.setAlpha(0);
         this.tweens.add({ targets: [d.img, d.rotulo].filter(Boolean), alpha: 1, duration: 600 });
@@ -457,6 +514,8 @@ export class Superficie extends Phaser.Scene {
   update(_t: number, dtMs: number) {
     const dt = Math.min(0.05, dtMs / 1000);
     this.aplicarZoom();
+    this.sombraBandeira.setVisible(this.bandeira.visible).setAlpha(this.bandeira.alpha);
+    if(configuracoesAbertas || sessao.transicao) {this.input.keyboard?.resetKeys();return;}
     const caixas = sessao.grade.caixas();
     const e = this.input.enabled ? this.entrada() : null;
     const antesNoChao = this.corpo.noChao;
@@ -481,6 +540,9 @@ export class Superficie extends Phaser.Scene {
     if (Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3 && this.corpo.noChao) this.passada += dt * 12;
     this.animarPouso(dt);
     this.desenharComandante();
+    this.atualizarOclusao(dt);
+    if(this.mapa.visible) this.ambiente.update(dt,this.corpo,sessao.grade.lista);
+    this.animarModulos(dt);
 
     // Camera follows the commander on the ground.
     if (sessao.vista === 'chao' && !sessao.voo && this.seguir && !this.pouso) {
@@ -529,7 +591,7 @@ export class Superficie extends Phaser.Scene {
       this.desenhos.set(c.id, d);
     }
     d.g.clear();
-    fundacao(d.g, P, c, baseDe(c, (x, y) => sessao.terreno.altura(x, y)));
+    fundacao(d.g, P, c, (x, y) => sessao.terreno.altura(x, y));
     this.posicionar(d.img, c, this.modelo(c));
     // Sort by the module's back corner (where its picture is anchored), not its front corner:
     // using the front corner pushed every module in front of the commander, so the astronaut
@@ -539,6 +601,76 @@ export class Superficie extends Phaser.Scene {
     if (d.rotulo) {
       const topo = paraTela(P, c.gx + c.tipo.w / 2, c.gy + c.tipo.h / 2, c.z + c.tipo.altura + 0.6);
       d.rotulo.setPosition(topo.x, topo.y).setDepth(1e6);
+    }
+  }
+
+  // Subtle surface tracks follow actual walkable routes and terrain height.
+  private desenharCaminhos() {
+    const g = this.gCaminhos.clear();
+    const hab = sessao.grade.lista.find(c => c.tipo.id === 'habitat');
+    if (!hab) return;
+    const start = { gx: hab.gx+hab.tipo.w/2, gy: hab.gy+hab.tipo.h+0.65 };
+    const boxes = sessao.grade.caixas();
+    for (const c of sessao.grade.lista) {
+      if (c === hab || c.tipo.id === 'painel') continue;
+      const candidates = [
+        {gx:c.gx+c.tipo.w/2,gy:c.gy+c.tipo.h+0.65},
+        {gx:c.gx+c.tipo.w+0.65,gy:c.gy+c.tipo.h/2},
+        {gx:c.gx-0.65,gy:c.gy+c.tipo.h/2},
+        {gx:c.gx+c.tipo.w/2,gy:c.gy-0.65},
+      ];
+      let best: Ponto[] | null = null, shortest = Infinity;
+      for (const end of candidates) {
+        const path = encontrarCaminho(sessao.terreno,boxes,0.22,start.gx,start.gy,end.gx,end.gy);
+        if (!path) continue;
+        const full = [start,...path];
+        let length = 0;
+        for(let i=1;i<full.length;i++) length += Math.hypot(full[i].gx-full[i-1].gx,full[i].gy-full[i-1].gy);
+        if(length < shortest) {shortest=length;best=full;}
+      }
+      if (!best) continue;
+      const points: {x:number;y:number}[] = [];
+      for(let i=1;i<best.length;i++) {
+        const a=best[i-1],b=best[i],steps=Math.max(1,Math.ceil(Math.hypot(b.gx-a.gx,b.gy-a.gy)*4));
+        for(let j=0;j<=steps;j++) {
+          const x=a.gx+(b.gx-a.gx)*j/steps,y=a.gy+(b.gy-a.gy)*j/steps;
+          points.push(paraTela(P,x,y,sessao.terreno.altura(x,y)+0.01));
+        }
+      }
+      g.lineStyle(9,0xd4c5a7,0.20).strokePoints(points,false);
+      g.lineStyle(2,0xe5d8b8,0.22).strokePoints(points,false);
+    }
+  }
+
+  private animarModulos(dt: number) {
+    const animate=video.efeitos && !movimentoReduzido();
+    if(animate) this.tempoEfeitos=this.time.now/1000;
+    for(const c of sessao.grade.lista) {
+      if(c.tipo.id!=='suporte' && c.tipo.id!=='oficina') continue;
+      const d=this.desenhos.get(c.id);if(!d) continue;
+      // Only the instrument display changes, using actual Blender renders. The model stays still.
+      const frame=animate ? Math.floor(this.tempoEfeitos/(video.qualidade==='leve'?1.3:0.85)+c.id)%3 : 0;
+      const key=(frame ? `${c.tipo.id}_anim${frame}` : c.tipo.id) as Modelo;
+      if(d.img.texture.key!==`mod_${key}` && this.textures.exists(`mod_${key}`)) this.posicionar(d.img,c,key);
+    }
+  }
+
+  private atualizarOclusao(dt: number) {
+    const k = this.corpo;
+    const depth = profundidade(k.x + 0.3, k.y + 0.3);
+    const feet = paraTela(P, k.x, k.y, k.z);
+    for (const c of sessao.grade.lista) {
+      const d = this.desenhos.get(c.id);
+      if (!d) continue;
+      const bounds = d.img.getBounds();
+      const overlaps = bounds.contains(feet.x, feet.y - 15) || bounds.contains(feet.x, feet.y - 26);
+      const behind = k.x < c.gx + c.tipo.w && k.y < c.gy + c.tipo.h && k.z < c.z + c.tipo.altura - 0.1;
+      const normal = profundidade(c.gx + c.tipo.w, c.gy + c.tipo.h);
+      const order = overlaps ? (behind ? Math.max(normal, depth + 0.5) : Math.min(normal, depth - 0.5)) : normal;
+      d.img.setDepth(order); d.g.setDepth(order - 0.1);
+      const alpha = overlaps && behind ? 0.38 : 1;
+      const next = Phaser.Math.Linear(d.img.alpha, alpha, 1 - Math.exp(-dt * 12));
+      d.img.setAlpha(next); d.g.setAlpha(next);
     }
   }
 

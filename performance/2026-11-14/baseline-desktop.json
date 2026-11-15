@@ -1,0 +1,159 @@
+{
+  "url": "http://127.0.0.1:5274/?hd",
+  "cpuSlowdown": 1,
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "motion": "full",
+  "softwareRequested": false,
+  "date": "2026-11-14T23:55:24.575Z",
+  "stages": [
+    {
+      "name": "surface idle",
+      "initial": {
+        "vista": "chao",
+        "flight": false,
+        "transition": false
+      },
+      "finalView": "chao",
+      "frames": 176,
+      "meanMs": 17.139772727272717,
+      "p95Ms": 16.80000000000109,
+      "fps": 58.34383080289071,
+      "over50msPercent": 0,
+      "longTasks": 0,
+      "longTaskMs": 0,
+      "heapBytes": 14579121,
+      "distanceTiles": 0,
+      "footprints": 0,
+      "elapsedMs": 3015.400000002235
+    },
+    {
+      "name": "surface walking",
+      "initial": {
+        "vista": "chao",
+        "flight": false,
+        "transition": false
+      },
+      "finalView": "chao",
+      "frames": 212,
+      "meanMs": 19.024528301886797,
+      "p95Ms": 33.399999999999636,
+      "fps": 52.56372111474759,
+      "over50msPercent": 0.4716981132075472,
+      "longTasks": 0,
+      "longTaskMs": 0,
+      "heapBytes": 13063669,
+      "distanceTiles": 11.918559988400013,
+      "footprints": 0,
+      "elapsedMs": 4022.60000000149
+    },
+    {
+      "name": "surface to Moon",
+      "initial": {
+        "vista": "chao",
+        "flight": true,
+        "transition": false
+      },
+      "finalView": "lua",
+      "frames": 265,
+      "meanMs": 16.666037735849056,
+      "p95Ms": 16.700000000000728,
+      "fps": 60.00226423638628,
+      "over50msPercent": 0,
+      "longTasks": 0,
+      "longTaskMs": 0,
+      "heapBytes": 16382725,
+      "distanceTiles": 0,
+      "footprints": 0,
+      "elapsedMs": 4422.699999999255
+    },
+    {
+      "name": "Moon idle",
+      "initial": {
+        "vista": "lua",
+        "flight": false,
+        "transition": false
+      },
+      "finalView": "lua",
+      "frames": 131,
+      "meanMs": 16.793129770992376,
+      "p95Ms": 16.700000000000728,
+      "fps": 59.54816128005815,
+      "over50msPercent": 0,
+      "longTasks": 0,
+      "longTaskMs": 0,
+      "heapBytes": 16332983,
+      "distanceTiles": 0,
+      "footprints": 0,
+      "elapsedMs": 2214
+    },
+    {
+      "name": "Moon to planets",
+      "initial": {
+        "vista": "lua",
+        "flight": true,
+        "transition": false
+      },
+      "finalView": "sistema",
+      "frames": 169,
+      "meanMs": 16.66686390532545,
+      "p95Ms": 16.700000000000728,
+      "fps": 59.99928994923135,
+      "over50msPercent": 0,
+      "longTasks": 0,
+      "longTaskMs": 0,
+      "heapBytes": 13634781,
+      "distanceTiles": 0,
+      "footprints": 0,
+      "elapsedMs": 2815.89999999851
+    },
+    {
+      "name": "solar system idle",
+      "initial": {
+        "vista": "sistema",
+        "flight": false,
+        "transition": false
+      },
+      "finalView": "sistema",
+      "frames": 132,
+      "meanMs": 16.66515151515151,
+      "p95Ms": 16.799999999999272,
+      "fps": 60.00545504136741,
+      "over50msPercent": 0,
+      "longTasks": 0,
+      "longTaskMs": 0,
+      "heapBytes": 15844929,
+      "distanceTiles": 0,
+      "footprints": 0,
+      "elapsedMs": 2204.699999999255
+    }
+  ],
+  "errors": [],
+  "browser": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/150.0.7871.46",
+    "revision": "@5b586c06e0d27582900f17e2d59c5370d8d6e0bb",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/150.0.0.0 Safari/537.36",
+    "jsVersion": "15.0.245.13"
+  },
+  "readyMs": 3410,
+  "firstContentfulPaintMs": 1180,
+  "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (RPL-P), OpenGL ES 3.2)",
+  "warmup": "all flight downloads completed, then 3 seconds idle",
+  "network": {
+    "requests": 198,
+    "encodedBytes": 11011305
+  },
+  "constellations": {
+    "loaded": true,
+    "current": false,
+    "skyDepth": 0,
+    "figureDepth": null
+  },
+  "completed": true,
+  "sourceCommit": "76c9e71e03f79fc0231158258619351b4c722f1c",
+  "benchmarkRunnerCommit": "bbd640d64f1824ff2907b3878f45faa1ebecf1bd",
+  "buildNote": "Production Vite build with VITE_MEDIR=1 inspection bridge; baseline bridge applied without game changes."
+}

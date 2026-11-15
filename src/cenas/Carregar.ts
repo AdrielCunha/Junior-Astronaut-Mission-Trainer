@@ -4,8 +4,8 @@
 // first seconds of play are smooth. The flight film is not here: filme.ts downloads it in the
 // background once the game runs.
 import Phaser from 'phaser';
+import { movimentoReduzido } from '../video';
 import { fonte, dadosTerreno } from './sessao';
-import { LEVE } from './qualidade';
 import { carregarLua, criarLua, LADO } from './luaShader';
 import { giroEm } from './globo';
 import modelos from '../dados/modulos.json';
@@ -101,7 +101,7 @@ export class Carregar extends Phaser.Scene {
     this.time.addEvent({ delay: 3200, loop: true, callback: () => fato.setText(FATOS[++i % FATOS.length]) });
 
     const desenhar = (p: number) => {
-      this.giro = GIRO_INICIAL + p * 120;
+      this.giro = GIRO_INICIAL + (movimentoReduzido() ? 0 : p * 120);
       this.luaPreview?.setGiro(this.giro);
       this.anel.clear();
       this.anel.lineStyle(2 * u, 0x1e293b, 0.9).strokeCircle(cx, cy, raioAnel);
@@ -122,7 +122,7 @@ export class Carregar extends Phaser.Scene {
     for (const [id, b] of Object.entries(bandeiras)) this.load.image(`bandeira_${id}`, b.arquivo);
     this.load.spritesheet('astronauta', 'lua/astronaut.png', { frameWidth: sprite.frame, frameHeight: sprite.frame });
     this.load.image('ceu', 'lua/sky.jpg');
-    if (!LEVE) constelacoes.forEach((c, k) => this.load.image(`const${k}`, c.arquivo));
+    constelacoes.forEach((c, k) => this.load.image(`const${k}`, c.arquivo));
 
     const criarPreview = () => {
       if (this.luaPreview || !this.textures.exists('luaAlbedo') || !this.textures.exists('luaAltura')) return;
@@ -134,7 +134,7 @@ export class Carregar extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
-    if (!this.luaPreview) return;
+    if (!this.luaPreview || movimentoReduzido()) return;
     this.giro = (this.giro + delta * 0.012) % 360;
     this.luaPreview.setGiro(this.giro);
   }
