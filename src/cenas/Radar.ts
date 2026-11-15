@@ -118,7 +118,7 @@ export class Radar extends Phaser.Scene {
 
     // ----- center column: logo, ribbon, buttons -----
     const cx = W / 2;
-    const tam = movel ? Math.min(37 * u, W / 13) : Math.min(92 * u, W / 9.5);
+    const tam = movel ? Math.min(64 * u, W / 13) : Math.min(92 * u, W / 9.5);
     // The mobile title is a single measured block, not separate percentages of screen height:
     // Safari's address bar changes H while the phone stays in landscape.
     const yLogo = movel ? 0 : H * 0.2;
@@ -126,8 +126,8 @@ export class Radar extends Phaser.Scene {
     const logo = this.add.text(cx, yLogo, 'LUNAR ODYSSEY', letra(tam, '#fde047', { stroke: '#1e293b', strokeThickness: tam / 4.5 })).setOrigin(0.5);
     if (!movel) this.tweens.add({ targets: [logo, sombra], y: '-=6', duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
-    const fita = this.make.text({ x: cx, y: yLogo + tam * 0.85, text: 'JUNIOR ASTRONAUT MISSION TRAINER',
-      style: letra((movel ? 12 : 15) * u, '#ffffff', { letterSpacing: (movel ? 1 : 2) * u } as Phaser.Types.GameObjects.Text.TextStyle) }, false).setOrigin(0.5);
+    const fita = this.make.text({ x: cx, y: yLogo + tam * (movel ? 1.0 : 0.85), text: 'JUNIOR ASTRONAUT MISSION TRAINER',
+      style: letra((movel ? 13 : 15) * u, '#ffffff', { letterSpacing: (movel ? 1 : 2) * u } as Phaser.Types.GameObjects.Text.TextStyle) }, false).setOrigin(0.5);
     const fw = fita.width + 44 * u, fh = fita.height + (movel ? 6 : 14) * u;
     this.imagem(cx, fita.y, fw, fh, (g) => g.fillStyle(CONTORNO, 0.95).fillRoundedRect(-fw / 2, -fh / 2, fw, fh, fh / 2));
     this.add.existing(fita);
@@ -140,14 +140,13 @@ export class Radar extends Phaser.Scene {
     const topoFita = fita.y - fh / 2;
     const topoConteudo = Math.min(topoLogo, topoFita);
     const altoTitulo = Math.max(logo.y + logo.height / 2, fita.y + fh / 2) - topoConteudo;
-    const espacoTitulo = (movel ? 20 : 8) * u;
+    const espacoTitulo = (movel ? 34 : 8) * u;
     const alturaBloco = altoTitulo + espacoTitulo + alturaBotoes;
     const escalaBloco = movel ? Math.min(1, (H - 16 * u) / alturaBloco) : 1;
     const topoBloco = (H - alturaBloco * escalaBloco) / 2 - (movel ? Math.min(8 * u, Math.max(0, (H - alturaBloco * escalaBloco) / 4)) : 0);
     const y1 = movel ? topoConteudo + altoTitulo + espacoTitulo + (bh + 8 * u) / 2
       : Math.max(fita.y + fh / 2 + 54 * u, H * 0.5);
     const play = this.botao(cx, y1, bw, bh + 8 * u, d.continuar ? 'CONTINUE MISSION  \u25b6' : 'LAUNCH MISSION  \u25b6', 0x22c55e, (movel ? 20 : 24) * u, lancar);
-    if (!movel) this.tweens.add({ targets: play, scale: 1.05, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     play.setData('acao', d.continuar ? 'continue' : 'launch');
     let proximaLinha = y1 + (bh + 8 * u) / 2 + gap + bh / 2;
     if (d.continuar && d.aoNovoJogo) {
@@ -166,7 +165,9 @@ export class Radar extends Phaser.Scene {
         item.y = topoBloco + (item.y - topoConteudo) * escalaBloco;
         item.setScale(escalaBloco);
       }
+      if (!movimentoReduzido()) this.tweens.add({ targets: [logo, sombra], y: `-=${6 * u * escalaBloco}`, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
+    if (!movimentoReduzido()) this.tweens.add({ targets: play, scale: play.scaleX * 1.05, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
     // ----- corners -----
     this.botaoConfiguracoes(W - 40 * u, 40 * u);
@@ -175,6 +176,8 @@ export class Radar extends Phaser.Scene {
       this.add.text(24 * u, rodape, 'Real NASA data · the May 2024 solar storm', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
       const enter = this.add.text(W - 24 * u, rodape, d.continuar ? 'Press ENTER to continue' : 'Press ENTER to launch', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(1, 0.5);
       this.tweens.add({ targets: enter, alpha: 0.35, duration: 900, yoyo: true, repeat: -1 });
+    } else {
+      this.add.text(28 * u, H - 8 * u, 'Real NASA data · the May 2024 solar storm', letra(Math.max(10, 13 * u), '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 1);
     }
 
     this.input.keyboard?.on('keydown-ENTER', lancar);
@@ -373,7 +376,7 @@ export class Radar extends Phaser.Scene {
       }
     }
     const c = this.add.container(x, y, conteudo).setSize(w, h).setInteractive({ useHandCursor: true });
-    c.on('pointerover', () => { if (!dispositivoMovel()) c.setScale(1.06); tocarSfx('suave'); }).on('pointerout', () => c.setScale(1)).on('pointerdown', () => { if (!this.travado) { if (!texto.startsWith('LAUNCH')) tocarSfx('clique'); acao(); } });
+    c.on('pointerover', () => { if (!dispositivoMovel()) c.setScale(1.06); tocarSfx('suave'); }).on('pointerout', () => { if (!dispositivoMovel()) c.setScale(1); }).on('pointerdown', () => { if (!this.travado) { if (!texto.startsWith('LAUNCH')) tocarSfx('clique'); acao(); } });
     return c;
   }
 
