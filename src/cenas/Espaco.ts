@@ -210,7 +210,7 @@ export class Espaco extends Phaser.Scene {
       const temQuadro = this.textures.exists(`voo${i}`);
       // Fades in under the map picture at the start (and out at the end of the way back), so the
       // space around the map's cut edges turns into ground gradually instead of in one frame.
-      const fim = suave(0, 0.08, q) * (1 - suave(0.975, 1, q));
+      const fim = suave(0, 0.03, q) * (1 - suave(0.975, 1, q));
       if (temQuadro) {
         // Never smaller than the screen: when this frame is not on the GPU yet an older one stands
         // in, and shrinking it to this frame's distance left a dark rim that flickered at the edges.

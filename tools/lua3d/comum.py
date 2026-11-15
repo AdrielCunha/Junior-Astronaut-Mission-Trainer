@@ -127,14 +127,34 @@ def toon(bpy, nome, albedo_fn, luz=LIGHT, borda=None):
     return m
 
 
-def albedo_chao(ruido_km, curva_km=None, raio_km=None):
+def sumir_longe(N, L, perto, longe):
+    """0 near the camera, 1 far from it (smoothstep on the view distance): fades out detail that
+    would get smaller than a few pixels, which otherwise crawls and flickers from frame to frame."""
+    cam = N.new('ShaderNodeCameraData')
+    mr = N.new('ShaderNodeMapRange'); mr.interpolation_type = 'SMOOTHSTEP'
+    mr.inputs['From Min'].default_value = perto; mr.inputs['From Max'].default_value = longe
+    L.new(cam.outputs['View Distance'], mr.inputs['Value'])
+    return mr.outputs['Result']
+
+
+def albedo_chao(ruido_km, curva_km=None, raio_km=None, lod=None):
     """Regolith: noise patches, darker rock on steep ground, optional contour lines on the height
-    above the sphere (|p| - R, so it works on curved patches)."""
+    above the sphere (|p| - R, so it works on curved patches). lod = (near, far) view distances:
+    the noise and the steep-rock tint fade to the middle tone between them (for the zoom films,
+    where 1 km patches would otherwise shrink below a pixel and shimmer)."""
     def fn(N, L):
         tc = N.new('ShaderNodeTexCoord')
         nz = N.new('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 1 / ruido_km; nz.inputs['Detail'].default_value = 1
         L.new(tc.outputs['Object'], nz.inputs['Vector'])
-        g = _ramp(N, GROUND); L.new(nz.outputs['Fac'], g.inputs['Fac'])
+        g = _ramp(N, GROUND)
+        fade = None
+        if lod:
+            fade = sumir_longe(N, L, *lod)
+            mx0 = N.new('ShaderNodeMix'); mx0.data_type = 'FLOAT'; mx0.inputs['B'].default_value = 0.5
+            L.new(fade, mx0.inputs['Factor']); L.new(nz.outputs['Fac'], mx0.inputs['A'])
+            L.new(mx0.outputs['Result'], g.inputs['Fac'])
+        else:
+            L.new(nz.outputs['Fac'], g.inputs['Fac'])
         geo = N.new('ShaderNodeNewGeometry')
         # steepness = angle between the surface normal and the radial direction
         rad_ = N.new('ShaderNodeVectorMath'); rad_.operation = 'NORMALIZE'; L.new(geo.outputs['Position'], rad_.inputs[0])
@@ -143,7 +163,15 @@ def albedo_chao(ruido_km, curva_km=None, raio_km=None):
         st = N.new('ShaderNodeMath'); st.operation = 'LESS_THAN'; st.inputs[1].default_value = math.cos(math.radians(22))
         L.new(d.outputs['Value'], st.inputs[0])
         mx = N.new('ShaderNodeMix'); mx.data_type = 'RGBA'; mx.inputs[7].default_value = rgb(ROCK)
-        L.new(st.outputs[0], mx.inputs['Factor']); L.new(g.outputs['Color'], mx.inputs[6])
+        if fade is not None:                     # steep-rock speckle fades with the noise
+            perto = N.new('ShaderNodeMath'); perto.operation = 'SUBTRACT'; perto.inputs[0].default_value = 1
+            L.new(fade, perto.inputs[1])
+            rocha = N.new('ShaderNodeMath'); rocha.operation = 'MULTIPLY'
+            L.new(st.outputs[0], rocha.inputs[0]); L.new(perto.outputs[0], rocha.inputs[1])
+            L.new(rocha.outputs[0], mx.inputs['Factor'])
+        else:
+            L.new(st.outputs[0], mx.inputs['Factor'])
+        L.new(g.outputs['Color'], mx.inputs[6])
         if not curva_km: return mx.outputs[2]
         ln_ = N.new('ShaderNodeVectorMath'); ln_.operation = 'LENGTH'; L.new(geo.outputs['Position'], ln_.inputs[0])
         h = N.new('ShaderNodeMath'); h.operation = 'SUBTRACT'; h.inputs[1].default_value = raio_km
