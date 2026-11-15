@@ -19,9 +19,10 @@ import { CONDICOES, ESTUFA_OXIGENIO, type Condicao } from '../engine/condicoes';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase, type RelatorioDia } from './sessao';
 import { apagarPartida } from '../salvamento';
 import { alternarMudo } from '../audio';
-import { letra, criarPilula, criarCapsulaRecursos, criarCapsulaRecursosMovel, criarBotaoPilula, criarIndicador, criarIndicadorCircular, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
+import { letra, criarPilula, criarCapsulaRecursos, criarCapsulaRecursosMovel, criarBotaoPilula, criarIndicador, criarIndicadorCircular, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
 import { resolverIcone, textoDoJogo, type IconeJogo } from '../dados/icones';
 import { escalaInterface, dispositivoMovel } from '../mobile';
+import { mostrarContadoresHud, mostrarHudNaSuperficie } from './visibilidadeHud';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 // A chat message: a custom equipment icon on the left and a short line.
@@ -78,6 +79,7 @@ export class Interface extends Phaser.Scene {
   private entregaPendente?: Phaser.Time.TimerEvent;
   private btFim!: Phaser.GameObjects.Container;
   private textoFim!: Phaser.GameObjects.Text;
+  private iconeFim!: Phaser.GameObjects.Graphics;
   private dicas!: ReturnType<typeof criarDicasRecolhiveis>;
   private readonly preferenciaDicas = new PreferenciaDicas();
   private btMenu!: Phaser.GameObjects.Container;
@@ -134,9 +136,15 @@ export class Interface extends Phaser.Scene {
     this.criarAlertaSolar();
 
     const l = this.layout, fim = l.fimDia;
-    this.btFim = botaoVerde(this, Math.round(fim.x + fim.w / 2), Math.round(fim.y + fim.h / 2), 'END DAY  \u25b6', Math.round(17 * l.u), fim.h, l.u,
+    // On touch screens this button keeps the desktop web size even when the rest of the HUD shrinks.
+    const uFim = dispositivoMovel() ? Math.max(l.u, 1) : l.u;
+    const fonteFim = Math.round(17 * uFim);
+    this.btFim = botaoVerde(this, Math.round(fim.x + fim.w / 2), Math.round(fim.y + fim.h / 2), 'END DAY', fonteFim, fim.h, uFim,
       () => this.terminarDia(), { largura: fim.w, altura: fim.h, pulsar: false, pararPropagacao: true, animarHover: true });
     this.textoFim = this.btFim.getData('texto');
+    // Draw the arrow as artwork, not an emoji glyph, so it is white on every device.
+    this.iconeFim = this.add.graphics();
+    this.textoFim.parentContainer.add(this.iconeFim);
     this.cortina = this.add.rectangle(0, 0, W, H, 0x05070f).setOrigin(0).setDepth(10_000_000).setAlpha(0);
     this.dicas = criarDicasRecolhiveis(this, l.dicasPainel, l.dicasAba, l.dicasFechadasX, l.u, l.dicasCompactas,
       this.preferenciaDicas.inicial(l.dicasCompactas), (recolhido) => this.preferenciaDicas.definir(recolhido));
@@ -238,6 +246,7 @@ export class Interface extends Phaser.Scene {
   }
 
   update(_tempo: number, dt: number) {
+    this.atualizarVisibilidadeContadores();
     this.btEditarBase.setVisible((sessao.fase==='inicio' || sessao.fase==='dia') && sessao.mundo!=='nave' && sessao.vista==='chao'
       && !sessao.emTarefa && !sessao.abastecendoRover && !sessao.partida && !sessao.voo && !sessao.transicao
       && !configuracoesAbertas && !this.scene.isActive('Radar') && !this.scene.isActive('MenuJogo') && !sessao.editandoBase);
@@ -421,6 +430,7 @@ export class Interface extends Phaser.Scene {
     const l = this.layout = calcularLayoutHud(W, H, this.u), u = l.u;
     const px = (v: number) => Math.round(v * u);
     const movel = dispositivoMovel() && W > H;
+    if (!movel) criarFaixaHud(this, l.faixa, u);
     const pad = px(8);
     if (movel) {
       this.tituloHud = undefined;
@@ -504,13 +514,12 @@ export class Interface extends Phaser.Scene {
     // Oxygen and crew health (100 - dose) warn by color: green above 70, yellow 30 to 70, red below 30.
     const alerta = (v: number) => v > 70 ? 0x4ade80 : v >= 30 ? 0xfde047 : 0xef4444;
     const cores = [alerta(e.oxigenio), alerta(100 - e.dose), undefined];
-    this.recursos.forEach((r, i) => { r.caixa.setVisible(sessao.fase !== 'inicio'); r.atualizar(valores[i], cores[i]); });
+    this.recursos.forEach((r, i) => r.atualizar(valores[i], cores[i]));
     const d = sessao.entregas;
     // On Mars the last counter is the heating (the dome is built through construction, not powered).
     const contadores = [sessao.noHabitat, sessao.carregando, d.oxigenio, d.blindagem, marte ? d.aquecimento : d.meta];
-    this.capsula.caixa.setVisible(sessao.fase === 'dia');
+    this.atualizarVisibilidadeContadores();
     this.capsula.atualizar(contadores);
-    this.objetivo.setVisible(sessao.fase === 'dia' || (sessao.fase === 'inicio' && !!sessao.rover?.dirigindo));
     // One short order at a time: where to go, what to do there.
     const origem = sessao.mundo === 'lua' ? 'Battery Bank' : marte ? 'Lander' : 'Power Room';
     let objetivo = sessao.noHabitat ? `Get today's batteries at the ${origem}`
@@ -529,8 +538,11 @@ export class Interface extends Phaser.Scene {
     if (sessao.rover?.dirigindo) objetivo = sessao.roverCarregado
       ? 'WASD to drive  ·  E to get out'
       : 'Rover needs 1 battery. E to get out';
-    // Touch screens: the joystick and the USE button instead of the keys.
-    if (dispositivoMovel()) objetivo = objetivo.replace('WASD to drive', 'Joystick to drive').replace('E to get out', 'USE to get out').replace('(E)', '(USE)');
+    if (dispositivoMovel()) objetivo = objetivo
+      .replaceAll('WASD to drive  ·  E to get out', 'Use the joystick to drive and USE to get out')
+      .replaceAll('Rover needs 1 battery. E to get out', 'Rover needs 1 battery. Tap USE to get out')
+      .replaceAll('(E)', '(USE)')
+      .replaceAll('press E nearby', 'use USE nearby');
     this.textos.tarefa.setText(objetivo);
 
     this.textos.tarefa.setScale(1);
@@ -543,8 +555,32 @@ export class Interface extends Phaser.Scene {
     }
     this.textos.tarefa.setScale(Math.min(1, alturaDisponivel / this.textos.tarefa.height));
 
-    this.textoFim.setText(sessao.fase === 'inicio' ? '◀  MENU' : 'END DAY  ▶');
+    const menu=sessao.fase === 'inicio';
+    this.textoFim.setText(menu ? 'MENU' : 'END DAY');
+    if(dispositivoMovel() && this.scale.width > this.scale.height){
+      // The translated label may be wider than English; keep the arrow inside the pill.
+      let tamanho=Math.round(17*Math.max(this.layout.u,1));
+      this.textoFim.setFontSize(tamanho);
+      while(this.textoFim.width>this.layout.fimDia.w-32 && tamanho>10)this.textoFim.setFontSize(--tamanho);
+    }
+    const tamanhoIcone=8*(dispositivoMovel()?Math.max(this.layout.u,1):this.layout.u);
+    const distancia=(this.textoFim.width+tamanhoIcone+8)/2;
+    this.textoFim.setX(menu?6:-6);
+    const x=menu?-distancia:distancia;
+    this.iconeFim.clear().fillStyle(0xffffff).fillTriangle(
+      x+(menu?tamanhoIcone/2:-tamanhoIcone/2),-tamanhoIcone/2,
+      x+(menu?tamanhoIcone/2:-tamanhoIcone/2),tamanhoIcone/2,
+      x+(menu?-tamanhoIcone/2:tamanhoIcone/2),0,
+    );
     this.btFim.setVisible(sessao.fase === 'dia' || sessao.fase === 'inicio');
+  }
+
+  private atualizarVisibilidadeContadores() {
+    const movel=dispositivoMovel() && this.scale.width > this.scale.height;
+    const visivel=mostrarHudNaSuperficie(movel,sessao.mundo,sessao.vista,sessao.voo,sessao.transicao);
+    this.capsula.caixa.setVisible(mostrarContadoresHud(movel,sessao.mundo,sessao.fase,sessao.vista,sessao.voo,sessao.transicao));
+    this.recursos.forEach(r=>r.caixa.setVisible(visivel && sessao.fase !== 'inicio'));
+    this.objetivo.setVisible(visivel && (sessao.fase === 'dia' || (sessao.fase === 'inicio' && !!sessao.rover?.dirigindo)));
   }
 
   // Notices: the dark pill of the task screens, above the bottom bar. Green good news, yellow careful.
@@ -655,6 +691,11 @@ export class Interface extends Phaser.Scene {
         ...(sup ? [{ icone: 'cargo', texto: sup.aviso, cor: '#fde68a', negrito: true }] : []),
         ...(lua && dia1 && guiaVaiRodar() ? [{ icone: 'goal', texto: 'Follow the yellow arrows!', cor: '#fde047', negrito: true }] : []),
         ...((lua || marte) && sessao.rover && !dia1 ? [{ icone: 'rover', texto: 'Rover: 1 battery = drive all day.' }] : []),
+        ...(lua && dia1 ? [
+          dispositivoMovel()
+            ? 'First mission: pick up batteries at the Battery Bank, then take one to Life Support and one to the Rocket Workshop. Move with the joystick and tap USE nearby.'
+            : 'First mission: pick up batteries at the Battery Bank, then take one to Life Support and one to the Rocket Workshop. Click a building or press E nearby.',
+        ] : []),
       ], [{ texto: 'GO!  \u25b6', acao: () => {
         sessao.novoDia(); this.irPara('dia');
         if (sup) this.entregaPendente = this.time.delayedCall(1200, () => sessao.emitir('suprimento', sup.tipo));
@@ -831,7 +872,8 @@ export class Interface extends Phaser.Scene {
   // Morning, night and end panels: the same size as a task panel (660 x 480 at the UI scale), told as a
   // chat. The messages arrive one by one, each after a moment of "typing...". When they do not all fit,
   // they go on pages: NEXT shows the following page, the real buttons wait on the last one. A click or
-  // ENTER first shows the whole page at once.
+  // ENTER first shows the whole page at once. The window shrinks on small screens so it always fits;
+  // { imediato } skips the typing and shows the page at once (the mobile instructions panel).
   private abrirPainel(titulo: string, quem: Remetente, partes: Parte[], botoes: Botao[], opcoes: { imediato?: boolean } = {}) {
     this.fecharPainel();
     if (quem===CONTROLE) tocarSfx('radio');

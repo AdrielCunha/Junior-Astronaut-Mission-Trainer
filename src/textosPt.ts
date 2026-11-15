@@ -463,6 +463,8 @@ export const PT: Record<string, Traducao> = {
   "Board the ship  ▶": "Embarcar na nave  ▶",
   "Calm Sun. No Shield needed today.": "Sol calmo. Hoje não precisa de Escudo.",
   "Cold night: {} \u00b0C! Heating needs {} batteries.": "Noite fria: {} °C! O Aquecimento precisa de {} baterias.",
+  "END DAY": "FIM DO DIA",
+  "MENU": "MENU",
   "END DAY  \u25b6": "FIM DO DIA  ▶",
   "Engines: batteries delivered today": "Motores: baterias entregues hoje",
   "Exploring \u00b7 {}": "Explorando · {}",

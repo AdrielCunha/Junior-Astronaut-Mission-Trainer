@@ -28,7 +28,7 @@ export function passoAtual(c: ContextoGuia): Passo {
   return 'fim';
 }
 
-export function descrever(passo: Passo, _c?: ContextoGuia, movel = false): Descricao | null {
+export function descrever(passo: Passo, c?: ContextoGuia, movel = false): Descricao | null {
   // Touch screens: the joystick and the USE / JUMP buttons instead of the keys.
   if (movel) {
     switch (passo) {
@@ -38,7 +38,9 @@ export function descrever(passo: Passo, _c?: ContextoGuia, movel = false): Descr
       case 'suporte': return { teclas: ['USE'], texto: 'Give 1 battery to Life Support', alvo: 'suporte' };
       case 'oficina': return { teclas: ['USE'], texto: 'Now 1 to the Rocket Workshop', alvo: 'oficina' };
       case 'resto': return { teclas: ['USE'], texto: 'Give the rest to any room', alvo: 'salas' };
-      case 'fim': return { teclas: ['END DAY'], texto: 'All used! Tap END DAY', alvo: 'fim' };
+      case 'fim': return (c?.carregando ?? 0) > 0 || (c?.noHabitat ?? 0) > 0
+        ? { teclas: ['USE'], texto: 'Deliver the remaining batteries', alvo: 'salas' }
+        : { teclas: ['END DAY'], texto: 'All used! Tap END DAY', alvo: 'fim' };
       default: return null;
     }
   }

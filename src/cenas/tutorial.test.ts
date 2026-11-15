@@ -39,6 +39,7 @@ test('mobile guide shows touch controls without desktop keyboard hints', () => {
   assert.deepEqual(descrever('mover', base, true)!.teclas, ['MOVE']);
   assert.deepEqual(descrever('pular', base, true)!.teclas, ['JUMP']);
   assert.deepEqual(descrever('banco', base, true)!.teclas, ['USE']);
+  assert.equal(descrever('banco', base, true)!.alvo, 'banco');
   assert.deepEqual(descrever('fim', { ...base, noHabitat: 0 }, true)!.teclas, ['END DAY']);
 });
 

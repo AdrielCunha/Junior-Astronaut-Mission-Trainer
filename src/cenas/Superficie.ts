@@ -735,6 +735,9 @@ export class Superficie extends Phaser.Scene {
     if (c) this.usar(c);
   }
 
+  // The USE button of the touch controls (mobile.ts): the same as E.
+  interagirPerto() { this.usarPerto(); }
+
   // ---------- ship stations (engine/estacoes.ts) ----------
   private pertoDeco(d: DecoColocada) {
     const dx = Math.max(d.gx - this.corpo.x, 0, this.corpo.x - (d.gx + d.w));
@@ -808,9 +811,6 @@ export class Superficie extends Phaser.Scene {
       if (ver) m.c.setY((m.c.getData('y0') as number) + k);
     }
   }
-
-  // The USE button of the touch controls (mobile.ts): the same as E.
-  interagirPerto() { this.usarPerto(); }
 
   private usar(c: Construcao) {
     if (sessao.rover?.dirigindo) return;
@@ -902,7 +902,7 @@ export class Superficie extends Phaser.Scene {
       this.plantarBandeira(gx, gy);
       return;
     }
-    sessao.emitir('mensagem', dispositivoMovel() ? '🚙 Walk to the rover, then tap USE.' : '🚙 Walk to the rover, then press E.', '#fde68a');
+    sessao.emitir('mensagem', dispositivoMovel() ? 'Move closer to the rover and tap USE to drive.' : 'Walk closer to the rover and press E to drive.', '#fde68a');
   }
 
   private alternarRover() {
@@ -917,7 +917,9 @@ export class Superficie extends Phaser.Scene {
       if (!sessao.roverCarregado) {
         this.rota = []; this.alvoRover = false; this.alvoUsar = null; this.recolherBandeira();
         if (sessao.carregando < 1) {
-          sessao.emitir('mensagem', `🚙 Rover needs 1 battery. Bring one from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}!`, '#fde68a');
+          sessao.emitir('mensagem', dispositivoMovel()
+            ? `Rover battery empty. Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}, then tap USE to install it. One battery lasts all day.`
+            : `Rover battery empty. Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}, then press E or click the rover to install it. One battery lasts all day.`, '#fde68a');
           return;
         }
         this.abastecerRover();
@@ -929,7 +931,9 @@ export class Superficie extends Phaser.Scene {
     }
     this.rota = []; this.alvoUsar = null; this.alvoRover = false;
     this.recolherBandeira(); this.seguir = true;
-    sessao.emitir('mensagem', r.dirigindo ? (dispositivoMovel() ? '🚙 Joystick to drive. USE to get out.' : '🚙 WASD to drive. E to get out.') : (dispositivoMovel() ? '🧑 On foot! USE near the rover to drive.' : '🧑 On foot! E near the rover to drive.'), '#93c5fd');
+    sessao.emitir('mensagem', dispositivoMovel()
+      ? r.dirigindo ? 'Rover: use the joystick to drive and tap USE to get out.' : 'Back on foot! Tap USE near the rover to drive again.'
+      : r.dirigindo ? 'Rover: WASD / arrows to drive, E or click the rover to get out. Click the ground to drive there.' : 'Back on foot! Press E near the rover to drive again.', '#93c5fd');
     sessao.emitir('estado');
     const vista = sessao.mundo === 'marte' ? sessao.curiosidadeRoverMarteVista : sessao.curiosidadeRoverVista;
     if (r.dirigindo && !vista) this.scene.launch('CuriosidadeRover');

@@ -27,10 +27,11 @@ export function instalarControlesMoveis(jogo: import('phaser').Game) {
   if (!dispositivoMovel()) return;
   const controles = document.createElement('div');
   controles.id = 'controles-moveis';
-  controles.innerHTML = '<div class="joystick" aria-label="Move"><img class="joystick-arte" src="icons/lunar-v6/controle_move.svg" alt="" aria-hidden="true"><div class="joystick-manopla"></div></div><div class="botoes-moveis"><button type="button" class="botao-movel" data-acao="pular" aria-label="Jump"><img src="icons/lunar-v6/botao_jump.svg" alt="" aria-hidden="true"></button><button type="button" class="botao-movel botao-acao" data-acao="usar" aria-label="Use"><img src="icons/lunar-v6/botao_use.svg" alt="" aria-hidden="true"></button></div>';
+  controles.innerHTML = '<div class="joystick-area" aria-label="Move"><div class="joystick"><img class="joystick-arte" src="icons/lunar-v6/controle_move.svg" alt="" aria-hidden="true"><div class="joystick-manopla"></div></div></div><div class="botoes-moveis"><button type="button" class="botao-movel" data-acao="pular" aria-label="Jump"><img src="icons/lunar-v6/botao_jump.svg" alt="" aria-hidden="true"></button><button type="button" class="botao-movel botao-acao" data-acao="usar" aria-label="Use"><img src="icons/lunar-v6/botao_use.svg" alt="" aria-hidden="true"></button></div>';
   document.body.appendChild(controles);
 
   const stick = controles.querySelector<HTMLElement>('.joystick')!;
+  const area = controles.querySelector<HTMLElement>('.joystick-area')!;
   const manopla = controles.querySelector<HTMLElement>('.joystick-manopla')!;
   let pointerId: number | null = null;
   const mover = (ev: PointerEvent) => {
@@ -47,23 +48,28 @@ export function instalarControlesMoveis(jogo: import('phaser').Game) {
     controleMovel.x = Math.hypot(dx, dy) > 0.15 ? dx : 0;
     controleMovel.y = Math.hypot(dx, dy) > 0.15 ? dy : 0;
   };
-  stick.addEventListener('pointerdown', (ev) => {
+  area.addEventListener('pointerdown', (ev) => {
     ev.preventDefault(); ev.stopPropagation();
-    if (pointerId !== null) return;
+    if (pointerId !== null || !controles.classList.contains('visivel')) return;
     pointerId = ev.pointerId;
-    stick.setPointerCapture(pointerId);
-    mover(ev);
+    const r = stick.getBoundingClientRect(), a = area.getBoundingClientRect();
+    // Place the ring's centre under the finger without introducing initial movement.
+    stick.style.left = `${ev.clientX-a.left-r.width*0.507}px`;
+    stick.style.top = `${ev.clientY-a.top-r.height*0.562}px`;
+    stick.style.bottom = 'auto';
+    area.setPointerCapture(pointerId);
   });
-  stick.addEventListener('pointermove', (ev) => { if (pointerId === ev.pointerId) { ev.preventDefault(); mover(ev); } });
-  const soltar = (ev: PointerEvent) => {
-    if (pointerId !== ev.pointerId) return;
+  area.addEventListener('pointermove', (ev) => { if (pointerId === ev.pointerId) { ev.preventDefault(); mover(ev); } });
+  const zerarJoystick = () => {
     pointerId = null;
     controleMovel.x = controleMovel.y = 0;
     manopla.style.transform = '';
+    stick.style.left = ''; stick.style.top = ''; stick.style.bottom = '';
   };
-  stick.addEventListener('pointerup', soltar);
-  stick.addEventListener('pointercancel', soltar);
-  stick.addEventListener('lostpointercapture', soltar);
+  const soltar = (ev: PointerEvent) => { if (pointerId === ev.pointerId) zerarJoystick(); };
+  area.addEventListener('pointerup', soltar);
+  area.addEventListener('pointercancel', soltar);
+  area.addEventListener('lostpointercapture', soltar);
 
   const pulo = controles.querySelector<HTMLButtonElement>('[data-acao="pular"]')!;
   pulo.addEventListener('pointerdown', (ev) => {
@@ -92,12 +98,12 @@ export function instalarControlesMoveis(jogo: import('phaser').Game) {
     const habilitado = superficie?.scene.isActive() && superficie.scene.isVisible() && superficie.input.enabled
       && !jogo.scene.isActive('Radar') && !jogo.scene.isActive('MenuJogo') && !jogo.scene.isActive('EditorBase');
     controles.classList.toggle('visivel', !!habilitado);
-    if (!habilitado) { limparControleMovel(); manopla.style.transform = ''; }
+    if (!habilitado) { limparControleMovel(); zerarJoystick(); }
   };
   jogo.events.on('poststep', atualizar);
   atualizar();
-  window.addEventListener('blur', limparControleMovel);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) limparControleMovel(); });
+  window.addEventListener('blur', () => { limparControleMovel(); zerarJoystick(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { limparControleMovel(); zerarJoystick(); } });
 }
 
 export function instalarOrientacaoMovel() {

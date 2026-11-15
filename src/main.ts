@@ -540,8 +540,8 @@ const jogo = new Phaser.Game({
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;
-instalarIdioma(jogo);
 instalarResolucaoMovel(jogo);
+instalarIdioma(jogo);
 if (!classico) instalarControlesMoveis(jogo);
 instalarOrientacaoMovel();
 // Dev server only: the DEV button that jumps to the trip and Mars scenes (not in the production build).

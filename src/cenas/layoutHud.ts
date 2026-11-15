@@ -14,10 +14,14 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
     // Keep the main meters centered while leaving room for the menu and END DAY on the right.
     const maximoGrupo = largura - 2 * (margem + lado + espaco);
     const diametro = Math.min(px(58), Math.floor((maximoGrupo - 2 * entreCirculos) / 3));
-    const larguraObjetivo = Math.min(px(320), largura - 2 * (margem + lado + espaco));
-    const objetivo = { x: Math.round((largura - larguraObjetivo) / 2), y: margem, w: larguraObjetivo, h: px(38) };
-    const topo = objetivo.y + objetivo.h + espaco;
     const menu = { x: largura - margem - lado, y: margem, w: lado, h: lado };
+    // Match the desktop's 128 x 38 reference, including space for the play arrow.
+    const escalaFim = Math.max(u, 1), larguraFimDia = Math.round(128 * escalaFim), alturaFimDia = Math.round(38 * escalaFim);
+    const fimDia = { x: menu.x - px(20) - larguraFimDia, y: margem, w: larguraFimDia, h: alturaFimDia };
+    // Keep the task centred on the screen, shrinking symmetrically only when the button needs room.
+    const larguraObjetivo = Math.min(px(320), largura - 2 * margem, Math.max(0, 2 * (fimDia.x - espaco) - largura));
+    const objetivo = { x: Math.round((largura - larguraObjetivo) / 2), y: margem, w: larguraObjetivo, h: px(38) };
+    const topo = Math.max(objetivo.y + objetivo.h, fimDia.y + fimDia.h) + espaco;
     const titulo = { x: margem, y: topo, w: 0, h: 0 };
     const larguraGrupo = 3 * diametro + 2 * entreCirculos;
     const recursos = Array.from({ length: 3 }, (_, i) => ({ x: Math.round((largura - larguraGrupo) / 2) + i * (diametro + entreCirculos), y: topo, w: diametro, h: diametro }));
@@ -25,15 +29,13 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
     const diametroRecurso = Math.min(px(42), Math.floor((maximoGrupo - 4 * espaco) / 5));
     const larguraRecursos = 5 * diametroRecurso + 4 * espaco;
     const capsula = { x: Math.round((largura - larguraRecursos) / 2), y: altura - margem - px(24) - diametroRecurso, w: larguraRecursos, h: diametroRecurso };
-    const gapMenu = px(20), larguraFimDia = px(116);
-    const fimDia = { x: menu.x - gapMenu - larguraFimDia, y: margem, w: larguraFimDia, h: lado };
     const passo = lado + espaco;
     const zoomY = menu.y + menu.h + espaco;
     const zoom = Array.from({ length: 3 }, (_, i) => ({ x: largura - margem - lado, y: zoomY + i * passo, w: lado, h: lado }));
     const controles = { x: largura - margem - lado, y: zoomY + 3 * passo, w: lado, h: lado };
     const editar = { x: largura - margem - lado, y: zoomY + 4 * passo, w: lado, h: lado };
     const nivel = { x: editar.x - px(12), y: editar.y + editar.h + espaco, w: lado + px(12), h: px(28) };
-    const avisoY = faixa.h + espaco;   // notices and the guide pill go under the round meters
+    const avisoY = faixa.y + faixa.h + espaco;   // notices and the guide pill go under the round meters
     const dicasCompactas = true, painelW = Math.min(px(260), largura - 2 * margem), abaW = px(24), painelH = px(148);
     const dicasPainel = { x: margem, y: Math.max(objetivo.y + objetivo.h + espaco, Math.round(altura * 0.5)), w: painelW, h: painelH };
     const dicasAba = { x: painelW - abaW, y: painelH - lado, w: abaW, h: lado };
@@ -72,8 +74,9 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
   const menu = caixa(centroZoom - lado / 2, zoomY, lado, lado);
   const zoom = Array.from({ length: 3 }, (_, i) => caixa(centroZoom - lado / 2, zoomY + (i + 1) * passo, lado, lado));
   const editar = caixa(centroZoom - lado / 2, zoomY + 4 * passo, lado, lado);
+  // Touch-only Controls button: the desktop HUD never creates it, so it reuses the editor slot.
+  const controles = editar;
   const nivel = caixa(largura - margem - nivelW, zoomY + zoomAltura + espaco, nivelW, nivelH);
-  const controles = editar;   // the instructions button only exists on phones (see the phone grid above)
   const fimDia = caixa(largura - margem - px(128), altura - margem - lado, px(128), lado);
   const dicasW = px(570), dicasCompactas = dicasW + espaco > fimDia.x - margem;
   const abaW = px(24), painelW = dicasCompactas ? Math.min(px(260), util - abaW) : dicasW;
