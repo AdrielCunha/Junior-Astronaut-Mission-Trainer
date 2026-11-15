@@ -106,10 +106,10 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   botao('Chapter 3: Mars (3D, playable)', marte3D);
   botao('Mars, zoom out to space', () => {
     marte3D();
-    // Once the Mars scenes are up, close the morning report and zoom out (Interface opens MarteVista).
+    // Once the Mars scenes are up, close the morning report and zoom out (the Mars film).
     depois(1500, () => {
       (sm.getScene('Interface') as unknown as { fecharPainel?: () => void }).fecharPainel?.();
-      sessao.emitir('zoomMarte');
+      sessao.voar('lua');
     });
   });
   titulo('Mars map');

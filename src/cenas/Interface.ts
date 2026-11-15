@@ -162,7 +162,6 @@ export class Interface extends Phaser.Scene {
     sessao.ouvir(this, 'mensagem', (s, cor) => this.mensagem(s, cor));
     sessao.ouvir(this, 'desbloqueado', () => this.atualizar());
     sessao.ouvir(this, 'estado', () => this.atualizar());
-    sessao.ouvir(this, 'zoomMarte', () => this.zoomMarte());
 
     this.atualizar();
     if (sessao.partidaRestaurada) {
@@ -685,15 +684,6 @@ export class Interface extends Phaser.Scene {
   // keeping its radiation dose and the score so far.
   private iniciarPrototipo(e: Estado) {
     iniciarNave3D(this, e.dose, [pontuacao(e)]);
-  }
-
-  // Mars: zooming out past the ground opens MarteVista (the Mars film, live globe with its
-  // moons, the solar system). The map waits under it, like during a task.
-  private zoomMarte() {
-    if (sessao.emTarefa || this.scene.isActive('MarteVista')) return;
-    sessao.emTarefa = true;
-    this.scene.launch('MarteVista', { data: sessao.data, aoVoltar: () => { sessao.emTarefa = false; sessao.irPara(sessao.u); } });
-    this.scene.bringToTop('MarteVista');
   }
 
   private fecharPainel() {
