@@ -1,22 +1,31 @@
-// Generated with AI assistance (Claude). See README, "Use of AI tools".
-// Background music. A plain HTMLAudioElement is used so playback can start on the first user
-// gesture, as browsers require, and so a scene restart on resize does not restart the track.
 const VOLUME = 0.3;
 const CHAVE_MUDO = 'lunar-odyssey-mudo';
 const CHAVE_VOLUME = 'lunar-odyssey-volume-musica';
 const BASE = import.meta.env.BASE_URL;
 
-const FAIXAS = {
-  lua: { nome: 'lunar-odyssey-theme', alternativa: 'm4a' },
-  nave: { nome: 'Beneath_the_Silver_Tide', alternativa: 'm4a' },
-  marte: { nome: 'Across_the_Crimson_Basin-aero', alternativa: 'mp4' },
-} as const;
+export type AmbienteAudio = 'inicio' | 'lua' | 'nave' | 'marte';
+
+const MUSICAS_POR_AMBIENTE: Record<AmbienteAudio, string> = {
+  inicio: 'Aventura-Espacial-8-Bit',
+  lua: 'lunar-odyssey-theme',
+  nave: 'Beneath_the_Silver_Tide',
+  marte: 'Across_the_Crimson_Basin-aero',
+};
 
 let audio: HTMLAudioElement | null = null;
-let faixaAtual: keyof typeof FAIXAS = 'lua';
+let ambienteAtual: AmbienteAudio = 'inicio';
 let iniciado = false;
 let mudo = lerMudo();
-let volume = (() => { try { const salvo = localStorage.getItem(CHAVE_VOLUME); if (salvo === null) return 0.7; const n = Number(salvo); return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.7; } catch { return 0.7; } })();
+let volume = (() => {
+  try {
+    const salvo = localStorage.getItem(CHAVE_VOLUME);
+    if (salvo === null) return 0.7;
+    const n = Number(salvo);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.7;
+  } catch {
+    return 0.7;
+  }
+})();
 
 function lerMudo() {
   try { return localStorage.getItem(CHAVE_MUDO) === '1'; } catch { return false; }
@@ -26,15 +35,14 @@ function salvarMudo() {
   try { localStorage.setItem(CHAVE_MUDO, mudo ? '1' : '0'); } catch { /* private mode */ }
 }
 
-function carregarFaixa(el: HTMLAudioElement, fase: keyof typeof FAIXAS) {
-  const { nome, alternativa } = FAIXAS[fase];
+function carregarFaixa(el: HTMLAudioElement, nome: string) {
   el.replaceChildren();
 
   const ogg = document.createElement('source');
   ogg.src = `${BASE}audio/${nome}.ogg`;
   ogg.type = 'audio/ogg; codecs="opus"';
   const m4a = document.createElement('source');
-  m4a.src = `${BASE}audio/${nome}.${alternativa}`;
+  m4a.src = `${BASE}audio/${nome}.m4a`;
   m4a.type = 'audio/mp4; codecs="mp4a.40.2"';
 
   el.append(ogg, m4a);
@@ -44,16 +52,31 @@ function carregarFaixa(el: HTMLAudioElement, fase: keyof typeof FAIXAS) {
 function criarAudio() {
   if (audio) return audio;
   audio = new Audio();
-  audio.preload = 'none';
   audio.loop = true;
+  audio.preload = 'none';
   audio.volume = VOLUME * volume * volume;
   audio.style.display = 'none';
 
-  carregarFaixa(audio, faixaAtual);
+  carregarFaixa(audio, MUSICAS_POR_AMBIENTE[ambienteAtual]);
 
   document.body.append(audio);
   return audio;
 }
+
+export function definirAmbienteMusica(ambiente: AmbienteAudio) {
+  if (ambiente === ambienteAtual && audio) return;
+  ambienteAtual = ambiente;
+
+  const a = criarAudio();
+  const estavaTocando = !a.paused;
+  carregarFaixa(a, MUSICAS_POR_AMBIENTE[ambienteAtual]);
+
+  if (!mudo && (estavaTocando || iniciado)) {
+    tocar();
+  }
+}
+
+export function definirMusicaDaFase(fase: Exclude<AmbienteAudio, 'inicio'>) { definirAmbienteMusica(fase); }
 
 function esperarInteracao() {
   window.addEventListener('pointerdown', primeiraInteracao);
@@ -79,16 +102,6 @@ export function iniciarAudio() {
   iniciado = true;
   criarAudio();
   if (!mudo) esperarInteracao();
-}
-
-// Keep the chapter's track through tasks, day changes and scene restarts.
-export function definirMusicaDaFase(fase: keyof typeof FAIXAS) {
-  if (faixaAtual === fase) return;
-  faixaAtual = fase;
-  if (!audio) return;
-  audio.pause();
-  carregarFaixa(audio, fase);
-  if (iniciado && !mudo) tocar();
 }
 
 export function estaMudo() {

@@ -4,21 +4,23 @@
 import Phaser from 'phaser';
 import { definirMusicaDaFase } from '../audio';
 import { movimentoReduzido, configuracoesAbertas } from '../video';
+import { localeData } from '../idioma';
 import terrenoJson from '../dados/terreno.json';
 import terrenoMarteJson from '../dados/terreno_marte.json';
 import terrenoNaveJson from '../dados/terreno_nave.json';
 import { definirGravidade, G_LUA, G_MARTE, G_TERRA, type Corpo } from '../engine/fisica';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { EVENTOS, haEventoHoje, esperaDoEvento, esperaDoAlarme, alarmeDoDia, type EventoDef } from '../engine/eventos';
+import { sortearCondicoes, type Condicao } from '../engine/condicoes';
 import type { Expedicao } from '../engine/expedicao';
 import { haExploracaoHoje, esperaDaExploracao } from '../engine/exploracao';
-import { lerPartida, gravarPartida } from '../salvamento';
+import { lerPartida, gravarPartida, apagarPartida, liberarBases } from '../salvamento';
 import { LAYOUT, LAYOUT_VERSAO } from '../dados/layout';
 import { Grade, TIPOS, ROTACAO_LAYOUT, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
-import { VOO as voo } from './qualidade';
+import { VOO as voo, usarFilme } from './qualidade';
 import { CAPITULOS } from '../capitulos';
-import { inicioDoCapitulo, bateriasDoDia, nenhuma, type Alocacao, type Efeito, type Estado } from '../regras';
+import { inicioDoCapitulo, resultado, bateriasDoDia, nenhuma, type Alocacao, type Efeito, type Estado } from '../regras';
 
 import { TempestadeSolar } from './tempestadeSolar';
 import type { Rover } from '../engine/rover';
@@ -49,9 +51,15 @@ export const S_MAX = S_MAPA * ZOOM_MAX;
 export const U_CHAO = Math.log(ZOOM_MAX / ZOOM_MIN);
 export const U_INICIAL = Math.log(ZOOM_MAX / 1.1);
 export const RAIO_LUA = 1737.4;             // km
+export const RAIO_MARTE = 3396.19;          // km
 const AU = 149597870.7;
 // How far the elastic zoom goes past the solar system view, in log units: out to Neptune.
 export const ELASTICO_MAX = 3.2;
+// The zoom out past the solar system stops at three distances (log zoom units past the view):
+// the resting view (out to Mars), the giants (Jupiter and Saturn), the whole system (Neptune and
+// the Kuiper belt). Each push plays an animated glide to the next one.
+export const PARADAS_ELASTICAS = [0, 1.75, ELASTICO_MAX];
+const VOLTA_ELASTICA_S = 3;                 // left idle at a farther stop, the view glides back after this
 export const sDeU = (u: number) => S_MAX * Math.exp(-u);
 export const DURACAO_FILME = 4.6;           // s for the film part, ground <-> Moon
 // Timing of the flight (its frames are spaced evenly in log distance, so a constant rate looks
@@ -91,16 +99,15 @@ export type Eventos = {
   suprimento: [TipoId];               // a cargo lander is bringing this today
   desbloqueado: [Construcao];         // it landed and is part of the base
   pulo: [];
-  zoomMarte: [];                      // on Mars, zooming out past the ground opens MarteVista
   controleUsado: ['movimento' | 'pulo'];
   pousoFoguete: [() => void];        // after the launch film: the rocket lands on the pad, then calls back
 };
 
 class Sessao {
-  explorando = false;
   puloTouch = false;
   posicaoAstronauta: Corpo | null = null;
   partidaRestaurada = false;
+  explorando = false;       // EXPLORE A BASE in another world: no saving, the real game comes back on reload
   abastecendoRover = false;
   editandoBase = false;
   ultimoDia: RelatorioDia | null = null;
@@ -112,8 +119,13 @@ class Sessao {
     return Math.min(100,this.estado.meta+(this.mundo==='lua' && this.fase==='dia' ? this.entregas.meta*this.C.metaPorBateria : 0));
   }
 
+  // The chapter ended and the crew did not make it: the next game starts over.
+  get perdeu() { return this.fase === 'fim' && resultado(this.estado, this.C) !== 'vitoria'; }
+
   salvar() {
     if (this.explorando || !this.grade.lista.length || this.partida || this.abastecendoRover) return false;
+    if (this.perdeu) { apagarPartida(); return false; }
+    if (this.fase !== 'inicio') liberarBases(this.capIdx);
     return gravarPartida({versao:1,salvoEm:Date.now(),layout:LAYOUT_VERSAO,mundo:this.mundo,capIdx:this.capIdx,fase:this.fase,
       estado:this.estado,entregas:this.entregas,pontos:this.pontos,carregando:this.carregando,noHabitat:this.noHabitat,
       tarefasHoje:[...this.tarefasHoje],ultimaTarefa:this.ultimaTarefa,energiaHoje:this.energiaHoje,
@@ -124,7 +136,8 @@ class Sessao {
       tempestade:{restante:this.tempestade.restante,status:this.tempestade.status},danoTempestade:this.danoTempestade,
       bateriasTempestade:this.bateriasTempestade,desfechoPendente:this.desfechoPendente,ultimoDia:this.ultimoDia,
       evento:this.evento ? {id:this.evento.def.id,construcaoId:this.evento.construcaoId}:null,
-      eventoEm:this.eventoEm,ultimoEvento:this.ultimoEvento,diasCalmos:this.diasCalmos,tempoCalmo:this.tempoCalmo,pulou:this.pulou});
+      eventoEm:this.eventoEm,ultimoEvento:this.ultimoEvento,diasCalmos:this.diasCalmos,tempoCalmo:this.tempoCalmo,pulou:this.pulou,
+      condicoes:this.condicoes,alarmePendente:!!this.alarmeHoje});
   }
 
   atualizarSalvamento(dt: number) {
@@ -137,6 +150,7 @@ class Sessao {
   restaurarPartida() {
     const d=lerPartida();
     if (!d) return false;
+    if (d.fase==='fim' && resultado(d.estado,CAPITULOS[d.capIdx].config)!=='vitoria') { apagarPartida(); return false; }
     try {
       this.capIdx=d.capIdx; this.usarMundo(d.mundo);
       // A save from before the current layout: each module moves to the layout's spot for its type
@@ -171,8 +185,11 @@ class Sessao {
       this.tempestade.restante=d.tempestade.restante; this.tempestade.status=d.tempestade.status;
       this.danoTempestade=d.danoTempestade; this.bateriasTempestade=d.bateriasTempestade;
       this.desfechoPendente=d.desfechoPendente; this.ultimoDia=d.ultimoDia;
-      this.alarmeHoje=d.mundo==='lua'?alarmeDoDia(d.estado.dia)??null:null;
-      const def=d.evento ? EVENTOS.find(e=>e.id===d.evento!.id) ?? (this.alarmeHoje?.id===d.evento.id?this.alarmeHoje:null) : null;
+      this.condicoes=d.condicoes ?? sortearCondicoes(this.C.dias);
+      const alarmeDia=d.mundo==='lua'?alarmeDoDia(d.estado.dia)??null:null;
+      // Still pending only if it had not fired yet (older saves: while its countdown runs).
+      this.alarmeHoje=alarmeDia&&(d.alarmePendente ?? d.eventoEm!==null)?alarmeDia:null;
+      const def=d.evento ? EVENTOS.find(e=>e.id===d.evento!.id) ?? (alarmeDia?.id===d.evento.id?alarmeDia:null) : null;
       this.evento=def && d.evento && this.grade.lista.some(c=>c.id===d.evento!.construcaoId) ? {def,construcaoId:d.evento.construcaoId}:null;
       this.eventoEm=d.eventoEm; this.ultimoEvento=d.ultimoEvento; this.diasCalmos=d.diasCalmos; this.tempoCalmo=d.tempoCalmo??0; this.pulou=d.pulou;
       this.partidaRestaurada=true;
@@ -206,11 +223,17 @@ class Sessao {
   evento: { def: EventoDef; construcaoId: number } | null = null;
   eventoEm: number | null = null;   // seconds of play until today's event happens (null: none today)
   alarmeHoje: EventoDef | null = null;   // today's real NASA event, if the Sun did something
+  condicoes: (Condicao | null)[] = [];   // random condition of each chapter day (engine/condicoes.ts), index 0 = day 1
+  get condicaoHoje(): Condicao | null { return this.condicoes[this.estado.dia - 1] ?? null; }
+  get bateriasHoje() { return Math.max(1, bateriasDoDia(this.estado, this.C) - (this.condicaoHoje === 'sol' ? 1 : 0)); }
   energiaHoje = false;      // the energy task of picking up the batteries was already played today
   odometroRover = 0;        // tiles driven today (paralama-tarefa.ts: the fender breaks after a while)
   paralamaHoje = false;     // the fender already broke (and was fixed) today
   expedicao: Expedicao | null = null;   // flags to drive or walk through (engine/expedicao.ts)
   corridaHoje = false;      // the rover delivery run was already offered today
+  // Side missions (breakdowns, expeditions, the delivery run) wait while a main real-data event is pending or
+  // open, and only one mission at a time.
+  get podeMissaoSecundaria() { return !this.evento && !this.expedicao && this.tempestade.status !== 'alerta' && !this.alarmeHoje; }
   estacoesHoje = new Set<string>();   // ship stations already used today (engine/estacoes.ts)
   exploracaoEm: number | null = null;   // seconds of play until today's exploration event (null: none today)
   ultimaExploracao?: string;
@@ -263,8 +286,10 @@ class Sessao {
   // Switches the terrain, the base layout and gravity to another world. The terrain data is
   // changed IN PLACE: scenes keep references to dadosTerreno and its projection (Superficie's P).
   usarMundo(m: Mundo) {
+    if (m !== this.mundo) this.filmePronto = false;   // the other world's flight film loads next
     this.mundo = m;
     definirMusicaDaFase(m);
+    usarFilme(m);
     const fonte = m === 'marte' ? terrenoMarteJson : m === 'nave' ? terrenoNaveJson : TERRENO_LUA;
     const d = dadosTerreno as unknown as Record<string, unknown>;
     const img = dadosTerreno.imagem;
@@ -306,6 +331,7 @@ class Sessao {
     this.tarefasHoje.clear(); this.estacoesHoje.clear();
     this.ultimaTarefa = {};
     this.evento = null; this.eventoEm = null; this.alarmeHoje = null; this.energiaHoje = false; this.ultimoEvento = undefined; this.diasCalmos = 0; this.tempoCalmo = 0;
+    this.condicoes = sortearCondicoes(this.C.dias);
     this.odometroRover = 0; this.paralamaHoje = false; this.expedicao = null; this.corridaHoje = false; this.exploracaoEm = null;
     this.emTarefa = false;
     this.vista = 'chao';
@@ -323,7 +349,7 @@ class Sessao {
   // voo.sInicio px/km, their last the globe at voo.diametroFim px: both views follow from it.
   get escalaFilme() { return Math.max(this.tela.w / voo.w, this.tela.h / voo.h); }
   get uFilme() { return uDeS(voo.sInicio * this.escalaFilme); }
-  get uGlobo() { return uDeS((voo.diametroFim * this.escalaFilme) / (2 * RAIO_LUA)); }
+  get uGlobo() { return uDeS((voo.diametroFim * this.escalaFilme) / (2 * (this.mundo === 'marte' ? RAIO_MARTE : RAIO_LUA))); }
   // Where the flight is now, p = 0 (the map) .. 1 (the Moon view), or null when not flying it.
   // p is the camera's log distance, the axis the frames were rendered on (voo.p).
   get quadroFilme(): number | null {
@@ -337,14 +363,24 @@ class Sessao {
   // The view stops at Mars, so it fills the screen: Mars's whole orbit (out to 1.67 AU) fits the
   // width and, squashed by the tilt (0.6), the height.
   get uSistema() { return uDeS(Math.min((0.45 * this.tela.w) / 1.7, (0.36 * this.tela.h) / (1.7 * 0.6)) / AU); }
-  // Elastic zoom past the solar system view (like scrolling past the end of a list on a phone):
-  // pulling out shows the outer planets, harder and harder; let go and it springs back.
-  // puxo = how hard it was pulled (log zoom units); elastico = how far out the view really is.
-  puxo = 0;
-  private ultimoPuxo = 0;
-  // The view glides to where the pull asks (no jump per wheel notch): elastico is that glide.
-  elastico = 0;
-  private get alvoElastico() { return ELASTICO_MAX * (1 - Math.exp(-this.puxo / ELASTICO_MAX)); }
+  // Zoom out past the solar system view, in three stops (PARADAS_ELASTICAS): each push of the
+  // wheel or the buttons glides to the next one, a pull in to the one before. Left 3 s at a
+  // farther stop (game time, so a touchpad's trailing wheel events do not keep it there), the
+  // view glides back to the resting one by itself.
+  paradaElastica = 0;
+  elastico = 0;                             // how far out the view is now (log zoom units)
+  private animElastico: { de: number; para: number; t: number; dur: number } | null = null;
+  private paradoElastico = 0;               // seconds at the current stop
+  get segundosParaVoltar() { return Math.max(0, VOLTA_ELASTICA_S - this.paradoElastico); }
+  private irParadaElastica(i: number) {
+    i = Phaser.Math.Clamp(i, 0, PARADAS_ELASTICAS.length - 1);
+    this.paradoElastico = 0;
+    if (i === this.paradaElastica) return;
+    this.paradaElastica = i;
+    const para = PARADAS_ELASTICAS[i];
+    this.animElastico = movimentoReduzido() ? null : { de: this.elastico, para, t: 0, dur: 1.1 + 0.3 * Math.abs(para - this.elastico) };
+    if (!this.animElastico) this.elastico = para;
+  }
   // 0..1 ground, 1..2 flying to the globe, 2..3 out to the planets (for fades and labels).
   get nivel() {
     const u = this.u, g = this.uGlobo;
@@ -366,10 +402,11 @@ class Sessao {
       if (this.empurrao > 0.35) this.voar('lua');
       return;
     }
-    if (this.vista === 'sistema' && this.mundo === 'lua' && (d > 0 || this.puxo > 0)) {
-      this.puxo = Math.max(0, this.puxo + d * 2);
-      this.ultimoPuxo = performance.now();
-      this.empurrao = 0;
+    if (this.vista === 'sistema' && this.mundo !== 'nave' && (d > 0 || this.paradaElastica > 0)) {
+      if (this.animElastico) return;         // a glide plays to its end, like the flights
+      this.empurrao += d;
+      if (this.empurrao > 0.2) { this.empurrao = 0; this.irParadaElastica(this.paradaElastica + 1); }
+      else if (this.empurrao < -0.2) { this.empurrao = 0; this.irParadaElastica(this.paradaElastica - 1); }
       return;
     }
     this.empurrao += d;
@@ -377,18 +414,21 @@ class Sessao {
     else if (this.empurrao < -0.3) this.voar(this.vista === 'sistema' ? 'lua' : 'chao');
   }
 
+  // The film part of the flight. Mars's film zooms farther (Mars is bigger) and turns the view
+  // as it pulls back, so it runs a little longer: calmer for anyone who gets motion sick.
+  get duracaoFilme() { return DURACAO_FILME * (this.mundo === 'marte' ? 1.25 : 1); }
+
   // Plays the whole flight to another view; input waits until it lands.
   voar(destino: Vista) {
-    // Mars has no globe or film in Espaco: its zoom out is MarteVista (the Mars film, live globe
-    // and solar system), opened by Interface.
-    if (this.mundo === 'marte' && destino !== 'chao') { this.empurrao = 0; this.emitir('zoomMarte'); return; }
+    // Mars flies like the Moon: its own film (make_flight_marte.py), then its live globe, then
+    // the solar system, all in Espaco.
     if (this.mundo === 'nave' && destino !== 'chao') {
       this.empurrao = 0;
       this.emitir('mensagem', '🚀 On the ship to Mars! Look out: only stars.', '#93c5fd');
       return;
     }
     if (configuracoesAbertas || this.transicao) return;
-    this.empurrao = 0; this.puxo = 0; this.elastico = 0;
+    this.empurrao = 0; this.paradaElastica = 0; this.elastico = 0; this.animElastico = null; this.paradoElastico = 0;
     if (destino === this.vista) return;
     this.ancora = null;
     if (movimentoReduzido()) {
@@ -410,7 +450,7 @@ class Sessao {
       const Lf = Math.log(voo.razao);
       const Lg = ida ? Math.abs(this.uFilme - this.u) : Math.abs(this.uFilme - U_INICIAL);
       this.voo = { tipo: 'filme', fase: 'prep', de: this.u, para: ida ? this.uFilme : this.u, t: 0,
-        dur: ida ? (DURACAO_FILME * (Lg + Lf)) / Lf : 0.7, destino, sentido: ida ? 1 : -1, T: 0, Lg, Lf };
+        dur: ida ? (this.duracaoFilme * (Lg + Lf)) / Lf : this.mundo === 'marte' ? 0.05 : 0.7, destino, sentido: ida ? 1 : -1, T: 0, Lg, Lf };
       return;
     }
     const para = destino === 'lua' ? this.uGlobo : this.uSistema;
@@ -457,7 +497,7 @@ class Sessao {
         if (v.sentido < 0 && v.fase === 'prep') {                               // the Moon turns first
           v.t = Math.min(1, v.t + dt / v.dur);
           if (v.t < 1) return;
-          v.fase = 'filme'; v.t = 0; v.T = 0; v.dur = (DURACAO_FILME * (Lg + Lf)) / Lf;
+          v.fase = 'filme'; v.t = 0; v.T = 0; v.dur = (this.duracaoFilme * (Lg + Lf)) / Lf;
           return;
         }
         v.T = Math.min(1, (v.T ?? 0) + dt / v.dur);
@@ -482,13 +522,16 @@ class Sessao {
       this.u += (this.alvo - this.u) * (1 - Math.exp(-dt * 10));
       if (Math.abs(this.alvo - this.u) < 1e-4) this.u = this.alvo;
     } else {
-      // Let go (no pull for a moment): spring back to the solar system view, gently.
-      if (this.puxo > 0 && performance.now() - this.ultimoPuxo > 250) {
-        this.puxo *= Math.exp(-dt * 2.5);
-        if (this.puxo < 0.01) this.puxo = 0;
+      // The glide between the stops of the zoom out past the solar system, and the way back.
+      const a = this.animElastico;
+      if (a) {
+        a.t = Math.min(1, a.t + dt / a.dur);
+        this.elastico = a.de + (a.para - a.de) * (0.5 - 0.5 * Math.cos(Math.PI * a.t));   // ease in and out
+        if (a.t >= 1) this.animElastico = null;
+      } else if (this.paradaElastica > 0 && this.vista === 'sistema') {
+        this.paradoElastico += dt;
+        if (this.paradoElastico >= VOLTA_ELASTICA_S) this.irParadaElastica(0);
       }
-      this.elastico += (this.alvoElastico - this.elastico) * (1 - Math.exp(-dt * 5));
-      if (Math.abs(this.elastico) < 1e-4) this.elastico = 0;
       this.u = this.vista === 'lua' ? this.uGlobo : this.uSistema + this.elastico;   // follow screen size
     }
     this.empurrao *= Math.exp(-dt * 3);                                // a slow nudge does not fly
@@ -511,7 +554,7 @@ class Sessao {
     this.tempestade.iniciar(this.mundo === 'lua' ? this.dia.nivel : 0);
     this.entregas = nenhuma();
     this.carregando = 0;
-    this.noHabitat = bateriasDoDia(this.estado, this.C);
+    this.noHabitat = this.bateriasHoje;
     this.tarefasHoje.clear(); this.estacoesHoje.clear();
     // Maybe something breaks today; it happens a little while after the morning.
     this.evento = null;
@@ -559,8 +602,13 @@ export const fonte = (tamanho: number, cor = COR.texto, extra: Phaser.Types.Game
 
 // One formatter for the whole game: toLocaleDateString builds a new one on every call, which
 // cost ~7% of each frame in the solar system view (it runs every frame for the caption).
-const FORMATO_DATA = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-export const dataBonita = (t: number) => FORMATO_DATA.format(t);
+const FORMATOS_DATA = new Map<string, Intl.DateTimeFormat>();
+export const dataBonita = (t: number) => {
+  const locale = localeData();
+  let f = FORMATOS_DATA.get(locale);
+  if (!f) FORMATOS_DATA.set(locale, f = new Intl.DateTimeFormat(locale, { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }));
+  return f.format(t);
+};
 
 export const suave = (a: number, b: number, x: number) => {
   const t = Phaser.Math.Clamp((x - a) / (b - a), 0, 1);

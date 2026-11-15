@@ -10,21 +10,21 @@
 // drop the ones still in flight. Decoding here, two at a time, also avoids the stutter of decoding
 // 120 large images at once while the player walks around the base.
 import type Phaser from 'phaser';
-import { VOO as voo, quadroVoo } from './qualidade';
+import { VOO as voo, CHAVE_VOO, quadroVoo } from './qualidade';
 import { sessao } from './sessao';
 
 const POR_VEZ = 2;
 const TENTATIVAS = 3;
-let comecou = false;
+let comecou = '';                           // the film (CHAVE_VOO) being loaded
 type Fonte = HTMLImageElement | ImageBitmap;
-const prontas = new Map<number, Fonte>();   // decoded, not yet on the GPU
+const prontas = new Map<number, Fonte>();   // decoded, not yet on the GPU (of that film)
 
 // Next frame that is decoded but not yet on the GPU (Espaco trickles them up on the ground).
 export const proximoPendente = () => (prontas.size ? Math.min(...prontas.keys()) : -1);
 
 // Makes frame i a texture if it has been downloaded. Returns whether it can be drawn.
 export function garantirQuadro(texturas: Phaser.Textures.TextureManager, i: number) {
-  const chave = `voo${i}`;
+  const chave = `${CHAVE_VOO}${i}`;
   if (texturas.exists(chave)) return true;
   const img = prontas.get(i);
   if (!img) return false;
@@ -34,15 +34,18 @@ export function garantirQuadro(texturas: Phaser.Textures.TextureManager, i: numb
 }
 
 export function carregarFilme(texturas: Phaser.Textures.TextureManager) {
-  if (comecou) return;
-  comecou = true;
+  // Another world, another film: start over (frames of the old one still downloading are dropped).
+  if (comecou === CHAVE_VOO) return;
+  comecou = CHAVE_VOO;
+  prontas.clear();
+  const chave = CHAVE_VOO, quadros = voo.quadros;
 
-  const faltam = Array.from({ length: voo.quadros }, (_, i) => i).filter((i) => !texturas.exists(`voo${i}`) && !prontas.has(i));
+  const faltam = Array.from({ length: quadros }, (_, i) => i).filter((i) => !texturas.exists(`${chave}${i}`));
   if (!faltam.length) { sessao.filmePronto = true; return; }
 
   let proximo = 0, ativos = 0;
   const tentativas = new Map<number, number>();
-  const terminar = () => { if (proximo >= faltam.length && ativos === 0) sessao.filmePronto = true; };
+  const terminar = () => { if (comecou === chave && proximo >= faltam.length && ativos === 0) sessao.filmePronto = true; };
 
   // Decode one frame: off the main thread when the browser can (ImageBitmap), else an <img>.
   const decodificar = async (url: string): Promise<Fonte> => {
@@ -59,11 +62,11 @@ export function carregarFilme(texturas: Phaser.Textures.TextureManager) {
   };
 
   const puxar = () => {
-    while (ativos < POR_VEZ && proximo < faltam.length) {
+    while (comecou === chave && ativos < POR_VEZ && proximo < faltam.length) {
       const i = faltam[proximo++];
       ativos++;
       decodificar(quadroVoo(i)).then((fonte) => {
-        if (!texturas.exists(`voo${i}`)) prontas.set(i, fonte);
+        if (comecou === chave && !texturas.exists(`${chave}${i}`)) prontas.set(i, fonte);
       }, () => {
         const n = (tentativas.get(i) ?? 0) + 1;
         tentativas.set(i, n);

@@ -3,6 +3,7 @@
 // Rules live in ../regras.ts, chapter settings in ../capitulos.ts, real NASA data in ../dados/.
 import Phaser from 'phaser';
 import { desenharPaisagemMarte } from './marte';
+import { localeData } from '../idioma';
 import { iniciarMarte3D } from './irParaMarte';
 import { CAPITULOS, type Dia, type Equipamento, type Lugar } from '../capitulos';
 import {
@@ -72,7 +73,7 @@ const TEMAS = {
 };
 
 const dataBonita = (iso: string) =>
-  new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  new Date(`${iso}T12:00:00Z`).toLocaleDateString(localeData(), { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 const corDaBarra = (v: number) => (v > 70 ? 0x22c55e : v >= 30 ? 0xeab308 : 0xef4444);
 const escurecer = (cor: number, pct: number) => Phaser.Display.Color.ValueToColor(cor).darken(pct).color;
 const baterias = (n: number) => `${n} batter${n === 1 ? 'y' : 'ies'}`;

@@ -5,6 +5,7 @@ import { fonte } from '../cenas/sessao';
 import { movimentoReduzido } from '../video';
 import { chaveIcone, resolverIcone, type IconeJogo } from '../dados/icones';
 import { tocarSfx } from '../sfx';
+import { dispositivoMovel } from '../mobile';
 
 export const CONTORNO = 0x1e293b;
 export const CORES_FESTA = [0xfde047, 0x4ade80, 0xf472b6, 0x60a5fa, 0xfb923c];
@@ -134,6 +135,8 @@ export function criarPilula(cena: Phaser.Scene, x: number, y: number, w: number,
 // The title screen's button (Radar.botao): solid colour, a soft shine on the upper half, white rim
 // and a thin dark outline, over a drop shadow. Drawn in the box (0, 0, w, h).
 export const COR_BOTAO = 0x2563eb, COR_BOTAO_HOVER = 0x3b82f6;
+// Buttons on the blue task screen (settings): darker than the screen so they stand out.
+export const COR_BOTAO_TELA = 0x1e40af;
 export function desenharBotao(g: Phaser.GameObjects.Graphics, w: number, h: number, u: number, cor = COR_BOTAO) {
   const r = Math.min(w, h) / 2, aro = Math.max(2, Math.round((h < 44 * u ? 3 : 4) * u));
   return g.clear()
@@ -146,17 +149,17 @@ export function desenharBotao(g: Phaser.GameObjects.Graphics, w: number, h: numb
 
 // Dark rounded label behind a text that floats over the map (prop and rover tooltips).
 // Redraw it whenever the text changes, moves or is scaled; it follows the text's visibility.
-const fundosRotulo = new WeakMap<Phaser.GameObjects.Graphics, { w: number; h: number; s: number }>();
-export function fundoRotulo(g: Phaser.GameObjects.Graphics, t: Phaser.GameObjects.Text) {
+const fundosRotulo = new WeakMap<Phaser.GameObjects.Graphics, { w: number; h: number; s: number; opacidade: number }>();
+export function fundoRotulo(g: Phaser.GameObjects.Graphics, t: Phaser.GameObjects.Text, opacidade = 0.96) {
   const s = t.scaleX, w = t.width * s, h = t.height * s;
   const x = t.x - w * t.originX, y = t.y - h * t.originY, r = Math.min(h / 2, 16 * s);
   g.setPosition(x, y).setDepth(t.depth - 0.001).setVisible(t.visible && !!t.text).setAlpha(t.alpha);
   if (!g.visible) return g;
   const anterior = fundosRotulo.get(g);
-  if (anterior && anterior.w === w && anterior.h === h && anterior.s === s) return g;
-  fundosRotulo.set(g, { w, h, s });
+  if (anterior && anterior.w === w && anterior.h === h && anterior.s === s && anterior.opacidade === opacidade) return g;
+  fundosRotulo.set(g, { w, h, s, opacidade });
   return g.clear().fillStyle(0x000000, 0.3).fillRoundedRect(2 * s, 4 * s, w, h, r)
-    .fillStyle(CONTORNO, 0.96).fillRoundedRect(0, 0, w, h, r)
+    .fillStyle(CONTORNO, opacidade).fillRoundedRect(0, 0, w, h, r)
     .lineStyle(2.5 * s, 0xffffff).strokeRoundedRect(0, 0, w, h, r);
 }
 
@@ -269,15 +272,74 @@ export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: I
     .lineStyle(px(2), 0xffffff).strokeRoundedRect(coluna, trilhoY - trilhoH / 2, trilhoW, trilhoH, trilhoH / 2);
   const preenchimento = cena.add.graphics();
   caixa.add([fundo, simbolo, label, selo.caixa, trilho, preenchimento]);
-  return { caixa, atualizar: (valor: number) => {
+  return { caixa, atualizar: (valor: number, corAtual = cor) => {
     const fracao = Math.max(0, Math.min(100, valor)) / 100;
     const borda = px(2), a = trilhoH - 2 * borda, util = trilhoW - 2 * borda;
     const cheio = fracao > 0 ? Math.min(util, Math.max(a, Math.round(util * fracao))) : 0;
     preenchimento.clear();
-    if (cheio) preenchimento.fillStyle(cor).fillRoundedRect(coluna + borda, trilhoY - a / 2, cheio, a, a / 2)
+    if (cheio) preenchimento.fillStyle(corAtual).fillRoundedRect(coluna + borda, trilhoY - a / 2, cheio, a, a / 2)
       .fillStyle(0xffffff, 0.3).fillRoundedRect(coluna + borda + a / 3, trilhoY - a / 2 + 1, Math.max(0, cheio - a * 2 / 3), a * 0.3, a * 0.15);
     selo.texto.setText(`${Math.round(valor)}%`);
   } };
+}
+
+// Touch HUD: centered, high-contrast rings with the value clearly separated from the icon.
+export function criarIndicadorCircular(cena: Phaser.Scene, b: Caixa, u: number, icone: IconeJogo, rotulo: string, cor: number) {
+  const caixa = cena.add.container(Math.round(b.x + b.w / 2), Math.round(b.y + b.h / 2)).setSize(b.w, b.h);
+  const raio = b.w / 2 - Math.max(3, 4 * u);
+  const anel = cena.add.graphics();
+  const simbolo = criarIconeJogo(cena, 0, Math.round(-raio * 0.38), icone, Math.round(raio * 1.05));
+  const numero = cena.add.text(0, Math.round(raio * 0.48), '', letra(Math.max(17, Math.round(20 * u)), '#ffffff', {
+    fontStyle: '700', stroke: '#0b1a4a', strokeThickness: 2,
+  })).setOrigin(0.5);
+  const legenda = cena.add.text(0, Math.round(raio + 12 * u), rotulo, letra(Math.max(12, Math.round(13 * u)), '#ffffff', {
+    fontStyle: '700', stroke: '#0b1a4a', strokeThickness: 2,
+  })).setOrigin(0.5);
+  caixa.add([anel, simbolo, numero, legenda]);
+  return { caixa, atualizar: (valor: number, corAtual = cor) => {
+    const fracao = Math.max(0, Math.min(100, valor)) / 100;
+    anel.clear().fillStyle(0x0b1a4a, 0.96).fillCircle(0, 0, raio)
+      .lineStyle(Math.max(3, 4 * u), 0xcbd5e1, 0.85).strokeCircle(0, 0, raio);
+    if (fracao > 0) {
+      anel.lineStyle(Math.max(3, 4 * u), corAtual).beginPath().arc(0, 0, raio, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * fracao).strokePath();
+    }
+    numero.setText(`${Math.round(valor)}%`);
+  } };
+}
+
+export function criarCapsulaRecursosMovel(cena: Phaser.Scene, b: Caixa, u: number, rotulos?: { nomes: string[]; icones: string[] }) {
+  const caixa = cena.add.container(b.x, b.y).setSize(b.w, b.h);
+  const nomes = rotulos?.nomes ?? ['Batteries at the Battery Bank', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Parts: batteries delivered to the rocket workshop today'];
+  const icones = rotulos?.icones ?? ['energy', 'backpack', 'heart', 'shield', 'wrench'];
+  const numeros: Phaser.GameObjects.Text[] = [];
+  const larguraItem = b.w / 5;
+  const diametro = Math.max(16, Math.min(b.h, larguraItem - Math.max(2, 3 * u)));
+  for (let i = 0; i < 5; i++) {
+    const cx = (i + 0.5) * larguraItem;
+    const cy = b.h / 2;
+    const fundo = cena.add.graphics().fillStyle(CONTORNO, 0.96).fillCircle(cx, cy, diametro / 2)
+      .lineStyle(Math.max(1.5, 2 * u), i < 2 ? 0xfde047 : 0x7dd3fc).strokeCircle(cx, cy, diametro / 2);
+    const simbolo = criarIconeJogo(cena, cx, cy - diametro * 0.16, icones[i], Math.round(diametro * 0.48));
+    const numero = cena.add.text(cx, cy + diametro * 0.27, '0', letra(Math.max(10, Math.round(11 * u)), '#ffffff', {
+      fontStyle: '700', stroke: '#0b1a4a', strokeThickness: 2,
+    })).setOrigin(0.5);
+    caixa.add([fundo, simbolo, numero]); numeros.push(numero);
+  }
+  // Long descriptions remain available by tapping an icon, without blocking the rest of the map.
+  const dica = cena.add.text(0, b.y + b.h + Math.round(7 * u), '', letra(Math.max(11, Math.round(12 * u)), '#ffffff', {
+    backgroundColor: '#1e293b', padding: { x: Math.round(8 * u), y: Math.round(5 * u) },
+  })).setDepth(30).setVisible(false);
+  for (let i = 0; i < 5; i++) {
+    const zona = cena.add.zone(i * larguraItem, 0, larguraItem, b.h).setOrigin(0).setInteractive();
+    zona.on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      dica.setText(nomes[i]).setX(Math.max(2, Math.min(b.x + i * larguraItem, cena.scale.width - dica.width - 2))).setVisible(true);
+      cena.time.delayedCall(2500, () => dica.setVisible(false));
+    });
+    caixa.add(zona);
+  }
+  caixa.once('destroy', () => dica.destroy());
+  return { caixa, atualizar: (valores: number[]) => numeros.forEach((numero, i) => numero.setText(String(valores[i]))) };
 }
 
 export function criarBotaoPilula(cena: Phaser.Scene, b: Caixa, u: number, titulo: string, acao: () => void, cor = COR_BOTAO) {
@@ -360,7 +422,9 @@ export function criarTecla(cena: Phaser.Scene, x: number, cy: number, tecla: str
 export function criarPilulaDicas(cena: Phaser.Scene, b: Caixa, u: number, vertical = false, reservaDireita = 0) {
   const px = (n: number) => Math.round(n * u);
   const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u, CONTORNO, 0xffffff, vertical ? px(16) : undefined);
-  const grupos = [['WASD', 'Walk'], ['Space', 'Jump'], ['E', 'Use room'], ['Scroll', 'Zoom']];
+  const grupos = dispositivoMovel()
+    ? [['MOVE', 'Walk'], ['JUMP', 'Jump'], ['USE', 'Use room'], ['Pinch', 'Zoom']]
+    : [['WASD', 'Walk'], ['Space', 'Jump'], ['E', 'Use room'], ['Scroll', 'Zoom']];
   const g = cena.add.graphics().lineStyle(Math.max(1, px(1)), 0xffffff, 0.3);
   caixa.add(g);
   const pad = px(12), util = (vertical ? b.h : b.w - reservaDireita) - 2 * pad;
@@ -435,7 +499,7 @@ export function criarBotaoConfiguracoes(cena: Phaser.Scene, b: Caixa, acao: () =
 
 
 // Vector controls avoid font-dependent glyph baselines and share the same visual center.
-export function criarBotaoZoom(cena: Phaser.Scene, b: Caixa, u: number, icone: 'mais' | 'menos' | 'casa', acao: () => void) {
+export function criarBotaoZoom(cena: Phaser.Scene, b: Caixa, u: number, icone: 'mais' | 'menos' | 'mira' | 'controles', acao: () => void) {
   const botao = criarBotaoPilula(cena, b, u, '', acao);
   botao.texto.setVisible(false);
   const g = cena.add.graphics();
@@ -443,10 +507,16 @@ export function criarBotaoZoom(cena: Phaser.Scene, b: Caixa, u: number, icone: '
   const x = (v: number) => cx + Math.round(v * u), y = (v: number) => cy + Math.round(v * u);
   const desenhar = (cor: number) => {
     g.clear().lineStyle(Math.max(2, Math.round(2.5 * u)), cor);
-    if (icone === 'casa') {
-      g.beginPath().moveTo(x(-9), y(-1)).lineTo(x(0), y(-8)).lineTo(x(9), y(-1)).strokePath();
-      g.beginPath().moveTo(x(-6), y(-1)).lineTo(x(-6), y(8)).lineTo(x(6), y(8)).lineTo(x(6), y(-1)).strokePath();
-      g.beginPath().moveTo(x(-2), y(8)).lineTo(x(-2), y(2)).lineTo(x(2), y(2)).lineTo(x(2), y(8)).strokePath();
+    if (icone === 'mira') {
+      g.strokeCircle(x(0), y(0), Math.round(6 * u));
+      g.lineBetween(x(0), y(-10), x(0), y(-3)).lineBetween(x(0), y(3), x(0), y(10));
+      g.lineBetween(x(-10), y(0), x(-3), y(0)).lineBetween(x(3), y(0), x(10), y(0));
+    } else if (icone === 'controles') {
+      // Keyboard, the same symbol as the hints drawer tab.
+      g.strokeRoundedRect(x(-9), y(-6), Math.round(18 * u), Math.round(12 * u), Math.max(1, Math.round(2 * u)));
+      for (let linha = 0; linha < 2; linha++) for (let col = 0; col < 4; col++)
+        g.fillStyle(cor).fillRect(x(-6 + col * 3.5), y(-3 + linha * 3), Math.max(1, Math.round(1.8 * u)), Math.max(1, Math.round(1.4 * u)));
+      g.lineBetween(x(-4), y(3.5), x(4), y(3.5));
     } else {
       g.lineBetween(x(-6), y(0), x(6), y(0));
       if (icone === 'mais') g.lineBetween(x(0), y(-6), x(0), y(6));

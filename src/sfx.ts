@@ -4,7 +4,10 @@
 
 export type NomeSfx = 'alarme' | 'clique' | 'ok' | 'erro' | 'aviso' | 'sucesso' | 'fechar'
   | 'pegar' | 'soltar' | 'encaixe' | 'girar' | 'ligar' | 'bip' | 'whoosh' | 'zap' | 'bolha' | 'tic' | 'suave'
-  | 'pouso' | 'fumaca' | 'radio' | 'montagem' | 'bateria';
+  | 'pouso' | 'fumaca' | 'radio' | 'montagem' | 'bateria'
+  | 'passoLua' | 'passoNave' | 'passoMarte'
+  | 'puloLua' | 'puloNave' | 'puloMarte'
+  | 'aterrissarLua' | 'aterrissarNave' | 'aterrissarMarte';
 
 const VOLUME = 0.55;
 const CHAVE_MUDO = 'lunar-odyssey-efeitos-mudos';
@@ -71,6 +74,15 @@ function ruido(c: AudioContext, inicio: number, dur: number, vol: number, de: nu
 }
 
 const SONS: Record<NomeSfx, (c: AudioContext) => void> = {
+  passoLua: (c) => passoAstronauta(c, 'lua'),
+  passoNave: (c) => passoAstronauta(c, 'nave'),
+  passoMarte: (c) => passoAstronauta(c, 'marte'),
+  puloLua: (c) => puloAstronauta(c, 'lua'),
+  puloNave: (c) => puloAstronauta(c, 'nave'),
+  puloMarte: (c) => puloAstronauta(c, 'marte'),
+  aterrissarLua: (c) => passoAstronauta(c, 'lua', true),
+  aterrissarNave: (c) => passoAstronauta(c, 'nave', true),
+  aterrissarMarte: (c) => passoAstronauta(c, 'marte', true),
   // A classic warning klaxon: crisp two-tone beeps alternating high/low, like an emergency siren.
   alarme: (c) => {
     const t = c.currentTime, vol = Math.max(0.0001, VOLUME * volume * 0.42);
@@ -128,6 +140,58 @@ const SONS: Record<NomeSfx, (c: AudioContext) => void> = {
   pouso: (c) => { ruido(c, 0, 0.5, 1.1, 900, 60, 0.005); nota(c, 90, 0, 0.35, 'sine', 0.9, 45); },   // touchdown thud
   fumaca: (c) => { ruido(c, 0, 1.1, 0.7, 2400, 300, 0.06, 'bandpass'); nota(c, 300, 0.02, 0.4, 'sine', 0.25, 120); }, // puff of smoke
 };
+
+// Short boot contacts, with a fresh noise texture and slight pitch/level variation each time.
+// On the Moon this is vibration through the suit, so the dust stays soft and muffled.
+function passoAstronauta(c: AudioContext, solo: 'lua' | 'nave' | 'marte', aterrissagem = false) {
+  const variacao = 0.92 + Math.random() * 0.16;
+  const nivel = (0.88 + Math.random() * 0.24) * (aterrissagem ? 1.45 : 0.8);
+  if (aterrissagem) {
+    nota(c, (solo === 'nave' ? 76 : 62) * variacao, 0, 0.23, 'sine', 0.20, 32);
+    ruido(c, 0, 0.22, 0.16, solo === 'marte' ? 1400 : 650, 110, 0.004);
+    if (solo === 'nave') {
+      // The magnetic sole catches the deck with a hard latch, then the plate rings.
+      ruido(c, 0.018, 0.045, 0.26, 4200, 1200, 0.002);
+      nota(c, 287 * variacao, 0.018, 0.28, 'triangle', 0.10);
+    }
+  }
+  if (solo === 'nave') {
+    ruido(c, 0, 0.075, 0.26 * nivel, 2200, 450, 0.003);
+    nota(c, 105 * variacao, 0, 0.12, 'sine', 0.24 * nivel, 55);
+    // Inharmonic modes of a metal deck; a second, lighter contact is the toe of the boot.
+    for (const [freq, dur, vol] of [[430, 0.22, 0.09], [713, 0.16, 0.055], [1169, 0.10, 0.025]]) {
+      nota(c, freq * variacao, 0.006, dur, 'sine', vol * nivel);
+    }
+    ruido(c, 0.065, 0.055, 0.08 * nivel, 1400, 500, 0.003);
+  } else if (solo === 'marte') {
+    nota(c, 115 * variacao, 0, 0.11, 'sine', 0.20 * nivel, 58);
+    ruido(c, 0, 0.13, 0.30 * nivel, 3100 * variacao, 650, 0.004);
+    ruido(c, 0.045, 0.16, 0.14 * nivel, 2100 * variacao, 500, 0.012, 'bandpass');
+    // Loose grit settles in a few small, irregular clicks.
+    for (let i = 0; i < 3; i++) {
+      ruido(c, 0.025 + i * 0.028 + Math.random() * 0.012, 0.025, 0.08 * nivel, 3500, 1300, 0.002);
+    }
+  } else {
+    nota(c, 82 * variacao, 0, 0.16, 'sine', 0.23 * nivel, 42);
+    ruido(c, 0, 0.17, 0.24 * nivel, 850 * variacao, 160, 0.008);
+    ruido(c, 0.04, 0.18, 0.10 * nivel, 1100 * variacao, 350, 0.016, 'bandpass');
+  }
+}
+
+function puloAstronauta(c: AudioContext, solo: 'lua' | 'nave' | 'marte') {
+  const variacao = 0.92 + Math.random() * 0.16;
+  if (solo === 'nave') {
+    // Magnetic boot release: a short mechanical click and a low plate vibration.
+    ruido(c, 0, 0.045, 0.26, 3600 * variacao, 900, 0.002);
+    nota(c, 560 * variacao, 0, 0.09, 'triangle', 0.12, 310);
+    nota(c, 132 * variacao, 0.015, 0.10, 'sine', 0.15, 70);
+  } else {
+    const marte = solo === 'marte';
+    nota(c, 100 * variacao, 0, 0.10, 'sine', 0.16, 60);
+    ruido(c, 0, 0.12, 0.20, (marte ? 2400 : 750) * variacao, marte ? 650 : 180, 0.006);
+    ruido(c, 0.025, 0.13, 0.09, marte ? 1800 : 850, marte ? 450 : 300, 0.012, 'bandpass');
+  }
+}
 
 /**
  * Rocket engine: a low rumble of 'dur' seconds that builds up for 'ataque' s. 'forte' scales the

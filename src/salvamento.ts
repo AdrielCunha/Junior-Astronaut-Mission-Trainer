@@ -20,6 +20,7 @@ export type DadosPartida = {
   eventoEm: number | null; ultimoEvento?: string; diasCalmos: number; tempoCalmo?: number; pulou: boolean;
   estacoesHoje?: string[]; exploracaoEm?: number | null; expedicao?: Expedicao | null;
   corridaHoje?: boolean; paralamaHoje?: boolean; odometroRover?: number; ultimaExploracao?: string; tempoExpedicao?: number;
+  condicoes?: ('sol'|'sinal'|'estufa'|null)[]; alarmePendente?: boolean;
 };
 const objeto = (v: unknown): v is Record<string,unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const numero = (v: unknown, min = 0, max = 100) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
@@ -72,7 +73,8 @@ function valido(v: unknown): v is DadosPartida {
     || (v.ultimaExploracao!==undefined && typeof v.ultimaExploracao!=='string')) return false;
   return numero(v.danoTempestade) && numero(v.bateriasTempestade,0,100)
     && (v.diaCargaRover===null || numero(v.diaCargaRover,1,9))
-    && (v.eventoEm===null || numero(v.eventoEm,0,3600)) && numero(v.diasCalmos,0,100) && (v.tempoCalmo===undefined || numero(v.tempoCalmo,0,1e6));
+    && (v.eventoEm===null || numero(v.eventoEm,0,3600)) && (v.alarmePendente===undefined || typeof v.alarmePendente==='boolean') && numero(v.diasCalmos,0,100) && (v.tempoCalmo===undefined || numero(v.tempoCalmo,0,1e6))
+    && (v.condicoes===undefined || (Array.isArray(v.condicoes) && v.condicoes.length<=20 && v.condicoes.every(c=>c===null || ['sol','sinal','estufa'].includes(String(c)))));
 }
 export function lerPartida(): DadosPartida | null {
   try { const v: unknown = JSON.parse(localStorage.getItem(CHAVE) ?? 'null'); return valido(v) ? v : null; }
@@ -82,3 +84,18 @@ export function gravarPartida(v: DadosPartida): boolean {
   try { localStorage.setItem(CHAVE,JSON.stringify(v)); return true; } catch { return false; }
 }
 export function apagarPartida() { try { localStorage.removeItem(CHAVE); } catch { /* optional browser storage */ } }
+
+// Bases the player has reached in a real mission (EXPLORE A BASE opens only these). Kept apart
+// from the save, so losing or starting over does not lock them again.
+const CHAVE_BASES = 'lunar-odyssey-bases-v1';
+const MUNDOS: Mundo[] = ['lua', 'nave', 'marte'];
+export function basesLiberadas(): Mundo[] {
+  try { const v: unknown = JSON.parse(localStorage.getItem(CHAVE_BASES) ?? '[]'); return Array.isArray(v) ? MUNDOS.filter(m => v.includes(m)) : []; }
+  catch { return []; }
+}
+// Reaching chapter capIdx means the earlier bases were reached too.
+export function liberarBases(capIdx: number) {
+  const atuais = basesLiberadas(), novas = MUNDOS.slice(0, capIdx + 1);
+  if (novas.every(m => atuais.includes(m))) return;
+  try { localStorage.setItem(CHAVE_BASES, JSON.stringify(MUNDOS.filter(m => atuais.includes(m) || novas.includes(m)))); } catch { /* optional browser storage */ }
+}

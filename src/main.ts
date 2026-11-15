@@ -1,5 +1,6 @@
 // Generated with AI assistance (Claude). See README, "Use of AI tools".
 import Phaser from 'phaser';
+import { instalarIdioma } from './idiomaPhaser';
 import { CAPITULOS } from './capitulos';
 import { inicioDoCapitulo } from './regras';
 import { forcarEvento, type EstadoTeste, type ParamEvento } from './test-harness';
@@ -49,6 +50,9 @@ import { BANCO } from './tarefas';
 import { sessao } from './cenas/sessao';
 import { iniciarMundo3D } from './cenas/irParaMarte';
 import { instalarMenuDev } from './menuDev';
+import { instalarControlesMoveis, instalarOrientacaoMovel } from './mobile';
+import { instalarResolucaoMovel } from './resolucaoMovel';
+import './mobile.css';
 
 // Carregar (loading screen) loads the assets, then starts three scenes that run together, bottom to top: Espaco (stars, Moon, planets), Superficie (the map,
 // the commander, the modules) and Interface (bars and panels). See ARCHITECTURE.md.
@@ -519,6 +523,7 @@ const jogo = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'jogo',
   backgroundColor: '#05070f',
+  render: { antialias: true, antialiasGL: true, pixelArt: false, roundPixels: false },
   // RESIZE: the canvas always fills the window; the scenes redraw at the new size.
   scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
   // The music is played by audio.ts with a plain HTMLAudioElement, so Phaser's audio system
@@ -535,6 +540,10 @@ const jogo = new Phaser.Game({
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;
+instalarResolucaoMovel(jogo);
+instalarIdioma(jogo);
+if (!classico) instalarControlesMoveis(jogo);
+instalarOrientacaoMovel();
 // Dev server only: the DEV button that jumps to the trip and Mars scenes (not in the production build).
 if (import.meta.env.DEV) void import('./dev/painelCenas').then((m) => m.criarPainelCenas(jogo));
 if (import.meta.env.DEV || new URLSearchParams(location.search).has("dev")) instalarMenuDev(jogo);

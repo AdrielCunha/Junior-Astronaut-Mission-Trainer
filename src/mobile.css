@@ -1,0 +1,23 @@
+html, body, #jogo { width: 100%; height: 100%; height: 100dvh; overscroll-behavior: none; }
+#jogo canvas { touch-action: none; display: block; }
+#controles-moveis { display: none; position: fixed; inset: 0; z-index: 50; pointer-events: none; user-select: none; -webkit-user-select: none; }
+#controles-moveis.visivel { display: block; }
+#controles-moveis .joystick-area { position: absolute; left: 0; bottom: 0; width: 35%; height: 55%; pointer-events: auto; touch-action: none; }
+#controles-moveis .joystick { position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: max(20px, env(safe-area-inset-left)); width: clamp(112px, 34dvh, 148px); aspect-ratio: 1; pointer-events: none; box-sizing: border-box; }
+#controles-moveis .joystick-arte { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-select: none; filter: drop-shadow(0 6px 9px #0006); }
+#controles-moveis .joystick-manopla { position: absolute; left: 37.7%; top: 43.2%; width: 26%; height: 26%; border-radius: 50%; background: #eff6ff; border: 4px solid #45b7db; box-sizing: border-box; box-shadow: 0 2px 8px #0008, inset 0 0 0 2px #0d2740; }
+#controles-moveis .botoes-moveis { position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); right: max(20px, env(safe-area-inset-right)); display: flex; align-items: end; gap: clamp(10px, 2.5vw, 22px); pointer-events: auto; }
+#controles-moveis .botao-movel { width: clamp(84px, 26dvh, 112px); aspect-ratio: 1; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; display: flex; align-items: center; justify-content: center; touch-action: none; -webkit-tap-highlight-color: transparent; }
+#controles-moveis .botao-movel img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-select: none; filter: drop-shadow(0 5px 7px #0006); transition: transform .08s ease, filter .08s ease; }
+#controles-moveis .botao-acao { width: clamp(96px, 30dvh, 128px); }
+#controles-moveis .botao-movel:active img { transform: translateY(2px) scale(.96); filter: brightness(1.08) drop-shadow(0 2px 4px #0005); }
+@media (max-height: 390px) and (orientation: landscape) {
+  #controles-moveis .joystick { width: clamp(112px, 33dvh, 132px); }
+  #controles-moveis .botao-movel { width: clamp(80px, 24dvh, 96px); }
+  #controles-moveis .botao-acao { width: clamp(92px, 28dvh, 108px); }
+}
+#aviso-orientacao { display: none; position: fixed; inset: 0; z-index: 9999; align-items: center; justify-content: center; padding: 24px; background: #05070f; color: white; font: 18px system-ui, sans-serif; text-align: center; }
+#aviso-orientacao.visivel { display: flex; }
+#aviso-orientacao span { font-size: 56px; }
+#aviso-orientacao h1 { font-size: clamp(22px, 6vw, 32px); }
+#aviso-orientacao button { margin-top: 14px; padding: 14px 22px; border: 0; border-radius: 12px; background: #2563eb; color: white; font: bold 16px system-ui, sans-serif; }

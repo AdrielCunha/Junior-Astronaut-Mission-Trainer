@@ -17,6 +17,7 @@ import { Ambiente } from './ambiente';
 import { configuracoesAbertas, movimentoReduzido, video } from '../video';
 import { paraTela, paraChao, profundidade } from '../engine/iso';
 import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
+import { CicloPassada } from '../engine/passada';
 import { encontrarCaminho, type Ponto } from '../engine/caminho';
 import naveProps from '../dados/nave_props.json';
 import { TIPOS, tipoOrientado, montarBasePadrao, montarLayout, ROTACAO_LAYOUT, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
@@ -45,8 +46,9 @@ import { dirigirRover, estacionarRover, desembarcar, pontoLivre, RAIO_ROVER } fr
 import { deveQuebrar } from '../paralama-tarefa';
 import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto, alvoDaSeta, pista, moverExpedicao, type Expedicao, type TipoExpedicao } from '../engine/expedicao';
 import { criarExploracao, sortearTipo, AVISOS, type Contexto } from '../engine/exploracao';
-import { ESTACOES, estacaoDisponivel, textoEstacao } from '../engine/estacoes';
+import { ESTACOES, estacaoDisponivel, textoEstacao, estacaoDoModulo, chaveModulo, type Estacao } from '../engine/estacoes';
 import { desenharRover, esconderRover, LINHA_QUADRIL_SENTADO, type PecasRover } from './desenharRover';
+import { controleMovel, consumirPuloMovel, dispositivoMovel } from '../mobile';
 
 const P = dadosTerreno.imagem;
 // Mars: warm light on the props and modules (they are rendered under the Moon's light), and the props that make sense in Jezero crater, with
@@ -145,7 +147,8 @@ export class Superficie extends Phaser.Scene {
   private proximoPassante = 25 + Math.random() * 35;   // seconds until the next ship fly-by
   private passante: { img: Phaser.GameObjects.Image; t: number; fy: number } | null = null;
   private teclas!: Record<string, Phaser.Input.Keyboard.Key>;
-  private passada = 0;
+  private readonly passada = new CicloPassada(sprite.andar);
+  private quadroPassada = 0;
   private sobre: Construcao | null = null;              // module under the cursor
   private seguir = true;             // camera follows the commander until the player pans
   private arrastando = false;
@@ -178,6 +181,7 @@ export class Superficie extends Phaser.Scene {
   private nomesNoMapa: Phaser.GameObjects.Text[] = [];
   private decoVisuais: { d: DecoColocada; img: Phaser.GameObjects.Image }[] = [];
   private marcasEstacao: { d: DecoColocada; c: Phaser.GameObjects.Container }[] = [];   // "!" over ship stations
+  private marcasEquip = new Map<number, Phaser.GameObjects.Container>();   // "!" over equipment stations, by module id
   private dica?: Phaser.GameObjects.Text;                // shared prop tooltip
   private decoSobre: DecoColocada | null = null;         // prop under the cursor
   private decoFixa: DecoColocada | null = null;          // prop just tapped (touch): tooltip stays a few seconds
@@ -379,7 +383,9 @@ export class Superficie extends Phaser.Scene {
     this.suprimentosPendentes=sessao.mundo==='lua' && sessao.fase==='dia'
       ? SUPRIMENTOS.filter(s=>s.dia<=sessao.estado.dia && !sessao.grade.lista.some(c=>c.tipo.id===s.tipo)).map(s=>s.tipo):[];
     this.sons=criarAmbienteSonoro();
-    const silenciar=()=>this.sons.silenciar();
+    this.passada.reiniciar();
+    this.quadroPassada = 0;
+    const silenciar=()=>{this.sons.silenciar();this.passada.reiniciar();};
     const visibilidade=()=>{if(document.hidden)silenciar();};
     this.events.on('pause',silenciar);
     document.addEventListener('visibilitychange',visibilidade);
@@ -666,7 +672,7 @@ export class Superficie extends Phaser.Scene {
   private entrada(): Entrada {
     const t = this.teclas;
     // Screen directions to map axes: up-screen = -gx -gy, right-screen = +gx -gy.
-    let sx = 0, sy = 0;
+    let sx = controleMovel.x, sy = controleMovel.y;
     if (t.W.isDown || t.UP.isDown) sy -= 1;
     if (t.S.isDown || t.DOWN.isDown) sy += 1;
     if (t.A.isDown || t.LEFT.isDown) sx -= 1;
@@ -705,7 +711,8 @@ export class Superficie extends Phaser.Scene {
         }
       }
     }
-    const pular=Phaser.Input.Keyboard.JustDown(t.SPACE)||sessao.puloTouch;
+    const puloMovel=consumirPuloMovel();
+    const pular=Phaser.Input.Keyboard.JustDown(t.SPACE)||puloMovel||sessao.puloTouch;
     sessao.puloTouch=false;
     return { dx, dy, pular };
   }
@@ -719,7 +726,7 @@ export class Superficie extends Phaser.Scene {
 
   // Things you can use: where the batteries are, the rooms, and the module that needs fixing today.
   private usavel(c: Construcao) {
-    return c.tipo.id === origemBaterias(sessao.mundo) || !!c.tipo.sala || sessao.evento?.construcaoId === c.id;
+    return c.tipo.id === origemBaterias(sessao.mundo) || !!c.tipo.sala || sessao.evento?.construcaoId === c.id || !!estacaoDoModulo(c.tipo.id);
   }
 
   private usarPerto() {
@@ -730,6 +737,9 @@ export class Superficie extends Phaser.Scene {
     const c = sessao.grade.lista.find((m) => this.perto(m) && this.usavel(m));
     if (c) this.usar(c);
   }
+
+  // The USE button of the touch controls (mobile.ts): the same as E.
+  interagirPerto() { this.usarPerto(); }
 
   // ---------- ship stations (engine/estacoes.ts) ----------
   private pertoDeco(d: DecoColocada) {
@@ -746,9 +756,19 @@ export class Superficie extends Phaser.Scene {
 
   // The station's task, once a day. Closing it early leaves the station for later.
   private usarEstacao(d: DecoColocada) {
-    if (sessao.emTarefa || sessao.rover?.dirigindo) return;
     const e = ESTACOES[d.id];
-    if (!e) return;
+    if (e) this.abrirEstacao(d.id, d.nome, e);
+  }
+
+  // Equipment that landed by cargo lander (the Greenhouse, the Ice Drill...): its own task once a day.
+  private usarEquipamento(c: Construcao) {
+    const e = estacaoDoModulo(c.tipo.id);
+    if (e) this.abrirEstacao(chaveModulo(c.tipo.id), this.nomeDe(c), e);
+  }
+
+  private abrirEstacao(id: string, nome: string, e: Estacao) {
+    if (sessao.emTarefa || sessao.rover?.dirigindo) return;
+    const d = { id, nome };
     if (sessao.fase !== 'dia') { sessao.emitir('mensagem', sessao.fase === 'inicio' ? '🚀 Press MENU, then LAUNCH MISSION!' : '🌙 Night time. Wait for morning!'); return; }
     if (!estacaoDisponivel(d.id, sessao.estacoesHoje, sessao.fase)) { sessao.emitir('mensagem', `✅ ${d.nome}: done for today. Come back tomorrow!`, '#86efac'); return; }
     sessao.emTarefa = true;
@@ -758,7 +778,13 @@ export class Superficie extends Phaser.Scene {
       feito = true;
       sessao.emTarefa = false;
       sessao.estacoesHoje.add(d.id);
-      sessao.emitir('mensagem', `✅ ${d.nome}: ${e.acao.toLowerCase()} done!`, '#86efac');
+      const ganhoOxigenio = Math.min(e.recompensaOxigenio ?? 0, 100 - sessao.estado.oxigenio);
+      if (ganhoOxigenio > 0) {
+        sessao.estado = { ...sessao.estado, oxigenio: sessao.estado.oxigenio + ganhoOxigenio };
+        sessao.emitir('estado');
+      }
+      const premio = ganhoOxigenio > 0 ? ` +${ganhoOxigenio} oxygen.` : '';
+      sessao.emitir('mensagem', `✅ ${d.nome}: ${e.acao.toLowerCase()} done!${premio}`, '#86efac');
     } });
     this.scene.bringToTop(e.cena);
   }
@@ -766,6 +792,22 @@ export class Superficie extends Phaser.Scene {
   // The "!" over the stations still to do today (bobbing), hidden when done or at night.
   private atualizarEstacoes() {
     const k = movimentoReduzido() ? 0 : Math.sin(this.time.now / 220) * 3;
+    for (const c of sessao.grade.lista) {
+      if (!estacaoDoModulo(c.tipo.id)) continue;
+      let m = this.marcasEquip.get(c.id);
+      if (!m) {
+        const topo = paraTela(P, c.gx + c.tipo.w / 2, c.gy + c.tipo.h / 2, c.z + c.tipo.altura + 1.1);
+        m = this.add.container(topo.x, topo.y, [
+          this.add.circle(0, 0, 13, 0xfde047).setStrokeStyle(3, 0x1e293b),
+          this.add.text(0, 0, '!', letra(17, '#1e293b')).setOrigin(0.5),
+        ]).setDepth(1e6).setData('y0', topo.y);
+        this.mapa.add(m);
+        this.marcasEquip.set(c.id, m);
+      }
+      const ver = this.mapa.visible && !sessao.evento && estacaoDisponivel(chaveModulo(c.tipo.id), sessao.estacoesHoje, sessao.fase);
+      m.setVisible(ver);
+      if (ver) m.setY((m.getData('y0') as number) + k);
+    }
     for (const m of this.marcasEstacao) {
       const ver = this.mapa.visible && estacaoDisponivel(m.d.id, sessao.estacoesHoje, sessao.fase);
       m.c.setVisible(ver);
@@ -777,6 +819,7 @@ export class Superficie extends Phaser.Scene {
     if (sessao.rover?.dirigindo) return;
     if (sessao.emTarefa) return;
     if (sessao.evento?.construcaoId === c.id && sessao.fase === 'dia') { this.consertar(); return; }
+    if (estacaoDoModulo(c.tipo.id)) { this.usarEquipamento(c); return; }
     if (!c.tipo.sala && c.tipo.id !== origemBaterias(sessao.mundo)) {
       sessao.emitir('mensagem', `💡 ${c.tipo.nome}: ${c.tipo.papel}`);
       return;
@@ -862,7 +905,7 @@ export class Superficie extends Phaser.Scene {
       this.plantarBandeira(gx, gy);
       return;
     }
-    sessao.emitir('mensagem', '🚙 Walk to the rover, then press E.', '#fde68a');
+    sessao.emitir('mensagem', dispositivoMovel() ? 'Move closer to the rover and tap USE to drive.' : 'Walk closer to the rover and press E to drive.', '#fde68a');
   }
 
   private alternarRover() {
@@ -877,7 +920,9 @@ export class Superficie extends Phaser.Scene {
       if (!sessao.roverCarregado) {
         this.rota = []; this.alvoRover = false; this.alvoUsar = null; this.recolherBandeira();
         if (sessao.carregando < 1) {
-          sessao.emitir('mensagem', `🚙 Rover needs 1 battery. Bring one from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}!`, '#fde68a');
+          sessao.emitir('mensagem', dispositivoMovel()
+            ? `Rover battery empty. Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}, then tap USE to install it. One battery lasts all day.`
+            : `Rover battery empty. Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}, then press E or click the rover to install it. One battery lasts all day.`, '#fde68a');
           return;
         }
         this.abastecerRover();
@@ -889,7 +934,9 @@ export class Superficie extends Phaser.Scene {
     }
     this.rota = []; this.alvoUsar = null; this.alvoRover = false;
     this.recolherBandeira(); this.seguir = true;
-    sessao.emitir('mensagem', r.dirigindo ? '🚙 WASD to drive. E to get out.' : '🧑 On foot! E near the rover to drive.', '#93c5fd');
+    sessao.emitir('mensagem', dispositivoMovel()
+      ? r.dirigindo ? 'Rover: use the joystick to drive and tap USE to get out.' : 'Back on foot! Tap USE near the rover to drive again.'
+      : r.dirigindo ? 'Rover: WASD / arrows to drive, E or click the rover to get out. Click the ground to drive there.' : 'Back on foot! Press E near the rover to drive again.', '#93c5fd');
     sessao.emitir('estado');
     const vista = sessao.mundo === 'marte' ? sessao.curiosidadeRoverMarteVista : sessao.curiosidadeRoverVista;
     if (r.dirigindo && !vista) this.scene.launch('CuriosidadeRover');
@@ -902,7 +949,7 @@ export class Superficie extends Phaser.Scene {
   // explore the map.
   private iniciarCorrida() {
     const r = sessao.rover;
-    if (!r?.dirigindo || sessao.mundo === 'nave' || sessao.fase !== 'dia' || !sessao.roverCarregado || sessao.corridaHoje || sessao.expedicao) return;
+    if (!r?.dirigindo || sessao.mundo === 'nave' || sessao.fase !== 'dia' || !sessao.roverCarregado || sessao.corridaHoje || !sessao.podeMissaoSecundaria) return;
     sessao.corridaHoje = true;
     const caixas = sessao.grade.caixas();
     const livre = (x: number, y: number) => pontoLivre(sessao.terreno, caixas, x, y, RAIO_ROVER + 0.2);
@@ -920,13 +967,13 @@ export class Superficie extends Phaser.Scene {
     sessao.expedicao = exp;
     sessao.tempoExpedicao=0;
     tocarSfx('ok');
-    sessao.emitir('mensagem', `🚩 Delivery run! Drive through the flags to bring parts to the ${exp.destino}.`, '#93c5fd');
+    sessao.emitir('mensagem', `Side mission: 🚩 Delivery run! Drive through the flags to bring parts to the ${exp.destino}.`, '#93c5fd');
   }
 
   // Exploration events: a little while after the morning (from day 2), something sends the commander out of
   // the base. It waits if another expedition or a task is open.
   private passarExploracao(dt: number) {
-    if (sessao.exploracaoEm === null || sessao.fase !== 'dia' || sessao.emTarefa || sessao.transicao || this.pouso || sessao.vista !== 'chao' || sessao.expedicao) return;
+    if (sessao.exploracaoEm === null || sessao.fase !== 'dia' || sessao.emTarefa || sessao.transicao || this.pouso || sessao.vista !== 'chao' || !sessao.podeMissaoSecundaria) return;
     sessao.exploracaoEm = Math.max(0, sessao.exploracaoEm - dt);
     if (sessao.exploracaoEm > 0) return;
     sessao.exploracaoEm = null;
@@ -943,7 +990,7 @@ export class Superficie extends Phaser.Scene {
     sessao.ultimaExploracao = t;
     this.bloqueioExp = 0;
     tocarSfx('aviso');
-    sessao.emitir('mensagem', AVISOS[t], '#93c5fd');
+    sessao.emitir('mensagem', `Side mission: ${AVISOS[t]}`, '#93c5fd');
     return true;
   }
 
@@ -1247,10 +1294,12 @@ export class Superficie extends Phaser.Scene {
     }
     sessao.eventoEm -= dt;
     if (sessao.eventoEm > 0) return;
-    sessao.eventoEm = null;
     const presentes = sessao.grade.lista.map((c) => c.tipo.id);
     const alarme = sessao.alarmeHoje && presentes.includes(sessao.alarmeHoje.modulo) ? sessao.alarmeHoje : null;
-    sessao.alarmeHoje = null;
+    sessao.alarmeHoje = null;   // also drops an alarm whose module is gone, so it cannot block side missions
+    // A side breakdown waits (countdown held at 0) while a side mission runs or the storm alert is on. The alarm never waits.
+    if (!alarme && (sessao.expedicao || sessao.tempestade.status === 'alerta')) { sessao.eventoEm = 0; return; }
+    sessao.eventoEm = null;
     const def = alarme ?? sortearEvento(presentes, sessao.ultimoEvento);
     const modulos = def ? sessao.grade.lista.filter((c) => c.tipo.id === def.modulo) : [];
     if (!def || !modulos.length) return;
@@ -1258,7 +1307,8 @@ export class Superficie extends Phaser.Scene {
     sessao.ultimoEvento = def.id;
     sessao.diasCalmos = 0;
     sessao.tempoCalmo = 0;
-    sessao.emitir('mensagem', def.aviso.replace('{nasa}', sessao.dia.curto), def.alarme ? '#fca5a5' : '#fde68a');
+    const aviso = def.aviso.replace('{nasa}', sessao.dia.curto);
+    sessao.emitir('mensagem', def.alarme ? aviso : `Side mission: ${aviso}`, def.alarme ? '#fca5a5' : '#fde68a');
     if (def.alarme) for (let k = 0; k < 3; k++) this.time.delayedCall(k * 380, () => tocarSfx('aviso'));
   }
 
@@ -1646,7 +1696,7 @@ export class Superficie extends Phaser.Scene {
       this.contornoEmergencia.setAlpha(reduz ? 0.3 : 0.16 + 0.3 * pulso);
     }
     this.sombraBandeira.setVisible(this.bandeira.visible).setAlpha(this.bandeira.alpha);
-    if(configuracoesAbertas || sessao.transicao) {this.input.keyboard?.resetKeys();this.sons.silenciar();return;}
+    if(configuracoesAbertas || sessao.transicao) {this.input.keyboard?.resetKeys();this.sons.silenciar();this.passada.reiniciar();return;}
     const caixas = sessao.grade.caixas();
     const e = this.input.enabled && (sessao.fase === 'dia' || sessao.fase === 'inicio') ? this.entrada() : null;
     const antesNoChao = this.corpo.noChao;
@@ -1655,9 +1705,11 @@ export class Superficie extends Phaser.Scene {
       this.corpo.vx = this.corpo.vy = 0;
       this.rota = []; this.alvoUsar = null; this.recolherBandeira();
     }
-    const { bloqueado } = sessao.rover?.dirigindo
+    const movimento = sessao.rover?.dirigindo
       ? dirigirRover(sessao.rover, sessao.roverCarregado ? e : null, sessao.terreno, caixas, dt)
       : passo(this.corpo, e, sessao.terreno, caixas, dt);
+    const { bloqueado } = movimento;
+    const pousou = 'pousou' in movimento && movimento.pousou === true;
     if (sessao.rover?.dirigindo) this.contarOdometro(Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY));
     this.passarExploracao(dt);
     this.passarExpedicao(dt);
@@ -1692,7 +1744,25 @@ export class Superficie extends Phaser.Scene {
       }
     }
     // Gait: the Moon's slow bunny hop; on Mars, with more than twice the gravity, quicker steps.
-    if (Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3 && this.corpo.noChao) this.passada += dt * (sessao.mundo === 'marte' ? 18 : 12);
+    const caminhando = !sessao.rover?.dirigindo && this.corpo.noChao
+      && Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY) > 0.001
+      && Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3;
+    const passada = this.passada.atualizar(dt, sessao.mundo === 'marte' ? 18 : 12,
+      caminhando, this.corpo.noChao, pousou);
+    this.quadroPassada = passada.coluna;
+    const passosAtivos = this.scene.isVisible() && !document.hidden && this.input.enabled
+      && !sessao.emTarefa && (sessao.fase === 'dia' || sessao.fase === 'inicio');
+    // Play takeoff/landing once at the physics contact, including jumps made without walking.
+    if (passosAtivos && !sessao.rover?.dirigindo) {
+      if (antesNoChao && !this.corpo.noChao && this.corpo.vz > 0) {
+        tocarSfx(sessao.mundo === 'nave' ? 'puloNave' : sessao.mundo === 'marte' ? 'puloMarte' : 'puloLua');
+      } else if (pousou) {
+        tocarSfx(sessao.mundo === 'nave' ? 'aterrissarNave' : sessao.mundo === 'marte' ? 'aterrissarMarte' : 'aterrissarLua');
+      } else if (passada.contato) {
+        // Emit only when the displayed sprite enters a boot-contact frame.
+        tocarSfx(sessao.mundo === 'nave' ? 'passoNave' : sessao.mundo === 'marte' ? 'passoMarte' : 'passoLua');
+      }
+    }
     this.animarPouso(dt);
     this.animarDecolagem(dt);
     this.passarEventos(dt);
@@ -1704,18 +1774,16 @@ export class Superficie extends Phaser.Scene {
       desenharRover(this.gRover, P, r, this.pecasRover, sessao.roverCarregado, sessao.abastecendoRover);
       const p = paraTela(P, r.corpo.x, r.corpo.y, r.corpo.z + 1.25);
       const carregado = sessao.roverCarregado;
-      const acao = r.dirigindo
-        ? carregado ? 'E / click: Exit  |  WASD / arrows: Drive' : 'E / click: Exit to pick up a battery'
-        : this.pertoRover()
-          ? carregado ? 'E / click: Drive Apollo LRV' : sessao.carregando ? 'E / click: Install 1 battery & drive' : `Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}`
-          : sessao.mundo === 'marte' ? 'APOLLO LRV (on a pretend Mars trip!) · Click to approach' : 'APOLLO LRV · Click to approach';
+      // Only when standing next to it: not from afar, not while driving.
+      const tecla = dispositivoMovel() ? 'USE' : 'E / click';
+      const acao = carregado ? `${tecla}: Drive Apollo LRV` : sessao.carregando ? `${tecla}: Install 1 battery & drive` : `Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}`;
       const cam=this.cameras.main,wrap=Math.min(320,this.scale.width-64);
       if(this.dicaRover.style.wordWrapWidth!==wrap)this.dicaRover.setWordWrapWidth(wrap,true);
       this.dicaRover.setScale(1/cam.zoom).setText(`Battery: ${carregado ? 'charged' : 'empty'}\n${acao}`);
       const metade=this.dicaRover.displayWidth/2,pad=12/cam.zoom;
       this.dicaRover.setPosition(Phaser.Math.Clamp(p.x,cam.worldView.left+metade+pad,cam.worldView.right-metade-pad),p.y)
-        .setVisible(this.podeUsarRover() && cam.worldView.contains(p.x,p.y));
-      fundoRotulo(this.fundoDicaRover, this.dicaRover);
+        .setVisible(this.podeUsarRover() && !r.dirigindo && this.pertoRover() && cam.worldView.contains(p.x,p.y));
+      fundoRotulo(this.fundoDicaRover, this.dicaRover, 0.72);
     }
     sessao.parado = Math.hypot(this.corpo.vx, this.corpo.vy) < 0.05 && this.corpo.noChao;
     this.atualizarOclusao(dt);
@@ -1814,7 +1882,7 @@ export class Superficie extends Phaser.Scene {
   // Surface props (old rover, probe, beacon...): placed once on free flat ground, solid, each with its name.
   private montarDeco() {
     const g = sessao.grade, c0 = Math.floor(g.n / 2);
-    this.decoVisuais = []; this.marcasEstacao = []; this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
+    this.decoVisuais = []; this.marcasEstacao = []; this.marcasEquip = new Map(); this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
     if (!g.deco.length) {
       // Each world has its own props and facts (Mars: DECORACAO_MARTE).
       const lista = sessao.mundo === 'nave' ? DECO_NAVE : sessao.mundo === 'marte' ? DECORACAO_MARTE : DECORACAO;
@@ -2047,7 +2115,7 @@ export class Superficie extends Phaser.Scene {
     // Sprite: row = facing (8 directions), column 0 = standing, 1.. = Moon hop cycle.
     const v = Math.hypot(k.vx, k.vy);
     if (v > 0.3) this.direcao = (Math.round(Math.atan2(-k.vy, k.vx) / (Math.PI / 4)) + 8) % 8;
-    const col = v > 0.3 && k.noChao ? 1 + (Math.floor(this.passada) % sprite.andar) : k.noChao ? 0 : 3;
+    const col = this.quadroPassada;
     this.comandante.setPosition(pe.x, pe.y).setFrame(this.direcao * sprite.colunas + col);
     const d = profundidade(k.x + 0.3, k.y + 0.3);
     g.setDepth(d - 1); this.comandante.setDepth(d);

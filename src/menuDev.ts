@@ -4,13 +4,14 @@ import type { Interface } from './cenas/Interface';
 import type { Base } from './cenas/Base';
 import { CAPITULOS } from './capitulos';
 import { sessao } from './cenas/sessao';
-import { iniciarNave3D, iniciarMarte3D } from './cenas/irParaMarte';
+import { iniciarMundo3D } from './cenas/irParaMarte';
 import { PRAZO_TEMPESTADE_MS } from './cenas/tempestadeSolar';
 
 export function instalarMenuDev(jogo: Phaser.Game) {
   const estilo = document.createElement('style');
   estilo.textContent = `
     #mission-dev-launch{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:10010;border:2px solid #fff;border-radius:999px;background:#17263f;color:#fddd45;padding:6px 14px;font:bold 13px Fredoka,system-ui;cursor:pointer}
+    @media (hover:none) and (pointer:coarse){#mission-dev-launch{left:max(12px,env(safe-area-inset-left));bottom:auto;top:calc(max(10px,env(safe-area-inset-top)) + 3px);transform:none;z-index:60;font-size:11px;padding:5px 9px;opacity:.85}}
     #mission-dev{box-sizing:border-box;width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:22px;border:3px solid white;border-radius:26px;background:#14243e;color:white;box-shadow:0 8px 0 #070e24;font:16px Fredoka,system-ui}
     #mission-dev::backdrop{background:#040c20aa} #mission-dev h2{color:#ffd93b;margin:0 0 6px;font-size:28px} #mission-dev p{font-size:13px;color:#bfd6ef;margin:8px 0 16px}
     #mission-dev button,#mission-dev select,#mission-dev input[type=number]{font:inherit;border:2px solid #bddfff;border-radius:12px;padding:8px;background:#203956;color:white;box-sizing:border-box}
@@ -63,6 +64,7 @@ export function instalarMenuDev(jogo: Phaser.Game) {
     pausadas = jogo.scene.getScenes(true).map(scene => scene.sys.settings.key);
     for (const key of pausadas) { const scene = jogo.scene.getScene(key); scene.input.keyboard?.resetKeys(); jogo.scene.pause(key); }
     const valores = alvo().devValores();
+    dialog.querySelector<HTMLSelectElement>('#dev-chapter')!.value = String(sessao.capIdx);
     for (const key of ['oxigenio', 'dose', 'meta'] as const) {
       const numero = dialog.querySelector<HTMLInputElement>(`#dev-${key}`)!;
       numero.value = String(Math.round(valores[key]));
@@ -94,13 +96,13 @@ export function instalarMenuDev(jogo: Phaser.Game) {
     }
     if (acao === 'chapter') {
       const indice = Number(dialog.querySelector<HTMLSelectElement>('#dev-chapter')!.value);
+      const capitulo = CAPITULOS[indice];
+      if (!capitulo) { status('Select a chapter first.'); return; }
+      // Find the scene while the menu has it paused, before closing resumes the game.
+      const cena = jogo.scene.scenes.find((c) => c.sys.isActive() || jogo.scene.isPaused(c.sys.settings.key));
+      if (!cena) { status('No mission scene is available.'); return; }
       fechar();
-      if (indice === 0) {
-        location.reload();
-      } else {
-        const cena = jogo.scene.getScenes(true)[0];
-        if (cena) (indice === 1 ? iniciarNave3D : iniciarMarte3D)(cena, 0, []);
-      }
+      iniciarMundo3D(cena, capitulo.tema, indice, 0, []);
       return;
     }
     if (!disponivel()) return;

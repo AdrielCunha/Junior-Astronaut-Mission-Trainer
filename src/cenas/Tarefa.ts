@@ -4,6 +4,7 @@
 // The frame is shared by every task: metal panel, title pill, red close button, a starry screen
 // the task draws in, and the instruction pill at the bottom.
 import Phaser from 'phaser';
+import { escalaInterface } from '../mobile';
 import type { Tarefa } from '../tarefas';
 import { CORES_FESTA, botaoFechar, criarIconeJogo, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { tocarSfx } from '../sfx';
@@ -23,7 +24,7 @@ export class CenaTarefa extends Phaser.Scene {
 
   create(d: DadosTarefa) {
     const W = this.scale.width, H = this.scale.height;
-    const u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.62, 1.4);
+    const u = escalaInterface(W, H);
 
     // Blocks clicks to the map and the HUD underneath.
     this.add.rectangle(0, 0, W, H, 0x020617, 0.55).setOrigin(0).setInteractive();

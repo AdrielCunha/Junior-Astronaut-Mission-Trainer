@@ -6,6 +6,7 @@ import Phaser from 'phaser';
 import { sessao } from '../cenas/sessao';
 import { TerrenoMarte } from './TerrenoMarte';
 import { iniciarMarte3D, iniciarNave3D } from '../cenas/irParaMarte';
+import { dispositivoMovel } from '../mobile';
 
 const CENAS_DO_JOGO = ['Radar', 'Espaco', 'Superficie', 'Interface', 'Tarefa', 'Base', 'Viagem', 'MarteVista'];
 
@@ -18,6 +19,7 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   // --- the panel ---
   const raiz = document.createElement('div');
   raiz.style.cssText = 'position:fixed;left:8px;top:50%;transform:translateY(-50%);z-index:1000;font:13px system-ui,sans-serif;display:flex;align-items:flex-start;gap:6px';
+  if (dispositivoMovel()) raiz.style.cssText += ';left:calc(max(12px,env(safe-area-inset-left)) + 58px);top:calc(max(10px,env(safe-area-inset-top)) + 3px);transform:none;z-index:61';
   const abrir = document.createElement('button');
   abrir.textContent = 'DEV';
   abrir.title = 'Test scenes (dev server only)';
@@ -110,10 +112,10 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   botao('Chapter 3: Mars (3D, playable)', marte3D);
   botao('Mars, zoom out to space', () => {
     marte3D();
-    // Once the Mars scenes are up, close the morning report and zoom out (Interface opens MarteVista).
+    // Once the Mars scenes are up, close the morning report and zoom out (the Mars film).
     depois(1500, () => {
       (sm.getScene('Interface') as unknown as { fecharPainel?: () => void }).fecharPainel?.();
-      sessao.emitir('zoomMarte');
+      sessao.voar('lua');
     });
   });
   titulo('Mars map');

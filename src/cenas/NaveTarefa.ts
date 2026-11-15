@@ -168,7 +168,7 @@ export class NaveTarefa extends Phaser.Scene {
     planeta('rota_marte', tarefa.end);
     mapa.add(txt(tarefa.start.x, tarefa.start.y + 58, 'Moon · start', 15, '#bbf7d0'));
     mapa.add(txt(tarefa.end.x, tarefa.end.y - 66, 'Final planet', 17, '#fef3c7'));
-    mapa.add(txt(tarefa.end.x, tarefa.end.y + 60, 'Marte', 14, '#fed7aa'));
+    mapa.add(txt(tarefa.end.x, tarefa.end.y + 60, 'Mars', 14, '#fed7aa'));
 
     // ---- A dashed hint from the Moon to Mars; it fades out when the player starts to drag.
     const dica = this.add.graphics();
