@@ -41,7 +41,7 @@ export class Carregar extends Phaser.Scene {
 
   preload() {
     const W = this.scale.width, H = this.scale.height;
-    const u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.62, 1.4);
+    const u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.45, 1.4);
     const cx = W / 2, cy = H * 0.44;
     const diametro = Math.min(W * 0.46, H * 0.34, 300 * u);
     const raio = diametro / 2;
@@ -49,10 +49,20 @@ export class Carregar extends Phaser.Scene {
     const tituloY = Math.max(H * 0.10, cy - raioAnel - 90 * u);
     const progressoY = cy + raioAnel + 16 * u;
 
-    this.add.rectangle(0, 0, W, H, 0x05070f).setOrigin(0).setDepth(-100);
+    // Match the illustrated blue mission menu; no external image is needed to show loading.
+    const fundo = this.textures.createCanvas('loadingMissionBackdrop', 32, 256);
+    if (fundo) {
+      const ctx = fundo.context, grad = ctx.createLinearGradient(0, 0, 0, 256);
+      grad.addColorStop(0, '#142864'); grad.addColorStop(0.5, '#214bb7'); grad.addColorStop(1, '#102457');
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, 32, 256); fundo.refresh();
+      this.add.image(0, 0, 'loadingMissionBackdrop').setOrigin(0).setDisplaySize(W,H).setDepth(-100);
+    } else this.add.rectangle(0,0,W,H,0x173b91).setOrigin(0).setDepth(-100);
 
     const rnd = new Phaser.Math.RandomDataGenerator(['lunar-odyssey-loading']);
     const ceu = this.add.graphics().setDepth(-90);
+    ceu.lineStyle(Math.max(1,u),0x93c5fd,0.12);
+    for (const r of [0.38,0.62,0.88]) ceu.strokeCircle(cx,cy,Math.max(W,H)*r);
+    ceu.lineStyle(1,0x93c5fd,0.07).lineBetween(cx,0,cx,H).lineBetween(0,cy,W,cy);
     for (let i = 0; i < 90; i++) {
       const x = rnd.between(0, W), y = rnd.between(0, H);
       ceu.fillStyle(0xffffff, rnd.realInRange(0.08, 0.55)).fillCircle(x, y, rnd.realInRange(0.4, 1.4) * u);
@@ -64,7 +74,7 @@ export class Carregar extends Phaser.Scene {
       if (textura) {
         const ctx = textura.context;
         const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-        grad.addColorStop(0, 'rgba(96, 165, 250, 0.20)');
+        grad.addColorStop(0, 'rgba(125, 211, 252, 0.24)');
         grad.addColorStop(0.45, 'rgba(96, 165, 250, 0.07)');
         grad.addColorStop(1, 'rgba(96, 165, 250, 0)');
         ctx.fillStyle = grad;
@@ -80,28 +90,42 @@ export class Carregar extends Phaser.Scene {
     this.luaPlaceholder.fillStyle(0x1e293b).fillCircle(cx, cy, raio);
     this.luaPlaceholder.lineStyle(2 * u, 0x334155, 0.85).strokeCircle(cx, cy, raio);
 
+    const orbite = this.add.graphics().setDepth(-75);
+    orbite.fillStyle(0x0b1a4a,0.32).fillCircle(cx,cy+4*u,raioAnel+12*u);
+    orbite.lineStyle(2*u,0x7dd3fc,0.35).strokeCircle(cx,cy,raioAnel+11*u);
+    for (let k=0;k<36;k++) {
+      const a=k*Math.PI/18,r=raioAnel+11*u;
+      orbite.lineStyle(k%3===0?2*u:u,0xbfdbfe,k%3===0?0.6:0.2)
+        .lineBetween(cx+Math.cos(a)*r,cy+Math.sin(a)*r,cx+Math.cos(a)*(r+4*u),cy+Math.sin(a)*(r+4*u));
+    }
     this.anel = this.add.graphics().setDepth(-50);
-    this.progresso = this.add.text(cx, progressoY, '0%', fonte(12 * u, '#93c5fd', { fontStyle: 'bold', letterSpacing: 1.5 * u })).setOrigin(0.5).setDepth(1);
+    const badge=this.add.graphics().setDepth(0);
+    badge.fillStyle(0x0b1a4a).fillRoundedRect(cx-48*u,progressoY-14*u+4*u,96*u,28*u,14*u);
+    badge.fillStyle(0x22c55e).fillRoundedRect(cx-48*u,progressoY-14*u,96*u,28*u,14*u);
+    badge.lineStyle(2*u,0xffffff).strokeRoundedRect(cx-48*u,progressoY-14*u,96*u,28*u,14*u);
+    this.progresso = this.add.text(cx, progressoY, '0%', fonte(Math.max(13,17*u), '#ffffff', { fontStyle: 'bold', stroke:'#166534',strokeThickness:2*u })).setOrigin(0.5).setDepth(1);
 
-    this.add.text(cx, tituloY, 'LUNAR ODYSSEY', fonte(30 * u, '#f8fafc', {
-      fontStyle: 'bold',
-      shadow: { offsetX: 0, offsetY: 0, color: '#2563eb', blur: 20, fill: true },
-    })).setOrigin(0.5).setDepth(1);
-    this.add.text(cx, tituloY + 36 * u, 'PREPARING THE MISSION', fonte(11 * u, '#93c5fd', {
-      fontStyle: 'bold', letterSpacing: 2.2 * u,
-    })).setOrigin(0.5).setDepth(1);
-
-    const yFato = Math.max(H * 0.68, progressoY + 70 * u);
-    const linha = this.add.graphics().setDepth(1);
-    linha.lineStyle(1, 0x334155, 0.65).lineBetween(cx - 42 * u, yFato - 40 * u, cx + 42 * u, yFato - 40 * u);
-    this.add.text(cx, yFato - 26 * u, 'DID YOU KNOW?', fonte(10 * u, '#60a5fa', {
-      fontStyle: 'bold', letterSpacing: 2 * u,
-    })).setOrigin(0.5).setDepth(1);
-    const fato = this.add.text(cx, yFato, FATOS[0], fonte(15 * u, '#cbd5e1', {
-      align: 'center',
-      wordWrap: { width: Math.min(W - 48, 560 * u) },
-      lineSpacing: 4 * u,
-    })).setOrigin(0.5, 0).setDepth(1);
+    const logoSize=Math.min(50*u,W/10.5);
+    this.add.text(cx+3*u,tituloY+4*u,'LUNAR ODYSSEY',fonte(logoSize,'#0b1a4a',{
+      fontStyle:'bold',stroke:'#0b1a4a',strokeThickness:logoSize/4.5,
+    })).setOrigin(0.5);
+    this.add.text(cx,tituloY,'LUNAR ODYSSEY',fonte(logoSize,'#fde047',{
+      fontStyle:'bold',stroke:'#1e293b',strokeThickness:logoSize/4.5,
+    })).setOrigin(0.5);
+    const faixaY=tituloY+logoSize*0.85,fw=Math.min(W-32,280*u);
+    this.add.graphics().fillStyle(0x0b1a4a).fillRoundedRect(cx-fw/2,faixaY-12*u,fw,24*u,12*u);
+    this.add.text(cx,faixaY,'PREPARING THE MISSION',fonte(Math.max(10,12*u),'#ffffff',{fontStyle:'bold'})).setOrigin(0.5);
+    const status=this.add.text(cx,progressoY+29*u,'Loading mission assets',fonte(Math.max(11,13*u),'#dbeafe')).setOrigin(0.5);
+    const cardW=Math.min(W-32,620*u),cardH=Math.max(78,96*u);
+    const cardY=Math.min(H-cardH-16*u,Math.max(H*0.73,progressoY+52*u));
+    const card=this.add.graphics();
+    card.fillStyle(0x0b1a4a,0.5).fillRoundedRect(cx-cardW/2,cardY+5*u,cardW,cardH,18*u);
+    card.fillStyle(0x102657,0.96).fillRoundedRect(cx-cardW/2,cardY,cardW,cardH,18*u);
+    card.lineStyle(2*u,0x7dd3fc,0.85).strokeRoundedRect(cx-cardW/2,cardY,cardW,cardH,18*u);
+    this.add.text(cx,cardY+18*u,'DID YOU KNOW?',fonte(Math.max(10,12*u),'#fde047',{fontStyle:'bold'})).setOrigin(0.5);
+    const fato=this.add.text(cx,cardY+38*u,FATOS[0],fonte(Math.max(11,15*u),'#ffffff',{
+      align:'center',wordWrap:{width:cardW-32*u},lineSpacing:2*u,
+    })).setOrigin(0.5,0);
     let i = 0;
     this.time.addEvent({ delay: 3200, loop: true, callback: () => fato.setText(FATOS[++i % FATOS.length]) });
 
@@ -109,14 +133,15 @@ export class Carregar extends Phaser.Scene {
       this.giro = GIRO_INICIAL + (movimentoReduzido() ? 0 : p * 120);
       this.luaPreview?.setGiro(this.giro);
       this.anel.clear();
-      this.anel.lineStyle(2 * u, 0x1e293b, 0.9).strokeCircle(cx, cy, raioAnel);
-      this.anel.lineStyle(3 * u, 0x60a5fa, 0.95);
+      this.anel.lineStyle(6 * u, 0x0b1a4a, 0.95).strokeCircle(cx, cy, raioAnel);
+      this.anel.lineStyle(5 * u, 0xfde047, 1);
       this.anel.beginPath();
       this.anel.arc(cx, cy, raioAnel, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p, false);
       this.anel.strokePath();
       const ang = -Math.PI / 2 + Math.PI * 2 * p;
       this.anel.fillStyle(0xf8fafc, 1).fillCircle(cx + Math.cos(ang) * raioAnel, cy + Math.sin(ang) * raioAnel, 2.5 * u);
       this.progresso.setText(`${Math.round(p * 100)}%`);
+      status.setText(p < 1 ? 'Loading mission assets' : 'Preparing your base');
     };
     desenhar(0);
     this.load.on('progress', desenhar);
