@@ -18,8 +18,7 @@ import { movimentoReduzido } from '../video';
 
 export type DadosViagem = { etapa: 'partida' | 'chegada'; aoTerminar: () => void };
 
-const PARTIDA = Date.parse('2024-05-13T12:00:00Z');   // chapter 2 starts (capitulos.ts)
-const DIAS_REAIS = 259;                               // a typical Earth-Mars transfer, ~8.5 months
+import { PARTIDA, DIAS_REAIS, caminhoTransferencia } from './transferencia';
 const ACHATAR = 0.6;                                  // the solar system is drawn tilted, like Espaco
 const AU_TELA = 1.75;                                 // the view fits out to Mars's orbit
 const terra = PLANETAS.find((p) => p.nome === 'Earth')!;
@@ -82,17 +81,7 @@ export class Viagem extends Phaser.Scene {
 
     // Earth when the ship leaves, Mars when it arrives (real positions), and a path between them
     // that grows from Earth's orbit radius to Mars's while turning the short way around the Sun.
-    const e0 = posicao(terra, PARTIDA), m1 = posicao(marte, PARTIDA + DIAS_REAIS * 86400000);
-    const a0 = Math.atan2(e0.y, e0.x);
-    let da = Math.atan2(m1.y, m1.x) - a0;
-    while (da <= 0) da += 2 * Math.PI;
-    if (da > 1.6 * Math.PI) da -= 2 * Math.PI;
-    this.caminho = Array.from({ length: 121 }, (_, i) => {
-      const s = i / 120;
-      const r = e0.r + (m1.r - e0.r) * (0.5 - 0.5 * Math.cos(Math.PI * s));
-      const a = a0 + da * s;
-      return { x: r * Math.cos(a), y: r * Math.sin(a) };
-    });
+    this.caminho = caminhoTransferencia();
 
     this.g = this.add.graphics();
     const sp = this.tela({ x: 0, y: 0 });

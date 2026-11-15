@@ -123,6 +123,8 @@ export class Carregar extends Phaser.Scene {
     for (const [id, b] of Object.entries(bandeiras)) this.load.image(`bandeira_${id}`, b.arquivo);
     this.load.spritesheet('astronauta', 'lua/astronaut.png', { frameWidth: sprite.frame, frameHeight: sprite.frame });
     this.load.image('viagem_foguete', dadosViagem.foguete.arquivo);
+    // The Mars ship, 16 headings (128 KB in all): it waits in lunar orbit after liftoff (Espaco).
+    dadosViagem.nave.direcoes.forEach((n, k) => this.load.image(`nave_d${k}`, n.arquivo));
     this.load.image('planeta_marte', 'lua/planetas/marte.png');   // live Mars in the solar system view
     this.load.image('ceu', 'lua/sky.jpg');
     constelacoes.forEach((c, k) => this.load.image(`const${k}`, c.arquivo));

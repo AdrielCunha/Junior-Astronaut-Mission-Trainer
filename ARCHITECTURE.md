@@ -363,11 +363,18 @@ locally; sky and constellation imagery are unaffected by the surface palette.
 1. **Liftoff**, end of chapter 1, "Board the ship": `Superficie.decolar` swaps the pad picture for an
    empty pad and flies the rocket (`public/lua/viagem/foguete.png`) on its engine against lunar
    gravity (acceleration grows as propellant burns), with dust and a flickering flame; the camera
-   follows. Then `Viagem` plays `'partida'` and the crew continues in chapter 2 (Base prototype).
-2. **Cruise**: the solar system tilted like the Moon view, Sun in the middle, Earth and Mars at their
-   real positions for each day of a real 259-day transfer from May 13, 2024 (`engine/astro.ts`),
-   and a simplified transfer arc (it widens from Earth's orbit to Mars's while turning around the
-   Sun; not a computed trajectory). The ship (`nave_d<k>.png`, 16 headings) follows it.
+   follows. Then `sessao.partir` plays the departure on the game's own zoom out (Espaco draws it;
+   wheel and zoom buttons wait): the film from the base to the Moon with the rocket climbing off
+   the base, then the rocket reaches a polar lunar orbit and docks with the Mars ship waiting
+   there (like NASA's Gateway), the ship goes once around the Moon (hidden behind it on the far
+   side) and fires its engine, the zoom goes out to the planets, and the crew continues in
+   chapter 2 (Base prototype).
+2. **Cruise**, the last part of the departure: in the solar system view the date runs along a real
+   259-day transfer from May 13, 2024 (`engine/astro.ts`), so Earth and Mars move, and the ship
+   (`nave_d<k>.png`, 16 headings) follows a simplified transfer arc (`transferencia.ts`: it widens
+   from Earth's orbit to Mars's while turning around the Sun; not a computed trajectory). The view
+   keeps the departure day's turn so it does not spin, and constellations wait. `Viagem` keeps a
+   `'partida'` mode with the same cruise as a standalone scene, no longer used by the game.
 3. **Arrival**, chapter 2 "Next chapter" (`'chegada'`): the ship finishes the arc, the wide view fades,
    Mars grows into a live globe and the ship swings around it and brakes, engine first.
 4. **Landing**, right after the arrival: the camera dives toward Jezero crater (18.4° N, 77.6° E,

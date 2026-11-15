@@ -13,6 +13,8 @@ import { VOO as voo, LEVE } from './qualidade';
 import { carregarFilme, garantirQuadro, proximoPendente } from './filme';
 import { criarLua, LADO } from './luaShader';
 import { criarPlaneta, diametroPlaneta } from './planetaShader';
+import { caminhoTransferencia, noCaminho, quadroNave, PARTIDA, DIAS_REAIS, DIA_MS } from './transferencia';
+import dadosViagem from '../dados/viagem.json';
 import { PLANETAS, posicao, lua, nomeDaFase, AU_KM, RAIO_LUA_KM, RAIO_SOL_KM, TERRA_LUA_KM } from '../engine/astro';
 import { sessao, suave, fonte, dataBonita, COR, sDeU } from './sessao';
 import { VISTA as vista, giroEm, pontoNaLua, naTela, visivel, solSobreBase, type V3 } from './globo';
@@ -41,6 +43,12 @@ export class Espaco extends Phaser.Scene {
   private relogio = 0;
   private giroMostrado: number | null = null;         // the live Moon's angle, eased (see update)
   private pinoVoo: { x: number; y: number; a: number } | null = null;
+  // Leaving for Mars (sessao.partida): the rocket, the Mars ship and their engine flames.
+  private baseFilme: { x: number; y: number } | null = null;   // the base in the current film frame
+  private foguete!: Phaser.GameObjects.Image;
+  private nave!: Phaser.GameObjects.Image;
+  private chamas!: Phaser.GameObjects.Graphics;
+  private caminho = caminhoTransferencia();
 
   constructor() {
     super({ key: 'Espaco' });   // started by Carregar
@@ -80,6 +88,10 @@ export class Espaco extends Phaser.Scene {
     // The Blender flight (ground <-> Moon): downloaded in the background by filme.ts, which lives
     // outside the scene, so a resize (it restarts this scene) cannot load a frame twice.
     this.quadro = this.add.image(W / 2, H / 2, '__DEFAULT').setDepth(10).setVisible(false);
+    this.foguete = this.add.image(0, 0, 'viagem_foguete').setDepth(15).setVisible(false)
+      .setOrigin(0.5, dadosViagem.foguete.ancora[1] / dadosViagem.foguete.h);
+    this.nave = this.add.image(0, 0, 'nave_d0').setDepth(15).setVisible(false);
+    this.chamas = this.add.graphics().setDepth(15).setBlendMode(Phaser.BlendModes.ADD);
     this.aqueceu = false;
     if (!movimentoReduzido()) carregarFilme(this.textures);
 
@@ -108,7 +120,7 @@ export class Espaco extends Phaser.Scene {
 
   // A thin constellation figure draws itself, stays a moment and fades.
   private tracarConstelacao() {
-    if (!constelacoes.length || !video.efeitos || configuracoesAbertas) return;
+    if (!constelacoes.length || !video.efeitos || configuracoesAbertas || sessao.partida) return;
     if(movimentoReduzido() && this.constelacaoAtual)return;
     this.limparConstelacao();
     const i = Phaser.Math.Between(0, constelacoes.length - 1);
@@ -150,6 +162,11 @@ export class Espaco extends Phaser.Scene {
     const W = this.scale.width, H = this.scale.height;
     sessao.passo(dtMs / 1000);     // Espaco runs first: every layer sees the same zoom this frame
     if (!this.aqueceu && sessao.filmePronto) { this.aqueceu = true; this.aquecer(); }
+    this.avancarPartida(dtMs / 1000);
+    const P = sessao.partida;
+    this.foguete.setVisible(false);
+    this.nave.setVisible(false);
+    this.chamas.clear();
     // On the ground, send decoded flight frames to the GPU one at a time, in order: every 150 ms
     // while the commander stands still (a hitch then is barely seen), every 700 ms while walking.
     // What is still missing when the flight starts goes up just in time (see below).
@@ -193,8 +210,15 @@ export class Espaco extends Phaser.Scene {
       const bx = Phaser.Math.Linear(a.x, b.x, f), by = Phaser.Math.Linear(a.y, b.y, f);
       const ap = temQuadro ? suave(0.2, 0.3, q) * (1 - suave(0.975, 1, q)) : 0;
       this.pinoVoo = ap > 0 ? { x: bx, y: by, a: ap } : null;
+      this.baseFilme = { x: bx, y: by };
     } else {
       this.pinoVoo = null;
+      this.baseFilme = null;
+    }
+    // Leaving for Mars: the rocket climbs away from the base while the film zooms out.
+    if (P?.fase === 'filme' && q !== null && this.baseFilme) {
+      const r = this.subida(this.baseFilme.x, this.baseFilme.y, q, W, H);
+      this.desenharFoguete(r.x, r.y, r.dx, r.dy, Phaser.Math.Linear(30, 12, q));
     }
     const u = q !== null && q > 0.95 ? uG : sessao.u;
     // In the Moon view time runs on (no wrap: a wrap made the Moon jump back), so you watch the
@@ -204,7 +228,9 @@ export class Espaco extends Phaser.Scene {
     this.brilho.setScale(movimentoReduzido() ? 1 : this.brilho.scaleX);
     this.tweens.getTweensOf(this.brilho).forEach(t=>{t.paused=movimentoReduzido() || !video.efeitos;});
     if (!movimentoReduzido() && !configuracoesAbertas) carregarFilme(this.textures);
-    const t = sessao.data + this.relogio * 3600000;
+    // During the crossing to Mars the date runs along the real 259-day trip.
+    const sCruzeiro = P?.fase === 'cruzeiro' ? Phaser.Math.Easing.Sine.InOut(P.t) : 0;
+    const t = P?.fase === 'cruzeiro' ? PARTIDA + sCruzeiro * DIAS_REAIS * DIA_MS : sessao.data + this.relogio * 3600000;
     this.ceu.setAlpha(0.55 + 0.45 * suave(0.6, 1.6, n));
     this.g.clear();
     for (const r of this.rotulos.values()) r.setVisible(false);
@@ -239,7 +265,11 @@ export class Espaco extends Phaser.Scene {
     const C = { x: luaKm.x * (1 - w), y: luaKm.y * (1 - w) };
     // Turn the drawing so the Sun is on the same side as the light on the Moon sprite.
     const solTela = Math.atan2(-dot(vista.toSun as V3, vista.up as V3), dot(vista.toSun as V3, vista.right as V3));
-    const th = -solTela - Math.atan2(-luaKm.y, -luaKm.x);
+    // During the crossing to Mars the drawing keeps the turn of the departure day, so the solar
+    // system does not spin while the months go by.
+    const ldGiro = P?.fase === 'cruzeiro' ? lua(PARTIDA) : ld;
+    const tg = P?.fase === 'cruzeiro' ? posicao(PLANETAS[2], PARTIDA) : terraP;
+    const th = -solTela - Math.atan2(-(tg.y * AU_KM + ldGiro.y * TERRA_LUA_KM), -(tg.x * AU_KM + ldGiro.x * TERRA_LUA_KM));
     const cs = Math.cos(th), sn = Math.sin(th);
     const tela = (p: { x: number; y: number }) => {
       const dx = p.x - C.x, dy = p.y - C.y;
@@ -261,6 +291,14 @@ export class Espaco extends Phaser.Scene {
       if (!this.pinoVoo && !sessao.voo) this.pino.setVisible(a > 0).setAlpha(a).setPosition(lq.x + p.x * largura, lq.y + p.y * largura);
     } else {
       g.fillStyle(0xcfc4a8).fillCircle(lq.x, lq.y, 3).lineStyle(1, COR.contorno).strokeCircle(lq.x, lq.y, 3);
+    }
+    // Leaving for Mars: the rocket climbs to lunar orbit and docks with the Mars ship, which goes
+    // once around the Moon and fires its engine; the zoom out to the planets follows it.
+    if (P && (P.fase === 'orbita' || P.fase === 'zoom')) {
+      const pm = pontoNaLua(vista.base.lat, vista.base.lon, giro);
+      const pb = naTela(pm);
+      this.orbitaLunar(P, lq.x, lq.y, RAIO_LUA_KM * kmPx, lq.x + pb.x * largura, lq.y + pb.y * largura, W, H);
+      if (P.fase === 'orbita') return;
     }
     if (n < 2.08) {
       if (sessao.voo) return;
@@ -303,7 +341,7 @@ export class Espaco extends Phaser.Scene {
         this.marte.setVisible(true).setPosition(q.x, q.y).setScale((2 * r) / diametroPlaneta(1));
         this.marte.setSolTela(sp.x - q.x, sp.y - q.y);
         this.marte.setGiro(((t / DIA_MARTE_MS) % 1) * 360);
-        this.rotulo(p.nome, q.x, q.y + r + 8, 'Mars\nnext stop (locked)', '#fdba74', rotulos);
+        this.rotulo(p.nome, q.x, q.y + r + 8, P ? 'Mars\nnext stop' : 'Mars\nnext stop (locked)', '#fdba74', rotulos);
         g.lineStyle(1.5, 0xfb923c, 0.8 * rotulos).strokeCircle(q.x, q.y, r + 5);
         continue;
       }
@@ -311,7 +349,7 @@ export class Espaco extends Phaser.Scene {
       g.lineStyle(1.5, COR.contorno).strokeCircle(q.x, q.y, r);
       if (p.nome === 'Earth') {
         g.fillStyle(0x16a34a).fillEllipse(q.x - r * 0.25, q.y - r * 0.15, r * 0.9, r * 0.6);
-        this.rotulo('Earth', q.x, q.y + r + 4, rotulos > 0.5 ? 'Earth + Moon\nyou are here' : 'Earth', '#93c5fd', suave(2.08, 2.2, n));
+        this.rotulo('Earth', q.x, q.y + r + 4, rotulos > 0.5 ? (P?.fase === 'cruzeiro' ? 'Earth + Moon' : 'Earth + Moon\nyou are here') : 'Earth', '#93c5fd', suave(2.08, 2.2, n));
       } else if (p.nome === 'Mars') {
         // Chapter 3's destination: shown, locked until the rocket gets there.
         g.lineStyle(1.5, 0xfb923c, 0.8).strokeCircle(q.x, q.y, r + 5);
@@ -328,5 +366,120 @@ export class Espaco extends Phaser.Scene {
       `${dataBonita(t)} · real positions from NASA JPL orbital elements · planet sizes enlarged, distances true\n` +
       (rotulos > 0.5 ? `Mars, your next stop, is ${(dm * AU_KM / 1e6).toFixed(0)} million km away today. Light takes ${(dm * 499 / 60).toFixed(0)} minutes to get there.`
         : `The Moon is ${TERRA_LUA_KM.toLocaleString('en-US')} km from Earth. Light crosses that in 1.3 seconds.`));
+
+    // Leaving for Mars: the ship crosses on the transfer path, solid behind it, dashed ahead.
+    if (P?.fase === 'cruzeiro') {
+      const s = sCruzeiro;
+      const km = (a: { x: number; y: number }) => tela({ x: a.x * AU_KM, y: a.y * AU_KM });
+      for (let i = 0; i < 120; i++) {
+        const a = km(this.caminho[i]), b = km(this.caminho[i + 1]);
+        if (i / 120 < s) g.lineStyle(2, 0xfbbf24, 0.9).lineBetween(a.x, a.y, b.x, b.y);
+        else if (i % 2 === 0) g.lineStyle(1.5, 0xfbbf24, 0.45).lineBetween(a.x, a.y, b.x, b.y);
+      }
+      const a = km(noCaminho(this.caminho, s)), b = km(noCaminho(this.caminho, s + 0.004));
+      const rumo = Math.atan2(-(b.y - a.y), b.x - a.x);
+      const motor = s < 0.06 || s > 0.94;                 // the engine only fires to leave and to arrive
+      this.desenharNave(a.x, a.y, rumo, 0.26, motor ? 1 : 0, 15);
+      const dia = Math.round(s * DIAS_REAIS);
+      this.definirLegenda(`${dataBonita(t)} · day ${dia} of a real ${DIAS_REAIS}-day trip to Mars (the game shortens it to 5 days)\n` +
+        (motor ? 'Engine on, only to leave and to arrive.' : 'The ship coasts most of the way: no engine, no air to slow it down, it just keeps going.'));
+    }
+  }
+
+  // ---------- Leaving for Mars (sessao.partida) ----------
+
+  // Moves the departure on from one part to the next: the zoom flights are sessao's own.
+  private avancarPartida(dt: number) {
+    const P = sessao.partida;
+    if (!P || P.acabou) return;
+    const lento = movimentoReduzido();
+    const quieto = !sessao.voo && !sessao.transicao;
+    if (P.fase === 'filme' && quieto && sessao.vista === 'lua') { P.fase = 'orbita'; P.t = 0; }
+    else if (P.fase === 'orbita') {
+      P.t = Math.min(1, P.t + dt / (lento ? 3 : 9));
+      if (P.t >= 1 && !sessao.transicao) { P.fase = 'zoom'; sessao.voar('sistema'); }
+    } else if (P.fase === 'zoom' && quieto && sessao.vista === 'sistema') { P.fase = 'cruzeiro'; P.t = 0; }
+    else if (P.fase === 'cruzeiro') {
+      P.t = Math.min(1, P.t + dt / (lento ? 3 : 10));
+      if (P.t >= 1) {
+        P.acabou = true;
+        this.time.delayedCall(lento ? 200 : 1200, () => {
+          this.cameras.main.fadeOut(600, 2, 6, 23);
+          this.cameras.main.once('camerafadeoutcomplete', () => { sessao.partida = null; P.fim(); });
+        });
+      }
+    }
+  }
+
+  // Where the rocket is during the film: just off the base, away from the Moon's center (the
+  // screen center at the end of the film), farther as the film zooms out.
+  private subida(bx: number, by: number, q: number, W: number, H: number) {
+    let dx = bx - W / 2, dy = by - H / 2;
+    const d = Math.hypot(dx, dy);
+    const w = Phaser.Math.Clamp(d / 80, 0, 1);
+    dx = (d ? dx / d : 0) * w; dy = (d ? dy / d : 0) * w - (1 - w);
+    const l = Math.hypot(dx, dy) || 1;
+    dx /= l; dy /= l;
+    const dist = 16 + 34 * q;
+    return { x: bx + dx * dist, y: by + dy * dist, dx, dy };
+  }
+
+  // The rocket from the map, small, nose along (dx, dy), flame out of its base.
+  private desenharFoguete(x: number, y: number, dx: number, dy: number, alto: number) {
+    const k = alto / dadosViagem.foguete.h;
+    this.foguete.setVisible(true).setDepth(15).setPosition(x, y).setScale(k).setRotation(Math.atan2(dx, -dy));
+    const l = alto * 0.55 * Phaser.Math.FloatBetween(0.85, 1.15), w = alto * 0.09;
+    const px = -dy, py = dx;
+    this.chamas.fillStyle(0xfb923c, 0.9).fillTriangle(x + px * w, y + py * w, x - px * w, y - py * w, x - dx * l, y - dy * l);
+    this.chamas.fillStyle(0xfde68a, 0.95).fillTriangle(x + px * w * 0.5, y + py * w * 0.5, x - px * w * 0.5, y - py * w * 0.5, x - dx * l * 0.55, y - dy * l * 0.55);
+  }
+
+  // The Mars ship picture for a heading, with its engine flame behind it (as in Viagem).
+  private desenharNave(x: number, y: number, rumo: number, escala: number, empuxo: number, prof: number) {
+    const q = quadroNave(rumo);
+    this.nave.setTexture(q.chave).setOrigin(q.ox, q.oy).setPosition(x, y).setScale(escala).setVisible(true).setDepth(prof);
+    this.chamas.setDepth(prof);
+    if (empuxo <= 0) return;
+    const ux = -Math.cos(rumo), uy = Math.sin(rumo) * ACHATAR;
+    const L = Math.hypot(ux, uy) || 1;
+    const m = dadosViagem.nave.motorUnidades * dadosViagem.nave.pxPorUnidade * escala;
+    const bx = x + (ux / L) * m, by = y + (uy / L) * m;
+    const comp = (26 + 16 * empuxo) * escala * Phaser.Math.FloatBetween(0.85, 1.15);
+    const lx = -uy / L, ly = ux / L, w = 9 * escala;
+    this.chamas.fillStyle(0xfb923c, 0.85).fillTriangle(bx + lx * w, by + ly * w, bx - lx * w, by - ly * w, bx + (ux / L) * comp, by + (uy / L) * comp);
+    this.chamas.fillStyle(0xfde68a, 0.95).fillTriangle(bx + lx * w * 0.5, by + ly * w * 0.5, bx - lx * w * 0.5, by - ly * w * 0.5, bx + (ux / L) * comp * 0.55, by + (uy / L) * comp * 0.55);
+  }
+
+  // Lunar orbit: a polar orbit (the base is at the south pole), seen a little from the side.
+  // Angle a = 0 is just over the south pole; the near half (sin a > 0) is drawn over the Moon.
+  private orbitaLunar(P: NonNullable<typeof sessao.partida>, cx: number, cy: number, R: number, bx: number, by: number, W: number, H: number) {
+    const ro = 1.45 * R;
+    const ponto = (a: number) => ({ x: cx + ro * Math.sin(a) * 0.35, y: cy + ro * Math.cos(a), frente: Math.sin(a) > 0 });
+    const rumoEm = (a: number) => Math.atan2(ro * Math.sin(a), ro * Math.cos(a) * 0.35);   // screen heading, counterclockwise
+    const t = P.fase === 'orbita' ? P.t : 1;
+    const aNave = -0.9 + 2 * Math.PI * 1.05 * t;          // a little over one turn
+    // Orbit line, under the Moon.
+    const pts = Array.from({ length: 65 }, (_, i) => ponto((i / 64) * Math.PI * 2));
+    this.g.lineStyle(1.5, 0xfbbf24, 0.35).strokePoints(pts, false);
+    const escala = Phaser.Math.Clamp(R / 1100, 0.07, 0.3);
+    const n = ponto(aNave);
+    const queima = P.fase === 'zoom' || t > 0.78;
+    this.desenharNave(n.x, n.y, rumoEm(aNave), escala, queima ? 1.2 : 0, n.frente ? 15 : -1);
+    // The rocket: from where the film left it to the ship, then docked (hidden).
+    const c = Phaser.Math.Clamp(t / 0.3, 0, 1);
+    if (c < 1) {
+      const r0 = this.subida(bx, by, 1, W, H);
+      const e = Phaser.Math.Easing.Sine.InOut(c);
+      const x = Phaser.Math.Linear(r0.x, n.x, e), y = Phaser.Math.Linear(r0.y, n.y, e);
+      const dx = n.x - r0.x, dy = n.y - r0.y, l = Math.hypot(dx, dy) || 1;
+      this.desenharFoguete(x, y, Phaser.Math.Linear(r0.dx, dx / l, e), Phaser.Math.Linear(r0.dy, dy / l, e), Math.max(8, 12 - 4 * e));
+      this.chamas.setDepth(15);
+    }
+    if (P.fase !== 'orbita') return;
+    this.definirLegenda(c < 1
+      ? 'Climbing to lunar orbit. The Mars ship waits there: it is too big to land, so the crew comes up to it.\nOn the Moon a rocket only has to reach 1.7 km/s to stay in orbit. On Earth it takes 7.8 km/s.'
+      : t < 0.78
+        ? 'Docked! The crew moves into the Mars ship. A polar orbit passes over the base at the south pole.\nNASA plans the same idea for Artemis: a station in lunar orbit, called Gateway.'
+        : 'Engine on: the ship speeds up to leave the Moon and head for Mars.\nIt only needs a short push. After that it coasts for months.');
   }
 }

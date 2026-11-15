@@ -283,12 +283,13 @@ export class Interface extends Phaser.Scene {
     }
   }
 
-  // The rocket lifts off the pad (Superficie), then the ship sets out for Mars (Viagem), then the
+  // The rocket lifts off the pad (Superficie), meets the Mars ship in lunar orbit and the ship
+  // crosses to Mars on the zoom out (sessao.partir, drawn by Espaco), then the
   // crew continues in chapter 2.
   private embarcar(e: Estado) {
     this.fecharPainel();
     const sup = this.scene.get('Superficie') as unknown as { decolar(fim: () => void): void };
-    sup.decolar(() => this.scene.launch('Viagem', { etapa: 'partida', aoTerminar: () => this.iniciarPrototipo(e) }));
+    sup.decolar(() => sessao.partir(() => this.iniciarPrototipo(e)));
   }
 
   // Chapters 2 and 3 live in the Base prototype, which has its own art (spacecraft, Mars) and

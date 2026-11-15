@@ -93,6 +93,18 @@ class Sessao {
   private empurrao = 0;     // wheel / pinch pushing past the edge of a view
   private pendente: Vista | null = null;   // next flight once the current one lands
   pulou = false;
+  // Leaving for Mars after liftoff, played on the zoom itself (Espaco draws it): 'filme' the
+  // zoom out from the base to the Moon, 'orbita' the rocket meets the Mars ship in lunar orbit,
+  // 'zoom' out to the planets, 'cruzeiro' the ship crosses to Mars. The player only watches.
+  partida: { fase: 'filme' | 'orbita' | 'zoom' | 'cruzeiro'; t: number; fim: () => void; acabou: boolean } | null = null;
+
+  // Starts the departure; `fim` runs when the ship reaches Mars's orbit on the map.
+  partir(fim: () => void) {
+    this.partida = { fase: 'filme', t: 0, fim, acabou: false };
+    this.emitir('mensagem', 'On the way to lunar orbit, where the Mars ship is waiting.', '#fde68a');
+    if (this.vista === 'lua') this.partida.fase = 'orbita';
+    else this.voar('lua');
+  }
 
   reiniciar() {
     this.grade = new Grade(this.terreno);
@@ -111,6 +123,7 @@ class Sessao {
     this.transicao = null;
     this.pendente = null;
     this.pulou = false;
+    this.partida = null;
   }
 
   // Where each view sits on the zoom scale (depends on the screen size).
@@ -141,7 +154,7 @@ class Sessao {
 
   // Wheel / pinch: d e-folds (positive = out) around a screen point.
   zoom(d: number, ancora: { x: number; y: number } | null = null) {
-    if (this.voo || this.transicao || this.emTarefa || configuracoesAbertas) return;
+    if (this.partida || this.voo || this.transicao || this.emTarefa || configuracoesAbertas) return;
     if (this.vista === 'chao') {
       const borda = Math.max(U_CHAO, this.uFilme);
       const novo = this.alvo + d;
@@ -186,7 +199,7 @@ class Sessao {
   }
 
   irPara(u: number) {
-    if (configuracoesAbertas || this.transicao) return;
+    if (this.partida || configuracoesAbertas || this.transicao) return;
     if (this.vista !== 'chao') { this.voar('chao'); return; }
     this.alvo = u;
     this.ancora = null;
