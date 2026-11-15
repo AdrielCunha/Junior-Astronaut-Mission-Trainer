@@ -3,7 +3,8 @@
 # the full-screen view of each body (Astro). Rendered in Blender, turning on their axes:
 #   small sheet, solar system view: 16 turns x 16 Sun directions, 96 px frames (the game picks the
 #     frame lit from where the Sun is on screen, and steps the turn so the body spins);
-#     the Sun: 16 turns, it is its own light;
+#     the Sun: 48 turns, it is its own light; it also gets a medium sheet (288 px frames, WebP)
+#     for the big Sun of the farther zoom stops;
 #   full screen (Astro): the body's surface baked by Cycles into an equirectangular map, 2048 x 1024,
 #     that astroShader.ts wraps on a sphere on the GPU, so it turns smoothly at any size (like the
 #     live Moon). The Sun's map is its surface without the limb darkening, which the shader adds.
@@ -36,6 +37,7 @@ SO_MAPAS = '--so-mapas' in argv          # only the maps (the small sheets are k
 MAPA = (2048, 1024)
 
 QP = 96                                  # frame size, solar system view
+QS = 288                                 # the Sun's medium sheet: the big Sun of the farther zoom stops
 DIRS, GIROS = 16, 48
 COLS_P = 32                              # small sheet: 32 frames a row keeps it under 4096 px (old GPUs)
 RAIO = 0.80                              # body radius as a share of half the frame (room for the glow)
@@ -313,8 +315,20 @@ for nome, (arq, cor, forca, incl) in CORPOS.items():
                 if not eh_sol: apontar_luz(2 * math.pi * k / DIRS)
                 f = os.path.join(tmp, f'{nome}_p{j:02d}_{k:02d}.png'); render(QP, f); peq.append(f)
         folha(peq, 8 if eh_sol else COLS_P, QP, os.path.join(OUT, f'{nome}_p.png'))   # frame j * direcoes + k, row by row
+        if eh_sol:
+            # The Sun of zoom stops 2 and 3 (Espaco: it covers the inner system), up to ~230 px
+            # wide: its own sheet at 288 px, WebP (a 255 color PNG bands its gradient).
+            med = []
+            for j in range(GIROS):
+                girar(j / GIROS)
+                f = os.path.join(tmp, f'{nome}_m{j:02d}.png'); render(QS, f); med.append(f)
+            m_png = os.path.join(tmp, 'sol_m.png')
+            subprocess.run(['magick', 'montage', *med, '-tile', '8x', '-geometry', f'{QS}x{QS}+0+0', '-background', 'none', m_png], check=True)
+            subprocess.run(['magick', m_png, '-quality', '86', '-define', 'webp:alpha-quality=90', os.path.join(OUT, 'sol_m.webp')], check=True)
     # (Always written: runs in parallel, one body each, can drop each other's entries.)
     item['pequeno'] = {'arquivo': f'lua/planetas/3d/{nome}_p.png', 'quadro': QP, 'giros': GIROS, 'direcoes': 1 if eh_sol else DIRS, 'raio': round(QP / 2 / meio_quadro(nome), 1)}
+    if eh_sol:
+        item['medio'] = {'arquivo': 'lua/planetas/3d/sol_m.webp', 'quadro': QS, 'giros': GIROS, 'direcoes': 1, 'raio': round(QS / 2 / meio_quadro(nome), 1)}
     if not SO_PEQUENO:
         p.matrix_world = Matrix.Identity(4)
         if anel: bpy.data.objects.remove(anel)

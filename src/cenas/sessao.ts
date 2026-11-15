@@ -54,6 +54,11 @@ export const RAIO_MARTE = 3396.19;          // km
 const AU = 149597870.7;
 // How far the elastic zoom goes past the solar system view, in log units: out to Neptune.
 export const ELASTICO_MAX = 3.2;
+// The zoom out past the solar system stops at three distances (log zoom units past the view):
+// the resting view (out to Mars), the giants (Jupiter and Saturn), the whole system (Neptune and
+// the Kuiper belt). Each push plays an animated glide to the next one.
+export const PARADAS_ELASTICAS = [0, 1.75, ELASTICO_MAX];
+const VOLTA_ELASTICA_S = 3;                 // left idle at a farther stop, the view glides back after this
 export const sDeU = (u: number) => S_MAX * Math.exp(-u);
 export const DURACAO_FILME = 4.6;           // s for the film part, ground <-> Moon
 // Timing of the flight (its frames are spaced evenly in log distance, so a constant rate looks
@@ -341,14 +346,24 @@ class Sessao {
   // The view stops at Mars, so it fills the screen: Mars's whole orbit (out to 1.67 AU) fits the
   // width and, squashed by the tilt (0.6), the height.
   get uSistema() { return uDeS(Math.min((0.45 * this.tela.w) / 1.7, (0.36 * this.tela.h) / (1.7 * 0.6)) / AU); }
-  // Elastic zoom past the solar system view (like scrolling past the end of a list on a phone):
-  // pulling out shows the outer planets, harder and harder; let go and it springs back.
-  // puxo = how hard it was pulled (log zoom units); elastico = how far out the view really is.
-  puxo = 0;
-  private ultimoPuxo = 0;
-  // The view glides to where the pull asks (no jump per wheel notch): elastico is that glide.
-  elastico = 0;
-  private get alvoElastico() { return ELASTICO_MAX * (1 - Math.exp(-this.puxo / ELASTICO_MAX)); }
+  // Zoom out past the solar system view, in three stops (PARADAS_ELASTICAS): each push of the
+  // wheel or the buttons glides to the next one, a pull in to the one before. Left 3 s at a
+  // farther stop (game time, so a touchpad's trailing wheel events do not keep it there), the
+  // view glides back to the resting one by itself.
+  paradaElastica = 0;
+  elastico = 0;                             // how far out the view is now (log zoom units)
+  private animElastico: { de: number; para: number; t: number; dur: number } | null = null;
+  private paradoElastico = 0;               // seconds at the current stop
+  get segundosParaVoltar() { return Math.max(0, VOLTA_ELASTICA_S - this.paradoElastico); }
+  private irParadaElastica(i: number) {
+    i = Phaser.Math.Clamp(i, 0, PARADAS_ELASTICAS.length - 1);
+    this.paradoElastico = 0;
+    if (i === this.paradaElastica) return;
+    this.paradaElastica = i;
+    const para = PARADAS_ELASTICAS[i];
+    this.animElastico = movimentoReduzido() ? null : { de: this.elastico, para, t: 0, dur: 1.1 + 0.3 * Math.abs(para - this.elastico) };
+    if (!this.animElastico) this.elastico = para;
+  }
   // 0..1 ground, 1..2 flying to the globe, 2..3 out to the planets (for fades and labels).
   get nivel() {
     const u = this.u, g = this.uGlobo;
@@ -370,10 +385,11 @@ class Sessao {
       if (this.empurrao > 0.35) this.voar('lua');
       return;
     }
-    if (this.vista === 'sistema' && this.mundo !== 'nave' && (d > 0 || this.puxo > 0)) {
-      this.puxo = Math.max(0, this.puxo + d * 2);
-      this.ultimoPuxo = performance.now();
-      this.empurrao = 0;
+    if (this.vista === 'sistema' && this.mundo !== 'nave' && (d > 0 || this.paradaElastica > 0)) {
+      if (this.animElastico) return;         // a glide plays to its end, like the flights
+      this.empurrao += d;
+      if (this.empurrao > 0.2) { this.empurrao = 0; this.irParadaElastica(this.paradaElastica + 1); }
+      else if (this.empurrao < -0.2) { this.empurrao = 0; this.irParadaElastica(this.paradaElastica - 1); }
       return;
     }
     this.empurrao += d;
@@ -395,7 +411,7 @@ class Sessao {
       return;
     }
     if (configuracoesAbertas || this.transicao) return;
-    this.empurrao = 0; this.puxo = 0; this.elastico = 0;
+    this.empurrao = 0; this.paradaElastica = 0; this.elastico = 0; this.animElastico = null; this.paradoElastico = 0;
     if (destino === this.vista) return;
     this.ancora = null;
     if (movimentoReduzido()) {
@@ -489,13 +505,16 @@ class Sessao {
       this.u += (this.alvo - this.u) * (1 - Math.exp(-dt * 10));
       if (Math.abs(this.alvo - this.u) < 1e-4) this.u = this.alvo;
     } else {
-      // Let go (no pull for a moment): spring back to the solar system view, gently.
-      if (this.puxo > 0 && performance.now() - this.ultimoPuxo > 250) {
-        this.puxo *= Math.exp(-dt * 2.5);
-        if (this.puxo < 0.01) this.puxo = 0;
+      // The glide between the stops of the zoom out past the solar system, and the way back.
+      const a = this.animElastico;
+      if (a) {
+        a.t = Math.min(1, a.t + dt / a.dur);
+        this.elastico = a.de + (a.para - a.de) * (0.5 - 0.5 * Math.cos(Math.PI * a.t));   // ease in and out
+        if (a.t >= 1) this.animElastico = null;
+      } else if (this.paradaElastica > 0 && this.vista === 'sistema') {
+        this.paradoElastico += dt;
+        if (this.paradoElastico >= VOLTA_ELASTICA_S) this.irParadaElastica(0);
       }
-      this.elastico += (this.alvoElastico - this.elastico) * (1 - Math.exp(-dt * 5));
-      if (Math.abs(this.elastico) < 1e-4) this.elastico = 0;
       this.u = this.vista === 'lua' ? this.uGlobo : this.uSistema + this.elastico;   // follow screen size
     }
     this.empurrao *= Math.exp(-dt * 3);                                // a slow nudge does not fly
