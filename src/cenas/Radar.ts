@@ -125,7 +125,7 @@ export class Radar extends Phaser.Scene {
     play.setData('acao', d.continuar ? 'continue' : 'launch');
     let proximaLinha = y1 + (bh + 8 * u) / 2 + gap + bh / 2;
     if (d.continuar && d.aoNovoJogo) {
-      this.botao(cx, proximaLinha, bw, bh, 'NEW GAME', 0x2563eb, 20 * u, () => this.confirmarNovoJogo(d.aoNovoJogo!)).setData('acao', 'new-game');
+      this.botao(cx, proximaLinha, bw, bh, 'NEW GAME', 0x2563eb, 20 * u, () => this.confirmarNovoJogo(d.aoNovoJogo!, d.aoComecar)).setData('acao', 'new-game');
       proximaLinha += bh + gap;
     }
     this.botao(cx, proximaLinha, bw, bh, 'EXPLORE A BASE', 0x2563eb, 20 * u, () => this.escolherBase(explorar));
@@ -410,13 +410,15 @@ export class Radar extends Phaser.Scene {
   // ---------- windows in the task frame ----------
   // Opens a framed window; everything added until it closes belongs to it.
   // The content may return a cleanup for timers and input it added.
-  private confirmarNovoJogo(comecar: () => void) {
+  // A new game resets the mission, then flies to the Moon like the very first launch (countdown, launch film,
+  // landing on the pad), and only then opens the first morning.
+  private confirmarNovoJogo(zerar: () => void, comecar: () => void) {
     this.janela('NEW GAME', 600, 340, (tela, fechar) => {
       const u = this.u, cx = tela.x + tela.w / 2;
       this.add.text(cx, tela.y + tela.h * 0.25, 'Start a new mission?\nYour current mission will be reset.',
         letra(18 * u, '#ffffff', { align: 'center', wordWrap: { width: tela.w - 24 * u } })).setOrigin(0.5);
       botaoVerde(this, cx, tela.y + tela.h * 0.77, 'START NEW GAME', 19 * u, 44 * u, u, () => {
-        fechar(); this.travado = true; this.scene.stop(); comecar();
+        fechar(); this.travado = true; zerar(); tocarSfx('ligar'); this.contagem(comecar);
       }).setData('acao', 'confirm-new-game');
     }, 'CANCEL');
   }
