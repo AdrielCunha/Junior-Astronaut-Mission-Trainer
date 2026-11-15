@@ -22,6 +22,8 @@ import { alternarMudo } from '../audio';
 import { letra, criarPilula, criarCapsulaRecursos, criarCapsulaRecursosMovel, criarBotaoPilula, criarIndicador, criarIndicadorCircular, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
 import { resolverIcone, textoDoJogo, type IconeJogo } from '../dados/icones';
 import { escalaInterface, dispositivoMovel } from '../mobile';
+import { chaveSkin, SKIN_PADRAO } from '../dados/skins';
+import sprite from '../dados/astronauta.json';
 import { mostrarContadoresHud, mostrarHudNaSuperficie } from './visibilidadeHud';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
@@ -188,6 +190,7 @@ export class Interface extends Phaser.Scene {
     kb.on('keydown-ENTER', () => { if (!configuracoesAbertas) this.acaoPrincipal?.(); });
 
     sessao.ouvir(this, 'mensagem', (s, cor) => this.mensagem(s, cor));
+    sessao.ouvir(this, 'premio', (p) => this.mostrarPremio(p));
     sessao.ouvir(this, 'desbloqueado', () => this.atualizar());
     sessao.ouvir(this, 'estado', () => this.atualizar());
 
@@ -569,6 +572,40 @@ export class Interface extends Phaser.Scene {
   }
 
   // Notices: the dark pill of the task screens, above the bottom bar. Green good news, yellow careful.
+  // A customization prize: a card in the upper middle with the item's picture. Messages do not replace it
+  // (they live at the bottom); it closes by itself after a few seconds, or on a tap.
+  private cartaoPremio?: Phaser.GameObjects.Container;
+  private mostrarPremio(p: { titulo: string; nome: string; chave: string; quadro: number; corpo: boolean }) {
+    this.cartaoPremio?.destroy();
+    const u = this.u, W = this.scale.width, H = this.scale.height;
+    const w = Math.min(W - 40 * u, 400 * u), h = 150 * u, ix = -w / 2 + 72 * u;
+    const g = this.add.graphics()
+      .fillStyle(0x0b1a4a, 0.7).fillRoundedRect(-w / 2 + 3 * u, -h / 2 + 5 * u, w, h, 22 * u)
+      .fillStyle(0x1d4ed8).fillRoundedRect(-w / 2, -h / 2, w, h, 22 * u)
+      .lineStyle(4 * u, 0xfde047).strokeRoundedRect(-w / 2, -h / 2, w, h, 22 * u)
+      .fillStyle(0x0f172a, 0.55).fillCircle(ix, 0, 56 * u);
+    const partes: Phaser.GameObjects.GameObject[] = [g];
+    const F = sprite.frame, cx = 52, cy = 4, cw = 88, ch = 104;   // the head of a frame (hats, glasses and faces live there)
+    const cabeca = (chave: string) => this.add.image(ix, 0, chave, p.quadro).setCrop(cx, cy, cw, ch).setOrigin((cx + cw / 2) / F, (cy + ch / 2) / F).setScale(1.0 * u);
+    if (p.chave && this.textures.exists(p.chave)) {
+      if (p.corpo) partes.push(this.add.image(ix, 0, p.chave, p.quadro).setOrigin(0.5, 0.5).setScale(0.62 * u));
+      else partes.push(cabeca(chaveSkin(SKIN_PADRAO)), cabeca(p.chave));
+    } else partes.push(this.add.text(ix, 0, '🎨', letra(52 * u)).setOrigin(0.5));
+    const tx = ix + 74 * u, larg = w / 2 - tx - 16 * u;
+    partes.push(
+      this.add.text(tx, -26 * u, p.titulo, letra(26 * u, '#fde047', { stroke: '#1e293b', strokeThickness: 6 * u })).setOrigin(0, 0.5),
+      this.add.text(tx, 14 * u, p.nome, letra(20 * u, '#ffffff', { wordWrap: { width: larg } })).setOrigin(0, 0.5),
+      this.add.text(w / 2 - 14 * u, h / 2 - 12 * u, 'In the wardrobe at the Habitat', letra(11 * u, '#bfdbfe')).setOrigin(1, 1),
+    );
+    const c = this.add.container(W / 2, H * 0.3, partes).setDepth(35).setSize(w, h).setInteractive({ useHandCursor: true });
+    this.cartaoPremio = c;
+    tocarSfx('sucesso');
+    const fechar = () => { if (!c.active) return; this.tweens.add({ targets: c, alpha: 0, scale: 0.8, duration: 250, onComplete: () => c.destroy() }); };
+    c.on('pointerdown', fechar);
+    if (!movimentoReduzido()) { c.setScale(0.4).setAlpha(0); this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 350, ease: 'Back.easeOut' }); }
+    this.time.delayedCall(5000, fechar);
+  }
+
   private mensagem(s: string, cor = '#ffffff') {
     this.aviso?.destroy();
     const u = this.u;
@@ -617,6 +654,18 @@ export class Interface extends Phaser.Scene {
     this.atualizarTempestade(0);
     if (sessao.tempestade.status === 'alerta') {
       sessao.emitir('mensagem', '⚠ Power the Radiation Shield first!', '#fde68a');
+      return;
+    }
+    // A day never ends with an alarm unfinished: one already on must be fixed first, and one still on its way
+    // goes off right now (its countdown is cut to zero; Superficie.passarEventos starts it on the next frame).
+    if (sessao.evento?.def.alarme) {
+      const nome = sessao.grade.lista.find((c) => c.id === sessao.evento!.construcaoId)?.tipo.nome ?? 'module';
+      sessao.emitir('mensagem', `☢ Not yet! Fix the alarm at the ${nome} first.`, '#fca5a5');
+      return;
+    }
+    if (sessao.alarmeHoje && sessao.mundo === 'lua') {
+      sessao.eventoEm = 0;
+      sessao.emitir('mensagem', '☢ Wait! An alarm is going off before the day ends.', '#fca5a5');
       return;
     }
     const antes = sessao.estado;

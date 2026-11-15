@@ -101,6 +101,9 @@ export type Eventos = {
   pulo: [];
   controleUsado: ['movimento' | 'pulo'];
   pousoFoguete: [() => void];        // after the launch film: the rocket lands on the pad, then calls back
+  // A customization prize: a big card with its picture (Interface), so no other message can hide it.
+  // chave = texture, quadro = frame; corpo: the whole astronaut (a new astronaut), else the head (hat, glasses, face).
+  premio: [{ titulo: string; nome: string; chave: string; quadro: number; corpo: boolean }];
 };
 
 class Sessao {
@@ -235,6 +238,7 @@ class Sessao {
   // open, and only one mission at a time.
   get podeMissaoSecundaria() { return !this.evento && !this.expedicao && this.tempestade.status !== 'alerta' && !this.alarmeHoje; }
   estacoesHoje = new Set<string>();   // ship stations already used today (engine/estacoes.ts)
+  itemHoje = false;                   // a customization item was already won today: at most one a day
   exploracaoEm: number | null = null;   // seconds of play until today's exploration event (null: none today)
   ultimaExploracao?: string;
   tempoExpedicao = 0;
@@ -328,7 +332,7 @@ class Sessao {
     this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = 0;
-    this.tarefasHoje.clear(); this.estacoesHoje.clear();
+    this.tarefasHoje.clear(); this.estacoesHoje.clear(); this.itemHoje = false;
     this.ultimaTarefa = {};
     this.evento = null; this.eventoEm = null; this.alarmeHoje = null; this.energiaHoje = false; this.ultimoEvento = undefined; this.diasCalmos = 0; this.tempoCalmo = 0;
     this.condicoes = sortearCondicoes(this.C.dias);
@@ -555,7 +559,7 @@ class Sessao {
     this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = this.bateriasHoje;
-    this.tarefasHoje.clear(); this.estacoesHoje.clear();
+    this.tarefasHoje.clear(); this.estacoesHoje.clear(); this.itemHoje = false;
     // Maybe something breaks today; it happens a little while after the morning.
     this.evento = null;
     this.tempoCalmo = 0;

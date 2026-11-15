@@ -18,7 +18,8 @@ export type Premio =
   | { tipo: 'skin'; id: string };       // a different astronaut
 
 // What the player has now. `indisponiveis` are items whose picture is not ready (they are never drawn).
-export type Posse = { oxigenio: number; dose: number; acessorios: string[]; cores: string[]; skins: string[] };
+// mundo: the world being played; only that world's astronauts and accessories can be drawn (a third of each page).
+export type Posse = { oxigenio: number; dose: number; acessorios: string[]; cores: string[]; skins: string[]; mundo?: string };
 
 // What a prize is for: a side mission (an expedition) or a standard room task ('sala').
 export type TipoPremio = TipoExpedicao | 'sala';
@@ -42,10 +43,11 @@ const ehCarinha = (id: string) => doEspaco('carinha').some((a) => a.id === id);
 export function sortearPremio(tipo: TipoPremio, posse: Posse, sorte: () => number = Math.random): Premio {
   const nivel = NIVEL[tipo] ?? 1;
   const mais = 1 + (nivel - 1) * 0.5;                      // customization: x1, x1.5, x2
-  const faltaChapeu = ACESSORIOS.filter((a) => !ehCarinha(a.id) && !posse.acessorios.includes(a.id)).map((a) => a.id);
-  const faltaCarinha = ACESSORIOS.filter((a) => ehCarinha(a.id) && !posse.acessorios.includes(a.id)).map((a) => a.id);
+  const daqui = ACESSORIOS.filter((a) => !posse.mundo || a.fase === posse.mundo);
+  const faltaChapeu = daqui.filter((a) => !ehCarinha(a.id) && !posse.acessorios.includes(a.id)).map((a) => a.id);
+  const faltaCarinha = daqui.filter((a) => ehCarinha(a.id) && !posse.acessorios.includes(a.id)).map((a) => a.id);
   const faltaCor = CORES_BASE.filter((c) => !posse.cores.includes(c.id)).map((c) => c.id);
-  const faltaSkin = skinsDePremio().filter((id) => !posse.skins.includes(id));
+  const faltaSkin = SKINS.filter((k) => k.premio && (!posse.mundo || k.fase === posse.mundo) && !posse.skins.includes(k.id)).map((k) => k.id);
   const opcoes: { p: (i: number) => Premio; peso: number }[] = [];
   const escolher = (lista: string[], i: number) => lista[Math.min(lista.length - 1, Math.floor(i * lista.length))];
   if (faltaSkin.length) opcoes.push({ peso: PESOS.skin * mais, p: (i) => ({ tipo: 'skin', id: escolher(faltaSkin, i) }) });
