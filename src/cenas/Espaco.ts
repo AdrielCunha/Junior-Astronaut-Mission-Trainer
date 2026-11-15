@@ -18,7 +18,7 @@ import dadosViagem from '../dados/viagem.json';
 import planetas3d from '../dados/planetas3d.json';
 import ceuEstrelas from '../dados/ceu_estrelas.json';
 import { PLANETAS, posicao, lua, voltasEm, nomeDaFase, AU_KM, RAIO_LUA_KM, RAIO_SOL_KM, TERRA_LUA_KM } from '../engine/astro';
-import { sessao, suave, fonte, dataBonita, COR, sDeU } from './sessao';
+import { sessao, suave, fonte, dataBonita, COR, sDeU, ELASTICO_MAX } from './sessao';
 import { VISTA as vista, giroEm, pontoNaLua, naTela, visivel, solSobreBase, type V3 } from './globo';
 
 const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -52,6 +52,11 @@ export class Espaco extends Phaser.Scene {
   private ceuMarte!: Phaser.GameObjects.Rectangle;   // chapter 3: the daytime sky of Mars behind the map
   private ceuSistema!: Phaser.GameObjects.Image;     // the real sky behind the solar system (make_ceu.py)
   private cintila!: Phaser.GameObjects.Graphics;     // the brightest stars twinkling
+  // Depth for the solar system: the asteroid belt and the Kuiper belt (dots going around the Sun
+  // at their real pace) and soft nebulae that sit farther back than the planets (parallax).
+  private cinto!: Phaser.GameObjects.Graphics;
+  private nebulosas: { img: Phaser.GameObjects.Image; x: number; y: number; esc: number; prof: number }[] = [];
+  private escalaCeuSistema = 1;
   private corpos = new Map<string, Phaser.GameObjects.Sprite>();   // Blender planets, lit from 16 sides
   private solBrilho!: Phaser.GameObjects.Image;
   private corposProx = new Map<string, Phaser.GameObjects.Sprite>();   // the next turn frame, faded in over it: a smooth turn
@@ -100,6 +105,11 @@ export class Espaco extends Phaser.Scene {
     this.ceuSistema = this.add.image(W / 2, H / 2, 'ceu_sistema').setDepth(-100).setAlpha(0)
       .setScale(Math.max(W / this.textures.get('ceu_sistema').getSourceImage().width, H / this.textures.get('ceu_sistema').getSourceImage().height));
     this.cintila = this.add.graphics().setDepth(-97).setBlendMode(Phaser.BlendModes.ADD);
+    // A little bigger than the screen: it shrinks a bit when the zoom is pulled out (parallax).
+    this.escalaCeuSistema = this.ceuSistema.scaleX * Math.exp(0.05 * ELASTICO_MAX);
+    this.ceuSistema.setScale(this.escalaCeuSistema);
+    this.cinto = this.add.graphics().setDepth(0.4);
+    this.criarNebulosas(W, H);
 
     this.g = this.add.graphics();
     this.corpos.clear(); this.corposProx.clear();
@@ -213,6 +223,68 @@ export class Espaco extends Phaser.Scene {
   // The brightest stars of the sky in view twinkle a little (make_ceu.py found them).
   // One body's sprite: the rotation frame of the moment and the frame lit from angle luz (the Sun's
   // side on screen, counterclockwise from the right), scaled to radius r.
+  // Soft nebulae: a few clouds of glowing gas, made once as textures (no files), drawn with
+  // additive light over the real sky. prof: how far back (0 = with the planets, 1 = the sky).
+  private criarNebulosas(W: number, H: number) {
+    this.nebulosas = [];
+    const cores = [['rgba(168,85,247,', 'rgba(236,72,153,'], ['rgba(45,212,191,', 'rgba(59,130,246,'], ['rgba(251,146,60,', 'rgba(244,63,94,']];
+    let semente = 7;
+    const rnd = () => { semente = (semente * 16807) % 2147483647; return semente / 2147483647; };
+    cores.forEach((par, i) => {
+      const chave = `nebulosa_${i}`;
+      if (!this.textures.exists(chave)) {
+        const c = this.textures.createCanvas(chave, 512, 512)!, x = c.getContext();
+        for (let k = 0; k < 14; k++) {
+          const cx = 256 + (rnd() - 0.5) * 260, cy = 256 + (rnd() - 0.5) * 200, r = 60 + rnd() * 150;
+          const gr = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+          const cor = par[k % 2];
+          gr.addColorStop(0, `${cor}${(0.10 + rnd() * 0.12).toFixed(2)})`); gr.addColorStop(1, `${cor}0)`);
+          x.fillStyle = gr; x.fillRect(0, 0, 512, 512);
+        }
+        c.refresh();
+      }
+      const ang = (i / cores.length) * Math.PI * 2 + 0.6, dist = 0.42 + rnd() * 0.12;
+      const img = this.add.image(0, 0, chave).setDepth(-96).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+      this.nebulosas.push({ img, x: Math.cos(ang) * W * dist, y: Math.sin(ang) * H * dist, esc: (Math.max(W, H) * (0.5 + rnd() * 0.3)) / 512, prof: 0.45 + rnd() * 0.35 });
+    });
+  }
+
+  // Asteroids, made once: the main belt (2.2 to 3.3 AU) and the Kuiper belt (39 to 48 AU), each on
+  // a slightly oval orbit, going around at the pace Kepler's third law gives (a year = a^1.5).
+  private static asteroides = (() => {
+    let semente = 11;
+    const rnd = () => { semente = (semente * 16807) % 2147483647; return semente / 2147483647; };
+    const lista: { a: number; e: number; w: number; l0: number; b: number }[] = [];
+    for (let i = 0; i < 700; i++) lista.push({ a: 2.2 + rnd() * 1.1, e: rnd() * 0.15, w: rnd() * 6.283, l0: rnd() * 6.283, b: 0.35 + rnd() * 0.5 });
+    for (let i = 0; i < 350; i++) lista.push({ a: 39 + rnd() * 9, e: rnd() * 0.12, w: rnd() * 6.283, l0: rnd() * 6.283, b: 0.3 + rnd() * 0.45 });
+    return lista;
+  })();
+
+  private desenharCinturoes(tela: (p: { x: number; y: number }) => { x: number; y: number }, t: number, alfa: number, W: number, H: number) {
+    const g = this.cinto.clear();
+    if (alfa <= 0.01) return;
+    const dias = (t - Date.UTC(2000, 0, 1, 12)) / 86400000;
+    // Pulled out, the main belt crowds around the Sun: smaller, fainter dots.
+    const el = sessao.elastico, lado = el > 1 ? 1.2 : 2, apaga = 1 - 0.65 * suave(0.3, 1.5, el);
+    for (const k of Espaco.asteroides) {
+      const v = k.l0 + (2 * Math.PI * dias) / (365.25 * Math.pow(k.a, 1.5));
+      const r = (k.a * (1 - k.e * k.e)) / (1 + k.e * Math.cos(v - k.w)) * AU_KM;
+      const q = tela({ x: Math.cos(v) * r, y: Math.sin(v) * r });
+      if (q.x < -2 || q.y < -2 || q.x > W + 2 || q.y > H + 2) continue;
+      g.fillStyle(k.a > 30 ? 0xc7d2fe : 0xf5e6c8, alfa * (0.35 + k.b) * (k.a > 30 ? 1 : apaga)).fillRect(q.x - lado / 2, q.y - lado / 2, lado, lado);
+    }
+  }
+
+  private mostrarNebulosas(alfa: number, el: number, W: number, H: number) {
+    for (const n of this.nebulosas) {
+      // Farther back, it shrinks less as the view pulls out: the layers part, and space feels deep.
+      const k = Math.exp(-el * (1 - n.prof) * 0.5);
+      n.img.setVisible(alfa > 0.01).setAlpha(alfa * 0.3).setPosition(W / 2 + n.x * k, H / 2 + n.y * k).setScale(n.esc * k);
+    }
+    // The sky itself is the farthest layer: it barely moves.
+    this.ceuSistema.setScale(this.escalaCeuSistema * Math.exp(-0.05 * el));
+  }
+
   // voltas: how many times it has turned on its axis (the frames of Venus already turn backward).
   private mostrarCorpo(nome: string, x: number, y: number, r: number, luz: number, voltas: number, alfa = 1) {
     const s = this.corpos.get(nome);
@@ -308,7 +380,7 @@ export class Espaco extends Phaser.Scene {
       this.cintilar(nave ? 'sistema' : null, W, H);
       if (this.viagem) this.viajar(dtMs / 1000, W, H);
       this.lua.setVisible(false); this.quadro.setVisible(false); this.pino.setVisible(false); this.brilho.setVisible(false);
-      this.g.clear(); this.legendaNova = '';
+      this.g.clear(); this.cinto.clear(); this.mostrarNebulosas(0, 0, W, H); this.legendaNova = '';
       for (const r of this.rotulos.values()) r.setVisible(false);
       return;
     }
@@ -419,6 +491,7 @@ export class Espaco extends Phaser.Scene {
       this.brilho.setPosition(x, y);
       this.pino.setVisible(true).setAlpha(a).setPosition(x, y);
     }
+    this.cinto.clear(); this.mostrarNebulosas(0, 0, W, H);   // drawn again below when out at the planets
     if (u < uG - 0.01) return;            // Superficie draws the ground, the regions and the globe
 
     const kmPx = sDeU(u);                 // screen px per km, the same scale Superficie used
@@ -509,6 +582,8 @@ export class Espaco extends Phaser.Scene {
       g.lineStyle(4, cor, a * 0.12).strokePoints(pts, false);
       g.lineStyle(1, cor, a * 0.5).strokePoints(pts, false);
     };
+    this.desenharCinturoes(tela, t, rotulos * 0.9, W, H);
+    this.mostrarNebulosas(sistema, el, W, H);
     for (const p of internos) {
       const externo = p.a > 2;
       elipse(p, p.nome === 'Mars' ? 0xfb923c : externo ? 0x94a3b8 : 0xa5b4fc, (p.nome === 'Mars' ? 0.6 : 0.45) * rotulos * (externo ? fora : 1));
