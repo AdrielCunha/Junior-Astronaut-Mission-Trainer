@@ -12,7 +12,8 @@ import { sessao } from './sessao';
 import { TEMPO_SUCESSO } from './conclusaoTarefa';
 import { registrarDescoberta } from '../descobertas';
 
-export type DadosTarefa = { tarefa: Tarefa; aoTerminar: () => void };
+// aoTerminar(concluiu): true when the task was finished, false when it was closed (the X / Esc) before the end.
+export type DadosTarefa = { tarefa: Tarefa; aoTerminar: (concluiu: boolean) => void };
 
 export class CenaTarefa extends Phaser.Scene {
   private avisoSolar?: Phaser.GameObjects.Container;
@@ -63,12 +64,11 @@ export class CenaTarefa extends Phaser.Scene {
       if (fechado) return;
       fechado = true;
       this.scene.stop();
-      d.aoTerminar();
+      d.aoTerminar(terminou);
     };
 
-    // Red close button on the top-left corner (closing still delivers the battery).
+    // Red close button on the top-left corner: closing before the end does NOT deliver the battery.
     botaoFechar(this, x0 + 4 * u, y0 + 4 * u, u, () => { tocarSfx('fechar'); fechar(); });
-    this.add.text(x0+40*u,y0+6*u,'Skip',letra(17*u,'#ffffff',{stroke:'#1e293b',strokeThickness:3*u}));
     this.input.keyboard?.once('keydown-ESC', fechar);
 
     let terminou = false;

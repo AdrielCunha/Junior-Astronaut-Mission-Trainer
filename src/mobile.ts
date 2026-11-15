@@ -1,5 +1,6 @@
 // Touch-capable phones and tablets only; a mouse/trackpad does not enable game controls.
 import { t } from './idioma';
+import { coresGanhas } from './cores';
 export const dispositivoMovel = () => window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
 export function escalaInterface(largura: number, altura: number, minimo = 0.62, maximo = 1.4) {
@@ -27,7 +28,7 @@ export function instalarControlesMoveis(jogo: import('phaser').Game) {
   if (!dispositivoMovel()) return;
   const controles = document.createElement('div');
   controles.id = 'controles-moveis';
-  controles.innerHTML = '<div class="joystick-area" aria-label="Move"><div class="joystick"><img class="joystick-arte" src="icons/lunar-v6/controle_move.svg" alt="" aria-hidden="true"><div class="joystick-manopla"></div></div></div><div class="botoes-moveis"><button type="button" class="botao-movel" data-acao="pular" aria-label="Jump"><img src="icons/lunar-v6/botao_jump.svg" alt="" aria-hidden="true"></button><button type="button" class="botao-movel botao-acao" data-acao="usar" aria-label="Use"><img src="icons/lunar-v6/botao_use.svg" alt="" aria-hidden="true"></button></div>';
+  controles.innerHTML = '<div class="joystick-area" aria-label="Move"><div class="joystick"><img class="joystick-arte" src="icons/lunar-v6/controle_move.svg" alt="" aria-hidden="true"><div class="joystick-manopla"></div></div></div><div class="botoes-moveis"><button type="button" class="botao-pintar" data-acao="pintar" aria-label="Paint the base" aria-pressed="false" hidden>🎨</button><button type="button" class="botao-movel" data-acao="pular" aria-label="Jump"><img src="icons/lunar-v6/botao_jump.svg" alt="" aria-hidden="true"></button><button type="button" class="botao-movel botao-acao" data-acao="usar" aria-label="Use"><img src="icons/lunar-v6/botao_use.svg" alt="" aria-hidden="true"></button></div>';
   document.body.appendChild(controles);
 
   const stick = controles.querySelector<HTMLElement>('.joystick')!;
@@ -92,6 +93,14 @@ export function instalarControlesMoveis(jogo: import('phaser').Game) {
     if (superficie.input.enabled && !jogo.scene.isActive('Radar') && !jogo.scene.isActive('MenuJogo')) superficie.interagirPerto();
   });
 
+  // Paint button: shown once the player has won a paint color; lit while paint mode is on.
+  const pintar = controles.querySelector<HTMLButtonElement>('[data-acao="pintar"]')!;
+  pintar.addEventListener('pointerdown', (ev) => {
+    ev.preventDefault(); ev.stopPropagation();
+    if (!jogo.scene.isActive('Superficie') || !controles.classList.contains('visivel')) return;
+    (jogo.scene.getScene('Superficie') as import('./cenas/Superficie').Superficie).alternarPintura();
+  });
+
   const atualizar = () => {
     if (!jogo.scene.scenes.some(cena => cena.scene.key === 'Superficie')) return;
     const superficie = jogo.scene.getScene('Superficie');
@@ -100,6 +109,12 @@ export function instalarControlesMoveis(jogo: import('phaser').Game) {
       && !interfaceJogo?.painelAberto()
       && !jogo.scene.isActive('Radar') && !jogo.scene.isActive('MenuJogo') && !jogo.scene.isActive('EditorBase');
     controles.classList.toggle('visivel', !!habilitado);
+    if (habilitado) {
+      const tem = coresGanhas().length > 0;
+      if (pintar.hidden === tem) pintar.hidden = !tem;
+      const ligado = (superficie as import('./cenas/Superficie').Superficie).pintandoAgora;
+      if ((pintar.getAttribute('aria-pressed') === 'true') !== ligado) pintar.setAttribute('aria-pressed', String(ligado));
+    }
     if (!habilitado) { limparControleMovel(); zerarJoystick(); }
   };
   jogo.events.on('poststep', atualizar);

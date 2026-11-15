@@ -13,8 +13,7 @@ import { dispositivoMovel, escalaInterface } from '../mobile';
 import paletaLua from '../dados/paleta_lua.json';
 const LUA_COR=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
 const LUA_CRATERA=Number.parseInt(paletaLua.rocha.slice(1),16);
-import { abrirVideo, movimentoReduzido, configuracoesAbertas, video, escolherSkin } from '../video';
-import { SKINS } from '../dados/skins';
+import { abrirVideo, movimentoReduzido, configuracoesAbertas } from '../video';
 import { sessao, type Mundo } from './sessao';
 import { basesLiberadas } from '../salvamento';
 import type { DadosChegada } from './Chegada';
@@ -161,7 +160,7 @@ export class Radar extends Phaser.Scene {
       this.botao(cx, proximaLinha, bw, bh, 'NEW GAME', 0x2563eb, (movel ? 17 : 20) * u, () => this.confirmarNovoJogo(d.aoNovoJogo!, d.aoComecar)).setData('acao', 'new-game');
       proximaLinha += bh + gap;
     }
-    this.botao(cx, proximaLinha, bw, bh, 'EXPLORE A BASE', 0x2563eb, (movel ? 17 : 20) * u, () => this.escolherBase(explorar));
+    this.botao(cx, proximaLinha, bw, bh, 'EXPLORE THE BASE', 0x2563eb, (movel ? 17 : 20) * u, () => this.escolherBase(explorar));
     const y3 = proximaLinha + bh + gap, meia = (bw - gap) / 2;
     this.botao(cx - (meia + gap) / 2, y3, meia, bh, 'HOW TO PLAY', 0x475569, (movel ? 14 : 18) * u, () => this.comoJogar());
     this.botao(cx + (meia + gap) / 2, y3, meia, bh, 'CREDITS', 0x475569, (movel ? 14 : 18) * u, () => this.creditos());
@@ -414,10 +413,10 @@ export class Radar extends Phaser.Scene {
 
   private configurarAudio(idiomaMudou = false) {
     const u = this.u;
-    this.janela('SETTINGS', 520, 470, (tela, fechar) => {
+    this.janela('SETTINGS', 520, 300, (tela, fechar) => {
       const linhas: [string, () => number, (v: number) => void][] = [['Music', volumeMusica, definirVolumeMusica], ['Sound effects', volumeEfeitos, definirVolumeEfeitos]];
       linhas.forEach(([nome, ler, definir], i) => {
-        const y = tela.y + tela.h * (i + 0.5) / 5;                 // five evenly spaced rows
+        const y = tela.y + tela.h * (i + 0.5) / 3;                 // three evenly spaced rows
         this.add.text(tela.x + 20 * u, y, nome, letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
         const valor = this.add.text(tela.x + tela.w - 132 * u, y, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(0.5);
         const atualizar = () => valor.setText(`${Math.round(ler() * 100)}%`);
@@ -426,37 +425,13 @@ export class Radar extends Phaser.Scene {
         atualizar();
       });
       // Language: the window reopens so its own layout follows the new texts.
-      const yI = tela.y + tela.h * 2.5 / 5;
+      const yI = tela.y + tela.h * 2.5 / 3;
       this.add.text(tela.x + 20 * u, idiomaMudou ? yI - 10 * u : yI, 'Language', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
       this.botao(tela.x + tela.w - 100 * u, yI, 160 * u, 40 * u, idioma === 'pt' ? 'Português' : 'English', COR_BOTAO_TELA, 18 * u, () => {
         escolherIdioma(idioma === 'pt' ? 'en' : 'pt'); fechar(); this.events.emit('idioma');
       });
       // Like the video quality note: texts built from other values (dates) switch on their next update.
       if (idiomaMudou) this.add.text(tela.x + 20 * u, yI + 13 * u, 'Some texts update tomorrow.', letra(12 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
-      // Astronaut suit: one swatch per skin (sheets in public/lua/astronaut_<id>.png).
-      const yS = tela.y + tela.h * 3.5 / 5;
-      this.add.text(tela.x + 20 * u, yS, 'Astronaut suit', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
-      const nome = this.add.text(tela.x + tela.w - 20 * u, yS, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(1, 0.5);
-      const hex = (c: string) => Number.parseInt(c.slice(1), 16);
-      const lado = 42 * u, raio = 9 * u;
-      const aneis: Phaser.GameObjects.Graphics[] = [];
-      const atualizarSkin = () => {
-        aneis.forEach((a, i) => a.setAlpha(SKINS[i].id === video.skin ? 1 : 0));
-        nome.setText(SKINS.find((s) => s.id === video.skin)?.nome ?? '');
-      };
-      SKINS.forEach((s, i) => {
-        const m = 20 * u + lado / 2 + 4 * u;                        // same margin both sides, ring included
-        const x = tela.x + m + (tela.w - 2 * m) * i / (SKINS.length - 1), y = tela.y + tela.h * 4.5 / 5;
-        // Selection ring, then the plain rounded square in the skin's color.
-        aneis.push(this.add.graphics().lineStyle(4 * u, 0xfde047)
-          .strokeRoundedRect(x - lado / 2 - 5 * u, y - lado / 2 - 5 * u, lado + 10 * u, lado + 10 * u, raio + 4 * u));
-        this.add.graphics().fillStyle(hex(s.cor)).fillRoundedRect(x - lado / 2, y - lado / 2, lado, lado, raio)
-          .lineStyle(3 * u, CONTORNO).strokeRoundedRect(x - lado / 2, y - lado / 2, lado, lado, raio)
-          .setInteractive(new Phaser.Geom.Rectangle(x - lado / 2, y - lado / 2, lado, lado), Phaser.Geom.Rectangle.Contains)
-          .on('pointerover', () => tocarSfx('suave'))
-          .on('pointerdown', () => { tocarSfx('clique'); escolherSkin(s.id); atualizarSkin(); });
-      });
-      atualizarSkin();
     }, 'DONE');
   }
 
@@ -526,7 +501,7 @@ export class Radar extends Phaser.Scene {
   private escolherBase(explorarBase: (mundo: Mundo) => void) {
     const u = this.u, liberadas = basesLiberadas();
     const bases: [string, Mundo, boolean][] = ([['MOON BASE', 'lua'], ['SPACESHIP', 'nave'], ['MARS BASE', 'marte']] as const).map(([n, m]) => [n, m, liberadas.includes(m)]);
-    this.janela('EXPLORE A BASE', 660, 480, (tela, fechar) => {
+    this.janela('EXPLORE THE BASE', 660, 480, (tela, fechar) => {
       const gap = 18 * u, w = (tela.w - 44 * u - 2 * gap) / 3, h = tela.h - 44 * u;
       bases.forEach(([nome, qual, aberta], i) => {
         const x = tela.x + 22 * u + i * (w + gap), y = tela.y + 22 * u, cx = x + w / 2;

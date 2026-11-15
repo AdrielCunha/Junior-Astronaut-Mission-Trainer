@@ -664,7 +664,7 @@ export const PT: Record<string, Traducao> = {
   "Code": "Código",
   "Coding help": "Ajuda com código",
   "EARTH": "TERRA",
-  "EXPLORE A BASE": "EXPLORAR UMA BASE",
+  "EXPLORE THE BASE": "EXPLORAR UMA BASE",
   "Font": "Fonte",
   "Images": "Imagens",
   "AI-generated (Google Gemini, Flow Music)": "Geradas por IA (Google Gemini, Flow Music)",

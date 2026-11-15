@@ -85,7 +85,7 @@ export function gravarPartida(v: DadosPartida): boolean {
 }
 export function apagarPartida() { try { localStorage.removeItem(CHAVE); } catch { /* optional browser storage */ } }
 
-// Bases the player has reached in a real mission (EXPLORE A BASE opens only these). Kept apart
+// Bases the player has reached in a real mission (EXPLORE THE BASE opens only these). Kept apart
 // from the save, so losing or starting over does not lock them again.
 const CHAVE_BASES = 'lunar-odyssey-bases-v1';
 const MUNDOS: Mundo[] = ['lua', 'nave', 'marte'];

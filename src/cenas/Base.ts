@@ -3,7 +3,7 @@
 // Rules live in ../regras.ts, chapter settings in ../capitulos.ts, real NASA data in ../dados/.
 import Phaser from 'phaser';
 import { desenharPaisagemMarte } from './marte';
-import { localeData } from '../idioma';
+import { localeData, t } from '../idioma';
 import { iniciarMarte3D } from './irParaMarte';
 import { CAPITULOS, type Dia, type Equipamento, type Lugar } from '../capitulos';
 import {

@@ -22,6 +22,9 @@ export const SUPRIMENTOS: Suprimento[] = [
 ];
 
 export const suprimentoDoDia = (dia: number) => SUPRIMENTOS.find((s) => s.dia === dia);
+// Cargo landers only bring equipment to the Moon base: not to the ship (nothing to land on in deep space)
+// and not to Mars (its own equipment is part of the chapter).
+export const suprimentoDoMundo = (mundo: string, dia: number) => mundo === 'lua' ? suprimentoDoDia(dia) : undefined;
 
 // Retro-rocket landing at character scale (tiles, s): no air, so the only brake is the engine.
 // Falls freely, then burns just hard enough to touch down at `toque` speed ("suicide burn").

@@ -30,3 +30,12 @@ test('every piece of equipment that lands by cargo lander is a station, with a t
   assert.ok(!estacaoDisponivel(chaveModulo('estufa'), new Set([chaveModulo('estufa')]), 'dia'));
   assert.ok(!estacaoDisponivel(chaveModulo('habitat'), new Set(), 'dia'));
 });
+
+test('cargo landers bring equipment only to the Moon: never to the ship or to Mars', async () => {
+  const { suprimentoDoMundo, SUPRIMENTOS: lista } = await import('./suprimentos.ts');
+  for (const s of lista) {
+    assert.equal(suprimentoDoMundo('lua', s.dia)?.tipo, s.tipo);
+    assert.equal(suprimentoDoMundo('nave', s.dia), undefined, `day ${s.dia} on the ship`);
+    assert.equal(suprimentoDoMundo('marte', s.dia), undefined, `day ${s.dia} on Mars`);
+  }
+});

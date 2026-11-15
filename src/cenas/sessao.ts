@@ -107,7 +107,7 @@ class Sessao {
   puloTouch = false;
   posicaoAstronauta: Corpo | null = null;
   partidaRestaurada = false;
-  explorando = false;       // EXPLORE A BASE in another world: no saving, the real game comes back on reload
+  explorando = false;       // EXPLORE THE BASE in another world: no saving, the real game comes back on reload
   abastecendoRover = false;
   editandoBase = false;
   ultimoDia: RelatorioDia | null = null;

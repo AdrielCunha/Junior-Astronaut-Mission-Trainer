@@ -17,6 +17,7 @@ import { criarPlaneta, diametroPlaneta, giroOlhando, pontoNoPlaneta } from './pl
 import { JEZERO, DIA_MARTE_MS as SOL_MS } from './marte';
 import { caminhoTransferencia, noCaminho, quadroNave, PARTIDA, DIAS_REAIS, DIA_MS } from './transferencia';
 import dadosViagem from '../dados/viagem.json';
+import foguetevoo from '../dados/foguete_voo.json';
 import planetas3d from '../dados/planetas3d.json';
 import ceuEstrelas from '../dados/ceu_estrelas.json';
 import { PLANETAS, posicao, lua, voltasEm, nomeDaFase, AU_KM, RAIO_LUA_KM, RAIO_SOL_KM, TERRA_LUA_KM } from '../engine/astro';
@@ -180,8 +181,8 @@ export class Espaco extends Phaser.Scene {
     // outside the scene, so a resize (it restarts this scene) cannot load a frame twice.
     this.quadro = this.add.image(W / 2, H / 2, '__DEFAULT').setDepth(10).setVisible(false);
     this.quadro2 = this.add.image(W / 2, H / 2, '__DEFAULT').setDepth(10.5).setVisible(false);
-    this.foguete = this.add.image(0, 0, 'viagem_foguete').setDepth(15).setVisible(false)
-      .setOrigin(0.5, dadosViagem.foguete.ancora[1] / dadosViagem.foguete.h);
+    this.foguete = this.add.image(0, 0, 'foguete_voo').setDepth(15).setVisible(false)
+      .setOrigin(foguetevoo.pe[0] / foguetevoo.w, foguetevoo.pe[1] / foguetevoo.h);
     this.nave = this.add.image(0, 0, 'nave_d0').setDepth(15).setVisible(false);
     this.chamas = this.add.graphics().setDepth(15).setBlendMode(Phaser.BlendModes.ADD);
     this.aqueceu = '';
@@ -839,7 +840,7 @@ export class Espaco extends Phaser.Scene {
 
   // The rocket from the map, small, nose along (dx, dy), flame out of its base.
   private desenharFoguete(x: number, y: number, dx: number, dy: number, alto: number) {
-    const k = alto / dadosViagem.foguete.h;
+    const k = alto / foguetevoo.h;
     this.foguete.setVisible(true).setDepth(15).setPosition(x, y).setScale(k).setRotation(Math.atan2(dx, -dy));
     const l = alto * 0.55 * Phaser.Math.FloatBetween(0.85, 1.15), w = alto * 0.09;
     const px = -dy, py = dx;

@@ -11,6 +11,7 @@ import { Base } from './cenas/Base';
 import { CenaTarefa } from './cenas/Tarefa';
 import { Radar } from './cenas/Radar';
 import { MenuJogo } from './cenas/MenuJogo';
+import { Guardaroupa } from './cenas/Guardaroupa';
 import { CuriosidadeRover } from './cenas/CuriosidadeRover';
 import { EditorBase } from './cenas/EditorBase';
 import { Carregar } from './cenas/Carregar';
@@ -534,9 +535,9 @@ const jogo = new Phaser.Game({
   // title screen flow added on main.
   scene: classico
     ? [Carregar, Chegada, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, AquecimentoTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, CuriosidadeRover, EditorBase]
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, AquecimentoTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, Guardaroupa, CuriosidadeRover, EditorBase]
     : [Carregar, Chegada, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, AquecimentoTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, CuriosidadeRover, EditorBase],
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, AquecimentoTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, Guardaroupa, CuriosidadeRover, EditorBase],
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;
@@ -545,8 +546,10 @@ instalarIdioma(jogo);
 if (!classico) instalarControlesMoveis(jogo);
 instalarOrientacaoMovel();
 // Dev server only: the DEV button that jumps to the trip and Mars scenes (not in the production build).
-if (import.meta.env.DEV) void import('./dev/painelCenas').then((m) => m.criarPainelCenas(jogo));
-if (import.meta.env.DEV || new URLSearchParams(location.search).has("dev")) instalarMenuDev(jogo);
+// The DEV buttons (scene panel and developer menu) only show when the game is opened with ?dev in the URL.
+const comDev = new URLSearchParams(location.search).has('dev');
+if (import.meta.env.DEV && comDev) void import('./dev/painelCenas').then((m) => m.criarPainelCenas(jogo));
+if (comDev) instalarMenuDev(jogo);
 
 // The classic prototype has no music control, so it stays silent.
 if (!classico) iniciarAudio();

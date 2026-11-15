@@ -13,7 +13,7 @@ import { tutorialJaVisto } from './tutorial';
 import type { DadosRadar } from './Radar';
 import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, DESCANSO, type Estado } from '../regras';
 import { iniciarMundo3D, iniciarNave3D, iniciarMarte3D } from './irParaMarte';
-import { suprimentoDoDia } from '../engine/suprimentos';
+import { suprimentoDoMundo } from '../engine/suprimentos';
 import { DOSE_ALARME, type EventoDef } from '../engine/eventos';
 import { CONDICOES, ESTUFA_OXIGENIO, type Condicao } from '../engine/condicoes';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase, type RelatorioDia } from './sessao';
@@ -84,8 +84,6 @@ export class Interface extends Phaser.Scene {
   private dicas!: ReturnType<typeof criarDicasRecolhiveis>;
   private readonly preferenciaDicas = new PreferenciaDicas();
   private btMenu!: Phaser.GameObjects.Container;
-  private btEditarBase!: Phaser.GameObjects.Container;
-  private dicaEditarBase!: Phaser.GameObjects.Text;
   private timersChat: Phaser.Time.TimerEvent[] = [];
   private guia?: Guia;
   private avisoEvento?: AvisoEvento;
@@ -259,10 +257,6 @@ export class Interface extends Phaser.Scene {
       && !sessao.rover?.dirigindo && !sessao.emTarefa && !sessao.editandoBase && !sessao.voo && !sessao.partida
       && !sessao.transicao && !configuracoesAbertas && !this.scene.isActive('Radar') && !this.scene.isActive('MenuJogo'));
     this.atualizarVisibilidadeContadores();
-    this.btEditarBase.setVisible((sessao.fase==='inicio' || sessao.fase==='dia') && sessao.mundo!=='nave' && sessao.vista==='chao'
-      && !sessao.emTarefa && !sessao.abastecendoRover && !sessao.partida && !sessao.voo && !sessao.transicao
-      && !configuracoesAbertas && !this.scene.isActive('Radar') && !this.scene.isActive('MenuJogo') && !sessao.editandoBase);
-    if(!this.btEditarBase.visible)this.dicaEditarBase.setVisible(false);
     this.cortina.setAlpha(sessao.transicao ? Math.sin(Math.PI * sessao.transicao.t) : 0);
     if (this.scene.isVisible() && !sessao.emTarefa && !configuracoesAbertas && !sessao.transicao && this.preferenciaDicas.passo(dt)) this.dicas.definir(true);
     this.atualizarTempestade(dt);
@@ -486,32 +480,6 @@ export class Interface extends Phaser.Scene {
     const nivel = criarPilula(this, l.nivel.x, l.nivel.y, l.nivel.w, l.nivel.h, u);
     this.textos.altitude = this.add.text(Math.round(l.nivel.w / 2), Math.round(l.nivel.h / 2), '', letra(px(12), '#ffffff')).setOrigin(0.5);
     nivel.add(this.textos.altitude);
-    const caixaEditar=l.editar;
-    const dicaEditar=this.dicaEditarBase=this.add.text(caixaEditar.x-px(12),caixaEditar.y+caixaEditar.h/2,'Edit base · B',letra(px(13),'#ffffff',{
-      backgroundColor:'#17263f',padding:{x:px(10),y:px(7)},
-    })).setOrigin(1,0.5).setDepth(20).setVisible(false);
-    const editar=criarBotaoPilula(this,caixaEditar,u,'',()=>{dicaEditar.setVisible(false);this.abrirEditor();});
-    editar.texto.setVisible(false);
-    const fundoEditar=editar.caixa.list[0] as Phaser.GameObjects.Graphics;
-    const centroX=caixaEditar.w/2,centroY=caixaEditar.h/2,raio=Math.min(caixaEditar.w,caixaEditar.h)/2;
-    const desenharEditar=(sobre=false)=>{
-      fundoEditar.clear().fillStyle(0x07142c,0.65).fillCircle(centroX,centroY+px(3),raio+px(1))
-        .fillStyle(sobre?0x397cff:0x2563eb).fillCircle(centroX,centroY,raio)
-        .fillStyle(0x8bbaff,0.35).fillEllipse(centroX,centroY-raio*0.5,raio*1.45,raio*0.63)
-        .lineStyle(Math.max(2,px(3)),0xffffff).strokeCircle(centroX,centroY,raio);
-    };
-    desenharEditar();
-    const iconeEditar=this.add.graphics().fillStyle(0xffffff);
-    const ponto=(x:number,y:number)=>({x:centroX+px(x),y:centroY+px(y)});
-    iconeEditar.fillPoints([ponto(-8,4),ponto(3,-7),ponto(7,-3),ponto(-4,8)],true)
-      .fillPoints([ponto(4,-8),ponto(6,-10),ponto(10,-6),ponto(8,-4)],true)
-      .fillPoints([ponto(-9,5),ponto(-5,9),ponto(-10,10)],true);
-    editar.caixa.add(iconeEditar)
-      .setDepth(10).setData('acao','editar-base').setVisible(false);
-    const areaEditar=editar.caixa.list.find(o=>o.type==='Zone')!;
-    areaEditar.on('pointerover',()=>{desenharEditar(true);dicaEditar.setVisible(true);})
-      .on('pointerout',()=>{desenharEditar();dicaEditar.setVisible(false);});
-    this.btEditarBase=editar.caixa;
   }
 
   // ---------- HUD ----------
@@ -688,7 +656,7 @@ export class Interface extends Phaser.Scene {
       const cond = sessao.condicaoHoje;
       const enf = naEnfermaria(sessao.estado);
       const marte = sessao.mundo === 'marte';
-      const sup = marte ? undefined : suprimentoDoDia(sessao.estado.dia);
+      const sup = suprimentoDoMundo(sessao.mundo, sessao.estado.dia);
       const lua = sessao.mundo === 'lua', dia1 = sessao.estado.dia === 1;
       const intro = !lua && dia1 ? sessao.cap.introducao.map((t) => ({ icone: marte ? 'mars' : 'rocket', texto: t, cor: '#fde68a' })) : [];
       // One short line per bubble, the icon says what it is about. Story first, then today's numbers.
