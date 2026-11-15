@@ -8,7 +8,6 @@ const BASE = import.meta.env.BASE_URL;
 
 let audio: HTMLAudioElement | null = null;
 let iniciado = false;
-let comecou = false;
 let mudo = lerMudo();
 let volume = (() => { try { const salvo = localStorage.getItem(CHAVE_VOLUME); if (salvo === null) return 0.7; const n = Number(salvo); return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.7; } catch { return 0.7; } })();
 
@@ -53,8 +52,8 @@ function primeiraInteracao() {
 
 function tocar() {
   const a = criarAudio();
-  if (mudo || comecou) return;
-  a.play().then(() => { comecou = true; }).catch(() => {
+  if (mudo || !a.paused) return;
+  a.play().then(() => { if (mudo) a.pause(); }).catch(() => {
     if (!mudo) esperarInteracao();
   });
 }

@@ -2,6 +2,7 @@
 // State shared by the three scenes that run together (Espaco, Superficie, Interface), plus the
 // event bus they talk through. One game = one Sessao. See ARCHITECTURE.md.
 import Phaser from 'phaser';
+import { movimentoReduzido, configuracoesAbertas } from '../video';
 import lua from '../dados/lua.json';
 import terrenoJson from '../dados/terreno.json';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
@@ -76,6 +77,7 @@ class Sessao {
   tarefasHoje = new Set<Efeito>();                    // rooms that already had their task today
   ultimaTarefa: Partial<Record<Efeito, string>> = {}; // so the bank does not repeat itself
   emTarefa = false;         // a task overlay is open: the map and zoom wait
+  transicao: { t: number; destino: Vista; mudou: boolean } | null = null;
   vista: Vista = 'chao';
   u = U_INICIAL;            // zoom shown this frame
   alvo = U_INICIAL;         // zoom asked for on the ground; u glides to it
@@ -105,6 +107,7 @@ class Sessao {
     this.u = this.alvo = U_INICIAL;
     this.ancora = null;
     this.voo = null;
+    this.transicao = null;
     this.pendente = null;
     this.pulou = false;
   }
@@ -137,7 +140,7 @@ class Sessao {
 
   // Wheel / pinch: d e-folds (positive = out) around a screen point.
   zoom(d: number, ancora: { x: number; y: number } | null = null) {
-    if (this.voo || this.emTarefa) return;
+    if (this.voo || this.transicao || this.emTarefa || configuracoesAbertas) return;
     if (this.vista === 'chao') {
       const borda = Math.max(U_CHAO, this.uFilme);
       const novo = this.alvo + d;
@@ -154,9 +157,16 @@ class Sessao {
 
   // Plays the whole flight to another view; input waits until it lands.
   voar(destino: Vista) {
+    if (configuracoesAbertas || this.transicao) return;
     this.empurrao = 0;
     if (destino === this.vista) return;
     this.ancora = null;
+    if (movimentoReduzido()) {
+      this.pendente = null;
+      this.voo = null;
+      this.transicao = { t: 0, destino, mudou: false };
+      return;
+    }
     // From the solar system straight back to the ground, stop at the Moon first: the ground
     // and the Moon are joined by the rendered film, the solar system is not.
     if (destino === 'chao' && this.vista === 'sistema') { this.pendente = 'chao'; destino = 'lua'; }
@@ -175,6 +185,7 @@ class Sessao {
   }
 
   irPara(u: number) {
+    if (configuracoesAbertas || this.transicao) return;
     if (this.vista !== 'chao') { this.voar('chao'); return; }
     this.alvo = u;
     this.ancora = null;
@@ -182,6 +193,24 @@ class Sessao {
 
   // Called once per frame by Espaco (the first scene), so every layer sees the same zoom.
   passo(dt: number) {
+    if (configuracoesAbertas) return;
+    if (movimentoReduzido() && this.voo) {
+      const destino = this.pendente ?? this.voo.destino;
+      this.pendente = null;
+      this.voo = null;
+      this.transicao = { t: 0, destino, mudou: false };
+    }
+    if (this.transicao) {
+      const v = this.transicao;
+      v.t = Math.min(1,v.t+dt/0.28);
+      if (v.t >= 0.5 && !v.mudou) {
+        this.vista = v.destino;
+        this.u = this.alvo = v.destino === 'chao' ? U_INICIAL : v.destino === 'lua' ? this.uGlobo : this.uSistema;
+        v.mudou = true;
+      }
+      if (v.t >= 1) this.transicao = null;
+      return;
+    }
     if (this.voo) {
       const v = this.voo;
       if (v.tipo === 'filme' && v.fase === 'filme' && !this.filmePronto) return;   // frames still loading
@@ -253,8 +282,10 @@ export const fonte = (tamanho: number, cor = COR.texto, extra: Phaser.Types.Game
   ...extra,
 });
 
-export const dataBonita = (t: number) =>
-  new Date(t).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+// One formatter for the whole game: toLocaleDateString builds a new one on every call, which
+// cost ~7% of each frame in the solar system view (it runs every frame for the caption).
+const FORMATO_DATA = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+export const dataBonita = (t: number) => FORMATO_DATA.format(t);
 
 export const suave = (a: number, b: number, x: number) => {
   const t = Phaser.Math.Clamp((x - a) / (b - a), 0, 1);

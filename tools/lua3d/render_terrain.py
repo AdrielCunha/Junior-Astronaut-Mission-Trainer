@@ -8,10 +8,12 @@
 # In:  src/dados/terreno.json (alturas)
 # Out: public/lua/terrain.png, and terreno.json gains "imagem": {w, h, origem, ex, ey, ez}
 #      so that pixel = origem + gx * ex + gy * ey + z * ez   (z in tiles, up)
-import bpy, bmesh, os, json, math
+import bpy, bmesh, os, json, math, random, sys
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0,HERE)
+from estilo_lua import PALETA, contornos_crateras
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 JSON = os.path.join(ROOT, 'src', 'dados', 'terreno.json')
 PNG = os.path.join(ROOT, 'public', 'lua', 'terrain.png')
@@ -21,11 +23,11 @@ T = 30                      # pixels per tile step: gx moves (T, T/2) on screen,
 SKIRT = 3.0                 # tiles of "cut ground" under the lowest point, diorama style
 PAD = 24                    # px around the picture
 # Palette shared with make_moon.py: warm regolith, cool purple shade, dark outline.
-GROUND = [(0.0, '#8f8571'), (0.42, '#a39882'), (0.6, '#b6ab92'), (0.75, '#c6bba1')]
-ROCK = '#6a6152'            # steep tiles
-STRATA = [(0.0, '#3b342c'), (0.5, '#4f463b'), (0.8, '#5c5245')]
-LIGHT = [(0.0, '#3a3550'), (0.10, '#8a7f92'), (0.35, '#c9c0c4'), (0.55, '#ece5df'), (0.75, '#fffaf0')]
-OUTLINE = '#17130f'
+GROUND = PALETA['solo']
+ROCK = PALETA['rocha']
+STRATA = PALETA['estratos']
+LIGHT = PALETA['luzSolo']
+OUTLINE = PALETA['contorno']
 
 
 def rgb(h, a=1.0):
@@ -54,15 +56,46 @@ sc.render.film_transparent = True
 sc.render.image_settings.file_format = 'PNG'; sc.render.image_settings.color_mode = 'RGBA'
 sc.view_settings.view_transform = 'Standard'; sc.view_settings.look = 'None'
 sc.render.filter_size = 1.0
+sc.eevee.taa_render_samples = 128
 
-# ---------- mesh: Blender X = gx, Y = -gy, Z = height (all in tiles) ----------
+# Sub-tile relief is illustrative; the original LOLA grid remains the gameplay surface.
+rng = random.Random(2026)
+def height(x, y):
+    ix, iy = max(0, min(N - 1, int(x))), max(0, min(N - 1, int(y)))
+    fx, fy = x - ix, y - iy
+    return (H[iy][ix] * (1-fx) + H[iy][ix+1] * fx) * (1-fy) + (H[iy+1][ix] * (1-fx) + H[iy+1][ix+1] * fx) * fy
+
+centers = []
+for attempt in range(500):
+    x, y = rng.uniform(5, N-5), rng.uniform(5, N-5)
+    radius = rng.uniform(1.15, 2.5)
+    if math.hypot(x-N/2,y-N/2)<13 or any(math.hypot(x-a,y-b)<radius+r+1 for a,b,r,d in centers): continue
+    if abs(height(x+radius,y)-height(x-radius,y))>0.65: continue
+    centers.append((x,y,radius,radius*rng.uniform(0.23,0.32)))
+    if len(centers)>=24: break
+
+def relief(x,y):
+    z=height(x,y)
+    for a,b,r,depth in centers:
+        t=math.hypot(x-a,y-b)/r
+        if t<1.25:
+            # Broad bowl and rounded ejecta rim, smoothly joining the measured terrain.
+            if t<0.86:
+                z-=depth*(1-(t/0.86)**2)**1.3
+            if 0.68<t<1.25:
+                z+=depth*0.32*math.sin(math.pi*(t-0.68)/0.57)**2
+    return z
+
+# Real ground subdivided for curved crater silhouettes and continuous light across slopes.
+SUB=4
+GRID=N*SUB
 bm = bmesh.new()
-top = [[bm.verts.new((gx, -gy, H[gy][gx])) for gx in range(N + 1)] for gy in range(N + 1)]
-for gy in range(N):
-    for gx in range(N):
-        bm.faces.new((top[gy][gx], top[gy + 1][gx], top[gy + 1][gx + 1], top[gy][gx + 1]))
-ring = [top[0][i] for i in range(N + 1)] + [top[i][N] for i in range(1, N + 1)] + \
-       [top[N][i] for i in range(N - 1, -1, -1)] + [top[i][0] for i in range(N - 1, 0, -1)]
+top = [[bm.verts.new((gx/SUB, -gy/SUB, relief(gx/SUB,gy/SUB))) for gx in range(GRID+1)] for gy in range(GRID+1)]
+for gy in range(GRID):
+    for gx in range(GRID):
+        bm.faces.new((top[gy][gx], top[gy+1][gx], top[gy+1][gx+1], top[gy][gx+1]))
+ring = [top[0][i] for i in range(GRID + 1)] + [top[i][GRID] for i in range(1, GRID + 1)] + \
+       [top[GRID][i] for i in range(GRID - 1, -1, -1)] + [top[i][0] for i in range(GRID - 1, 0, -1)]
 low = [bm.verts.new((v.co.x, v.co.y, zmin)) for v in ring]
 side = []
 for i in range(len(ring)):
@@ -102,8 +135,8 @@ def toon(name, albedo_fn):
 def ground(node, ramp, L):
     # Regolith: soft noise patches in a few flat tones; steep tiles turn to darker rock.
     tc = node('ShaderNodeTexCoord')
-    nz = node('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 0.22
-    nz.inputs['Detail'].default_value = 3.0
+    nz = node('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 0.075
+    nz.inputs['Detail'].default_value = 1.0
     L.new(tc.outputs['Object'], nz.inputs['Vector'])
     g = ramp(GROUND); L.new(nz.outputs['Fac'], g.inputs['Fac'])
     geo = node('ShaderNodeNewGeometry'); sep = node('ShaderNodeSeparateXYZ')
@@ -112,16 +145,8 @@ def ground(node, ramp, L):
     L.new(sep.outputs['Z'], steep.inputs[0])
     mx = node('ShaderNodeMix', data_type='RGBA'); mx.inputs[7].default_value = rgb(ROCK)
     L.new(steep.outputs[0], mx.inputs['Factor']); L.new(g.outputs['Color'], mx.inputs[6])
-    # Contour line every tile of height (80 m): thin, so the relief reads at a glance.
-    sp = node('ShaderNodeSeparateXYZ'); L.new(tc.outputs['Object'], sp.inputs['Vector'])
-    fr = node('ShaderNodeMath', operation='FRACT'); L.new(sp.outputs['Z'], fr.inputs[0])
-    dist = node('ShaderNodeMath', operation='PINGPONG'); dist.inputs[1].default_value = 0.5
-    L.new(fr.outputs[0], dist.inputs[0])
-    line = node('ShaderNodeMath', operation='LESS_THAN'); line.inputs[1].default_value = 0.035
-    L.new(dist.outputs[0], line.inputs[0])
-    ln = node('ShaderNodeMix', data_type='RGBA'); ln.inputs[7].default_value = rgb('#6f6556')
-    L.new(line.outputs[0], ln.inputs['Factor']); L.new(mx.outputs[2], ln.inputs[6])
-    return ln.outputs[2]
+    # Keep the surface clean: relief is read through light, not map contour lines.
+    return mx.outputs[2]
 
 
 def strata(node, ramp, L):
@@ -141,8 +166,56 @@ on = ol.node_tree.nodes; on.clear()
 oe = on.new('ShaderNodeEmission'); oe.inputs['Color'].default_value = rgb(OUTLINE)
 oo = on.new('ShaderNodeOutputMaterial'); ol.node_tree.links.new(oe.outputs[0], oo.inputs['Surface'])
 me.materials.append(ol)
-sol = ob.modifiers.new('contorno', 'SOLIDIFY')
-sol.thickness = 0.12; sol.offset = 1.0; sol.use_flip_normals = True; sol.material_offset = 2; sol.use_rim = False
+# The cut sides provide the silhouette. An inverted shell would shadow the crater bowls.
+
+def matte(name, color):
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    bs = m.node_tree.nodes.get('Principled BSDF')
+    bs.inputs['Base Color'].default_value = rgb(color)
+    bs.inputs['Roughness'].default_value = 1
+    return m
+
+# Rounded, asymmetric rocks with continuous shading and a dark contact patch.
+rock_mats=[matte('Basalt warm grey',PALETA['pedras'][0]),matte('Rock lit facets',PALETA['pedras'][1]),matte('Rock dark facets',PALETA['pedras'][2])]
+contact=matte('Rock contact shadow',PALETA['sombraSolo'])
+clusters=0
+for attempt in range(700):
+    x,y=rng.uniform(4,N-4),rng.uniform(4,N-4)
+    slope=math.hypot(height(x+0.5,y)-height(x-0.5,y),height(x,y+0.5)-height(x,y-0.5))
+    if slope<0.20 or math.hypot(x-N/2,y-N/2)<14: continue
+    if any(math.hypot(x-a,y-b)<r+1 for a,b,r,d in centers): continue
+    clusters+=1
+    if clusters>30: break
+    for k in range(rng.randint(2,4)):
+        xx,yy=x+rng.uniform(-0.7,0.7),y+rng.uniform(-0.7,0.7)
+        size=rng.uniform(0.22,0.70) if k==0 else rng.uniform(0.12,0.30)
+        # Ground-hugging shadow provides contact even on the unshadowed toon bands.
+        verts=[(xx,-yy,relief(xx,yy)+0.012)]
+        for j in range(20):
+            ang=math.tau*j/20
+            px,py=xx+math.cos(ang)*size*1.06,yy+math.sin(ang)*size*0.9
+            verts.append((px,-py,relief(px,py)+0.012))
+        mesh=bpy.data.meshes.new('Rock contact');mesh.from_pydata(verts,[],[(0,1+j,1+(j+1)%20) for j in range(20)]);mesh.update()
+        obj=bpy.data.objects.new('Rock contact',mesh);sc.collection.objects.link(obj);mesh.materials.append(contact)
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3,radius=1,location=(xx,-yy,relief(xx,yy)+size*0.26))
+        stone=bpy.context.object;stone.name='Slope boulder'
+        phase=rng.uniform(0,math.tau)
+        for v in stone.data.vertices:
+            # Broad, coherent lobes instead of independently displaced triangular vertices.
+            px,py,pz=v.co
+            v.co*=1+0.16*math.sin(px*3+phase)*math.cos(py*2-phase)+0.09*math.sin(pz*4+py*2+phase)
+            v.co.z += 0.06*math.sin(px*5+py*3+phase)
+        stone.rotation_euler.z=rng.uniform(0,math.tau)
+        stone.scale=(size*rng.uniform(1,1.35),size*0.85,size*rng.uniform(0.65,0.95))
+        for mat in rock_mats: stone.data.materials.append(mat)
+        material_index=rng.choices([0,1,2],[7,2,1])[0]
+        for face in stone.data.polygons:
+            face.material_index=material_index
+            face.use_smooth=True
+        smooth=stone.modifiers.new('Rounded organic surface','SUBSURF')
+        smooth.levels=1; smooth.render_levels=1
+
+contornos_crateras(bpy,sc,centers,lambda x,y:(x,-y,relief(x,y)+0.022))
 
 # ---------- 2:1 isometric camera: 30 deg above the ground, looking along +gx +gy ----------
 elev = math.radians(30)
@@ -174,7 +247,7 @@ ez = [a - b for a, b in zip(pixel(Vector((0, 0, 1))), o)]
 
 # Sun: stylized, from the upper left of the screen like the Moon view. (At the real pole the
 # Sun skims the horizon; the game says so in the space view instead of hiding the map in shadow.)
-sun = bpy.data.lights.new('Sol', 'SUN'); sun.energy = 4.0; sun.use_shadow = False
+sun = bpy.data.lights.new('Sol', 'SUN'); sun.energy = 4.0; sun.use_shadow = True; sun.angle = math.radians(4)
 sun_o = bpy.data.objects.new('Sol', sun); sc.collection.objects.link(sun_o)
 to_sun = (to_cam * 0.5 - right * 1.0 + Vector((0, 0, 0.45))).normalized()
 sun_o.rotation_euler = (-to_sun).to_track_quat('-Z', 'Y').to_euler()
@@ -185,13 +258,22 @@ if LIVE:
             sp = area.spaces.active; sp.shading.type = 'RENDERED'
             sp.region_3d.view_perspective = 'CAMERA'; sp.overlay.show_overlays = False
     print('scene "Terreno" ready', W, Hh)
-else:
+if not LIVE or globals().get('EXPORTAR_TERRENO', False):
     os.makedirs(os.path.dirname(PNG), exist_ok=True)
     sc.render.filepath = PNG
     bpy.ops.render.render(write_still=True)
     import subprocess
     subprocess.run(['magick', PNG, '-dither', 'None', '-colors', '255', 'PNG8:' + PNG], check=True)
     r = lambda v: [round(c, 4) for c in v]
+    bpy.context.view_layer.update()
+    stones=[]
+    for stone in sc.objects:
+        if not stone.name.startswith('Slope boulder'): continue
+        points=[stone.matrix_world @ v.co for v in stone.data.vertices]
+        stones.append({'x0':min(v.x for v in points),'y0':min(-v.y for v in points),
+                       'x1':max(v.x for v in points),'y1':max(-v.y for v in points),
+                       'topo':max(v.z for v in points)})
+    data['relevo']={'crateras':[{'x':x,'y':y,'raio':radius,'profundidade':depth} for x,y,radius,depth in centers], 'pedras':stones}
     data['imagem'] = {'arquivo': 'lua/terrain.png', 'w': W, 'h': Hh, 'origem': r(o), 'ex': r(ex), 'ey': r(ey), 'ez': r(ez)}
     with open(JSON, 'w') as f:
         json.dump(data, f, separators=(',', ':'))

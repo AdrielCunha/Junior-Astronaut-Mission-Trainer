@@ -9,6 +9,10 @@
 // Graphics. Shapes are drawn once into textures and shown as images; only the windows, which are
 // open for a moment, keep live Graphics.
 import Phaser from 'phaser';
+import paletaLua from '../dados/paleta_lua.json';
+const LUA_COR=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
+const LUA_CRATERA=Number.parseInt(paletaLua.rocha.slice(1),16);
+import { abrirVideo, movimentoReduzido, configuracoesAbertas } from '../video';
 import { sessao } from './sessao';
 import { CONTORNO, botaoFechar, botaoVerde, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { alternarMudo, estaMudo } from '../audio';
@@ -107,6 +111,11 @@ export class Radar extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ENTER', lancar);
   }
 
+  update() {
+    const paused=movimentoReduzido() || configuracoesAbertas;
+    this.tweens.getTweens().forEach(t=>{t.paused=paused;});
+  }
+
   // ---------- drawing once ----------
   // Draws with a throwaway Graphics into a new texture of w x h, centered on (0, 0), and returns its key.
   private textura(w: number, h: number, desenhar: (g: Phaser.GameObjects.Graphics) => void, origem = { x: w / 2, y: h / 2 }) {
@@ -195,6 +204,7 @@ export class Radar extends Phaser.Scene {
     // A little rocket flies the route from the Moon to Mars.
     const foguete = this.foguete(s);
     const voo = { t: 0.26 };
+    const initial=rota.getPoint(voo.t);foguete.setPosition(initial.x,initial.y);
     this.tweens.add({
       targets: voo, t: 0.98, duration: 7000, repeat: -1, repeatDelay: 600, ease: 'Sine.easeInOut',
       onUpdate: () => {
@@ -211,8 +221,8 @@ export class Radar extends Phaser.Scene {
       g.fillStyle(0x60a5fa, 0.18).fillCircle(0, 0, 30 * s).fillStyle(0x3b82f6).fillCircle(0, 0, 20 * s).lineStyle(4 * u, CONTORNO).strokeCircle(0, 0, 20 * s);
       g.fillStyle(0x4ade80).fillCircle(-7 * s, -5 * s, 7 * s).fillCircle(8 * s, 7 * s, 5 * s).fillStyle(0xffffff, 0.6).fillCircle(-8 * s, -11 * s, 3 * s);
     } else if (qual === 'lua') {
-      g.fillStyle(0xd1d5db).fillCircle(0, 0, 26 * s).lineStyle(4 * u, CONTORNO).strokeCircle(0, 0, 26 * s);
-      g.fillStyle(0x9ca3af).fillCircle(-9 * s, 7 * s, 7 * s).fillCircle(10 * s, -4 * s, 5 * s);
+      g.fillStyle(LUA_COR).fillCircle(0, 0, 26 * s).lineStyle(4 * u, CONTORNO).strokeCircle(0, 0, 26 * s);
+      g.fillStyle(LUA_CRATERA).fillCircle(-9 * s, 7 * s, 7 * s).fillCircle(10 * s, -4 * s, 5 * s);
       g.fillStyle(0xf8fafc).beginPath().arc(0, -23 * s, 10 * s, Math.PI, 0).closePath().fillPath()
         .lineStyle(2.5 * u, CONTORNO).beginPath().arc(0, -23 * s, 10 * s, Math.PI, 0).closePath().strokePath();
     } else if (qual === 'marte') {
@@ -475,6 +485,7 @@ export class Radar extends Phaser.Scene {
 
   // 3, 2, 1, LIFT OFF! then the mission starts.
   private contagem(fim: () => void) {
+    if(movimentoReduzido()){this.scene.stop();fim();return;}
     const u = this.u;
     const W = this.scale.width, H = this.scale.height;
     this.add.rectangle(0, 0, W, H, 0x020617, 0.55).setOrigin(0).setDepth(10);

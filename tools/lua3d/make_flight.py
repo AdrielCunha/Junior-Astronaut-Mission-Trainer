@@ -17,6 +17,7 @@ from mathutils import Vector, Quaternion, Matrix
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import comum as C
+from estilo_lua import PALETA, contornos_crateras
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 TMP = os.path.join(C.CACHE, 'voo_tmp')
@@ -28,9 +29,11 @@ ap.add_argument('--w', type=int, default=1280)
 ap.add_argument('--h', type=int, default=720)
 ap.add_argument('--so', default='', help='render only these frames, e.g. 0,30,71 (preview)')
 ap.add_argument('--so-json', action='store_true', help='only recompute voo.json (camera path), no pictures')
+ap.add_argument('--destino', default='', help='optional staging root; contains public/ and src/dados/')
 ap.add_argument('--nome', default='voo', help="output name: public/lua/<nome>/ and src/dados/<nome>.json (voo_leve = light set for phones)")
 args = ap.parse_args(argv)
-OUT = os.path.join(ROOT, 'public', 'lua', args.nome)
+DESTINO = args.destino or ROOT
+OUT = os.path.join(DESTINO, 'public', 'lua', args.nome)
 
 R = C.R_KM
 FOV = math.radians(10)               # narrow lens: near-isometric at both ends, like the game
@@ -110,15 +113,31 @@ xs = np.array([(s0 + i - 1 - 3799.5) * 0.08 for i in range(n + 1)])
 ys = np.array([-(l0 + j - 1 - 3799.5) * 0.08 for j in range(n + 1)])
 # One regolith look for the map and the 64 km patch (same noise, same scale), so they read as one
 # ground; the map adds its 80 m contour lines, as in the game picture.
-RUIDO = 0.08 / 0.22                  # the noise scale of terrain.png (0.22 per 80 m tile)
+RUIDO = 0.08 / 0.075                  # the noise scale of terrain.png (0.22 per 80 m tile)
 CENTRO = tuple(C.polar_para_3d(x0k, y0k, alt[n // 2, n // 2]))
 # The map and the 64 km patch are opaque and share one regolith pattern (same noise, in moon
 # coordinates), so the pattern runs on across their edge; the finer one sits a few meters higher
 # and wins the depth test. Only the 800 km patch fades (into the globe): blended surfaces are not
 # sorted against each other, so there is just one.
-mat_mapa = C.toon(bpy, 'mapa', C.albedo_chao(RUIDO, curva_km=0.08, raio_km=R))
-v, f = grade_polar(alt, xs, ys, lambda x, y: True, sobe=0.40)
-malha('mapa', v, f, mat_mapa)
+mat_mapa = C.toon(bpy, 'mapa', C.albedo_chao(RUIDO))
+# The playable patch shares its bowl heights and illustrated rim geometry with terrain.png.
+crateras=[(c['x'],c['y'],c['raio'],c['profundidade']) for c in T.get('relevo',{}).get('crateras',[])]
+def altura_mapa(x,y):
+    ix,iy=min(n-1,int(x)),min(n-1,int(y));fx,fy=x-ix,y-iy
+    h=T['alturas']
+    z=(h[iy][ix]*(1-fx)+h[iy][ix+1]*fx)*(1-fy)+(h[iy+1][ix]*(1-fx)+h[iy+1][ix+1]*fx)*fy
+    for a,b,r,depth in crateras:
+        t=math.hypot(x-a,y-b)/r
+        if t<.86:z-=depth*(1-(t/.86)**2)**1.3
+        if .68<t<1.25:z+=depth*.32*math.sin(math.pi*(t-.68)/.57)**2
+    return z
+def ponto_mapa(x,y,extra=0):
+    return C.polar_para_3d(xs[0]+x*.08,ys[0]-y*.08,altura_mapa(x,y)*.08+T['alturaBaseM']/1000+.40+extra)
+sub=4;grid=n*sub
+v=[ponto_mapa(i/sub,j/sub) for j in range(grid+1) for i in range(grid+1)]
+f=[(j*(grid+1)+i,(j+1)*(grid+1)+i,(j+1)*(grid+1)+i+1,j*(grid+1)+i+1) for j in range(grid) for i in range(grid)]
+malha('mapa',v,f,mat_mapa)
+contornos_crateras(bpy,sc,crateras,lambda x,y:ponto_mapa(x,y,.022*.08))
 
 # ---------- 64 km and 800 km patches, each with a hole where the finer one sits ----------
 a, xa, ya = C.janela('80m', 32, 4)
@@ -156,14 +175,14 @@ d = globo.modifiers.new('relevo', 'DISPLACE'); d.texture = tex; d.texture_coords
 # ldem_4_uint: height = (value - 20000) * 0.5 m; Blender reads value / 65535. In object units (x R).
 d.mid_level = 20000 / 65535; d.strength = 65535 * 0.0005 / R
 cor = bpy.data.images.load(os.path.join(HERE, 'nasa', 'lroc_color_poles_2k.tif'))
-ALBEDO = [(0.00, '#5a5248'), (0.15, '#7a7060'), (0.22, '#9c917b'), (0.30, '#bdb196'), (0.40, '#dcd1b4')]
+ALBEDO = PALETA['albedoLua']
 def albedo_globo(N, L):
     tc = N.new('ShaderNodeTexCoord'); im = N.new('ShaderNodeTexImage'); im.image = cor; im.extension = 'REPEAT'
     L.new(tc.outputs['UV'], im.inputs['Vector'])
     bw = N.new('ShaderNodeRGBToBW'); L.new(im.outputs['Color'], bw.inputs['Color'])
     r = C._ramp(N, ALBEDO); L.new(bw.outputs['Val'], r.inputs['Fac'])
     return r.outputs['Color']
-mat_globo = C.toon(bpy, 'globo', albedo_globo)
+mat_globo = C.toon(bpy, 'globo', albedo_globo, luz=PALETA['luzLua'])
 globo.data.materials.append(mat_globo)
 
 # ---------- camera path ----------
@@ -255,7 +274,8 @@ for i in lista:
     subprocess.run(['magick', png, '-quality', '72', '-define', 'webp:alpha-quality=90', os.path.join(OUT, f'f{i:02d}.webp')], check=True)
     print('frame', i, flush=True)
 if not args.so:
-    with open(os.path.join(ROOT, 'src', 'dados', f'{args.nome}.json'), 'w') as f:
+    os.makedirs(os.path.join(DESTINO,'src','dados'),exist_ok=True)
+    with open(os.path.join(DESTINO, 'src', 'dados', f'{args.nome}.json'), 'w') as f:
         json.dump({'quadros': args.frames, 'w': args.w, 'h': args.h, 'margem': MARGEM, 'sInicio': S_INICIO, 'diametroFim': DIAM_FIM,
                    'p': [round(p, 5) for p in PS], 'razao': round(d1 / d0, 3), 'base': base_px,
                    'dia': 1, 'nota': 'Frame 0 = the map at sInicio px/km, centered on the map center. Last frame = the Moon view of day 1, globe diameter diametroFim px, centered. Frame i was rendered at camera distance d0 * razao ** p[i]; frames are w*margem x h*margem.'}, f, indent=1)
