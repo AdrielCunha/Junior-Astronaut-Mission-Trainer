@@ -384,6 +384,19 @@ locally; sky and constellation imagery are unaffected by the surface palette.
    drops), rockets for the last part (the backshell and chute fly off), dust, touchdown. Each step
    says why: Mars has thin air, the Moon has none. Then chapter 3 starts.
 
+**Mars terrain, the Moon's pipeline (plan in docs/plano-marte.md).** `comum.usar_corpo('marte')`
+switches the shared Blender helpers to Mars (radius 3396.19 km, equirectangular grids, Mars
+palette `paleta_marte.json`) and adds readers for the USGS CTX DTM of Jezero (20 m) and the MOLA
+MEGDR tiles (463 m, 3.7 km, read by HTTP range); every source is placed through lat/lon with one
+radius, and CTX and MOLA agree to a few meters. `make_terrain_marte.py` cuts the 64 x 64 map
+(80 m tiles on true ground) near Perseverance's landing site into `terreno_marte.json`, and
+`render_terrain.py -- --corpo marte` draws `public/marte/terrain.png`. `make_flight_marte.py`
+renders the zoom out (map, 18 km of CTX, 64 km and 800 km of MOLA, MOLA globe) into
+`public/marte/voo` and `voo_leve`; its last frame uses the live globe's own map and light bands and
+MarteVista's tilted view, so `MarteVista` plays the film for z 0..1 and swaps to the live globe
+without a jump. The map is not playable yet (Superficie still assumes the Moon); the DEV panel
+shows it ("Mars map preview"), and zooming out of that preview runs the film.
+
 **Mars in chapter 3.** `marte.ts` holds the landing site, Mars facts and the toon landscape
 (butterscotch sky in flat bands, a small Sun with a pale halo, the crater rim, rocks), drawn behind
 the chapter 3 base by `Base.desenharCeu` and during the landing. `MarteVista` is the zoom out from

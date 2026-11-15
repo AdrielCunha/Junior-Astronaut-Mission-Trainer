@@ -51,7 +51,9 @@ export class TerrenoMarte extends Phaser.Scene {
       cam.scrollX -= (p.x - p.prevPosition.x) / cam.zoom;
       cam.scrollY -= (p.y - p.prevPosition.y) / cam.zoom;
     });
+    // Past the widest zoom, the wheel goes on into the zoom out of Mars (the film, MarteVista).
     this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => {
+      if (dy > 0 && cam.zoom <= z0 * 0.51) { this.zoomOut(); return; }
       cam.setZoom(Phaser.Math.Clamp(cam.zoom * Math.exp(-dy * 0.0015), z0 * 0.5, 2));
     });
     this.input.keyboard?.on('keydown-ESC', () => this.sair());
@@ -68,7 +70,7 @@ export class TerrenoMarte extends Phaser.Scene {
     this.add.text(16, 44,
       `Jezero crater · ${t.centro.lat.toFixed(3)}° N ${t.centro.lon.toFixed(3)}° E · ${kmPouso.toFixed(1)} km from Perseverance's landing site\n` +
       `64 x 64 tiles of 80 m (5.1 km) · ${desnivel.toFixed(0)} m of relief · ${t.fonte.nome}\n` +
-      'Drag to move, wheel to zoom, Esc to leave',
+      'Drag to move, wheel to zoom (keep zooming out to leave the ground), Esc to leave',
       { ...estilo, fontSize: '13px', lineSpacing: 4 }).setScrollFactor(0);
     const sair = this.add.text(W - 16, H - 16, 'Back', { ...estilo, fontSize: '16px', fontStyle: 'bold', backgroundColor: '#2563eb', padding: { x: 14, y: 8 }, strokeThickness: 0 })
       .setOrigin(1, 1).setScrollFactor(0).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.sair());
@@ -77,6 +79,13 @@ export class TerrenoMarte extends Phaser.Scene {
     this.cameras.main.ignore(palavras);
     cam.ignore(palavras);
     ui.ignore([img, g]);
+  }
+
+  private zoomOut() {
+    if (!this.scene.isActive()) return;
+    this.scene.pause();
+    this.scene.launch('MarteVista', { data: Date.parse('2024-05-18T12:00:00Z'), aoVoltar: () => this.scene.resume() });
+    this.scene.bringToTop('MarteVista');
   }
 
   private sair() {

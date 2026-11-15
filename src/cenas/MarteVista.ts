@@ -1,7 +1,9 @@
 // Generated with AI assistance. See README, "Use of AI tools".
 // Zooming out from the Mars base (chapter 3), like the zoom out from the Moon base in chapter 1:
-//   ground -> Mars from orbit (live globe, planetaShader.ts) with the base pin on Jezero crater
-//   and the two moons going round -> the inner solar system with Mars where it really is that day.
+//   ground -> the Blender film of Mars (make_flight_marte.py: the map, Jezero crater, Isidis, the
+//   globe; frames in public/marte/voo) -> Mars from orbit (live globe, planetaShader.ts, the same
+//   picture as the film's last frame) with the base pin and the two moons going round -> the inner
+//   solar system with Mars where it really is that day.
 // Opened over Base (paused); the wheel, + / - or Back returns to it.
 import Phaser from 'phaser';
 import { PLANETAS, posicao } from '../engine/astro';
@@ -9,6 +11,14 @@ import { criarPlaneta, diametroPlaneta, giroOlhando, pontoNoPlaneta } from './pl
 import { COR_MARTE, DIA_MARTE_MS, JEZERO } from './marte';
 import { fonte, dataBonita, suave } from './sessao';
 import { movimentoReduzido } from '../video';
+import vooHD from '../dados/voo_marte.json';
+import vooLeve from '../dados/voo_leve_marte.json';
+import { LEVE } from './qualidade';
+
+// The film (same layout as the Moon's voo.json): frame i was rendered at p[i] along the zoom.
+const VOO = LEVE ? vooLeve : vooHD;
+const quadroMarte = (i: number) => `marte/${LEVE ? 'voo_leve' : 'voo'}/f${String(i).padStart(2, '0')}.webp`;
+const CEU_MARTE: [number, number][] = [[0, 0xd9ab80], [0.35, 0xc08d68], [0.7, 0x6e4c48], [1, 0x0b0f1e]];   // paleta_marte.json "ceu"
 
 export type DadosMarteVista = { data: number; aoVoltar: () => void };
 
@@ -39,6 +49,8 @@ export class MarteVista extends Phaser.Scene {
   private rotulos = new Map<string, Phaser.GameObjects.Text>();
   private legenda!: Phaser.GameObjects.Text;
   private cobertura!: Phaser.GameObjects.Rectangle;
+  private quadro!: Phaser.GameObjects.Image;          // current film frame
+  private ceuMarte!: Phaser.GameObjects.Rectangle;   // the sky of Mars behind the film, darker higher up
 
   constructor() {
     super({ key: 'MarteVista' });
@@ -56,21 +68,24 @@ export class MarteVista extends Phaser.Scene {
     this.load.image('planeta_terra', 'lua/planetas/terra.png');
     this.load.image('planeta_sol', 'lua/planetas/sol.png');
     this.load.image('ceu', 'lua/sky.jpg');
+    for (let i = 0; i < VOO.quadros; i++) if (!this.textures.exists(`mv${i}`)) this.load.image(`mv${i}`, quadroMarte(i));
   }
 
   create() {
     const W = this.scale.width, H = this.scale.height;
     this.ceu = this.add.image(W / 2, H / 2, 'ceu');
     this.ceu.setScale(Math.max(W / this.ceu.width, H / this.ceu.height));
+    this.ceuMarte = this.add.rectangle(0, 0, W, H, CEU_MARTE[0][1]).setOrigin(0);
     const veu = this.add.rectangle(0, 0, W, H, 0x020617, 0.3).setOrigin(0);
     this.atras = this.add.graphics();
     this.sol = this.add.image(0, 0, 'planeta_sol');
     this.terraP = criarPlaneta(this, 0, 0, { textura: 'planeta_terra', atmos: 0x93c5fd, atmosForca: 0.55 });
     this.marteP = criarPlaneta(this, 0, 0, { textura: 'planeta_marte', atmos: 0xfdba74, atmosForca: 0.35 });
+    this.quadro = this.add.image(W / 2, H / 2, 'mv0');
     this.frente = this.add.graphics();
     this.legenda = this.add.text(W / 2, H - 16, '', fonte(14, '#e2e8f0', { align: 'center', stroke: '#020617', strokeThickness: 4, wordWrap: { width: W - 260 } }))
       .setOrigin(0.5, 1);
-    this.conteudo.push(this.ceu, veu, this.atras, this.sol, this.terraP, this.marteP, this.frente, this.legenda);
+    this.conteudo.push(this.ceu, this.ceuMarte, veu, this.atras, this.sol, this.terraP, this.marteP, this.quadro, this.frente, this.legenda);
 
     // Controls, like the zoom buttons on the Moon.
     const botao = (x: number, y: number, s: string, acao: () => void, larga = false) => {
@@ -167,6 +182,30 @@ export class MarteVista extends Phaser.Scene {
     this.marteP.setGiro(giro);
     this.marteP.setSolTela(Phaser.Math.Linear(-1, sp.x - cx, w), Phaser.Math.Linear(0.5, sp.y - cy, w));
 
+    // The film from the ground to the globe (z 0..1 is its p): show the frame rendered just
+    // before p, shrunk to the current distance (never blend two frames: that ghosts). Near the
+    // end it fades into the live globe, drawn underneath at the same size.
+    let bf: { x: number; y: number } | null = null;
+    const noFilme = z < 1;
+    if (noFilme) {
+      let i = 0;
+      while (i < VOO.p.length - 1 && VOO.p[i + 1] <= z) i++;
+      const esc = Math.max(W / VOO.w, H / VOO.h);
+      const k = esc * Math.pow(VOO.razao, -(z - VOO.p[i]));
+      const fade = 1 - suave(0.975, 1, z);
+      this.quadro.setTexture(`mv${i}`).setScale(k).setPosition(W / 2, H / 2).setAlpha(fade);
+      const fw = VOO.w * VOO.margem, fh = VOO.h * VOO.margem;
+      bf = { x: W / 2 + (VOO.base[i][0] - fw / 2) * k, y: H / 2 + (VOO.base[i][1] - fh / 2) * k };
+    }
+    this.quadro.setVisible(noFilme && this.cobertura.alpha < 1 && !this.saindo);
+    this.marteP.setVisible(!noFilme || z > 0.96);
+    // Sky: the butterscotch sky of Mars near the ground, darker with height, then space.
+    let c0 = CEU_MARTE[0], c1 = CEU_MARTE[1];
+    for (let j = 0; j < CEU_MARTE.length - 1; j++) if (z >= CEU_MARTE[j][0]) { c0 = CEU_MARTE[j]; c1 = CEU_MARTE[j + 1]; }
+    const f = Phaser.Math.Clamp((z - c0[0]) / (c1[0] - c0[0]), 0, 1);
+    const cc = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(c0[1]), Phaser.Display.Color.ValueToColor(c1[1]), 1, f);
+    this.ceuMarte.setFillStyle(Phaser.Display.Color.GetColor(cc.r, cc.g, cc.b), 1 - suave(0.85, 1, z));
+
     // Sky, Sun, Earth and orbits fade in as you leave Mars.
     this.ceu.setAlpha(0.5 + 0.5 * suave(0.2, 0.8, z));
     const a = suave(1.1, 1.6, z);
@@ -194,7 +233,7 @@ export class MarteVista extends Phaser.Scene {
     this.rotulo('marteSis', mc.x, mc.y + D / 2 + 6, 'Mars\nyou are here', '#fdba74', a);
 
     // Phobos and Deimos round Mars's equator (the planet's z = 0 plane in the tilted view).
-    const al = suave(0.25, 0.6, z) * (1 - suave(1.15, 1.45, z));
+    const al = suave(0.95, 1.05, z) * (1 - suave(1.15, 1.45, z));      // once the live globe shows
     LUAS.forEach((l, i) => {
       if (al <= 0.01) { this.rotulo(l.nome, 0, 0, l.nome, '#e2e8f0', 0); return; }
       const ang = (this.horas / l.horas) * Math.PI * 2 + i * 2.1;
@@ -212,8 +251,9 @@ export class MarteVista extends Phaser.Scene {
     });
 
     // The base pin on Jezero crater.
-    const ap = pino.frente ? 1 - suave(1.0, 1.25, z) : 0;
-    const bx = cx + pino.x * (D / 2), by = cy + pino.y * (D / 2);
+    // During the film the base is where Blender says it is in that frame.
+    const ap = bf ? suave(0.15, 0.3, z) : pino.frente ? 1 - suave(1.0, 1.25, z) : 0;
+    const bx = bf ? bf.x : cx + pino.x * (D / 2), by = bf ? bf.y : cy + pino.y * (D / 2);
     if (ap > 0.01) {
       g1.fillStyle(0xf97316, ap).fillCircle(bx, by - 20, 7).fillTriangle(bx - 5, by - 16, bx + 5, by - 16, bx, by);
       g1.lineStyle(2, COR_MARTE.contorno, ap).strokeCircle(bx, by - 20, 7);
