@@ -3,9 +3,11 @@
 import type { Alocacao } from '../regras.ts';
 import type { Caixa } from './fisica.ts';
 import type { Terreno } from './terreno.ts';
+import type { DecoColocada } from '../dados/decoracao.ts';
 
 export type TipoId = 'habitat' | 'suporte' | 'blindagem' | 'oficina' | 'painel' | 'plataforma'
-  | 'antena' | 'estufa' | 'perfuratriz' | 'rover';
+  | 'antena' | 'estufa' | 'perfuratriz' | 'rover'
+  | 'usina' | 'reciclador' | 'eclusa' | 'bateria' | 'impressora' | 'radiotelescopio';
 
 export type Tipo = {
   id: TipoId;
@@ -40,6 +42,19 @@ export const TIPOS: Record<TipoId, Tipo> = {
                 papel: 'Digs for frozen water in the dark craters.' },
   rover:      { id: 'rover', nome: 'Rover', w: 2, h: 1, altura: 0.6, cor: 0xcbd5e1, unico: true,
                 papel: 'Carries astronauts far from the base.' },
+  // Real lunar-base structures (ISRU, life support, power, construction, science).
+  usina:      { id: 'usina', nome: 'Oxygen Plant', w: 3, h: 2, altura: 1.8, cor: 0xe2e8f0, unico: true,
+                papel: 'Splits oxygen out of lunar dust (regolith) with electricity. This is how NASA plans to make air on the Moon.' },
+  reciclador: { id: 'reciclador', nome: 'Water & Air Recycler', w: 2, h: 2, altura: 1.5, cor: 0x38bdf8, unico: true,
+                papel: "Cleans the crew's water and removes CO2 from the air, so nothing is wasted." },
+  eclusa:     { id: 'eclusa', nome: 'Airlock', w: 2, h: 1, altura: 1.0, cor: 0xf97316, unico: true,
+                papel: "A double door that lets astronauts go outside without losing the base's air." },
+  bateria:    { id: 'bateria', nome: 'Battery Bank', w: 2, h: 2, altura: 1.1, cor: 0xfacc15, unico: true,
+                papel: 'Stores solar power for the lunar night, which lasts about 14 Earth days.' },
+  impressora: { id: 'impressora', nome: 'Regolith 3D Printer', w: 3, h: 2, altura: 1.8, cor: 0xe7d3b0, unico: true,
+                papel: 'Builds walls and landing pads by melting lunar dust, so we ship less from Earth.' },
+  radiotelescopio: { id: 'radiotelescopio', nome: 'Radio Telescope', w: 3, h: 3, altura: 2.2, cor: 0xcbd5e1, unico: true,
+                papel: "Listens to the universe. The Moon's far side is shielded from Earth's radio noise." },
 };
 
 export type Construcao = { id: number; tipo: Tipo; gx: number; gy: number; z: number };
@@ -50,6 +65,8 @@ export class Grade {
   readonly n: number;
   private readonly ocup: Int32Array;     // 0 = free, else construction id
   readonly lista: Construcao[] = [];
+  readonly deco: DecoColocada[] = [];     // surface props: solid and reserved, but not buildings
+  private readonly extras: Caixa[] = [];
   private proximo = 1;
   private readonly t: Terreno;
 
@@ -85,6 +102,15 @@ export class Grade {
     for (let j = gy; j < gy + tipo.h; j++) for (let i = gx; i < gx + tipo.w; i++) this.ocup[j * this.n + i] = c.id;
     this.lista.push(c);
     return c;
+  }
+
+  // Puts a prop on the ground: reserves its tiles and makes it solid.
+  colocarDeco(d: Omit<DecoColocada, 'gx' | 'gy' | 'z'>, gx: number, gy: number): DecoColocada {
+    const p: DecoColocada = { ...d, gx, gy, z: this.t.alturaMax(gx, gy, d.w, d.h) + 0.01 };
+    for (let j = gy; j < gy + d.h; j++) for (let i = gx; i < gx + d.w; i++) this.ocup[j * this.n + i] = -1;
+    this.extras.push({ x0: gx + 0.12, y0: gy + 0.12, x1: gx + d.w - 0.12, y1: gy + d.h - 0.12, topo: p.z + d.altura });
+    this.deco.push(p);
+    return p;
   }
 
   // Solid boxes for the physics. A small inset keeps paths between neighbors walkable.
@@ -157,6 +183,12 @@ export const BASE_PADRAO: [TipoId, number, number][] = [
   ['painel', -6, -8],
   ['painel', -3, -8],
   ['painel', 0, -8],
+  ['usina', -12, -3],
+  ['reciclador', -11, 3],
+  ['eclusa', -2, 3],
+  ['bateria', 3, -8],
+  ['impressora', 9, -8],
+  ['radiotelescopio', -10, -9],
 ];
 
 export const SETORES_SUPRIMENTOS: Partial<Record<TipoId, [number, number]>> = {

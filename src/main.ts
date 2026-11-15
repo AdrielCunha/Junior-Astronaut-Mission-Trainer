@@ -28,7 +28,9 @@ import { TrocarFiltroCo2Tarefa } from './cenas/TrocarFiltroCo2Tarefa';
 import { EquilibrarValvulasTarefa } from './cenas/EquilibrarValvulasTarefa';
 import { TaparTempestadeTarefa } from './cenas/TaparTempestadeTarefa';
 import { FecharEscotilhasTarefa } from './cenas/FecharEscotilhasTarefa';
+import { PaineisSolaresTarefa } from './cenas/PaineisSolaresTarefa';
 import { BANCO } from './tarefas';
+import { sessao } from './cenas/sessao';
 
 // Carregar (loading screen) loads the assets, then starts three scenes that run together, bottom to top: Espaco (stars, Moon, planets), Superficie (the map,
 // the commander, the modules) and Interface (bars and panels). See ARCHITECTURE.md.
@@ -117,6 +119,7 @@ const createDebugHarness = () => {
   const eventosTab = criarTab('Events');
   const capitulosTab = criarTab('Chapters');
   const tarefasTab = criarTab('Tasks');
+  const fogueteTab = criarTab('Rocket');
 
   const botaoEvento = (texto: string, tipo: ParamEvento['tipo']) => {
     eventosTab.appendChild(criarBotaoPadrao(texto, '#0f172a', () => {
@@ -346,6 +349,7 @@ const createDebugHarness = () => {
     ['EquilibrarValvulasTarefa', 'Balance the valves', 'EquilibrarValvulasTarefa'],
     ['TaparTempestadeTarefa', 'Block the storm', 'TaparTempestadeTarefa'],
     ['FecharEscotilhasTarefa', 'Close the hatches', 'FecharEscotilhasTarefa'],
+    ['PaineisSolaresTarefa', 'Charge the solar panels', 'PaineisSolaresTarefa'],
   ];
   outrasTasks.forEach(([key, label, cena]) => taskButtons.push({
     key, label,
@@ -377,6 +381,21 @@ const createDebugHarness = () => {
     tarefasTab.appendChild(criarBotaoPadrao(label, '#1e293b', () => dispararTask(label, trigger), 'rgba(96, 165, 250, 0.8)'));
   });
 
+  // Rocket tab: the launch pad shows one of 5 build stages from the chapter goal (meta 0-100, 25 per stage).
+  // These buttons set the goal directly so the stages can be checked on the surface.
+  const definirMeta = (meta: number) => {
+    sessao.estado = { ...sessao.estado, meta };
+    sessao.emitir('estado');
+    painelMensagem.textContent = `Rocket goal ${meta}% · stage ${Math.min(4, Math.floor(meta / 25))} of 4`;
+  };
+  fogueteTab.appendChild(criarBotaoPadrao('Build next stage', '#7c2d12', () => {
+    const atual = Math.min(4, Math.floor(sessao.estado.meta / 25));
+    definirMeta(atual >= 4 ? 0 : (atual + 1) * 25);
+  }, 'rgba(249, 115, 22, 0.8)'));
+  [0, 1, 2, 3, 4].forEach((etapa) => fogueteTab.appendChild(
+    criarBotaoPadrao(etapa === 4 ? 'Stage 4 · finished rocket' : `Stage ${etapa}`, '#1e293b', () => definirMeta(etapa * 25), 'rgba(148, 163, 184, 0.5)'),
+  ));
+
   const alternarTab = (proxima: string) => {
     tabs.forEach(({ nome, conteudo }) => {
       const ativa = nome === proxima;
@@ -401,6 +420,7 @@ const createDebugHarness = () => {
   criarAba('Events');
   criarAba('Chapters');
   criarAba('Tasks');
+  criarAba('Rocket');
 
   botaoEvento('Storm', 'tempestade');
   botaoEvento('No oxygen', 'queda-oxigenio');
@@ -421,6 +441,7 @@ const createDebugHarness = () => {
   painel.appendChild(eventosTab);
   painel.appendChild(capitulosTab);
   painel.appendChild(tarefasTab);
+  painel.appendChild(fogueteTab);
   painel.appendChild(painelMensagem);
 
   alternarTab('Events');
@@ -449,9 +470,9 @@ const jogo = new Phaser.Game({
   // title screen flow added on main.
   scene: classico
     ? [Carregar, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, CenaTarefa, Radar]
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar]
     : [Carregar, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, CenaTarefa, Radar],
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar],
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;
