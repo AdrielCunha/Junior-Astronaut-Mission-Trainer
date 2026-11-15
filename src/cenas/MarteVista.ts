@@ -73,13 +73,13 @@ export class MarteVista extends Phaser.Scene {
     this.load.image('planeta_marte', 'lua/planetas/marte.png');
     this.load.image('planeta_terra', 'lua/planetas/terra.png');
     this.load.image('planeta_sol', 'lua/planetas/sol.png');
-    this.load.image('ceu', 'lua/sky.jpg');
+    this.load.image('ceu_sistema', 'lua/sky_sistema.jpg');   // the real sky seen looking down on the planets (make_ceu.py)
     for (let i = 0; i < VOO.quadros; i++) if (!this.textures.exists(`mv${i}`)) this.load.image(`mv${i}`, quadroMarte(i));
   }
 
   create() {
     const W = this.scale.width, H = this.scale.height;
-    this.ceu = this.add.image(W / 2, H / 2, 'ceu');
+    this.ceu = this.add.image(W / 2, H / 2, 'ceu_sistema');
     this.ceu.setScale(Math.max(W / this.ceu.width, H / this.ceu.height));
     this.ceuMarte = this.add.rectangle(0, 0, W, H, CEU_MARTE[0][1]).setOrigin(0);
     const veu = this.add.rectangle(0, 0, W, H, 0x020617, 0.3).setOrigin(0);
@@ -298,9 +298,9 @@ export class MarteVista extends Phaser.Scene {
     const dist = Math.hypot(pm.x - pe.x, pm.y - pe.y);
     const minutos = (dist * LUZ_SEGUNDOS_AU) / 60;
     this.legenda.setText(z < 1.2
-      ? `Mars · your base in ${JEZERO.nome} (${JEZERO.lat.toFixed(1)}° N, ${JEZERO.lon.toFixed(1)}° E), where NASA's Perseverance rover landed in 2021\n` +
-        `Mars is about half as wide as Earth. A day there, a sol, lasts ${Math.floor(DIA_MARTE_MS / 3600000)} h ${Math.round((DIA_MARTE_MS % 3600000) / 60000)} min. Phobos and Deimos are its two small moons.`
-      : `${dataBonita(t)} · real positions from NASA JPL orbital elements · planet sizes enlarged, distances true\n` +
-        `Earth is ${(dist * 149.6).toFixed(0)} million km away today. A radio message takes ${minutos.toFixed(0)} minutes each way, so Mission Control cannot steer you live.`);
+      ? `Your base: ${JEZERO.nome}, where NASA's Perseverance landed in 2021\n` +
+        `Mars is half as wide as Earth. A day (a sol) lasts ${Math.floor(DIA_MARTE_MS / 3600000)} h ${Math.round((DIA_MARTE_MS % 3600000) / 60000)} min.`
+      : `${dataBonita(t)} · real planet positions from NASA JPL\n` +
+        `Earth is ${(dist * 149.6).toFixed(0)} million km away. A message takes ${minutos.toFixed(0)} minutes to get there!`);
   }
 }

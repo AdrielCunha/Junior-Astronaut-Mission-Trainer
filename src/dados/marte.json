@@ -36,7 +36,7 @@
       "minima": -98,
       "frio": 2,
       "aviso": "Welcome to Mars! The crew landed in Jezero crater, where the Perseverance rover works. The weather and radiation numbers come from Curiosity, in Gale Crater. Tonight will be very cold.",
-      "fato": "Mars air is about 100 times thinner than Earth's. It cannot hold the heat, so nights get very cold."
+      "fato": "Mars air is 100 times thinner than Earth's. Nights get freezing!"
     },
     {
       "data": "2024-05-19",
@@ -47,12 +47,12 @@
       ],
       "doseMedia": 3.9,
       "dosePico": 4.7,
-      "curto": "NASA model: CMEs reach Mars tomorrow!",
+      "curto": "NASA says: storm clouds reach Mars tomorrow!",
       "sol": 4189,
       "minima": -68,
       "frio": 1,
       "aviso": "Alert: NASA's ENLIL model says clouds of solar material (CMEs) launched on May 16 and 17 will reach Mars tomorrow. Get ready!",
-      "fato": "ENLIL is a computer model of the solar wind. Scientists use it to predict when a CME will reach Earth, Mars or a spacecraft."
+      "fato": "A NASA computer model called ENLIL predicts when solar storms arrive."
     },
     {
       "data": "2024-05-20",
@@ -68,7 +68,7 @@
       "minima": -69,
       "frio": 1,
       "aviso": "Alert! At 05:36 UTC a CME left the Sun at 2,678 km/s, the fastest of the month.",
-      "fato": "Today Curiosity measured about 18 times more radiation than on a calm day, even with the Martian air on top."
+      "fato": "Today Curiosity measured 18 times more radiation than on a calm day!"
     },
     {
       "data": "2024-05-21",
@@ -84,7 +84,7 @@
       "minima": -69,
       "frio": 1,
       "aviso": "The clouds of solar material are passing by Mars.",
-      "fato": "Astronauts on Mars could hide from storms in shelters covered with Martian soil, which blocks radiation."
+      "fato": "On Mars, a roof of soil can block radiation."
     },
     {
       "data": "2024-05-22",
@@ -100,7 +100,7 @@
       "minima": -69,
       "frio": 1,
       "aviso": "The Sun looks quieter. A good day to build!",
-      "fato": "One day on Mars is called a sol. It lasts 24 hours and 39 minutes."
+      "fato": "A day on Mars is called a sol. It lasts 24 hours and 39 minutes."
     },
     {
       "data": "2024-05-23",
@@ -132,7 +132,7 @@
       "minima": -73,
       "frio": 1,
       "aviso": "Calm. The base is taking shape.",
-      "fato": "Today Curiosity measured an air pressure of about 860 pascals. On Earth at sea level it is about 101,000."
+      "fato": "Mars air presses over 100 times less than Earth's air."
     },
     {
       "data": "2024-05-25",
@@ -148,7 +148,7 @@
       "minima": -70,
       "frio": 1,
       "aviso": "Last day: the base must be finished tonight!",
-      "fato": "Curiosity has been exploring Gale Crater on Mars since August 2012."
+      "fato": "Curiosity has explored Mars since 2012!"
     }
   ]
 }

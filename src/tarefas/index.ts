@@ -29,8 +29,8 @@ export { CENAS_DA_SALA } from './escolha';
 export type Escolha = { id: string; tarefa: Tarefa } | { id: string; cena: string };
 
 // A random task for this room (bank or ready scene), not the same as last time when there is a choice.
-export function escolher(sala: Efeito, ultima?: string, sorte: () => number = Math.random): Escolha | undefined {
-  const e = escolherEntre(sala, ultima, BANCO, sorte);
+export function escolher(sala: Efeito, ultima?: string, sorte: () => number = Math.random, mundo?: string): Escolha | undefined {
+  const e = escolherEntre(sala, ultima, BANCO, sorte, mundo);
   if (!e) return undefined;
   return e.cena ? { id: e.id, cena: e.cena } : { id: e.id, tarefa: BANCO.find((t) => t.id === e.id)! };
 }

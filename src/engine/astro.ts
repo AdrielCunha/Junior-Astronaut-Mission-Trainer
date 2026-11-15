@@ -28,7 +28,18 @@ export const TERRA_LUA_KM = 384400;
 export const LUA_NOVA = Date.parse('2024-05-08T03:22:00Z');
 export const MES_SINODICO = 29.530589;   // days
 
+// How long each body takes to turn once on its axis, relative to the stars (sidereal), in Earth
+// days. NASA planetary fact sheets (nssdc.gsfc.nasa.gov/planetary/factsheet). Negative: turns
+// backward (Venus). The Sun turns faster at its equator; this is its usual (Carrington) period.
+// The Moon turns once per trip around Earth, so the same face always looks at us.
+export const ROTACAO_DIAS: Record<string, number> = {
+  sol: 25.38, mercurio: 58.646, venus: -243.025, terra: 0.99727, lua: 27.3217, marte: 1.02596,
+  jupiter: 0.41354, saturno: 0.44401, urano: -0.71833, netuno: 0.67125,
+};
+
 const J2000 = Date.UTC(2000, 0, 1, 12);
+// Turns a body has made on its axis since J2000 at time t (ms), always counted forward.
+export const voltasEm = (corpo: string, t: number) => (t - J2000) / 86400000 / Math.abs(ROTACAO_DIAS[corpo] ?? 1);
 const rad = (g: number) => (g * Math.PI) / 180;
 
 // Heliocentric ecliptic position, AU.
