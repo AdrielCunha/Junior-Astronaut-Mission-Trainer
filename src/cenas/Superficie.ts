@@ -19,7 +19,7 @@ import { paraTela, paraChao, profundidade } from '../engine/iso';
 import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
 import { encontrarCaminho, type Ponto } from '../engine/caminho';
 import naveProps from '../dados/nave_props.json';
-import { TIPOS, montarBasePadrao, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
+import { TIPOS, tipoOrientado, montarBasePadrao, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
 import { entregar as entregarRegra, custo, pronto } from '../regras';
 import { empuxoDePouso, suprimentoDoDia, SUPRIMENTOS } from '../engine/suprimentos';
 import { sortearEvento, DOSE_ALARME } from '../engine/eventos';
@@ -30,6 +30,7 @@ import { escolher } from '../tarefas';
 import { criarIconeJogo } from '../tarefas/estilo';
 import type { DadosTarefa } from './Tarefa';
 import modelos from '../dados/modulos.json';
+import rotacoesModulos from '../dados/rotacoesModulos.json';
 import { origemBaterias, modeloBancoBaterias } from '../engine/estacaoSolar';
 import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
@@ -61,7 +62,8 @@ type Modelo = keyof typeof modelos;
 // Every module picture: the team's (modulos.json) and the ship's (nave_props.json, make_nave.py).
 // `pegada` is the footprint a picture was drawn for, when it differs from the module's own.
 type Quadro = { w: number; h: number; ancora: number[]; escala: number; pegada?: number[] };
-const QUADROS = { ...modelos, ...naveProps } as unknown as Record<string, Quadro>;
+const QUADROS = { ...modelos, ...naveProps, ...rotacoesModulos } as unknown as Record<string, Quadro>;
+export type ObjetoEditor = Construcao & {deco?: DecoColocada};
 const PEGADA_MODELO: Record<string, [number, number]> = { pouso: [2, 2], reciclador: [2, 2] };
 // Ship props (chapter 2): offsets in tiles from the grid center, inside the deck, off the corridor.
 const DECO_NAVE = [
@@ -177,6 +179,39 @@ export class Superficie extends Phaser.Scene {
   }
   // Whether the player already walked / jumped (read by the on-map guide, guia.ts).
   jaUsou(c: 'movimento' | 'pulo') { return this.controlesObservados.has(c); }
+
+  objetosParaEditor(): ObjetoEditor[] {
+    return [...sessao.grade.lista,...sessao.grade.deco.map((d,i)=>({id:-(i+1),deco:d,gx:d.gx,gy:d.gy,z:d.z,rotacao:d.rotacao??0,
+      tipo:{id:'habitat' as const,nome:d.nome,w:d.w,h:d.h,altura:d.altura,unico:false,cor:0,papel:d.info}}))];
+  }
+
+  dadosParaEditor(c: ObjetoEditor) {
+    if(c.deco){const v=this.decoVisuais.find(v=>v.d===c.deco);return v?{imagem:v.img,nome:c.deco.nome}:null;}
+    const desenho=this.desenhos.get(c.id);
+    return desenho?{imagem:desenho.img,nome:this.nomeDe(c)}:null;
+  }
+
+  prepararEditor() {
+    this.rota=[];this.alvoUsar=null;this.alvoRover=false;this.seguir=false;this.recolherBandeira();
+    this.dica?.setVisible(false);this.decoSobre=null;this.decoFixa=null;this.decoFixaT=0;
+    this.corpo.vx=this.corpo.vy=0;
+  }
+
+  posicionarPreviaEditor(img: Phaser.GameObjects.Image,c: ObjetoEditor,gx:number,gy:number,rotacao:number) {
+    if(c.deco){const d=c.deco,dim=(rotacao%2)!==((d.rotacao??0)%2)?{w:d.h,h:d.w}:{w:d.w,h:d.h};
+      this.posicionarDeco(img,{...d,...dim,gx,gy,rotacao,z:sessao.terreno.alturaMax(gx,gy,dim.w,dim.h)+0.01});return;}
+    const tipo=tipoOrientado(c.tipo,rotacao);
+    this.posicionar(img,{...c,tipo,gx,gy,rotacao,z:sessao.terreno.alturaMax(gx,gy,tipo.w,tipo.h)+0.025},this.modelo(c));
+  }
+
+  concluirMovimentoEditor(c: ObjetoEditor) {
+    this.rota=[];this.alvoUsar=null;this.alvoRover=false;this.seguir=false;this.recolherBandeira();
+    if(c.deco){const d=c.deco,v=this.decoVisuais.find(v=>v.d===d);if(v)this.posicionarDeco(v.img,d);
+      Object.assign(c,{gx:d.gx,gy:d.gy,z:d.z,rotacao:d.rotacao,tipo:{...c.tipo,w:d.w,h:d.h}});
+    }else this.desenharModulo(c);
+    this.desenharCaminhos();
+    sessao.emitir('estado');return sessao.salvar();
+  }
 
   // Map center in world px: the flight's first frame is centered on it.
   private get centroMapa() {
@@ -1291,12 +1326,19 @@ export class Superficie extends Phaser.Scene {
 
   // Puts a module picture on the map: its anchor pixel is the footprint corner (gx, gy) at floor height.
   private posicionar(img: Phaser.GameObjects.Image, c: Construcao, id: Modelo) {
-    const m = QUADROS[id];
+    const chave=c.rotacao?`${id}_r${c.rotacao}`:id;
+    const m = QUADROS[chave]??QUADROS[id];
     // A picture drawn for a smaller footprint (the lander, the air recycler) is centered on the module's.
     const pg = m.pegada ?? PEGADA_MODELO[id];
     const kx = pg ? (c.tipo.w - pg[0]) / 2 : 0, ky = pg ? (c.tipo.h - pg[1]) / 2 : 0;
     const p = paraTela(P, c.gx + kx, c.gy + ky, c.z);
-    img.setTexture(`mod_${id}`).setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala).setPosition(p.x, p.y);
+    img.setTexture(`mod_${QUADROS[chave]?chave:id}`).setAngle(0).setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala).setPosition(p.x, p.y);
+  }
+
+  private posicionarDeco(img:Phaser.GameObjects.Image,d:DecoColocada) {
+    const base=d.id.startsWith('nave_')?d.id:`deco_${d.id}`,chave=d.rotacao?`${base}_r${d.rotacao}`:base;
+    const key=QUADROS[chave]?chave:base,m=QUADROS[key],p=paraTela(P,d.gx,d.gy,d.z);
+    img.setTexture(`mod_${key}`).setAngle(0).setOrigin(m.ancora[0]/m.w,m.ancora[1]/m.h).setScale(m.escala).setPosition(p.x,p.y).setDepth(profundidade(d.gx+d.w,d.gy+d.h));
   }
 
   // Surface props (old rover, probe, beacon...): placed once on free flat ground, solid, each with its name.
@@ -1321,6 +1363,7 @@ export class Superficie extends Phaser.Scene {
       const img = this.add.image(p.x, p.y, `mod_${chave}`)
         .setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala)
         .setDepth(profundidade(d.gx + d.w, d.gy + d.h));
+      this.posicionarDeco(img,d);
       if (sessao.mundo === 'marte') img.setTint(TOM_MARTE);
       this.mapa.add(img);
       this.decoVisuais.push({ d, img });
@@ -1457,7 +1500,8 @@ export class Superficie extends Phaser.Scene {
       // Only the instrument display changes, using actual Blender renders. The model stays still.
       const frame=animate ? Math.floor(this.tempoEfeitos/(video.qualidade==='leve'?1.3:0.85)+c.id)%3 : 0;
       const key=(frame ? `${c.tipo.id}_anim${frame}` : c.tipo.id) as Modelo;
-      if(d.img.texture.key!==`mod_${key}` && this.textures.exists(`mod_${key}`)) this.posicionar(d.img,c,key);
+      const orientado=c.rotacao?`${key}_r${c.rotacao}`:key;
+      if(d.img.texture.key!==`mod_${orientado}` && this.textures.exists(`mod_${orientado}`)) this.posicionar(d.img,c,key);
     }
   }
 

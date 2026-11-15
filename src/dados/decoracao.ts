@@ -61,4 +61,8 @@ export const comoTipo = (d: Deco): Tipo => ({
   id: 'habitat', nome: d.nome, w: d.w, h: d.h, altura: d.altura, cor: 0, unico: false, papel: '',
 });
 
-export type DecoColocada = { id: string; nome: string; info: string; w: number; h: number; altura: number; gx: number; gy: number; z: number };
+export type DecoColocada = { id: string; nome: string; info: string; w: number; h: number; altura: number; gx: number; gy: number; z: number; rotacao?: number };
+
+export function dimensoesDeco(d: DecoColocada,rotacao=d.rotacao??0) {
+  return (rotacao%2)!==((d.rotacao??0)%2)?{w:d.h,h:d.w}:{w:d.w,h:d.h};
+}

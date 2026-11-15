@@ -10,6 +10,7 @@ import { carregarImagensMundo } from './irParaMarte';
 import { carregarLua, criarLua, LADO } from './luaShader';
 import { giroEm } from './globo';
 import modelos from '../dados/modulos.json';
+import rotacoesModulos from '../dados/rotacoesModulos.json';
 import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 import dadosViagem from '../dados/viagem.json';
@@ -123,6 +124,7 @@ export class Carregar extends Phaser.Scene {
     carregarLua(this);
     this.load.image('terreno', dadosTerreno.imagem.arquivo);
     for (const [id, m] of Object.entries(modelos)) this.load.image(`mod_${id}`, m.arquivo);
+    for (const [id, m] of Object.entries(rotacoesModulos) as [string,{arquivo:string}][]) this.load.image(`mod_${id}`, m.arquivo);
     this.load.image('foguete_voo', 'lua/modulos/foguete_voo.png');   // launch film and landing (Chegada.ts)
     for (const [id, b] of Object.entries(bandeiras)) this.load.image(`bandeira_${id}`, b.arquivo);
     for (const sk of SKINS) this.load.spritesheet(chaveSkin(sk.id), sk.arquivo, { frameWidth: sprite.frame, frameHeight: sprite.frame });

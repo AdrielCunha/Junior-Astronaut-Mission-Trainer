@@ -68,12 +68,17 @@ export class Terreno {
   }
 
   bloqueiaConstrucao(x: number, y: number, w: number, h: number): boolean {
-    if (this.pedras.some(b => x < b.x1 && x + w > b.x0 && y < b.y1 && y + h > b.y0)) return true;
-    return this.crateras.some(cr => {
+    return this.obstaculoConstrucao(x,y,w,h)!==null;
+  }
+
+  obstaculoConstrucao(x: number, y: number, w: number, h: number): 'rochas' | 'instavel' | null {
+    if (this.pedras.some(b => x < b.x1 && x + w > b.x0 && y < b.y1 && y + h > b.y0)) return 'rochas';
+    const cratera=this.crateras.some(cr => {
       const px = Math.max(x, Math.min(x + w, cr.x));
       const py = Math.max(y, Math.min(y + h, cr.y));
       return Math.hypot(px - cr.x, py - cr.y) <= cr.raio * 1.25;
     });
+    return cratera ? 'instavel' : null;
   }
 
   // Real slope of the tile under a point, in degrees.
