@@ -4,7 +4,8 @@
 import Phaser from 'phaser';
 import { tocarSfx } from '../sfx';
 import { PRAZO_TEMPESTADE_MS, BATERIAS_TEMPESTADE_EXTREMA, danoDaTempestade } from './tempestadeSolar';
-import { configuracoesAbertas, movimentoReduzido } from '../video';
+import { configuracoesAbertas, movimentoReduzido, video } from '../video';
+import { LEVE } from './qualidade';
 import { CAPITULOS } from '../capitulos';
 import { calcularLayoutHud } from './layoutHud';
 import { PreferenciaDicas } from './dicasControles';
@@ -61,6 +62,7 @@ export class Interface extends Phaser.Scene {
   private btPulo?: Phaser.GameObjects.Container;
   private aviso?: Phaser.GameObjects.Container;
   private alertaSolar!: Phaser.GameObjects.Container;
+  private particulasSolares!: Phaser.GameObjects.Particles.ParticleEmitter;
   private iconeSolar!: Phaser.GameObjects.Image;
   private tituloSolar!: Phaser.GameObjects.Text;
   private anelSolar!: Phaser.GameObjects.Graphics;
@@ -145,6 +147,7 @@ export class Interface extends Phaser.Scene {
       this.btPulo.setData('acao','jump');
     }
     this.criarAlertaSolar();
+    this.criarParticulasSolares(W);
 
     const l = this.layout, fim = l.fimDia;
     // On touch screens this button keeps the desktop web size even when the rest of the HUD shrinks.
@@ -263,6 +266,7 @@ export class Interface extends Phaser.Scene {
   }
 
   update(_tempo: number, dt: number) {
+    this.atualizarParticulasSolares();
     this.btPulo?.setVisible((sessao.fase==='dia'||sessao.fase==='inicio') && sessao.vista==='chao'
       && !sessao.rover?.dirigindo && !sessao.emTarefa && !sessao.editandoBase && !sessao.voo && !sessao.partida
       && !sessao.transicao && !configuracoesAbertas && !this.scene.isActive('Radar') && !this.scene.isActive('MenuJogo'));
@@ -280,6 +284,50 @@ export class Interface extends Phaser.Scene {
     this.guia?.atualizar(dt, pausado);
     (this.avisoEvento ??= new AvisoEvento(this, this.layout)).atualizar(dt, pausado);
     (this.avisoExpedicao ??= new AvisoExpedicao(this, this.layout, () => !!this.guia)).atualizar(dt, pausado);
+  }
+
+  // Solar particles raining across the screen on storm days (as in the first, 2D version, Base.ts):
+  // the stronger today's storm, the more of them (none on a calm, green day). Every world: the Moon, the ship and Mars.
+  // Cheap on purpose: one small shared texture, a cap on live particles (lower in light mode), and the
+  // emitter is only touched when today's rate changes; it rests while a task covers the map.
+  private criarParticulasSolares(W: number) {
+    if (!this.textures.exists('particula')) {
+      this.make.graphics({}, false).fillStyle(0xffffff).fillCircle(3, 3, 3).generateTexture('particula', 6, 6).destroy();
+    }
+    const u = this.layout.u;
+    this.ritmoParticulas = -1;
+    this.particulasSolares = this.add.particles(0, 0, 'particula', {
+      x: { min: -W * 0.3, max: W },
+      y: -10,
+      speedX: { min: 120, max: 220 },
+      speedY: { min: 260, max: 420 },
+      lifespan: 2600,
+      scale: { min: 0.4 * u, max: 1.1 * u },
+      alpha: { start: 0.9, end: 0 },
+      tint: [0xfde047, 0xfb923c, 0xf87171],
+      blendMode: 'ADD',
+      maxAliveParticles: LEVE ? 60 : 160,
+      emitting: false,
+    }).setDepth(-1);   // over the map, under the HUD and the panels
+  }
+
+  private ritmoParticulas = -1;
+  private atualizarParticulasSolares() {
+    const emJogo = !sessao.explorando && !sessao.emTarefa && video.efeitos && !movimentoReduzido()
+      && (sessao.fase === 'manha' || sessao.fase === 'dia' || sessao.fase === 'noite');
+    // Today's real storm level (green CALM = none), not the forecast's top, which is above 0 almost every day.
+    // High radiation brings them too: a radiation alarm going off (eventos.ts), or the crew's dose in the
+    // red (health under 30, the HUD's own warning color).
+    const alarme = sessao.evento?.def.efeito === 'radiacao' ? 2 : 0;
+    const dose = sessao.estado.dose > 70 ? 1 : 0;
+    const nivel = emJogo ? Math.max(0, Math.min(3, Math.max(sessao.dia?.nivel ?? 0, alarme, dose))) : 0;
+    // ms between particles: fewer on light mode.
+    const ritmo = [0, 140, 45, 12][nivel] * (LEVE && nivel ? 2 : 1);
+    if (ritmo === this.ritmoParticulas) return;
+    this.ritmoParticulas = ritmo;
+    const e = this.particulasSolares;
+    if (ritmo) { e.frequency = ritmo; if (!e.emitting) e.start(); }
+    else e.stop();
   }
 
   private criarAlertaSolar() {
@@ -519,6 +567,12 @@ export class Interface extends Phaser.Scene {
       objetivo = sessao.noHabitat ? 'STORM! Get batteries at the Battery Bank'
         : sessao.carregando ? 'STORM! Batteries to the Radiation Shield'
         : 'No batteries left. Hold on, the storm hits!';
+    } else if (this.tempestadeHoje && d.blindagem < sessao.dia.nivel && (sessao.noHabitat || sessao.carregando)) {
+      // A storm day that is not extreme: no countdown, but the Shield needs today's level in batteries
+      // before the night, or the crew's dose goes up. Say it during the day, not only in the morning.
+      const n = sessao.dia.nivel;
+      objetivo = sessao.noHabitat ? `STORM today! Get batteries, the Shield needs ${n}`
+        : `STORM! Shield ${d.blindagem}/${n} batteries`;
     } else if (sessao.mundo === 'lua' && e.dia === 1) {
       if (sessao.noHabitat) objetivo = '1/4  Get batteries at the Battery Bank (E)';
       else if (!sessao.carregando) objetivo = '4/4  All done! Press END DAY';
@@ -656,7 +710,15 @@ export class Interface extends Phaser.Scene {
     this.mostrarFase();
     if (f === 'dia' && sessao.tempestade.status === 'alerta') {
       sessao.emitir('mensagem', `⏱ Storm coming! ${this.totalBateriasSolar} batteries to the Radiation Shield, fast!`, '#fde68a');
+    } else if (f === 'dia' && this.tempestadeHoje) {
+      const n = sessao.dia.nivel;
+      sessao.emitir('mensagem', `☀ Solar storm today! Give ${n} batter${n === 1 ? 'y' : 'ies'} to the Radiation Shield before END DAY.`, '#fde68a');
     }
+  }
+
+  // A Moon day with a solar storm below the extreme alarm (dados/lua.json nivel 1-2).
+  private get tempestadeHoje() {
+    return sessao.mundo === 'lua' && sessao.fase === 'dia' && sessao.dia.nivel > 0 && sessao.tempestade.status === 'inativa';
   }
 
   private terminarDia() {
