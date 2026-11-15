@@ -42,8 +42,9 @@ export const EVENTOS: EventoDef[] = [
 
 // Scripted by the real sky: the day the Sun really did it, the alarm goes off (one per day, always).
 const ALARMES: Record<string, Omit<EventoDef, 'id' | 'peso'>> = {
-  flare: { modulo: 'blindagem', cena: 'FecharEscotilhasTarefa', alarme: true, efeito: 'radiacao',
-    aviso: '☢ RADIATION ALARM! {nasa} Run to the Radiation Shield!',
+  // Day 2: lock the Shield's door with its code, painted in a corner of the map (engine/senha.ts).
+  flare: { modulo: 'blindagem', cena: 'SenhaEscudoTarefa', alarme: true, efeito: 'radiacao',
+    aviso: '☢ RADIATION ALARM! {nasa} Run to the Radiation Shield! Its door code is painted in a corner of the map.',
     fato: "A flare's light reaches the Moon in about 8 minutes!" },
   cme: { modulo: 'blindagem', cena: 'TaparTempestadeTarefa', alarme: true, efeito: 'radiacao',
     aviso: '☢ RADIATION ALARM! {nasa} Run to the Radiation Shield!',

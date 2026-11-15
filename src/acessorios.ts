@@ -43,3 +43,15 @@ export function dicaDeTrocaVista(): boolean {
 export function marcarDicaDeTroca() {
   try { localStorage.setItem(CHAVE_DICA, '1'); } catch { /* Storage is optional. */ }
 }
+
+// A new item is waiting in the wardrobe: an icon shows over the Habitat until the wardrobe is opened.
+const CHAVE_NOVIDADE = 'lunar-odyssey-guardaroupa-novo-v1';
+let novidade: boolean | null = null;   // read every frame by the map, so the storage is read once
+export function temNovidade(): boolean {
+  if (novidade === null) { try { novidade = localStorage.getItem(CHAVE_NOVIDADE) === '1'; } catch { novidade = false; } }
+  return novidade;
+}
+export function marcarNovidade(v: boolean) {
+  novidade = v;
+  try { if (v) localStorage.setItem(CHAVE_NOVIDADE, '1'); else localStorage.removeItem(CHAVE_NOVIDADE); } catch { /* Storage is optional. */ }
+}

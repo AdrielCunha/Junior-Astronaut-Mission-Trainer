@@ -12,6 +12,7 @@ import { CenaTarefa } from './cenas/Tarefa';
 import { Radar } from './cenas/Radar';
 import { MenuJogo } from './cenas/MenuJogo';
 import { Guardaroupa } from './cenas/Guardaroupa';
+import { SenhaEscudoTarefa } from './cenas/SenhaEscudoTarefa';
 import { CuriosidadeRover } from './cenas/CuriosidadeRover';
 import { EditorBase } from './cenas/EditorBase';
 import { Carregar } from './cenas/Carregar';
@@ -535,9 +536,9 @@ const jogo = new Phaser.Game({
   // title screen flow added on main.
   scene: classico
     ? [Carregar, Chegada, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, AquecimentoTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, Guardaroupa, CuriosidadeRover, EditorBase]
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, AquecimentoTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, Guardaroupa, SenhaEscudoTarefa, CuriosidadeRover, EditorBase]
     : [Carregar, Chegada, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, AquecimentoTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, Guardaroupa, CuriosidadeRover, EditorBase],
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, AquecimentoTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, Guardaroupa, SenhaEscudoTarefa, CuriosidadeRover, EditorBase],
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;

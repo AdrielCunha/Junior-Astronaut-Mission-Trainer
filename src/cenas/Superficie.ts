@@ -35,7 +35,7 @@ import rotacoesModulos from '../dados/rotacoesModulos.json';
 import { origemBaterias, modeloBancoBaterias } from '../engine/estacaoSolar';
 import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
-import { chaveSkin, chaveSkinSentado, chaveSkinCarga, SKIN_PADRAO } from '../dados/skins';
+import { chaveSkin, chaveSkinSentado, chaveSkinCarga, SKIN_PADRAO, SKINS } from '../dados/skins';
 import { LAYOUT } from '../dados/layout';
 import { DECORACAO, DECORACAO_MARTE, OBJETOS_CONSTRUCAO, comoTipo, type DecoColocada } from '../dados/decoracao';
 import { CHAVE_FOGUETE } from './Chegada';
@@ -47,10 +47,11 @@ import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto, al
 import { criarExploracao, sortearTipo, AVISOS, type Contexto } from '../engine/exploracao';
 import { sortearPremio, textoDoPremio, skinsDePremio, CHANCE_PREMIO_SALA, type Posse, type Premio, type TipoPremio } from '../engine/presentes';
 import { salasComTarefaHoje } from '../engine/tarefasDoDia';
+import { senhaDoEscudo, lugarDaSenha, EVENTO_SENHA } from '../engine/senha';
 import { t } from '../idioma';
 import { ACESSORIOS, acessorioPorId, chaveAcessorio } from '../dados/acessorios';
-import { ganharAcessorio, acessoriosGanhos, ganharSkin, skinsGanhas, dicaDeTrocaVista, marcarDicaDeTroca } from '../acessorios';
-import { corPorId, proximaCor, multiplicarTom } from '../dados/cores';
+import { ganharAcessorio, acessoriosGanhos, ganharSkin, skinsGanhas, dicaDeTrocaVista, marcarDicaDeTroca, temNovidade, marcarNovidade } from '../acessorios';
+import { CORES_BASE, corPorId, proximaCor, multiplicarTom } from '../dados/cores';
 import { coresGanhas, corDoModulo, ganharCor, pintarModulo, dicaDeTintaVista, marcarDicaDeTinta } from '../cores';
 import { ESTACOES, estacaoDisponivel, textoEstacao, estacaoDoModulo, chaveModulo, itemDaEstacao, type Estacao } from '../engine/estacoes';
 import { desenharRover, esconderRover, LINHA_QUADRIL_SENTADO, type PecasRover } from './desenharRover';
@@ -189,6 +190,8 @@ export class Superficie extends Phaser.Scene {
   private decoVisuais: { d: DecoColocada; img: Phaser.GameObjects.Image }[] = [];
   private marcasEstacao: { d: DecoColocada; c: Phaser.GameObjects.Container }[] = [];   // "!" over ship stations
   private marcasEquip = new Map<number, Phaser.GameObjects.Container>();   // "!" over equipment stations, by module id
+  private senhaNoChao: Phaser.GameObjects.Container | null = null;          // the Shield's door code painted on the ground (day-2 alarm)
+  private marcaGuardaroupa: Phaser.GameObjects.Container | null = null;      // shirt icon over the Habitat when a new item waits
   private marcasSala = new Map<number, Phaser.GameObjects.Container>();    // blue "!" over the rooms with a task today
   private dica?: Phaser.GameObjects.Text;                // shared prop tooltip
   private decoSobre: DecoColocada | null = null;         // prop under the cursor
@@ -853,7 +856,7 @@ export class Superficie extends Phaser.Scene {
       const premio = ganhoOxigenio > 0 ? ` +${ganhoOxigenio} oxygen.` : '';
       sessao.emitir('mensagem', `✅ ${d.nome}: ${e.acao.toLowerCase()} done!${premio}`, '#86efac');
       // Sometimes the station gives its own themed item (engine/estacoes.ts), if not owned yet (nor still being made).
-      const item = itemDaEstacao(e, (i) => i.tipo === 'skin'
+      const item = sessao.itemHoje ? undefined : itemDaEstacao(e, (i) => i.tipo === 'skin'
         ? skinsGanhas().includes(i.id) || !this.textures.exists(chaveSkin(i.id))
         : acessoriosGanhos().includes(i.id) || !this.textures.exists(chaveAcessorio(i.id)));
       if (item) this.aplicarPremio(item);
@@ -865,6 +868,44 @@ export class Superficie extends Phaser.Scene {
   private salaTemTarefaHoje(sala: Efeito) {
     const salas = sessao.grade.lista.flatMap((m) => m.tipo.sala ? [m.tipo.sala] : []);
     return salasComTarefaHoje(sessao.estado.dia, sessao.mundo, salas).includes(sala);
+  }
+
+  // The Radiation Shield's door code (engine/senha.ts): just the numbers, painted on the ground in a corner of
+  // the map, flat along the map's gx axis. Only while the day-2 solar flare alarm is on (its keypad asks for it).
+  private atualizarSenhaNoChao() {
+    const ativo = sessao.mundo === 'lua' && sessao.evento?.def.id === EVENTO_SENHA;
+    if (!ativo) { this.senhaNoChao?.setVisible(false); return; }
+    if (!this.senhaNoChao) {
+      const escudo = sessao.grade.lista.find((c) => c.tipo.id === 'blindagem');
+      if (!escudo) return;
+      const lugar = lugarDaSenha({ gx: escudo.gx, gy: escudo.gy, w: escudo.tipo.w, h: escudo.tipo.h }, (gx, gy) => !sessao.grade.em(gx, gy), sessao.terreno.n);
+      const z = sessao.terreno.altura(lugar.gx, lugar.gy);
+      const p = paraTela(P, lugar.gx, lugar.gy, z), q = paraTela(P, lugar.gx + 1, lugar.gy, z);
+      const angulo = Math.atan2(q.y - p.y, q.x - p.x);
+      const pintura = this.add.text(0, 0, senhaDoEscudo(2, 'lua'), letra(40, '#fde047', { stroke: '#1e293b', strokeThickness: 8 })).setOrigin(0.5);
+      // Rotated along the ground and squashed across it: it reads as paint lying on the Moon.
+      this.senhaNoChao = this.add.container(p.x, p.y, [pintura]).setRotation(angulo).setScale(1, 0.62).setAlpha(0.92).setDepth(2);
+      this.mapa.add(this.senhaNoChao);
+    }
+    this.senhaNoChao.setVisible(this.mapa.visible);
+  }
+
+  // A pink shirt icon (bobbing) over the wardrobe (the Habitat, or the Lander on Mars) while a new item waits there.
+  private atualizarMarcaGuardaroupa() {
+    const hab = sessao.mundo === 'nave' ? undefined : sessao.grade.lista.find((c) => c.tipo.id === 'habitat');
+    if (!hab) { this.marcaGuardaroupa?.setVisible(false); return; }
+    if (!this.marcaGuardaroupa) {
+      const topo = paraTela(P, hab.gx + hab.tipo.w / 2, hab.gy + hab.tipo.h / 2, hab.z + hab.tipo.altura + 1.9);
+      this.marcaGuardaroupa = this.add.container(topo.x, topo.y, [
+        this.add.circle(0, 0, 17, 0xf472b6).setStrokeStyle(3, 0x1e293b),
+        this.add.text(0, 1, '👕', letra(18, '#ffffff')).setOrigin(0.5),
+        this.add.text(14, -14, 'NEW', letra(10, '#1e293b', { backgroundColor: '#fde047', padding: { x: 3, y: 1 } })).setOrigin(0.5),
+      ]).setDepth(1e6).setData('y0', topo.y);
+      this.mapa.add(this.marcaGuardaroupa);
+    }
+    const ver = this.mapa.visible && temNovidade();
+    this.marcaGuardaroupa.setVisible(ver);
+    if (ver) this.marcaGuardaroupa.setY((this.marcaGuardaroupa.getData('y0') as number) + (movimentoReduzido() ? 0 : Math.sin(this.time.now / 260) * 4));
   }
 
   // A blue "!" (bobbing) over the rooms that have a task today and have not done it yet.
@@ -1194,13 +1235,16 @@ export class Superficie extends Phaser.Scene {
   // faces, base paint), sometimes oxygen or less radiation, and rarely a battery. Items whose picture is not
   // ready yet count as owned, so they are never drawn.
   private darPremio(tipo: TipoPremio) {
-    const posse: Posse = {
-      oxigenio: sessao.estado.oxigenio, dose: sessao.estado.dose,
-      acessorios: [...acessoriosGanhos(), ...ACESSORIOS.filter((a) => !this.textures.exists(chaveAcessorio(a.id))).map((a) => a.id)],
-      cores: coresGanhas(),
-      skins: [...skinsGanhas(), ...skinsDePremio().filter((id) => !this.textures.exists(chaveSkin(id)))],
-    };
-    this.aplicarPremio(sortearPremio(tipo, posse));
+    // At most one customization item a day: after it, today's prizes are resources only (as if all were owned).
+    const posse: Posse = sessao.itemHoje
+      ? { oxigenio: sessao.estado.oxigenio, dose: sessao.estado.dose, acessorios: ACESSORIOS.map((a) => a.id), cores: CORES_BASE.map((c) => c.id), skins: skinsDePremio() }
+      : {
+        oxigenio: sessao.estado.oxigenio, dose: sessao.estado.dose,
+        acessorios: [...acessoriosGanhos(), ...ACESSORIOS.filter((a) => !this.textures.exists(chaveAcessorio(a.id))).map((a) => a.id)],
+        cores: coresGanhas(),
+        skins: [...skinsGanhas(), ...skinsDePremio().filter((id) => !this.textures.exists(chaveSkin(id)))],
+      };
+    this.aplicarPremio(sortearPremio(tipo, { ...posse, mundo: sessao.mundo }));
   }
 
   // Gives one prize (from the draw, or a station's own item) and says so; the first of a kind teaches how to use it.
@@ -1221,7 +1265,18 @@ export class Superficie extends Phaser.Scene {
         break;
       }
     }
-    this.time.delayedCall(600, () => sessao.emitir('mensagem', textoDoPremio(premio), '#fde047'));
+    if (ensina) {
+      // A customization item: one a day, a big card with its picture, and an icon over the wardrobe.
+      sessao.itemHoje = true;
+      marcarNovidade(true);
+      const FRENTE = 7 * sprite.colunas;
+      const carta = premio.tipo === 'skin'
+        ? { titulo: 'NEW ASTRONAUT!', nome: SKINS.find((k) => k.id === premio.id)?.nome ?? premio.id, chave: chaveSkin(premio.id), quadro: FRENTE, corpo: true }
+        : premio.tipo === 'acessorio'
+          ? { titulo: acessorioPorId(premio.id)?.espaco === 'carinha' ? 'NEW FACE!' : 'NEW ITEM!', nome: acessorioPorId(premio.id)?.nome ?? premio.id, chave: chaveAcessorio(premio.id), quadro: FRENTE, corpo: false }
+          : { titulo: 'NEW PAINT!', nome: corPorId((premio as { id: string }).id)?.nome ?? '', chave: '', quadro: 0, corpo: false };
+      this.time.delayedCall(500, () => sessao.emitir('premio', carta));
+    } else this.time.delayedCall(600, () => sessao.emitir('mensagem', textoDoPremio(premio), '#fde047'));
     // The first cosmetic prize shows how to change clothes, and the first paint color how to paint (once each).
     if (ensina === 'roupa' && !dicaDeTrocaVista()) {
       marcarDicaDeTroca();
@@ -1980,6 +2035,8 @@ export class Superficie extends Phaser.Scene {
     this.atualizarDica(dt);
     this.atualizarEstacoes();
     this.atualizarMarcasSala();
+    this.atualizarMarcaGuardaroupa();
+    this.atualizarSenhaNoChao();
 
     // Camera follows the commander on the ground.
     if (sessao.vista === 'chao' && !sessao.voo && this.seguir && !this.pouso) {
@@ -2053,7 +2110,7 @@ export class Superficie extends Phaser.Scene {
   // Surface props (old rover, probe, beacon...): placed once on free flat ground, solid, each with its name.
   private montarDeco() {
     const g = sessao.grade, c0 = Math.floor(g.n / 2);
-    this.decoVisuais = []; this.marcasEstacao = []; this.marcasEquip = new Map(); this.marcasSala = new Map(); this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
+    this.decoVisuais = []; this.marcasEstacao = []; this.marcasEquip = new Map(); this.marcasSala = new Map(); this.marcaGuardaroupa = null; this.senhaNoChao = null; this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
     if (!g.deco.length) {
       // Each world has its own props and facts (Mars: DECORACAO_MARTE).
       const lista = sessao.mundo === 'nave' ? DECO_NAVE : sessao.mundo === 'marte' ? DECORACAO_MARTE : DECORACAO;

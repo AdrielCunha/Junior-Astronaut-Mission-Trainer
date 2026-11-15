@@ -111,3 +111,30 @@ test('a standard room task gives a prize 70% of the times, as a one-prize draw o
   const p = sortearPremio('sala', nada, gerador(2));
   assert.equal(Object.keys(p).filter((k) => k !== 'tipo').length, 1);
 });
+
+test('each world has its own third of every page', () => {
+  for (const mundo of ['lua', 'nave', 'marte'] as const) {
+    assert.equal(daPagina('chapeus').filter((a) => a.fase === mundo).length, 4, `hats & glasses on ${mundo}`);
+    assert.equal(daPagina('carinhas').filter((a) => a.fase === mundo).length, 4, `faces on ${mundo}`);
+    assert.ok(SKINS.filter((k) => k.premio && k.fase === mundo).length >= 3, `astronauts on ${mundo}`);
+  }
+  assert.ok(SKINS.filter((k) => k.premio).every((k) => k.fase), 'every prize astronaut belongs to a world');
+});
+
+test('a world only draws its own astronauts and accessories', () => {
+  for (const mundo of ['lua', 'nave', 'marte'] as const) {
+    const rnd = gerador(31);
+    for (let i = 0; i < 3000; i++) {
+      const p = sortearPremio('tubos', { ...nada, mundo }, rnd);
+      if (p.tipo === 'acessorio') assert.equal(ACESSORIOS.find((a) => a.id === p.id)!.fase, mundo, `${p.id} on ${mundo}`);
+      if (p.tipo === 'skin') assert.equal(SKINS.find((k) => k.id === p.id)!.fase, mundo, `${p.id} on ${mundo}`);
+    }
+  }
+});
+
+test('the stations give an item of their own world', async () => {
+  const { ESTACOES, ESTACOES_MODULO } = await import('./estacoes.ts');
+  const fase = (i: { tipo: string; id: string }) => i.tipo === 'skin' ? SKINS.find((k) => k.id === i.id)!.fase : ACESSORIOS.find((a) => a.id === i.id)!.fase;
+  for (const e of Object.values(ESTACOES)) if (e.item) assert.equal(fase(e.item), 'nave', `${e.acao}`);          // ship stations
+  for (const e of Object.values(ESTACOES_MODULO)) if (e.item) assert.equal(fase(e.item), 'lua', `${e.acao}`);   // Moon equipment
+});

@@ -19,7 +19,7 @@ export const ESTACOES_MODULO: Record<string, Estacao> = {
   antena: { cena: 'FiacaoTarefa', acao: 'Check the antenna cables', item: { tipo: 'skin', id: 'alien' } },                  // someone answered the call
   estufa: { cena: 'HortaTarefa', acao: 'Water the lettuce', recompensaOxigenio: 1, item: { tipo: 'acessorio', id: 'carinha_calmo' } },
   perfuratriz: { cena: 'ScannerGeloTarefa', acao: 'Find the best spot to drill', item: { tipo: 'skin', id: 'pinguim' } }, // ice!
-  rover: { cena: 'BateriaRoverTarefa', acao: 'Charge the cargo rover', item: { tipo: 'acessorio', id: 'cowboy' } },     // ride on
+  rover: { cena: 'BateriaRoverTarefa', acao: 'Charge the cargo rover' },   // charging a battery is a chore: no prize
 };
 export const chaveModulo = (tipo: string) => `mod_${tipo}`;
 export const estacaoDoModulo = (tipo: string): Estacao | undefined => ESTACOES_MODULO[tipo];

@@ -11,13 +11,15 @@ import { tocarSfx } from '../sfx';
 import { video, atualizarVideo, type Video } from '../video';
 import { SKINS, SKIN_PADRAO, chaveSkin } from '../dados/skins';
 import { ACESSORIOS, daPagina, chaveAcessorio, type Acessorio } from '../dados/acessorios';
-import { acessoriosGanhos, skinsGanhas } from '../acessorios';
+import { acessoriosGanhos, skinsGanhas, marcarNovidade } from '../acessorios';
 import sprite from '../dados/astronauta.json';
 
 const FRENTE = 7 * sprite.colunas;   // row facing the camera, standing (column 0)
 type Aba = 'astronautas' | 'chapeus' | 'carinhas';
 const ABAS: [Aba, string][] = [['astronautas', 'ASTRONAUTS'], ['chapeus', 'HATS & GLASSES'], ['carinhas', 'FACES']];
-type Item = { id: string; nome: string; chave: string; ganho: boolean; pronto: boolean; vestido: boolean; pegar: () => void };
+type Item = { id: string; nome: string; chave: string; ganho: boolean; pronto: boolean; vestido: boolean; fase?: string; pegar: () => void };
+// Where a locked item is won (each world has its own third of every page).
+const ONDE: Record<string, [string, string]> = { lua: ['MOON', 'the Moon'], nave: ['SHIP', 'the ship'], marte: ['MARS', 'Mars'] };
 
 export class Guardaroupa extends Phaser.Scene {
   private pausadas: string[] = [];
@@ -29,6 +31,7 @@ export class Guardaroupa extends Phaser.Scene {
   create() {
     this.pausadas = [];
     this.aba = 'astronautas';
+    marcarNovidade(false);   // the new items were seen: the icon over the Habitat goes away
     for (const chave of ['Espaco', 'Superficie', 'Interface']) {
       if (!this.scene.isActive(chave)) continue;
       this.scene.get(chave).input.keyboard?.resetKeys();
@@ -61,14 +64,14 @@ export class Guardaroupa extends Phaser.Scene {
       const ganhas = skinsGanhas();
       return SKINS.map((s) => ({
         id: s.id, nome: s.nome, chave: chaveSkin(s.id), ganho: ganhas.includes(s.id), pronto: this.textures.exists(chaveSkin(s.id)),
-        vestido: video.skin === s.id, pegar: () => atualizarVideo({ skin: s.id }),
+        vestido: video.skin === s.id, fase: s.fase, pegar: () => atualizarVideo({ skin: s.id }),
       }));
     }
     const ganhos = acessoriosGanhos();
     const campo = (a: Acessorio): keyof Video => a.espaco === 'cabeca' ? 'acessorio' : a.espaco === 'rosto' ? 'rosto' : 'carinha';
     return daPagina(aba).map((a) => ({
       id: a.id, nome: a.nome, chave: chaveAcessorio(a.id), ganho: ganhos.includes(a.id), pronto: this.textures.exists(chaveAcessorio(a.id)),
-      vestido: video[campo(a)] === a.id, pegar: () => atualizarVideo({ [campo(a)]: video[campo(a)] === a.id ? '' : a.id } as Partial<Video>),
+      vestido: video[campo(a)] === a.id, fase: a.fase, pegar: () => atualizarVideo({ [campo(a)]: video[campo(a)] === a.id ? '' : a.id } as Partial<Video>),
     }));
   }
 
@@ -123,7 +126,10 @@ export class Guardaroupa extends Phaser.Scene {
       const g = this.add.graphics();
       if (it.vestido) g.lineStyle(4 * u, 0xfde047).strokeRoundedRect(x - 3 * u, y - 3 * u, lado + 6 * u, lado + 6 * u, 13 * u);
       g.fillStyle(it.ganho ? 0x334155 : 0x1e293b).fillRoundedRect(x, y, lado, lado, 10 * u).lineStyle(3 * u, CONTORNO).strokeRoundedRect(x, y, lado, lado, 10 * u);
-      if (!it.ganho) this.add.text(cx, cy, '?', letra(28 * u, '#64748b', { fontStyle: 'bold' })).setOrigin(0.5);
+      if (!it.ganho) {
+        this.add.text(cx, cy - (it.fase ? 6 * u : 0), '?', letra(28 * u, '#64748b', { fontStyle: 'bold' })).setOrigin(0.5);
+        if (it.fase) this.add.text(cx, y + lado - 10 * u, ONDE[it.fase][0], letra(10 * u, '#94a3b8', { fontStyle: 'bold' })).setOrigin(0.5);
+      }
       else if (!it.pronto) this.add.text(cx, cy, '…', letra(24 * u, '#94a3b8', { fontStyle: 'bold' })).setOrigin(0.5);
       else if (aba === 'astronautas') this.add.image(cx, cy, it.chave, FRENTE).setOrigin(0.5, 0.52).setScale(Math.min(0.62, (lado * 0.92) / sprite.frame * 1.15));
       else {
@@ -132,7 +138,7 @@ export class Guardaroupa extends Phaser.Scene {
         this.cabeca(it.chave, cx, cy, escala);
       }
       const zona = this.add.zone(x, y, lado, lado).setOrigin(0).setInteractive({ useHandCursor: it.ganho && it.pronto });
-      zona.on('pointerover', () => nomeLinha.setText(it.ganho ? it.nome : 'Win it in a side mission!'));
+      zona.on('pointerover', () => nomeLinha.setText(it.ganho ? it.nome : it.fase ? `Win it on ${ONDE[it.fase][1]}!` : 'Win it in a side mission!'));
       zona.on('pointerout', () => nomeLinha.setText(''));
       if (it.ganho && it.pronto) zona.on('pointerdown', () => { tocarSfx('clique'); it.pegar(); this.desenhar(); });
     });

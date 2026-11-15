@@ -40,11 +40,12 @@ test('cargo landers bring equipment only to the Moon: never to the ship or to Ma
   }
 });
 
-test('every station has its own themed item, a real astronaut or accessory, and gives it only sometimes', async () => {
+test('every station but the battery charging has its own themed item, a real astronaut or accessory, and gives it only sometimes', async () => {
   const { itemDaEstacao, CHANCE_ITEM_ESTACAO } = await import('./estacoes.ts');
   const { ACESSORIOS } = await import('../dados/acessorios.ts');
   const { SKINS } = await import('../dados/skins.ts');
-  const todas = [...Object.values(ESTACOES), ...Object.values(ESTACOES_MODULO)];
+  assert.equal(ESTACOES_MODULO.rover.item, undefined);   // charging the rover's battery gives no prize
+  const todas = [...Object.values(ESTACOES), ...Object.values(ESTACOES_MODULO)].filter((e) => e !== ESTACOES_MODULO.rover);
   for (const e of todas) {
     assert.ok(e.item, `${e.acao}: no item`);
     const existe = e.item!.tipo === 'skin' ? SKINS.some((s) => s.id === e.item!.id && s.premio) : ACESSORIOS.some((a) => a.id === e.item!.id);
