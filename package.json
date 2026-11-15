@@ -12,7 +12,8 @@
     "assets:editor": "blender -b -P tools/lua3d/export_editor_rotations.py && blender -b -P tools/lua3d/export_editor_rotations.py -- --solar && blender -b assets/blender/heating_plant/central_termica.blend -P tools/lua3d/export_heating.py",
     "assets:heating": "blender -b assets/blender/heating_plant/central_termica.blend -P tools/lua3d/export_heating.py",
     "assets:carried-battery": "blender -b -P tools/lua3d/make_carried_battery.py",
-    "assets:astronaut-carry": "blender -b -P tools/lua3d/make_astronaut_carry.py"
+    "assets:astronaut-carry": "blender -b -P tools/lua3d/make_astronaut_carry.py",
+    "assets:build-props": "blender -b -P tools/lua3d/make_build_props.py"
   },
   "dependencies": {
     "phaser": "^3.90.0"

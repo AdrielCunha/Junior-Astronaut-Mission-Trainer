@@ -37,7 +37,7 @@ import sprite from '../dados/astronauta.json';
 import dadosViagem from '../dados/viagem.json';
 import { chaveSkin, chaveSkinSentado, chaveSkinCarga } from '../dados/skins';
 import { LAYOUT } from '../dados/layout';
-import { DECORACAO, DECORACAO_MARTE, comoTipo, type DecoColocada } from '../dados/decoracao';
+import { DECORACAO, DECORACAO_MARTE, OBJETOS_CONSTRUCAO, comoTipo, type DecoColocada } from '../dados/decoracao';
 import { CHAVE_FOGUETE } from './Chegada';
 import foguetevoo from '../dados/foguete_voo.json';
 import { tocarMotor, tocarSfx, criarAmbienteSonoro } from '../sfx';
@@ -252,11 +252,21 @@ export class Superficie extends Phaser.Scene {
 
   concluirMovimentoEditor(c: ObjetoEditor) {
     this.rota=[];this.alvoUsar=null;this.alvoRover=false;this.seguir=false;this.recolherBandeira();
-    if(c.deco){const d=c.deco,v=this.decoVisuais.find(v=>v.d===d);if(v)this.posicionarDeco(v.img,d);
+    if(c.deco){const d=c.deco;let v=this.decoVisuais.find(v=>v.d===d);
+      if(!v){const img=this.add.image(0,0,'mod_habitat');this.mapa.add(img);if(sessao.mundo==='marte')img.setTint(TOM_MARTE);v={d,img};this.decoVisuais.push(v);}
+      this.posicionarDeco(v.img,d);
       Object.assign(c,{gx:d.gx,gy:d.gy,z:d.z,rotacao:d.rotacao,tipo:{...c.tipo,w:d.w,h:d.h}});
     }else this.desenharModulo(c);
     this.desenharCaminhos();
-    sessao.emitir('estado');return sessao.salvar();
+    // Layout edits change no resources: avoid redrawing every module via the state bus.
+    return sessao.salvar();
+  }
+
+  removerCopiaEditor(c:ObjetoEditor) {
+    if(c.deco){const i=this.decoVisuais.findIndex(v=>v.d===c.deco);if(i>=0){this.decoVisuais[i].img.destroy();this.decoVisuais.splice(i,1);}}
+    else {const d=this.desenhos.get(c.id);if(d){d.g.destroy();d.img.destroy();d.rotulo?.destroy();this.nomesNoMapa=this.nomesNoMapa.filter(t=>t!==d.rotulo);this.desenhos.delete(c.id);}}
+    this.dica?.setVisible(false);this.decoSobre=null;this.decoFixa=null;
+    this.rota=[];this.alvoUsar=null;this.desenharCaminhos();return sessao.salvar();
   }
 
   // Map center in world px: the flight's first frame is centered on it.
@@ -1807,6 +1817,11 @@ export class Superficie extends Phaser.Scene {
           : sessao.mundo !== 'nave' ? g.procurarDeco(tipo, x, y) : g.procurarComEspaco(tipo, x, y);
         if (p) g.colocarDeco({ id: d.id, nome: d.nome, info: d.info, w, h, altura: d.altura, ...(girado ? { rotacao: ROTACAO_LAYOUT } : {}) }, p.gx, p.gy);
       });
+    }
+    // Add missing construction props to older saved layouts without replacing any objects.
+    if(sessao.mundo!=='nave')for(const d of OBJETOS_CONSTRUCAO)if(!g.deco.some(p=>p.id===d.id)){
+      const p=g.procurarDeco(comoTipo(d),c0+d.dx,c0+d.dy);
+      if(p)g.colocarDeco(d,p.gx,p.gy);
     }
     for (const d of g.deco) {
       // The ship's props have their own pictures; on Mars the props the Moon also has use their Mars version
