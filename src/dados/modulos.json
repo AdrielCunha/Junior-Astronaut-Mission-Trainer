@@ -21,12 +21,12 @@
  },
  "blindagem": {
   "arquivo": "lua/modulos/blindagem.png",
-  "w": 279,
-  "h": 230,
+  "w": 271,
+  "h": 260,
   "escala": 0.5,
   "ancora": [
-   139.5,
-   91.01
+   135.5,
+   121.85
   ]
  },
  "oficina": {
@@ -427,6 +427,46 @@
   "ancora": [
    53.98,
    27.94
+  ]
+ },
+ "blindagem_agua0": {
+  "arquivo": "lua/modulos/blindagem_agua0.png",
+  "w": 271,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   135.5,
+   121.85
+  ]
+ },
+ "blindagem_agua1": {
+  "arquivo": "lua/modulos/blindagem_agua1.png",
+  "w": 271,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   135.5,
+   121.85
+  ]
+ },
+ "blindagem_agua2": {
+  "arquivo": "lua/modulos/blindagem_agua2.png",
+  "w": 271,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   135.5,
+   121.85
+  ]
+ },
+ "blindagem_agua3": {
+  "arquivo": "lua/modulos/blindagem_agua3.png",
+  "w": 271,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   135.5,
+   121.85
   ]
  }
 }

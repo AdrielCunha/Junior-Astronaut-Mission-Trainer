@@ -149,6 +149,8 @@ export class Superficie extends Phaser.Scene {
     this.input.mouse?.disableContextMenu();
 
     sessao.ouvir(this, 'estado', () => { for (const c of sessao.grade.lista) this.desenharModulo(c); });
+    // A new phase can change a picture too: the shield's water walls drain for the next morning.
+    sessao.ouvir(this, 'fase', () => { for (const c of sessao.grade.lista) this.desenharModulo(c); });
     sessao.ouvir(this, 'suprimento', (tipo) => this.chegar(tipo));
   }
 
@@ -435,7 +437,10 @@ export class Superficie extends Phaser.Scene {
   private entregar(c: Construcao) {
     sessao.carregando--;
     sessao.entregas[c.tipo.sala!]++;
-    sessao.emitir('mensagem', `+1 battery to ${c.tipo.nome}.`, '#86efac');
+    const n = sessao.entregas[c.tipo.sala!];
+    sessao.emitir('mensagem', c.tipo.sala === 'blindagem'
+      ? `+1 battery: the pump fills the water walls${n >= 3 ? ' to the top!' : '.'} Water stops radiation.`
+      : `+1 battery to ${c.tipo.nome}.`, '#86efac');
     sessao.emitir('estado');
   }
 
@@ -581,10 +586,13 @@ export class Superficie extends Phaser.Scene {
   }
 
   // ---------- drawing ----------
-  // Which Blender picture a module shows: the launch pad carries the rocket in 5 build stages.
+  // Which Blender picture a module shows: the launch pad carries the rocket in 5 build stages, and
+  // the shield tower's water walls fill with each battery given to it today (the pump runs on
+  // them). While just exploring, the walls are shown full.
   private modelo(c: Construcao): Modelo {
     const meta = sessao.estado.meta;
     if (c.tipo.id === 'plataforma') return `foguete${Math.min(4, Math.floor(meta / 25))}` as Modelo;
+    if (c.tipo.id === 'blindagem' && sessao.fase !== 'inicio') return `blindagem_agua${Math.min(3, sessao.entregas.blindagem)}` as Modelo;
     return c.tipo.id as Modelo;
   }
 
