@@ -3,7 +3,7 @@
   "pequeno": {
    "arquivo": "lua/planetas/3d/sol_p.png",
    "quadro": 96,
-   "giros": 16,
+   "giros": 48,
    "direcoes": 1,
    "raio": 38.4
   },
@@ -18,7 +18,7 @@
   "pequeno": {
    "arquivo": "lua/planetas/3d/mercurio_p.png",
    "quadro": 96,
-   "giros": 16,
+   "giros": 48,
    "direcoes": 16,
    "raio": 38.4
   },
@@ -33,7 +33,7 @@
   "pequeno": {
    "arquivo": "lua/planetas/3d/venus_p.png",
    "quadro": 96,
-   "giros": 16,
+   "giros": 48,
    "direcoes": 16,
    "raio": 38.4
   },
@@ -48,7 +48,7 @@
   "pequeno": {
    "arquivo": "lua/planetas/3d/terra_p.png",
    "quadro": 96,
-   "giros": 16,
+   "giros": 48,
    "direcoes": 16,
    "raio": 38.4
   },
@@ -63,7 +63,7 @@
   "pequeno": {
    "arquivo": "lua/planetas/3d/lua_p.png",
    "quadro": 96,
-   "giros": 16,
+   "giros": 48,
    "direcoes": 16,
    "raio": 38.4
   },
@@ -78,7 +78,7 @@
   "pequeno": {
    "arquivo": "lua/planetas/3d/marte_p.png",
    "quadro": 96,
-   "giros": 16,
+   "giros": 48,
    "direcoes": 16,
    "raio": 38.4
   },
