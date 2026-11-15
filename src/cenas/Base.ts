@@ -949,7 +949,7 @@ export class Base extends Phaser.Scene {
   private mostrarDica(i: number) {
     const sala = this.cap.salas[i];
     const topo = sala.lugar === 'plataforma' ? this.p(PLATAFORMA.gx + 1.8, PLATAFORMA.gy + 1.4) : this.p(this.lugar(i).gx + SALA_L / 2, this.lugar(i).gy + SALA_A);
-    this.dica.setText(`${sala.nome}\n${sala.papel}`).setOrigin(0.5, 0).setPosition(topo.x, topo.y + 10 * this.u).setVisible(true);
+    this.dica.setText(`${t(sala.nome)}\n${t(sala.papel)}`).setOrigin(0.5, 0).setPosition(topo.x, topo.y + 10 * this.u).setVisible(true);
     this.dica.x = Phaser.Math.Clamp(this.dica.x, this.dica.width / 2 + 8, this.scale.width - this.dica.width / 2 - 8);
   }
 

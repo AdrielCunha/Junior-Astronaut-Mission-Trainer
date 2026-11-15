@@ -821,7 +821,7 @@ export class Superficie extends Phaser.Scene {
     if (sessao.evento?.construcaoId === c.id && sessao.fase === 'dia') { this.consertar(); return; }
     if (estacaoDoModulo(c.tipo.id)) { this.usarEquipamento(c); return; }
     if (!c.tipo.sala && c.tipo.id !== origemBaterias(sessao.mundo)) {
-      sessao.emitir('mensagem', `💡 ${c.tipo.nome}: ${c.tipo.papel}`);
+      sessao.emitir('mensagem', `💡 ${t(c.tipo.nome)}: ${t(c.tipo.papel)}`);
       return;
     }
     if (sessao.fase !== 'dia') {
