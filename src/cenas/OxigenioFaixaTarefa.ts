@@ -11,7 +11,7 @@ const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life S
 const FOLGA = (QUADRO_H - 500) / 2;   // the frame is taller than the layout was drawn for: centre the content
 const JW = 600, JH = 300;             // the blue window
 const TUBO = { x: 150, y: 24, w: 76, h: 252 };   // the vertical gauge, in window coordinates
-const INSTRUCAO = 'Hold the button to inject O₂ and keep the level in the green.';
+const INSTRUCAO = 'Hold the button. Keep O₂ in the green!';
 
 export class OxigenioFaixaTarefa extends Phaser.Scene {
   private aoConcluir?: () => void;

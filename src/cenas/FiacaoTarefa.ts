@@ -14,7 +14,7 @@ const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life S
 const FOLGA = (QUADRO_H - 460) / 2;   // the frame is taller than the layout was drawn for: centre the content
 const JANELA_W = 680;
 const JANELA_H = 330;
-const INSTRUCAO = 'A lamp went dark! Follow the wire to it and find the spark of the fault!';
+const INSTRUCAO = 'Follow the wire to the dark lamp. Find the spark!';
 const ORIGEM_X = 86;
 const FIM_X = 572;
 const LAMPADA_X = 616;
@@ -222,13 +222,13 @@ export class FiacaoTarefa extends Phaser.Scene {
       estado = novo;
       if (resultado === 'bom') {
         piscar(fio, 0, TRECHOS - 1, 0x4ade80);
-        msg(`The ${CORES[fio].nome} wire is fine. Look for the one that leads to the dark lamp!`, '#e2e8f0');
+        msg(`The ${CORES[fio].nome} wire is fine. Try the dark lamp\'s wire!`, '#e2e8f0');
       } else if (resultado === 'com-corrente') {
         piscar(fio, 0, trecho, 0x4ade80);
-        msg('There is current here. The fault is further ahead!', '#86efac');
+        msg('Power here! The fault is further on.', '#86efac');
       } else if (resultado === 'sem-corrente') {
         piscar(fio, trecho, trecho, 0xf87171);
-        msg('No current here. The fault is further back!', '#fca5a5');
+        msg('No power here! The fault is further back.', '#fca5a5');
       } else if (resultado === 'achou') {
         piscar(fio, trecho, trecho, 0xfde047);
         tocarSfx('bip');
@@ -245,7 +245,7 @@ export class FiacaoTarefa extends Phaser.Scene {
       const d = defeitoAtual(estado);
       const novo = escolherReparo(estado, b.id);
       if (novo === estado) {
-        msg(`That repair cannot fix a ${NOME_DANO[d.dano]} wire. Try another!`, '#fca5a5');
+        msg(`Wrong tool for a ${NOME_DANO[d.dano]} wire. Try another!`, '#fca5a5');
         this.tweens.add({ targets: b.c, angle: 4, duration: 60, yoyo: true, repeat: 2, onComplete: () => b.c.setAngle(0) });
         return;
       }

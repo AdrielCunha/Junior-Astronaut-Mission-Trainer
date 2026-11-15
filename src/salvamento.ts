@@ -7,16 +7,16 @@ import type { Fase, Mundo, RelatorioDia } from './cenas/sessao';
 
 const CHAVE = 'lunar-odyssey-save-v1';
 export type DadosPartida = {
-  versao: 1; salvoEm: number; mundo: Mundo; capIdx: number; fase: Fase;
+  versao: 1; salvoEm: number; layout?: string; mundo: Mundo; capIdx: number; fase: Fase;
   estado: Estado; entregas: Alocacao; pontos: number[]; carregando: number; noHabitat: number;
   tarefasHoje: Efeito[]; ultimaTarefa: Partial<Record<Efeito,string>>; energiaHoje: boolean;
-  curiosidadeRoverVista: boolean; diaCargaRover: number | null; rover: Rover | null; astronauta: Corpo | null;
-  modulos: {id: number; tipo: TipoId; gx: number; gy: number; rotacao?: number}[]; decoracao: DecoColocada[];
+  curiosidadeRoverVista: boolean; curiosidadeRoverMarteVista?: boolean; diaCargaRover: number | null; rover: Rover | null; astronauta: Corpo | null;
+  modulos: {id: number; tipo: TipoId; gx: number; gy: number; rotacao?: number; copia?:boolean}[]; decoracao: DecoColocada[];
   tempestade: {restante: number; status: 'inativa' | 'alerta' | 'protegida' | 'atingida'};
   danoTempestade: number; bateriasTempestade: number;
   desfechoPendente: {tipo: 'protegida' | 'atingida'; baterias: number} | null;
   ultimoDia: RelatorioDia | null; evento: {id: string; construcaoId: number} | null;
-  eventoEm: number | null; ultimoEvento?: string; diasCalmos: number; pulou: boolean;
+  eventoEm: number | null; ultimoEvento?: string; diasCalmos: number; tempoCalmo?: number; pulou: boolean;
 };
 const objeto = (v: unknown): v is Record<string,unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const numero = (v: unknown, min = 0, max = 100) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
@@ -37,7 +37,7 @@ function valido(v: unknown): v is DadosPartida {
   if (!objeto(v.entregas) || !['oxigenio','blindagem','meta','aquecimento'].every(k=>numero(v.entregas && (v.entregas as Record<string,unknown>)[k],0,100))
     || !numero(v.carregando,0,100) || !numero(v.noHabitat,0,100)
     || !Array.isArray(v.pontos) || !v.pontos.every(p=>numero(p,0,300))) return false;
-  if (!Array.isArray(v.modulos) || v.modulos.length > 100 || !v.modulos.every(m=>objeto(m) && typeof m.tipo==='string' && numero(m.id,1,1000) && numero(m.gx,0,256) && numero(m.gy,0,256) && orientacao(m.rotacao))
+  if (!Array.isArray(v.modulos) || v.modulos.length > 100 || !v.modulos.every(m=>objeto(m) && typeof m.tipo==='string' && numero(m.id,1,1000) && numero(m.gx,0,256) && numero(m.gy,0,256) && orientacao(m.rotacao) && (m.copia===undefined || typeof m.copia==='boolean'))
     || !Array.isArray(v.decoracao) || v.decoracao.length > 100 || !v.decoracao.every(d=>objeto(d) && typeof d.id==='string' && typeof d.nome==='string' && numero(d.gx,0,256) && numero(d.gy,0,256) && numero(d.w,0.1,20) && numero(d.h,0.1,20) && numero(d.altura,0,20) && orientacao(d.rotacao))
     || !Array.isArray(v.tarefasHoje) || !v.tarefasHoje.every(t=>['oxigenio','blindagem','meta','aquecimento'].includes(String(t))) || !objeto(v.ultimaTarefa)) return false;
   if (v.astronauta !== null && !corpo(v.astronauta)) return false;
@@ -47,7 +47,7 @@ function valido(v: unknown): v is DadosPartida {
   if (v.fase==='noite' && (!objeto(v.ultimoDia) || !objeto(v.ultimoDia.antes) || !objeto(v.ultimoDia.entregas) || typeof v.ultimoDia.fato!=='string')) return false;
   return numero(v.danoTempestade) && numero(v.bateriasTempestade,0,100)
     && (v.diaCargaRover===null || numero(v.diaCargaRover,1,9))
-    && (v.eventoEm===null || numero(v.eventoEm,0,3600)) && numero(v.diasCalmos,0,100);
+    && (v.eventoEm===null || numero(v.eventoEm,0,3600)) && numero(v.diasCalmos,0,100) && (v.tempoCalmo===undefined || numero(v.tempoCalmo,0,1e6));
 }
 export function lerPartida(): DadosPartida | null {
   try { const v: unknown = JSON.parse(localStorage.getItem(CHAVE) ?? 'null'); return valido(v) ? v : null; }
@@ -57,3 +57,18 @@ export function gravarPartida(v: DadosPartida): boolean {
   try { localStorage.setItem(CHAVE,JSON.stringify(v)); return true; } catch { return false; }
 }
 export function apagarPartida() { try { localStorage.removeItem(CHAVE); } catch { /* optional browser storage */ } }
+
+// Bases the player has reached in a real mission (EXPLORE A BASE opens only these). Kept apart
+// from the save, so losing or starting over does not lock them again.
+const CHAVE_BASES = 'lunar-odyssey-bases-v1';
+const MUNDOS: Mundo[] = ['lua', 'nave', 'marte'];
+export function basesLiberadas(): Mundo[] {
+  try { const v: unknown = JSON.parse(localStorage.getItem(CHAVE_BASES) ?? '[]'); return Array.isArray(v) ? MUNDOS.filter(m => v.includes(m)) : []; }
+  catch { return []; }
+}
+// Reaching chapter capIdx means the earlier bases were reached too.
+export function liberarBases(capIdx: number) {
+  const atuais = basesLiberadas(), novas = MUNDOS.slice(0, capIdx + 1);
+  if (novas.every(m => atuais.includes(m))) return;
+  try { localStorage.setItem(CHAVE_BASES, JSON.stringify(MUNDOS.filter(m => atuais.includes(m) || novas.includes(m)))); } catch { /* optional browser storage */ }
+}

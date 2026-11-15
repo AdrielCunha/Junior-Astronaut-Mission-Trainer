@@ -24,18 +24,18 @@ export type Tipo = {
 
 export const TIPOS: Record<TipoId, Tipo> = {
   habitat:    { id: 'habitat', nome: 'Habitat', w: 3, h: 3, altura: 1.4, cor: 0x94a3b8, unico: true,
-                papel: 'Where the crew lives. Collect solar-charged batteries at the Battery Bank.' },
+                papel: 'Where the crew lives and sleeps.' },
   suporte:    { id: 'suporte', nome: 'Life Support', w: 3, h: 2, altura: 1.4, cor: 0x3b82f6, sala: 'oxigenio', unico: true,
-                papel: 'Makes oxygen. Each battery gives oxygen for the night.' },
+                papel: 'Makes oxygen. More batteries, more air!' },
   blindagem:  { id: 'blindagem', nome: 'Radiation Shield', w: 2, h: 2, altura: 1.6, cor: 0xeab308, sala: 'blindagem', unico: true,
-                papel: 'A shelter with walls of water. Batteries pump the water up before a storm: water stops radiation.' },
+                papel: 'Water walls stop storm radiation.' },
   oficina:    { id: 'oficina', nome: 'Rocket Workshop', w: 3, h: 3, altura: 2.0, cor: 0xf97316, sala: 'meta', unico: true,
                 papel: 'Builds the rocket to Mars.' },
   // Only the narrow foundation occupies the ground; the tilted panel overhangs its supports.
   // It stands on short piles, so it accepts the 12-15 degree bank behind the Habitat where the
   // pressurised modules cannot go.
   painel:     { id: 'painel', nome: 'Solar Panel', w: 2, h: 1, altura: 1.4, inclinacaoMax: 15, cor: 0x1e3a8a, unico: false,
-                papel: 'Catches sunlight and charges the batteries at the nearby Battery Bank.' },
+                papel: 'Turns sunlight into power for the batteries.' },
   plataforma: { id: 'plataforma', nome: 'Launch Pad', w: 3, h: 3, altura: 0.25, cor: 0x64748b, unico: true,
                 papel: 'Where the rocket will lift off.' },
   // Equipment that arrives by cargo lander during the chapter (engine/suprimentos.ts).
@@ -44,25 +44,25 @@ export const TIPOS: Record<TipoId, Tipo> = {
   estufa:     { id: 'estufa', nome: 'Greenhouse', w: 3, h: 2, altura: 0.9, cor: 0x22c55e, unico: true,
                 papel: 'Plants that turn the crew\'s breath back into oxygen.' },
   perfuratriz: { id: 'perfuratriz', nome: 'Ice Drill', w: 2, h: 2, altura: 1.9, cor: 0xf59e0b, unico: true,
-                papel: 'Digs for frozen water in the dark craters.' },
+                papel: 'Digs for ice in dark craters.' },
   rover:      { id: 'rover', nome: 'Rover', w: 2, h: 1, altura: 0.6, cor: 0xcbd5e1, unico: true,
-                papel: 'Carries astronauts far from the base.' },
+                papel: 'Drives astronauts far from the base.' },
   // Real lunar-base structures (ISRU, life support, power, construction, science).
   usina:      { id: 'usina', nome: 'Oxygen Plant', w: 3, h: 2, altura: 1.8, cor: 0xe2e8f0, unico: true,
-                papel: 'Splits oxygen out of lunar dust (regolith) with electricity. This is how NASA plans to make air on the Moon.' },
+                papel: 'Makes oxygen out of Moon dust!' },
   reciclador: { id: 'reciclador', nome: 'Water & Air Recycler', w: 2, h: 2, altura: 1.5, cor: 0x38bdf8, unico: true,
-                papel: "Cleans the crew's water and removes CO2 from the air, so nothing is wasted." },
+                papel: 'Cleans water and air. Nothing is wasted!' },
   eclusa:     { id: 'eclusa', nome: 'Airlock', w: 2, h: 1, altura: 1.0, cor: 0xf97316, unico: true,
-                papel: "A double door that lets astronauts go outside without losing the base's air." },
+                papel: 'A double door: go out, keep the air in.' },
   bateria:    { id: 'bateria', nome: 'Battery Bank', w: 2, h: 5, altura: 1.4, cor: 0xfacc15, unico: true,
-                papel: 'Five removable batteries store solar power. Pick up today\'s charged batteries here.' },
+                papel: 'Stores sunlight. Get your batteries here!' },
   impressora: { id: 'impressora', nome: 'Regolith 3D Printer', w: 3, h: 2, altura: 1.8, cor: 0xe7d3b0, unico: true,
-                papel: 'Builds walls and landing pads by melting lunar dust, so we ship less from Earth.' },
+                papel: 'Prints walls out of Moon dust!' },
   radiotelescopio: { id: 'radiotelescopio', nome: 'Radio Telescope', w: 3, h: 3, altura: 2.2, cor: 0xcbd5e1, unico: true,
-                papel: "Listens to the universe. The Moon's far side is shielded from Earth's radio noise." },
+                papel: 'Listens to the stars, far from Earth noise.' },
   // Mars (chapter 3): built from batteries first (regras.ts, obras), then powered.
   aquecedor:  { id: 'aquecedor', nome: 'Heating', w: 3, h: 3, altura: 2.0, cor: 0xef4444, sala: 'aquecimento', unico: true,
-                papel: 'Keeps the machines warm on cold Mars nights.' },
+                papel: 'Keeps machines warm on cold nights.' },
   cupula:     { id: 'cupula', nome: 'Habitat Dome', w: 3, h: 3, altura: 1.4, cor: 0xf97316, sala: 'meta', unico: true,
                 papel: "The crew's new home on Mars." },
 };
@@ -71,7 +71,7 @@ export const TIPOS: Record<TipoId, Tipo> = {
 export const MARGEM_DECO = 4;
 export const RAIO_LIVRE_DECO = 13;
 
-export type Construcao = { id: number; tipo: Tipo; gx: number; gy: number; z: number; rotacao?: number };
+export type Construcao = { id: number; tipo: Tipo; gx: number; gy: number; z: number; rotacao?: number; copia?: boolean };
 
 // Each instance owns its oriented footprint; never mutate the shared catalog.
 export function tipoOrientado(tipo: Tipo, rotacao: number): Tipo {
@@ -81,7 +81,7 @@ export function tipoOrientado(tipo: Tipo, rotacao: number): Tipo {
 
 export type Motivo = 'ok' | 'fora' | 'ocupado' | 'ingreme' | 'unico';
 export type AvaliacaoMovimento = {
-  motivo: 'ok' | 'fora' | 'ocupado' | 'rochas' | 'instavel' | 'ingreme' | 'passagem';
+  motivo: 'ok' | 'fora' | 'ocupado' | 'rochas' | 'instavel' | 'ingreme' | 'passagem' | 'limite';
   inclinacao: number; limite: number;
 };
 
@@ -128,24 +128,25 @@ export class Grade {
     return c;
   }
 
-  podeMover(c: Construcao, gx: number, gy: number, manterPassagem = true, rotacao = c.rotacao??0): AvaliacaoMovimento {
+  podeMover(c: Construcao, gx: number, gy: number, manterPassagem = true, rotacao = c.rotacao??0,copiando=false): AvaliacaoMovimento {
     const {w,h}=tipoOrientado(c.tipo,rotacao),limite=c.tipo.inclinacaoMax??this.t.maxConstruir;
     const resposta=(motivo: AvaliacaoMovimento['motivo'],inclinacao=0): AvaliacaoMovimento=>({motivo,inclinacao,limite});
+    if(copiando && (this.lista.length>=100 || this.proximo>1000))return resposta('limite');
     if (!this.lista.includes(c) || !Number.isInteger(rotacao) || rotacao<0 || rotacao>3 || !Number.isInteger(gx) || !Number.isInteger(gy)
       || gx<0 || gy<0 || gx+w>this.n || gy+h>this.n) return resposta('fora');
     const inclinacao=this.t.inclinacaoMax(gx,gy,w,h);
     // Turning a square in place keeps exactly the same safe footprint, even in a tight layout.
-    if(gx===c.gx && gy===c.gy && w===c.tipo.w && h===c.tipo.h)return resposta('ok',inclinacao);
+    if(!copiando && gx===c.gx && gy===c.gy && w===c.tipo.w && h===c.tipo.h)return resposta('ok',inclinacao);
     for(let y=gy;y<gy+h;y++)for(let x=gx;x<gx+w;x++) {
       const id=this.ocup[y*this.n+x];
-      if(id && id!==c.id)return resposta('ocupado',inclinacao);
+      if(id && (copiando || id!==c.id))return resposta('ocupado',inclinacao);
     }
     const obstaculo=this.t.obstaculoConstrucao(gx,gy,w,h);
     if(obstaculo)return resposta(obstaculo,inclinacao);
     if(inclinacao>limite)return resposta('ingreme',inclinacao);
     // Leave a walkable service gap; moving one module must not seal the next one's entrance.
     for(const outro of manterPassagem ? this.lista : []) {
-      if(outro.id===c.id)continue;
+      if(!copiando && outro.id===c.id)continue;
       const margem=c.tipo.id==='painel' && outro.tipo.id==='painel'?0.25:0.65;
       if(gx<outro.gx+outro.tipo.w+margem && gx+w+margem>outro.gx
         && gy<outro.gy+outro.tipo.h+margem && gy+h+margem>outro.gy)return resposta('passagem',inclinacao);
@@ -166,17 +167,37 @@ export class Grade {
     return avaliacao;
   }
 
-  restaurar(modulos: {id: number; tipo: TipoId; gx: number; gy: number; rotacao?: number}[], decoracao: DecoColocada[]) {
+  duplicar(c:Construcao,gx:number,gy:number,rotacao=c.rotacao??0):Construcao|null {
+    if(this.podeMover(c,gx,gy,true,rotacao,true).motivo!=='ok')return null;
+    const tipo=tipoOrientado(c.tipo,rotacao);
+    const copia:Construcao={id:this.proximo++,tipo,gx,gy,rotacao,copia:true,z:this.t.alturaMax(gx,gy,tipo.w,tipo.h)+.025};
+    for(let y=gy;y<gy+tipo.h;y++)for(let x=gx;x<gx+tipo.w;x++)this.ocup[y*this.n+x]=copia.id;
+    this.lista.push(copia);this.cacheCaixas=null;this.cacheModulos=-1;return copia;
+  }
+
+  remover(c:Construcao):boolean {
+    const i=this.lista.indexOf(c);if(i<0)return false;
+    for(let y=c.gy;y<c.gy+c.tipo.h;y++)for(let x=c.gx;x<c.gx+c.tipo.w;x++)if(this.ocup[y*this.n+x]===c.id)this.ocup[y*this.n+x]=0;
+    this.lista.splice(i,1);this.cacheCaixas=null;this.cacheModulos=-1;return true;
+  }
+
+  // `tolerante`: a module whose saved spot is taken goes to the nearest free one instead of failing
+  // (used when a save is moved to a new layout, sessao.restaurarPartida).
+  restaurar(modulos: {id: number; tipo: TipoId; gx: number; gy: number; rotacao?: number; copia?:boolean}[], decoracao: DecoColocada[], tolerante = false) {
     for (const m of modulos) {
       if (!Object.prototype.hasOwnProperty.call(TIPOS,m.tipo) || !Number.isInteger(m.id)
         || this.lista.some(c=>c.id===m.id) || !Number.isInteger(m.gx) || !Number.isInteger(m.gy)) throw new Error('Invalid saved module');
       const rotacao=m.rotacao??0;
       if(!Number.isInteger(rotacao)||rotacao<0||rotacao>3)throw new Error('Invalid saved module rotation');
-      const c = this.construir(tipoOrientado(TIPOS[m.tipo],rotacao),m.gx,m.gy);
+      const orientado = tipoOrientado(TIPOS[m.tipo],rotacao);
+      const t = m.copia ? {...orientado,unico:false} : orientado;
+      let c = this.construir(t,m.gx,m.gy);
+      if (!c && tolerante) { const p = this.procurarComEspaco(t,m.gx,m.gy); c = p && this.construir(t,p.gx,p.gy); }
       if (!c) throw new Error('Invalid saved module position');
       c.id = m.id;
       c.rotacao=rotacao;
-      for (let y=m.gy;y<m.gy+c.tipo.h;y++) for (let x=m.gx;x<m.gx+c.tipo.w;x++) this.ocup[y*this.n+x]=m.id;
+      c.copia=m.copia===true;
+      for (let y=c.gy;y<c.gy+c.tipo.h;y++) for (let x=c.gx;x<c.gx+c.tipo.w;x++) this.ocup[y*this.n+x]=m.id;
       this.proximo=Math.max(this.proximo,m.id+1);
     }
     for (const d of decoracao) {
@@ -194,13 +215,14 @@ export class Grade {
     return p;
   }
 
-  podeMoverDeco(d: DecoColocada,gx:number,gy:number,rotacao=d.rotacao??0,manterPassagem=true): AvaliacaoMovimento {
+  podeMoverDeco(d: DecoColocada,gx:number,gy:number,rotacao=d.rotacao??0,manterPassagem=true,copiando=false): AvaliacaoMovimento {
     const indice=this.deco.indexOf(d),{w,h}=dimensoesDeco(d,rotacao),limite=this.t.maxConstruir;
     const resposta=(motivo:AvaliacaoMovimento['motivo'],inclinacao=0)=>({motivo,inclinacao,limite});
+    if(copiando && this.deco.length>=100)return resposta('limite');
     if(indice<0 || !Number.isInteger(rotacao) || rotacao<0 || rotacao>3 || !Number.isInteger(gx)||!Number.isInteger(gy)||gx<0||gy<0||gx+w>this.n||gy+h>this.n)return resposta('fora');
     const inclinacao=this.t.inclinacaoMax(gx,gy,w,h);
-    if(gx===d.gx && gy===d.gy && w===d.w && h===d.h)return resposta('ok',inclinacao);
-    for(let y=gy;y<gy+h;y++)for(let x=gx;x<gx+w;x++){const id=this.ocup[y*this.n+x];if(id && id!==-(indice+1))return resposta('ocupado',inclinacao);}
+    if(!copiando && gx===d.gx && gy===d.gy && w===d.w && h===d.h)return resposta('ok',inclinacao);
+    for(let y=gy;y<gy+h;y++)for(let x=gx;x<gx+w;x++){const id=this.ocup[y*this.n+x];if(id && (copiando || id!==-(indice+1)))return resposta('ocupado',inclinacao);}
     const obstaculo=this.t.obstaculoConstrucao(gx,gy,w,h);if(obstaculo)return resposta(obstaculo,inclinacao);
     if(inclinacao>limite)return resposta('ingreme',inclinacao);
     if(manterPassagem && this.lista.some(c=>gx<c.gx+c.tipo.w+0.65 && gx+w+0.65>c.gx && gy<c.gy+c.tipo.h+0.65 && gy+h+0.65>c.gy))return resposta('passagem',inclinacao);
@@ -214,6 +236,20 @@ export class Grade {
     Object.assign(d,dim,{gx,gy,rotacao,z:this.t.alturaMax(gx,gy,dim.w,dim.h)+0.01});
     for(let y=gy;y<gy+d.h;y++)for(let x=gx;x<gx+d.w;x++)this.ocup[y*this.n+x]=id;
     this.cacheCaixas=null;this.cacheModulos=-1;return a;
+  }
+
+  duplicarDeco(d:DecoColocada,gx:number,gy:number,rotacao=d.rotacao??0):DecoColocada|null {
+    if(this.podeMoverDeco(d,gx,gy,rotacao,true,true).motivo!=='ok')return null;
+    return this.colocarDeco({...d,...dimensoesDeco(d,rotacao),rotacao},gx,gy);
+  }
+
+  removerDeco(d:DecoColocada):boolean {
+    const i=this.deco.indexOf(d);if(i<0)return false;
+    this.deco.splice(i,1);
+    // Rebuild negative IDs when removing a prop; building IDs remain unchanged.
+    for(let j=0;j<this.ocup.length;j++)if(this.ocup[j]<0)this.ocup[j]=0;
+    this.deco.forEach((p,k)=>{for(let y=p.gy;y<p.gy+p.h;y++)for(let x=p.gx;x<p.gx+p.w;x++)this.ocup[y*this.n+x]=-(k+1);});
+    this.cacheCaixas=null;this.cacheModulos=-1;return true;
   }
 
   // Solid boxes for the physics. A small inset keeps paths between neighbors walkable.
@@ -354,6 +390,26 @@ export const BASE_NAVE: [TipoId, number, number][] = [
   ['blindagem', 3, -5],
   ['bateria', -2, 2],
 ];
+
+// The base drawn in the layout editor (src/dados/layout.json): each module at its own tile, turned
+// or not. A spot that does not fit any more (the ground changed) falls back to the nearest free one.
+export type LayoutModulo = [TipoId, number, number, number];
+export const ROTACAO_LAYOUT = 3;
+export function montarLayout(g: Grade, modulos: LayoutModulo[]): Construcao[] {
+  const feitas: Construcao[] = [];
+  for (const [id, gx, gy, rot] of modulos) {
+    if (!Object.prototype.hasOwnProperty.call(TIPOS, id)) continue;
+    // Turned in the layout editor (the old mirrored picture): three quarter turns keep the door on the side the
+    // camera sees, like the mirror did (one quarter turn would show the back).
+    const t = tipoOrientado(TIPOS[id], rot ? ROTACAO_LAYOUT : 0);
+    const p = g.pode(t, gx, gy).motivo === 'ok' ? { gx, gy } : g.procurarComEspaco(t, gx, gy);
+    const c = p && g.construir(t, p.gx, p.gy);
+    if (!c) continue;
+    if (rot) c.rotacao = ROTACAO_LAYOUT;
+    feitas.push(c);
+  }
+  return feitas;
+}
 
 export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BASE_PADRAO): Construcao[] {
   const c0 = Math.floor(g.n / 2);

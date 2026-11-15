@@ -8,17 +8,17 @@ export type Suprimento = { dia: number; tipo: TipoId; aviso: string; fato: strin
 
 export const SUPRIMENTOS: Suprimento[] = [
   { dia: 2, tipo: 'antena',
-    aviso: 'A cargo lander is bringing a big Comms Antenna today.',
-    fato: 'Radio waves travel at the speed of light: a message takes about 1.3 seconds from the Moon to Earth.' },
+    aviso: 'A Comms Antenna lands today!',
+    fato: 'A radio message takes just 1.3 seconds to reach Earth!' },
   { dia: 4, tipo: 'estufa',
-    aviso: 'A cargo lander is bringing a Greenhouse today.',
-    fato: 'Plants breathe in carbon dioxide and give back oxygen. Astronauts already grow lettuce in the Veggie garden on the Space Station.' },
+    aviso: 'A Greenhouse lands today!',
+    fato: 'Astronauts already grow lettuce on the Space Station!' },
   { dia: 5, tipo: 'perfuratriz',
-    aviso: 'A cargo lander is bringing an Ice Drill today.',
-    fato: 'Some craters near the south pole never see the Sun and hold water ice. Ice can become drinking water, oxygen and rocket fuel.' },
+    aviso: 'An Ice Drill lands today!',
+    fato: 'Moon ice can become water, air and rocket fuel!' },
   { dia: 6, tipo: 'rover',
-    aviso: 'A cargo lander is bringing a Rover today.',
-    fato: 'NASA is designing a Lunar Terrain Vehicle so Artemis astronauts can drive far from where they land.' },
+    aviso: 'A Rover lands today!',
+    fato: 'NASA is building a new Moon car for Artemis astronauts!' },
 ];
 
 export const suprimentoDoDia = (dia: number) => SUPRIMENTOS.find((s) => s.dia === dia);

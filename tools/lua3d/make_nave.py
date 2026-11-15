@@ -79,7 +79,10 @@ def render(caminho, metade=False, mesmo_quadro=False):
     if metade:   # the terrain is drawn at scale 1 (30 px per tile step): halve the 2x render
         subprocess.run(['magick', caminho, '-resize', '50%', caminho], check=True)
         W, H, ancora = math.ceil(W / 2), math.ceil(H / 2), [ancora[0] / 2, ancora[1] / 2]
-    subprocess.run(['magick', caminho, '-dither', 'None', '-colors', '255', 'PNG8:' + caminho], check=True)
+    try:
+        subprocess.run(['magick', caminho, '-dither', 'None', '-colors', '255', 'PNG8:' + caminho], check=True)
+    except FileNotFoundError:   # no ImageMagick: quantize afterwards with Pillow (see the novo-item skill)
+        print('no magick: quantize', caminho, 'to 255 colors by hand', flush=True)
     return W, H, [round(ancora[0], 2), round(ancora[1], 2)]
 
 
@@ -304,80 +307,261 @@ def motores():                               # 3 x 3: engine control with the re
     emissivo(caixa(0.28, 2.18, 0.92, 2.24, 0.55, 0.9, '#38bdf8', bevel=0, linha=0.003), '#38bdf8', 1.6)
 
 
-def beliche():                               # 2 x 1: crew bunks, two levels
-    for z in (0.15, 0.85):
-        caixa(0.1, 0.1, 1.9, 0.9, z, z + 0.12, '#cbd5e1', bevel=0.03, linha=0.01)
-        caixa(0.2, 0.18, 1.8, 0.82, z + 0.12, z + 0.3, '#3b82f6', bevel=0.08, linha=0.01)        # sleeping bag
-        caixa(1.45, 0.22, 1.78, 0.78, z + 0.3, z + 0.42, '#f8fafc', bevel=0.06, linha=0.008)     # pillow
-    for x in (0.12, 1.84):
-        for y in (0.12, 0.84):
-            caixa(x, y, x + 0.06, y + 0.06, 0, 1.4, '#64748b', bevel=0, linha=0.006)
+def beliche():                               # 2 x 1: crew bunks, two levels, a little "bedroom" wall behind
+    caixa(0.05, 0.05, 1.95, 0.16, 0, 1.5, '#dbeafe', bevel=0.03, linha=0.01)                   # back wall
+    for k, (x, z, c) in enumerate(((0.3, 1.25, '#f472b6'), (0.55, 1.18, '#facc15'), (1.6, 0.55, '#4ade80'), (1.35, 0.5, '#38bdf8'))):
+        caixa(x, 0.16, x + 0.16, 0.175, z, z + 0.12, c, bevel=0, linha=0.003)                   # photos stuck on the wall
+    for z, saco, faixa in ((0.12, '#3b82f6', '#93c5fd'), (0.8, '#f97316', '#fed7aa')):
+        caixa(0.1, 0.16, 1.9, 0.92, z, z + 0.1, '#e2e8f0', bevel=0.03, linha=0.01)              # bunk tray
+        caixa(0.08, 0.86, 1.92, 0.94, z + 0.1, z + 0.2, '#94a3b8', bevel=0.02, linha=0.006)    # safety rail
+        caixa(0.22, 0.24, 1.55, 0.82, z + 0.1, z + 0.32, saco, bevel=0.08, linha=0.01)          # sleeping bag
+        for x in (0.6, 1.1):                                                                  # straps that hold you in
+            caixa(x, 0.22, x + 0.07, 0.84, z + 0.3, z + 0.335, '#1e293b', bevel=0, linha=0.003)
+        caixa(0.25, 0.3, 0.6, 0.8, z + 0.31, z + 0.33, faixa, bevel=0.01, linha=0.003)           # fold of the bag
+        caixa(1.52, 0.26, 1.82, 0.78, z + 0.1, z + 0.28, '#f8fafc', bevel=0.06, linha=0.008)    # pillow
+        emissivo(esfera(1.7, 0.2, z + 0.5, 0.05, 0.03, 0.05, '#fde68a', linha=0.004), '#fef3c7', 2.2)   # reading lamp
+    for x in (0.08, 1.86):
+        for y in (0.08, 0.86):
+            caixa(x, y, x + 0.07, y + 0.07, 0, 1.5, '#64748b', bevel=0, linha=0.006)            # posts
+    for z in (0.3, 0.5, 0.7):                                                                 # ladder at the nose end
+        haste((1.93, 0.25, z), (1.93, 0.75, z), 0.02, '#facc15', linha=0.005)
+    caixa(0.05, 0.05, 1.95, 0.95, 1.5, 1.56, '#cbd5e1', bevel=0.02, linha=0.008)               # roof
 
 
-def mesa():                                  # 2 x 2: galley table with seats and food packs
-    cilindro(1.0, 1.0, 0.12, 0, 0.7, '#64748b', linha=0.01)
-    caixa(0.35, 0.35, 1.65, 1.65, 0.7, 0.8, '#e2e8f0', bevel=0.06, linha=0.012)
-    for x, y in ((0.15, 1.0), (1.85, 1.0), (1.0, 0.15), (1.0, 1.85)):
-        cilindro(x, y, 0.16, 0, 0.42, '#f97316', linha=0.01, bevel=0.03)
-    for x, y, c in ((0.75, 0.8, '#facc15'), (1.15, 1.2, '#4ade80'), (1.25, 0.75, '#f87171')):
-        caixa(x - 0.1, y - 0.07, x + 0.1, y + 0.07, 0.8, 0.86, c, bevel=0.02, linha=0.005)
+def mesa():                                  # 2 x 2: galley table with handrails, food pouches and a floating drink
+    cilindro(1.0, 1.0, 0.1, 0, 0.68, '#64748b', linha=0.01)
+    cilindro(1.0, 1.0, 0.3, 0, 0.04, '#94a3b8', linha=0.008)
+    caixa(0.35, 0.35, 1.65, 1.65, 0.68, 0.78, '#f1f5f9', bevel=0.06, linha=0.012)
+    for (a, b) in (((0.3, 0.3), (1.7, 0.3)), ((1.7, 0.3), (1.7, 1.7)), ((1.7, 1.7), (0.3, 1.7)), ((0.3, 1.7), (0.3, 0.3))):
+        haste((a[0], a[1], 0.82), (b[0], b[1], 0.82), 0.022, '#f97316', linha=0.006)           # handrail around the edge
+    for (x, y) in ((0.3, 0.3), (1.7, 0.3), (1.7, 1.7), (0.3, 1.7)):
+        haste((x, y, 0.78), (x, y, 0.82), 0.02, '#f97316', linha=0.005)
+    for x, y in ((0.1, 1.0), (1.9, 1.0), (1.0, 0.1), (1.0, 1.9)):                              # stools with foot bars
+        cilindro(x, y, 0.16, 0, 0.42, '#38bdf8', linha=0.01, bevel=0.03)
+        cilindro(x, y, 0.17, 0.36, 0.44, '#e0f2fe', linha=0.006)
+    for x, y, c in ((0.6, 0.65, '#facc15'), (0.95, 1.25, '#4ade80'), (1.3, 0.65, '#f87171'), (1.35, 1.2, '#a78bfa')):
+        caixa(x - 0.11, y - 0.08, x + 0.11, y + 0.08, 0.78, 0.84, c, bevel=0.025, linha=0.005)   # food pouches
+        caixa(x - 0.11, y - 0.08, x - 0.06, y + 0.08, 0.84, 0.845, '#334155', bevel=0, linha=0.002)  # velcro
+    caixa(0.85, 0.55, 1.05, 0.85, 0.78, 0.8, '#94a3b8', bevel=0.01, linha=0.004)               # tray
+    cilindro(1.0, 1.4, 0.06, 0.78, 0.96, '#e0f2fe', v=14, linha=0.005)                         # drink bag
+    haste((1.0, 1.4, 0.96), (1.05, 1.42, 1.08), 0.008, '#ef4444', linha=0.002)                 # straw
+    emissivo(esfera(1.25, 1.5, 1.1, 0.045, 0.045, 0.045, '#7dd3fc', linha=0.004), '#bae6fd', 1.4)  # floating drop of juice
+    emissivo(esfera(0.62, 1.42, 1.02, 0.06, 0.06, 0.06, '#ef4444', linha=0.005), '#f87171', 0.9)   # a floating apple
+    haste((0.62, 1.42, 1.08), (0.63, 1.42, 1.12), 0.008, '#65a30d', linha=0.002)
 
 
-def esteira():                               # 2 x 1: treadmill (on the ISS it is the T2)
-    caixa(0.15, 0.2, 1.85, 0.8, 0, 0.18, '#334155', bevel=0.04, linha=0.01)
-    caixa(0.25, 0.28, 1.6, 0.72, 0.18, 0.2, '#111827', bevel=0, linha=0.004)
+def esteira():                               # 2 x 1: treadmill with the bungee harness
+    caixa(0.15, 0.2, 1.85, 0.8, 0, 0.18, '#475569', bevel=0.04, linha=0.01)
+    caixa(0.25, 0.28, 1.6, 0.72, 0.18, 0.2, '#111827', bevel=0, linha=0.004)                  # belt
+    for k in range(6):
+        caixa(0.32 + k * 0.21, 0.29, 0.36 + k * 0.21, 0.71, 0.2, 0.205, '#334155', bevel=0, linha=0.001)
+    caixa(0.15, 0.18, 1.85, 0.22, 0.08, 0.16, '#f97316', bevel=0, linha=0.003)                 # orange trim
+    caixa(0.15, 0.78, 1.85, 0.82, 0.08, 0.16, '#f97316', bevel=0, linha=0.003)
     for y in (0.22, 0.78):
-        haste((1.65, y, 0.18), (1.75, y, 1.0), 0.04, '#94a3b8')
-    caixa(1.6, 0.2, 1.85, 0.8, 0.95, 1.12, '#475569', bevel=0.03, linha=0.008)
-    emissivo(caixa(1.62, 0.3, 1.66, 0.7, 1.0, 1.1, '#4ade80', bevel=0, linha=0.002), '#4ade80', 1.4)
+        haste((1.65, y, 0.18), (1.75, y, 1.0), 0.04, '#94a3b8')                                # uprights
+        haste((0.6, y, 0.85), (1.72, y, 0.85), 0.03, '#facc15', linha=0.006)                   # handrails
+        haste((0.6, y, 0.85), (0.6, y, 0.18), 0.025, '#94a3b8', linha=0.006)
+        haste((0.9, y, 0.2), (0.9, 0.5, 0.95), 0.012, '#22c55e', linha=0.003)                   # green bungee cords
+    caixa(0.82, 0.42, 0.98, 0.58, 0.9, 1.0, '#22c55e', bevel=0.02, linha=0.004)                # harness clip
+    caixa(1.6, 0.2, 1.85, 0.8, 0.95, 1.15, '#334155', bevel=0.03, linha=0.008)                 # console
+    emissivo(caixa(1.58, 0.3, 1.6, 0.7, 1.0, 1.1, '#4ade80', bevel=0, linha=0.002), '#4ade80', 1.4)
+    for k, c in enumerate(('#ef4444', '#facc15', '#38bdf8')):
+        emissivo(esfera(1.59, 0.35 + k * 0.15, 0.97, 0.02, 0.012, 0.02, c, linha=0.002), c, 2.0)
+    caixa(1.2, 0.33, 1.42, 0.47, 0.2, 0.28, '#f8fafc', bevel=0.03, linha=0.004)                # a pair of sneakers
+    caixa(1.2, 0.53, 1.42, 0.67, 0.2, 0.28, '#f8fafc', bevel=0.03, linha=0.004)
 
 
-def plantas():                               # 1 x 1: plant rack under pink grow lights (Veggie)
-    caixa(0.1, 0.1, 0.9, 0.9, 0, 0.5, '#e2e8f0', bevel=0.04, linha=0.01)
-    for x in (0.3, 0.7):
-        for y in (0.3, 0.7):
-            esfera(x, y, 0.62, 0.17, 0.17, 0.14, '#22c55e', linha=0.008)
+def plantas():                               # 1 x 1: Veggie garden: lettuce and red zinnias under pink lights
+    caixa(0.1, 0.1, 0.9, 0.9, 0, 0.4, '#e2e8f0', bevel=0.04, linha=0.01)
+    caixa(0.08, 0.88, 0.92, 0.91, 0.08, 0.3, '#22c55e', bevel=0, linha=0.003)                 # green label stripe
+    caixa(0.14, 0.14, 0.86, 0.86, 0.4, 0.46, '#a16207', bevel=0.01, linha=0.004)              # soil pillows
+    for (x, y, c) in ((0.3, 0.3, '#22c55e'), (0.7, 0.3, '#4ade80'), (0.3, 0.7, '#16a34a'), (0.7, 0.7, '#86efac')):
+        esfera(x, y, 0.55, 0.14, 0.14, 0.11, c, linha=0.008)                                   # lettuce heads
+        esfera(x + 0.04, y + 0.05, 0.63, 0.08, 0.08, 0.06, '#bbf7d0', linha=0.004)
+    for (x, y) in ((0.5, 0.5), (0.5, 0.82)):                                                  # red zinnia flowers
+        haste((x, y, 0.46), (x, y, 0.78), 0.01, '#15803d', linha=0.003)
+        esfera(x, y, 0.8, 0.06, 0.06, 0.03, '#ef4444', linha=0.004)
+        esfera(x, y, 0.82, 0.025, 0.025, 0.02, '#facc15', linha=0.002)
     for x in (0.12, 0.82):
-        caixa(x, 0.12, x + 0.06, 0.88, 0.5, 1.05, '#94a3b8', bevel=0, linha=0.005)
-    emissivo(caixa(0.12, 0.12, 0.88, 0.88, 1.0, 1.06, '#f472b6', bevel=0.01, linha=0.004), '#f472b6', 1.8)
+        caixa(x, 0.12, x + 0.06, 0.88, 0.4, 1.05, '#94a3b8', bevel=0, linha=0.005)
+    caixa(0.12, 0.12, 0.88, 0.88, 1.04, 1.1, '#cbd5e1', bevel=0.01, linha=0.006)
+    emissivo(caixa(0.16, 0.16, 0.84, 0.84, 1.01, 1.04, '#f472b6', bevel=0.005, linha=0.003), '#f9a8d4', 2.0)   # pink grow lights
 
 
-def bolsas():                                # 1 x 1: soft cargo bags, stacked
-    for k, (z, c) in enumerate(((0, '#f1f5f9'), (0.32, '#e2e8f0'), (0.64, '#f8fafc'))):
-        d = 0.06 * (k % 2)
-        caixa(0.12 + d, 0.15, 0.88 + d * 0.5, 0.85, z, z + 0.3, c, bevel=0.08, linha=0.01)
-        caixa(0.4 + d, 0.14, 0.6 + d, 0.86, z + 0.1, z + 0.2, '#93c5fd', bevel=0, linha=0.003)
+def bolsas():                                # 1 x 1: soft cargo bags in bright colors, held by a net
+    for k, (z, c, tira) in enumerate(((0, '#f1f5f9', '#3b82f6'), (0.3, '#fde68a', '#f97316'), (0.6, '#e0f2fe', '#22c55e'))):
+        d = 0.05 * (k % 2)
+        caixa(0.12 + d, 0.15, 0.88 + d * 0.4, 0.85, z, z + 0.29, c, bevel=0.08, linha=0.01)
+        caixa(0.4 + d, 0.14, 0.52 + d, 0.86, z + 0.02, z + 0.28, tira, bevel=0, linha=0.003)   # colored strap
+        caixa(0.62 + d, 0.86, 0.8 + d, 0.87, z + 0.08, z + 0.2, '#ffffff', bevel=0, linha=0.002)  # label
+    for x in (0.2, 0.45, 0.7):                                                                # cargo net
+        haste((x, 0.88, 0.0), (x + 0.15, 0.88, 0.9), 0.008, '#facc15', linha=0.002)
+    haste((0.12, 0.88, 0.45), (0.92, 0.88, 0.45), 0.008, '#facc15', linha=0.002)
 
 
 def agua():                                  # 1 x 1: water tanks (water also blocks radiation)
-    for x in (0.3, 0.7):
-        cilindro(x, 0.5, 0.2, 0, 1.0, '#60a5fa', linha=0.012, bevel=0.04)
-        caixa(x - 0.21, 0.29, x + 0.21, 0.71, 0.45, 0.55, '#1e3a8a', bevel=0, linha=0.004)
+    caixa(0.05, 0.1, 0.95, 0.9, 0, 0.08, '#64748b', bevel=0.02, linha=0.008)
+    for x in (0.28, 0.72):
+        cilindro(x, 0.5, 0.2, 0.08, 1.0, '#60a5fa', linha=0.012, bevel=0.04)
+        cilindro(x, 0.5, 0.21, 0.4, 0.46, '#e0f2fe', linha=0.004)                              # white bands
+        cilindro(x, 0.5, 0.21, 0.75, 0.8, '#e0f2fe', linha=0.004)
+        cilindro(x, 0.5, 0.12, 1.0, 1.06, '#94a3b8', linha=0.006)                              # cap
+        emissivo(caixa(x - 0.05, 0.69, x + 0.05, 0.71, 0.15, 0.38, '#bae6fd', bevel=0, linha=0.002), '#e0f2fe', 1.2)  # level window
+    haste((0.28, 0.5, 1.06), (0.28, 0.5, 1.15), 0.02, '#94a3b8')                               # pipe between them
+    haste((0.28, 0.5, 1.15), (0.72, 0.5, 1.15), 0.02, '#94a3b8')
+    haste((0.72, 0.5, 1.15), (0.72, 0.5, 1.06), 0.02, '#94a3b8')
+    cilindro(0.5, 0.5, 0.05, 1.12, 1.18, '#facc15', v=12, linha=0.004)                         # valve wheel
 
 
-def medico():                                # 1 x 1: medical cabinet
+def medico():                                # 1 x 1: medical cabinet with a heart monitor
     caixa(0.1, 0.15, 0.9, 0.85, 0, 1.1, '#f8fafc', bevel=0.04, linha=0.012)
-    # The red cross on the face toward the camera (+gy).
-    caixa(0.42, 0.84, 0.58, 0.87, 0.45, 0.85, '#ef4444', bevel=0, linha=0.003)
-    caixa(0.3, 0.84, 0.7, 0.87, 0.57, 0.73, '#ef4444', bevel=0, linha=0.003)
+    caixa(0.08, 0.13, 0.92, 0.87, 1.1, 1.15, '#ef4444', bevel=0.02, linha=0.006)              # red top band
+    caixa(0.42, 0.84, 0.58, 0.87, 0.6, 0.95, '#ef4444', bevel=0, linha=0.003)                 # red cross
+    caixa(0.3, 0.84, 0.7, 0.87, 0.71, 0.84, '#ef4444', bevel=0, linha=0.003)
+    for z in (0.12, 0.33):                                                                    # drawers with handles
+        caixa(0.16, 0.84, 0.84, 0.86, z, z + 0.17, '#e2e8f0', bevel=0.005, linha=0.003)
+        caixa(0.42, 0.86, 0.58, 0.88, z + 0.07, z + 0.1, '#94a3b8', bevel=0, linha=0.002)
+    caixa(0.89, 0.25, 0.91, 0.75, 0.6, 0.95, '#0f172a', bevel=0, linha=0.003)                 # heart monitor (side)
+    for k in range(5):
+        hh = (0.02, 0.02, 0.12, 0.02, 0.02)[k]
+        emissivo(caixa(0.91, 0.3 + k * 0.09, 0.915, 0.37 + k * 0.09, 0.77 - hh / 2, 0.77 + hh / 2, '#4ade80', bevel=0, linha=0.001), '#86efac', 2.0)
+    caixa(0.28, 0.6, 0.6, 0.86, 1.15, 1.27, '#f97316', bevel=0.04, linha=0.005)               # first-aid bag on top
+    caixa(0.4, 0.86, 0.48, 0.87, 1.18, 1.24, '#ffffff', bevel=0, linha=0.001)
 
 
-def cockpit():                               # 2 x 1: piloting console and two seats
+def cockpit():                               # 2 x 1: piloting console with screens, a joystick and two seats
     caixa(0.1, 0.05, 1.9, 0.4, 0, 0.9, '#334155', bevel=0.04, linha=0.012)
-    for x in (0.3, 1.1):
-        emissivo(caixa(x, 0.38, x + 0.6, 0.42, 0.5, 0.85, '#38bdf8', bevel=0, linha=0.003), '#38bdf8', 1.6)
+    caixa(0.08, 0.03, 1.92, 0.42, 0.9, 0.96, '#f97316', bevel=0.02, linha=0.006)
+    for x, c, luz in ((0.2, '#38bdf8', '#7dd3fc'), (0.8, '#1e3a8a', '#3b82f6'), (1.4, '#22c55e', '#4ade80')):
+        caixa(x - 0.02, 0.39, x + 0.44, 0.41, 0.48, 0.86, '#0f172a', bevel=0, linha=0.003)
+        emissivo(caixa(x, 0.41, x + 0.42, 0.42, 0.5, 0.84, c, bevel=0, linha=0.002), luz, 1.4)
+    emissivo(esfera(1.02, 0.425, 0.7, 0.07, 0.01, 0.07, '#f97316', linha=0.002), '#fb923c', 1.8)    # Mars on the map screen
+    for k in range(4):                                                                        # trajectory dots
+        emissivo(esfera(0.86 + k * 0.04, 0.425, 0.58 + k * 0.03, 0.012, 0.005, 0.012, '#ffffff', linha=0.001), '#ffffff', 2.4)
+    caixa(0.1, 0.4, 1.9, 0.6, 0.38, 0.45, '#475569', bevel=0.02, linha=0.006)                  # desk shelf
+    for k, c in enumerate(('#ef4444', '#facc15', '#4ade80', '#38bdf8', '#f472b6', '#facc15')):
+        cilindro(0.3 + k * 0.25, 0.5, 0.03, 0.45, 0.48, c, v=10, linha=0.003)                   # buttons
     for x in (0.55, 1.45):
-        cilindro(x, 0.75, 0.22, 0, 0.45, '#f97316', linha=0.01, bevel=0.04)
-        caixa(x - 0.22, 0.88, x + 0.22, 0.98, 0.45, 1.0, '#f97316', bevel=0.04, linha=0.008)
+        haste((x, 0.52, 0.45), (x, 0.52, 0.6), 0.015, '#1f2937', linha=0.004)                  # joysticks
+        esfera(x, 0.52, 0.62, 0.035, 0.035, 0.035, '#ef4444', linha=0.004)
+        cilindro(x, 0.78, 0.07, 0, 0.3, '#64748b', linha=0.006)                                 # seat post
+        caixa(x - 0.2, 0.62, x + 0.2, 0.95, 0.3, 0.4, '#f97316', bevel=0.04, linha=0.008)       # seat
+        caixa(x - 0.2, 0.88, x + 0.2, 0.98, 0.4, 0.95, '#f97316', bevel=0.04, linha=0.008)      # back rest
+        caixa(x - 0.12, 0.9, x + 0.12, 0.99, 0.95, 1.08, '#fed7aa', bevel=0.03, linha=0.006)    # head rest
+        for dx in (-0.1, 0.1):
+            caixa(x + dx - 0.02, 0.86, x + dx + 0.02, 0.88, 0.45, 0.9, '#1e293b', bevel=0, linha=0.002)   # harness straps
+
+
+# ---------- fun-fact props: each one tells kids a real fact about the trip ----------
+def janela():                                # 1 x 1: a big porthole with Mars far away, and a toy car
+    caixa(0.08, 0.62, 0.92, 0.8, 0, 1.35, PAREDE, bevel=0.04, linha=0.012)                     # wall panel
+    caixa(0.06, 0.6, 0.94, 0.82, 0, 0.1, '#64748b', bevel=0.02, linha=0.008)
+    rot = (math.pi / 2, 0, 0)
+    o = cilindro(0.5, 0.82, 0.3, 0.8, 0.86, '#e2e8f0', rot=rot, linha=0.008)
+    o.location = (0.5, -0.83, 0.82)
+    o = cilindro(0.5, 0.82, 0.25, 0.81, 0.88, '#1e1b4b', rot=rot, linha=0.004)                  # deep space glass
+    o.location = (0.5, -0.845, 0.82); emissivo(o, '#1e3a8a', 0.9)
+    emissivo(esfera(0.6, 0.875, 0.9, 0.075, 0.03, 0.075, '#f97316', linha=0.003), '#fb923c', 1.6)   # Mars, far away
+    emissivo(esfera(0.37, 0.875, 0.72, 0.035, 0.015, 0.035, '#38bdf8', linha=0.002), '#7dd3fc', 1.6)  # Earth, tiny
+    for (x, z) in ((0.42, 0.95), (0.66, 0.68), (0.33, 0.86), (0.55, 0.62), (0.7, 0.98), (0.47, 0.78)):
+        emissivo(esfera(x, 0.875, z, 0.012, 0.006, 0.012, '#ffffff', linha=0.001), '#ffffff', 2.4)   # stars
+    o = cilindro(0.5, 0.82, 0.34, 0.78, 0.84, FAIXA, rot=rot, linha=0.01)
+    o.location = (0.5, -0.82, 0.82)
+    for x in (0.12, 0.88):
+        haste((x, 0.86, 0.35), (x, 0.86, 1.15), 0.025, ALERTA, linha=0.006)                    # yellow handrails
+    caixa(0.18, 0.8, 0.82, 0.98, 0.3, 0.35, FAIXA, bevel=0.01, linha=0.008)                     # shelf
+    caixa(0.36, 0.84, 0.64, 0.94, 0.38, 0.45, '#ef4444', bevel=0.015, linha=0.006)             # toy car body
+    caixa(0.42, 0.85, 0.58, 0.93, 0.45, 0.5, '#fecaca', bevel=0.01, linha=0.004)               # its windows
+    for x in (0.41, 0.59):
+        for y in (0.84, 0.94):
+            o = cilindro(x, y, 0.028, -0.0275, 0.0275, '#1f2937', v=10, rot=(math.pi / 2, 0, 0), linha=0.003)
+            o.location = (x, -y, 0.38)
+
+
+def radio():                                 # 1 x 1: the radio desk to talk with Earth
+    caixa(0.1, 0.25, 0.9, 0.9, 0, 0.55, '#cbd5e1', bevel=0.04, linha=0.012)                    # desk
+    caixa(0.08, 0.23, 0.92, 0.92, 0.55, 0.6, FAIXA, bevel=0.02, linha=0.008)
+    caixa(0.15, 0.3, 0.85, 0.62, 0.6, 1.0, '#475569', bevel=0.04, linha=0.012)                 # radio box
+    caixa(0.2, 0.6, 0.62, 0.63, 0.72, 0.94, '#0f172a', bevel=0, linha=0.004)                   # screen
+    emissivo(caixa(0.22, 0.625, 0.6, 0.635, 0.74, 0.92, '#22c55e', bevel=0, linha=0.002), '#4ade80', 1.0)
+    for k in range(6):                                                                         # sound wave bars
+        hh = (0.04, 0.09, 0.14, 0.07, 0.12, 0.05)[k]
+        emissivo(caixa(0.26 + k * 0.055, 0.636, 0.29 + k * 0.055, 0.642, 0.83 - hh / 2, 0.83 + hh / 2, '#dcfce7', bevel=0, linha=0.001), '#f0fdf4', 2.0)
+    for (z, c) in ((0.9, '#facc15'), (0.76, '#38bdf8')):                                      # big knobs
+        o = cilindro(0.73, 0.64, 0.055, -0.03, 0.03, c, v=14, rot=(math.pi / 2, 0, 0), linha=0.006)
+        o.location = (0.73, -0.64, z)
+    for k, c in enumerate(('#ef4444', '#facc15', '#4ade80')):                                  # buttons on the desk
+        cilindro(0.25 + k * 0.12, 0.78, 0.035, 0.6, 0.63, c, v=12, linha=0.004)
+    haste((0.72, 0.75, 0.6), (0.72, 0.75, 0.82), 0.012, '#94a3b8', linha=0.004)                # microphone stalk
+    esfera(0.72, 0.75, 0.86, 0.045, 0.045, 0.06, '#1f2937', linha=0.006)
+    emissivo(esfera(0.72, 0.75, 0.93, 0.015, 0.015, 0.015, '#ef4444', linha=0.002), '#f87171', 2.0)
+    haste((0.8, 0.4, 1.0), (0.8, 0.4, 1.4), 0.012, '#94a3b8', linha=0.004)                     # antenna
+    emissivo(esfera(0.8, 0.4, 1.42, 0.03, 0.03, 0.03, '#ef4444', linha=0.003), '#f87171', 2.0)
+    esfera(0.35, 0.82, 0.68, 0.08, 0.04, 0.08, '#f97316', linha=0.006)                         # headset ear cups
+    esfera(0.5, 0.82, 0.68, 0.08, 0.04, 0.08, '#f97316', linha=0.006)
+    haste((0.35, 0.82, 0.76), (0.5, 0.82, 0.76), 0.012, '#334155', linha=0.003)
+
+
+def reciclador():                            # 1 x 1: pee in, clean water out
+    caixa(0.08, 0.1, 0.92, 0.9, 0, 0.12, '#64748b', bevel=0.02, linha=0.008)                   # base
+    for (x, cor, luz) in ((0.3, '#fde047', '#fef08a'), (0.7, '#38bdf8', '#7dd3fc')):          # yellow tank -> blue tank
+        cilindro(x, 0.5, 0.17, 0.12, 0.95, '#e2e8f0', linha=0.012, bevel=0.03)
+        emissivo(cilindro(x, 0.5, 0.175, 0.2, 0.75, cor, linha=0.004), luz, 0.9)               # the liquid shows
+        cilindro(x, 0.5, 0.19, 0.95, 1.02, FAIXA, linha=0.008)
+    haste((0.3, 0.5, 1.02), (0.3, 0.5, 1.15), 0.03, '#94a3b8')                                 # pipe over the top
+    haste((0.3, 0.5, 1.15), (0.7, 0.5, 1.15), 0.03, '#94a3b8')
+    haste((0.7, 0.5, 1.15), (0.7, 0.5, 1.02), 0.03, '#94a3b8')
+    caixa(0.42, 0.42, 0.58, 0.58, 1.08, 1.22, '#a78bfa', bevel=0.02, linha=0.006)             # cleaning filter
+    haste((0.7, 0.68, 0.35), (0.7, 0.86, 0.35), 0.025, '#94a3b8')                              # tap
+    cilindro(0.7, 0.88, 0.03, 0.28, 0.36, '#94a3b8', v=10, linha=0.004)
+    cilindro(0.7, 0.88, 0.06, 0.12, 0.24, '#f8fafc', v=14, linha=0.006)                        # cup
+    emissivo(esfera(0.7, 0.88, 0.26, 0.03, 0.03, 0.04, '#38bdf8', linha=0.003), '#7dd3fc', 1.6)  # floating drop
+    emissivo(esfera(0.5, 0.88, 0.3, 0.03, 0.02, 0.03, '#4ade80', linha=0.003), '#86efac', 2.4)   # OK light
+
+
+def chama():                                 # 1 x 1: the flame experiment box: fire burns as a round ball
+    caixa(0.08, 0.1, 0.92, 0.9, 0, 0.45, '#cbd5e1', bevel=0.04, linha=0.012)                   # cabinet
+    for k in range(4):                                                                         # warning stripes
+        caixa(0.12 + k * 0.2, 0.895, 0.22 + k * 0.2, 0.91, 0.05, 0.12, ALERTA, bevel=0, linha=0.002)
+    for x in (0.3, 0.7):                                                                       # glove ports
+        o = cilindro(x, 0.91, 0.09, -0.015, 0.015, '#1f2937', v=16, rot=(math.pi / 2, 0, 0), linha=0.005)
+        o.location = (x, -0.91, 0.25)
+        o = cilindro(x, 0.92, 0.06, -0.01, 0.01, '#f97316', v=16, rot=(math.pi / 2, 0, 0), linha=0.003)
+        o.location = (x, -0.925, 0.25)
+    for x in (0.12, 0.88):                                                                     # orange frame posts
+        for y in (0.14, 0.86):
+            haste((x, y, 0.45), (x, y, 1.4), 0.025, FAIXA, linha=0.006)
+    caixa(0.1, 0.12, 0.9, 0.88, 1.4, 1.47, FAIXA, bevel=0.02, linha=0.008)                     # lid
+    cilindro(0.5, 0.5, 0.02, 0.45, 0.62, '#94a3b8', v=8, linha=0.003)                          # the wick holder
+    emissivo(esfera(0.5, 0.5, 0.8, 0.22, 0.22, 0.22, '#1d4ed8', linha=0.008), '#2563eb', 1.3)  # round blue flame
+    emissivo(esfera(0.52, 0.6, 0.8, 0.13, 0.13, 0.13, '#60a5fa', linha=0.004), '#60a5fa', 1.8)  # inner glow
+    emissivo(esfera(0.54, 0.68, 0.8, 0.06, 0.06, 0.06, '#ffffff', linha=0.002), '#ffffff', 2.4)  # bright core
+    caixa(0.6, 0.88, 0.85, 0.9, 0.3, 0.42, '#1e293b', bevel=0, linha=0.003)                    # little label
+    emissivo(caixa(0.62, 0.895, 0.83, 0.905, 0.32, 0.4, '#fde047', bevel=0, linha=0.001), '#fef08a', 1.2)
 
 
 PROPS = {'nave_motores': (motores, 3, 3), 'nave_beliche': (beliche, 2, 1), 'nave_mesa': (mesa, 2, 2),
          'nave_esteira': (esteira, 2, 1), 'nave_plantas': (plantas, 1, 1), 'nave_bolsas': (bolsas, 1, 1),
-         'nave_agua': (agua, 1, 1), 'nave_medico': (medico, 1, 1), 'nave_cockpit': (cockpit, 2, 1)}
+         'nave_agua': (agua, 1, 1), 'nave_medico': (medico, 1, 1), 'nave_cockpit': (cockpit, 2, 1),
+         'nave_janela': (janela, 1, 1), 'nave_radio': (radio, 1, 1), 'nave_reciclador': (reciclador, 1, 1), 'nave_chama': (chama, 1, 1)}
 
 
 def main():
     os.makedirs(os.path.join(OUT, 'props'), exist_ok=True)
+    # NAVE_PROPS=nave_radio,nave_janela renders only those props and keeps the deck and the other entries.
+    so = [n for n in os.environ.get('NAVE_PROPS', '').split(',') if n]
+    if so:
+        caminho = os.path.join(ROOT, 'src', 'dados', 'nave_props.json')
+        saida = json.load(open(caminho))
+        for nome in so:
+            fn, w, h = PROPS[nome]
+            limpar(); fn()
+            Wp, Hp, a = render(os.path.join(OUT, 'props', f'{nome}.png'))
+            saida[nome] = {'arquivo': f'nave/props/{nome}.png', 'w': Wp, 'h': Hp, 'escala': 1 / SUPER, 'ancora': a, 'pegada': [w, h]}
+            print('prop', nome, Wp, Hp, flush=True)
+        with open(caminho, 'w') as f: json.dump(saida, f, indent=1)
+        print('DONE')
+        return
     # The terrain: flat inside the hull; outside it is a wall the engine will not walk or build on.
     alturas = [[0.0 if dentro(i, j) else 3.0 for i in range(N + 1)] for j in range(N + 1)]
     incl = [[0.0 if dentro(i + 0.5, j + 0.5) and dentro(i, j) and dentro(i + 1, j + 1) else 90.0 for i in range(N)] for j in range(N)]

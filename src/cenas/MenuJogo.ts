@@ -1,29 +1,31 @@
 import Phaser from 'phaser';
-import { letra, criarPilula, criarBotaoPilula, botaoVerde } from '../tarefas/estilo';
-import { alternarMudo, estaMudo, volumeMusica, definirVolumeMusica } from '../audio';
-import { alternarEfeitos, efeitosEstaoMudos, volumeEfeitos, definirVolumeEfeitos, tocarSfx } from '../sfx';
+import { CONTORNO, COR_BOTAO_TELA, letra, criarBotaoPilula, botaoVerde, botaoFechar, moldura, pilulaEscura, type Caixa } from '../tarefas/estilo';
+import { volumeMusica, definirVolumeMusica } from '../audio';
+import { volumeEfeitos, definirVolumeEfeitos, tocarSfx } from '../sfx';
 import { video, atualizarVideo, type Video } from '../video';
 import { SKINS } from '../dados/skins';
 import { sessao, dataBonita } from './sessao';
+import { idioma, escolherIdioma } from '../idioma';
 
 type Pagina = 'menu' | 'settings' | 'video';
 type DadosMenu = { aoSairTitulo: () => void };
 
 // A separate overlay keeps the world, mission panels and tutorial timers paused together.
+// Every page is a window of the title screen (Radar.janela): the task frame with its blue screen,
+// the title pill, the red X and a green button in the footer; SETTINGS has the same rows as the
+// title screen's gear.
 export class MenuJogo extends Phaser.Scene {
   private pagina: Pagina = 'menu';
   private pausadas: string[] = [];
   private aoSairTitulo!: () => void;
   private u = 1;
-  private conteudo!: Phaser.GameObjects.Container;
-  private largura = 0;
-  private altura = 0;
-  private proximoy = 0;
+  private idiomaMudou = false;
 
   constructor() { super({ key: 'MenuJogo' }); }
 
   create(dados: DadosMenu) {
     this.pagina = 'menu';
+    this.idiomaMudou = false;
     this.aoSairTitulo = dados.aoSairTitulo;
     this.pausadas = [];
     for (const chave of ['Espaco', 'Superficie', 'Interface']) {
@@ -35,10 +37,8 @@ export class MenuJogo extends Phaser.Scene {
     this.scene.bringToTop();
     const resize = () => this.desenhar();
     this.scale.on('resize', resize);
-    this.input.keyboard?.on('keydown-ESC', () => {
-      if (this.pagina === 'menu') this.fechar();
-      else this.abrirPagina(this.pagina === 'video' ? 'settings' : 'menu');
-    });
+    this.input.keyboard?.on('keydown-ESC', () => this.voltar());
+    this.input.keyboard?.on('keydown-ENTER', () => this.voltar());
     this.events.once('shutdown', () => {
       this.scale.off('resize', resize);
       for (const chave of this.pausadas) {
@@ -50,118 +50,123 @@ export class MenuJogo extends Phaser.Scene {
     this.desenhar();
   }
 
-  private px(n: number) { return Math.round(n * this.u); }
   private fechar() { tocarSfx('fechar'); this.scene.stop(); }
+  private voltar() {
+    if (this.pagina === 'menu') this.fechar();
+    else this.abrirPagina(this.pagina === 'video' ? 'settings' : 'menu');
+  }
   private abrirPagina(pagina: Pagina) { this.pagina = pagina; this.desenhar(); }
 
   private desenhar() {
     this.tweens.killAll();
     this.children.removeAll(true);
     const W = this.scale.width, H = this.scale.height;
-    // Keep readable text on phones while fitting the tallest page in landscape.
-    this.u = Math.min(1.2, (W - 32) / 420, (H - 32) / 520);
-    const px = (n: number) => this.px(n);
-    this.largura = px(420);
-    this.altura = px(this.pagina === 'menu' ? 338 : this.pagina === 'settings' ? 490 : 506);
-    const fundo = this.add.rectangle(0, 0, W, H, 0x050e25, 0.78).setOrigin(0).setInteractive();
-    fundo.on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => ev.stopPropagation());
-    this.conteudo = this.add.container(Math.round((W - this.largura) / 2), Math.round((H - this.altura) / 2));
-    const g = this.add.graphics()
-      .fillStyle(0x050b1b, 0.65).fillRoundedRect(px(3), px(8), this.largura, this.altura, px(28))
-      .fillStyle(0x14243e).fillRoundedRect(0, 0, this.largura, this.altura, px(28))
-      .lineStyle(px(3), 0xffffff).strokeRoundedRect(0, 0, this.largura, this.altura, px(28))
-      .lineStyle(px(1), 0x7dd3fc, 0.35).strokeRoundedRect(px(7), px(7), this.largura - px(14), this.altura - px(14), px(22));
-    const titulo = this.pagina === 'menu' ? 'MISSION PAUSED' : this.pagina === 'settings' ? 'SETTINGS' : 'VIDEO & COMFORT';
-    const texto = this.add.text(Math.round(this.largura / 2), px(40), titulo, letra(px(28), '#fde047', { stroke: '#07142f', strokeThickness: px(5) })).setOrigin(0.5);
-    this.conteudo.add([g, texto]);
-    const fechar = criarBotaoPilula(this, { x: this.largura - px(44), y: px(14), w: px(28), h: px(28) }, this.u, '\u00d7', () => this.fechar());
-    fechar.caixa.setData('acao', 'close'); this.conteudo.add(fechar.caixa);
-    this.proximoy = px(82);
-    if (this.pagina === 'menu') this.menu();
-    else if (this.pagina === 'settings') this.configuracoes();
-    else this.configuracoesVideo();
+    const u = this.u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.5, 1.4);
+    this.add.rectangle(0, 0, W, H, 0x020617, 0.6).setOrigin(0).setInteractive()
+      .on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => ev.stopPropagation());
+    const [titulo, lw, lh, rodape] = this.pagina === 'menu' ? ['MISSION PAUSED', 520, 400, 'CONTINUE  ▶']
+      : this.pagina === 'settings' ? ['SETTINGS', 520, 540, 'DONE'] : ['VIDEO & COMFORT', 560, 470, 'DONE'];
+    const largura = Math.min(W - 40 * u, lw * u), altura = Math.min(H - 40 * u, lh * u);
+    const x0 = (W - largura) / 2, y0 = (H - altura) / 2 - 8 * u;
+    const { tela, rodape: pe, borda } = moldura(this, { x: x0, y: y0, w: largura, h: altura }, u, titulo);
+    if (this.pagina === 'menu') this.menu(tela);
+    else if (this.pagina === 'settings') this.configuracoes(tela);
+    else this.configuracoesVideo(tela);
+    borda();
+    botaoVerde(this, x0 + largura / 2, pe.y + pe.h / 2, rodape, 20 * u, Math.min(pe.h, 50 * u), u, () => { tocarSfx('clique'); this.voltar(); },
+      { pulsar: false, animarHover: true }).setData('acao', this.pagina === 'menu' ? 'continue' : 'back');
+    botaoFechar(this, x0 + 4 * u, y0 + 4 * u, u, () => this.fechar()).setData('acao', 'close');
   }
 
-  private botao(texto: string, acao: () => void, id: string, verde = false) {
-    const px = (n: number) => this.px(n);
-    const b = { x: px(28), y: this.proximoy, w: this.largura - px(56), h: px(48) };
-    let caixa: Phaser.GameObjects.Container;
-    if (verde) caixa = botaoVerde(this, Math.round(b.x + b.w / 2), Math.round(b.y + b.h / 2), texto, px(20), b.h, this.u, acao,
-      { largura: b.w, altura: b.h, pulsar: false, pararPropagacao: true, animarHover: true });
-    else caixa = criarBotaoPilula(this, b, this.u, texto, acao).caixa;
-    caixa.setData('acao', id); this.conteudo.add(caixa);
-    this.proximoy += b.h + px(12);
+  // A full-width button inside the screen, centred on y.
+  private botao(tela: Caixa, y: number, texto: string, acao: () => void, id: string, cor?: number) {
+    const u = this.u, w = Math.min(tela.w - 80 * u, 340 * u), h = 52 * u;
+    const b = criarBotaoPilula(this, { x: tela.x + (tela.w - w) / 2, y: y - h / 2, w, h }, u, texto, () => { tocarSfx('clique'); acao(); }, cor);
+    b.texto.setFontSize(Math.round(20 * u));
+    b.caixa.setData('acao', id);
   }
 
-  private menu() {
-    const px = (n: number) => this.px(n);
-    const etiqueta = criarPilula(this, px(74), this.proximoy, this.largura - px(148), px(28), this.u, 0x0b1a4a, 0x334e83);
-    const texto = sessao.fase === 'inicio' ? 'Exploring the Moon' : `Day ${sessao.estado.dia} \u00b7 ${dataBonita(sessao.data)}`;
-    etiqueta.add(this.add.text(Math.round((this.largura - px(148)) / 2), px(14), texto, letra(px(12), '#bfdbfe')).setOrigin(0.5));
-    this.conteudo.add(etiqueta); this.proximoy += px(46);
-    this.botao('Continue  \u25b6', () => this.fechar(), 'continue', true);
-    this.botao('Settings', () => this.abrirPagina('settings'), 'settings');
-    this.botao('Save & main menu', () => { sessao.salvar(); this.aoSairTitulo(); this.fechar(); }, 'main-menu');
-    this.conteudo.add(this.add.text(Math.round(this.largura / 2), this.altura - px(19), 'Autosave on this device · ESC to continue', letra(px(11), '#93a9ca')).setOrigin(0.5));
+  private menu(tela: Caixa) {
+    const u = this.u, cx = tela.x + tela.w / 2;
+    const texto = sessao.fase === 'inicio' ? 'Exploring the Moon' : `Day ${sessao.estado.dia} · ${dataBonita(sessao.data)}`;
+    const t = this.add.text(cx, tela.y + tela.h * 0.2, texto, letra(17 * u, '#ffffff')).setOrigin(0.5).setDepth(1);
+    const pw = t.width + 44 * u, ph = t.height + 14 * u;
+    pilulaEscura(this.add.graphics(), cx - pw / 2, t.y - ph / 2, pw, ph, u);
+    this.botao(tela, tela.y + tela.h * 0.48, 'SETTINGS', () => this.abrirPagina('settings'), 'settings');
+    this.botao(tela, tela.y + tela.h * 0.76, 'SAVE & MAIN MENU', () => { sessao.salvar(); this.aoSairTitulo(); this.fechar(); }, 'main-menu', 0x475569);
+    this.add.text(cx, tela.y + tela.h - 14 * u, 'Autosave on this device · ESC to continue', letra(12 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0.5);
   }
 
-  private alternancia(rotulo: string, valor: string, acao: () => void, id: string) {
-    const px = (n: number) => this.px(n), y = this.proximoy;
-    this.conteudo.add(this.add.text(px(30), y + px(19), rotulo, letra(px(18))).setOrigin(0, 0.5));
-    const b = criarBotaoPilula(this, { x: this.largura - px(158), y, w: px(128), h: px(38) }, this.u, valor, () => { acao(); this.desenhar(); });
-    b.caixa.setData('acao', id); this.conteudo.add(b.caixa);
-    this.proximoy += px(50);
-  }
-
-  private volume(rotulo: string, obter: () => number, definir: (v: number) => void, id: string) {
-    const px = (n: number) => this.px(n), y = this.proximoy;
-    const label = this.add.text(px(30), y + px(12), rotulo, letra(px(13), '#a9bfdc')).setOrigin(0, 0.5);
-    const numero = this.add.text(this.largura - px(30), y + px(12), `${Math.round(obter() * 100)}%`, letra(px(13), '#dbeafe')).setOrigin(1, 0.5);
-    this.conteudo.add([label, numero]);
-    const esquerda = px(30), w = this.largura - px(60), cy = y + px(34), h = px(8);
-    const track = this.add.graphics(), area = this.add.zone(esquerda, cy - px(12), w, px(24)).setOrigin(0).setInteractive({ useHandCursor: true });
-    area.setData('acao', id);
-    const pintar = () => {
-      track.clear().fillStyle(0x08152d).fillRoundedRect(esquerda, cy - Math.round(h / 2), w, h, Math.round(h / 2));
-      const cheio = Math.round(w * obter());
-      if (cheio) track.fillStyle(0x60a5fa).fillRoundedRect(esquerda, cy - Math.round(h / 2), cheio, h, Math.min(h / 2, cheio / 2));
-      track.fillStyle(0xffffff).fillCircle(esquerda + cheio, cy, px(6));
-      numero.setText(`${Math.round(obter() * 100)}%`);
+  // Same rows as the title screen's gear (Radar.configurarAudio), plus the way to the video options.
+  private configuracoes(tela: Caixa) {
+    const u = this.u, linhas = 6;
+    const yLinha = (i: number) => tela.y + tela.h * (i + 0.5) / linhas;
+    const volumes: [string, () => number, (v: number) => void, string][] = [
+      ['Music', volumeMusica, definirVolumeMusica, 'music-volume'], ['Sound effects', volumeEfeitos, definirVolumeEfeitos, 'effects-volume']];
+    volumes.forEach(([nome, ler, definir, id], i) => {
+      const y = yLinha(i);
+      this.add.text(tela.x + 20 * u, y, nome, letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
+      const valor = this.add.text(tela.x + tela.w - 132 * u, y, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(0.5);
+      const atualizar = () => valor.setText(`${Math.round(ler() * 100)}%`);
+      for (const [x, s, d] of [[tela.x + tela.w - 215 * u, '−', -0.1], [tela.x + tela.w - 48 * u, '+', 0.1]] as const) {
+        const b = criarBotaoPilula(this, { x: x - 21 * u, y: y - 19 * u, w: 42 * u, h: 38 * u }, u, s, () => { tocarSfx('clique'); definir(ler() + d); atualizar(); }, COR_BOTAO_TELA);
+        b.texto.setFontSize(Math.round(20 * u));
+        b.caixa.setData('acao', `${id}-${d > 0 ? 'up' : 'down'}`);
+      }
+      atualizar();
+    });
+    // Language: the whole menu redraws, the paused scenes behind it are rewritten by idiomaPhaser.
+    const yI = yLinha(2), wI = 160 * u, hI = 40 * u;
+    this.add.text(tela.x + 20 * u, this.idiomaMudou ? yI - 10 * u : yI, 'Language', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
+    criarBotaoPilula(this, { x: tela.x + tela.w - 20 * u - wI, y: yI - hI / 2, w: wI, h: hI }, u, idioma === 'pt' ? 'Português' : 'English', () => {
+      tocarSfx('clique'); escolherIdioma(idioma === 'pt' ? 'en' : 'pt'); this.idiomaMudou = true; this.desenhar();
+    }, COR_BOTAO_TELA).caixa.setData('acao', 'language');
+    // Like the video quality note: texts built from other values (dates) switch on their next update.
+    if (this.idiomaMudou) this.add.text(tela.x + 20 * u, yI + 13 * u, 'Some texts update tomorrow.', letra(12 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
+    // Astronaut suit: one swatch per skin.
+    const yS = yLinha(3);
+    this.add.text(tela.x + 20 * u, yS, 'Astronaut suit', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
+    const nome = this.add.text(tela.x + tela.w - 20 * u, yS, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(1, 0.5);
+    const hex = (c: string) => Number.parseInt(c.slice(1), 16);
+    const lado = 42 * u, raio = 9 * u;
+    const aneis: Phaser.GameObjects.Graphics[] = [];
+    const atualizarSkin = () => {
+      aneis.forEach((a, i) => a.setAlpha(SKINS[i].id === video.skin ? 1 : 0));
+      nome.setText(SKINS.find((s) => s.id === video.skin)?.nome ?? '');
     };
-    let arrastando = false;
-    const ajustar = (pointer: Phaser.Input.Pointer) => {
-      const bounds = area.getBounds();
-      definir(Phaser.Math.Clamp((pointer.x - bounds.x) / bounds.width, 0, 1)); pintar();
-    };
-    area.on('pointerdown', (pointer: Phaser.Input.Pointer, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => { ev.stopPropagation(); arrastando = true; ajustar(pointer); });
-    const mover = (pointer: Phaser.Input.Pointer) => { if (arrastando && pointer.isDown) ajustar(pointer); };
-    const soltar = () => { arrastando = false; };
-    this.input.on('pointermove', mover).on('pointerup', soltar);
-    area.once('destroy', () => { this.input.off('pointermove', mover).off('pointerup', soltar); });
-    this.conteudo.add([track, area]); pintar();
-    this.proximoy += px(52);
+    SKINS.forEach((s, i) => {
+      const m = 20 * u + lado / 2 + 4 * u;
+      const x = tela.x + m + (tela.w - 2 * m) * i / (SKINS.length - 1), y = yLinha(4);
+      aneis.push(this.add.graphics().lineStyle(4 * u, 0xfde047)
+        .strokeRoundedRect(x - lado / 2 - 5 * u, y - lado / 2 - 5 * u, lado + 10 * u, lado + 10 * u, raio + 4 * u));
+      this.add.graphics().fillStyle(hex(s.cor)).fillRoundedRect(x - lado / 2, y - lado / 2, lado, lado, raio)
+        .lineStyle(3 * u, CONTORNO).strokeRoundedRect(x - lado / 2, y - lado / 2, lado, lado, raio)
+        .setInteractive(new Phaser.Geom.Rectangle(x - lado / 2, y - lado / 2, lado, lado), Phaser.Geom.Rectangle.Contains)
+        .on('pointerover', () => tocarSfx('suave'))
+        .on('pointerdown', () => { tocarSfx('clique'); atualizarVideo({ skin: s.id }); atualizarSkin(); });
+    });
+    atualizarSkin();
+    this.botao(tela, yLinha(5), 'VIDEO & COMFORT  ›', () => this.abrirPagina('video'), 'video', COR_BOTAO_TELA);
   }
 
-  private configuracoes() {
-    this.alternancia('Music', estaMudo() ? 'Off' : 'On', () => { alternarMudo(); }, 'music');
-    this.volume('Music volume', volumeMusica, definirVolumeMusica, 'music-volume');
-    this.alternancia('Sound effects', efeitosEstaoMudos() ? 'Off' : 'On', () => { alternarEfeitos(); }, 'effects');
-    this.volume('Effects volume', volumeEfeitos, definirVolumeEfeitos, 'effects-volume');
-    this.proximoy += this.px(8);
-    this.botao('Video & comfort  \u203a', () => this.abrirPagina('video'), 'video');
-    this.botao('\u2039  Back', () => this.abrirPagina('menu'), 'back');
-  }
-
-  private configuracoesVideo() {
+  private configuracoesVideo(tela: Caixa) {
+    const u = this.u, linhas = 5;
+    const yLinha = (i: number) => tela.y + tela.h * (i + 0.5) / linhas;
     const qualidades: Video['qualidade'][] = ['auto', 'leve', 'alta'];
     const movimentos: Video['movimento'][] = ['sistema', 'reduzido', 'completo'];
-    this.alternancia('Astronaut suit', SKINS.find(s => s.id === video.skin)!.nome, () => atualizarVideo({ skin: SKINS[(SKINS.findIndex(s => s.id === video.skin) + 1) % SKINS.length].id }), 'skin');
-    this.alternancia('Video quality', { auto: 'Automatic', leve: 'Low', alta: 'High' }[video.qualidade], () => atualizarVideo({ qualidade: qualidades[(qualidades.indexOf(video.qualidade) + 1) % qualidades.length] }), 'quality');
-    this.alternancia('Camera motion', { sistema: 'Device', reduzido: 'Reduced', completo: 'Full' }[video.movimento], () => atualizarVideo({ movimento: movimentos[(movimentos.indexOf(video.movimento) + 1) % movimentos.length] }), 'motion');
-    this.alternancia('Decorative effects', video.efeitos ? 'On' : 'Off', () => atualizarVideo({ efeitos: !video.efeitos }), 'decorative');
-    this.alternancia('Footprints', video.pegadas ? 'On' : 'Off', () => atualizarVideo({ pegadas: !video.pegadas }), 'footprints');
-    this.conteudo.add(this.add.text(this.px(30), this.proximoy + this.px(6), 'Quality changes apply next time you open the game.', letra(this.px(12), '#a9bfdc', { wordWrap: { width: this.largura - this.px(60) } })));
-    this.proximoy += this.px(60);
-    this.botao('\u2039  Back', () => this.abrirPagina('settings'), 'back');
+    const opcoes: [string, () => string, () => void, string][] = [
+      ['Video quality', () => ({ auto: 'Automatic', leve: 'Low', alta: 'High' }[video.qualidade]), () => atualizarVideo({ qualidade: qualidades[(qualidades.indexOf(video.qualidade) + 1) % qualidades.length] }), 'quality'],
+      ['Camera motion', () => ({ sistema: 'Device', reduzido: 'Reduced', completo: 'Full' }[video.movimento]), () => atualizarVideo({ movimento: movimentos[(movimentos.indexOf(video.movimento) + 1) % movimentos.length] }), 'motion'],
+      ['Decorative effects', () => video.efeitos ? 'On' : 'Off', () => atualizarVideo({ efeitos: !video.efeitos }), 'decorative'],
+      ['Footprints', () => video.pegadas ? 'On' : 'Off', () => atualizarVideo({ pegadas: !video.pegadas }), 'footprints'],
+    ];
+    opcoes.forEach(([rotulo, valor, mudar, id], i) => {
+      const y = yLinha(i), w = 150 * u, h = 40 * u;
+      this.add.text(tela.x + 20 * u, y, rotulo, letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
+      const b = criarBotaoPilula(this, { x: tela.x + tela.w - 20 * u - w, y: y - h / 2, w, h }, u, valor(), () => { tocarSfx('clique'); mudar(); b.texto.setText(valor()); }, COR_BOTAO_TELA);
+      b.caixa.setData('acao', id);
+    });
+    this.add.text(tela.x + tela.w / 2, yLinha(4), 'Quality changes apply next time you open the game.',
+      letra(14 * u, '#bfdbfe', { fontStyle: '500', align: 'center', wordWrap: { width: tela.w - 40 * u } })).setOrigin(0.5);
   }
 }

@@ -1,8 +1,9 @@
 // Generated with AI assistance (Claude). See README, "Use of AI tools".
 import Phaser from 'phaser';
+import { instalarIdioma } from './idiomaPhaser';
 import { CAPITULOS } from './capitulos';
 import { inicioDoCapitulo } from './regras';
-import { forcarEvento, proximoCapitulo, type EstadoTeste, type ParamEvento } from './test-harness';
+import { forcarEvento, type EstadoTeste, type ParamEvento } from './test-harness';
 import { Espaco } from './cenas/Espaco';
 import { Superficie } from './cenas/Superficie';
 import { Interface } from './cenas/Interface';
@@ -16,6 +17,7 @@ import { Carregar } from './cenas/Carregar';
 import { Chegada } from './cenas/Chegada';
 import { Viagem } from './cenas/Viagem';
 import { MarteVista } from './cenas/MarteVista';
+import { Astro } from './cenas/Astro';
 import { iniciarAudio } from './audio';
 import { NaveTarefa } from './cenas/NaveTarefa';
 import { FiltroO2Tarefa } from './cenas/FiltroO2Tarefa';
@@ -35,8 +37,18 @@ import { EquilibrarValvulasTarefa } from './cenas/EquilibrarValvulasTarefa';
 import { TaparTempestadeTarefa } from './cenas/TaparTempestadeTarefa';
 import { FecharEscotilhasTarefa } from './cenas/FecharEscotilhasTarefa';
 import { PaineisSolaresTarefa } from './cenas/PaineisSolaresTarefa';
+import { SeguirSolTarefa } from './cenas/SeguirSolTarefa';
+import { ForaDaSombraTarefa } from './cenas/ForaDaSombraTarefa';
+import { LimparJanelaTarefa } from './cenas/LimparJanelaTarefa';
+import { BateriaRoverTarefa } from './cenas/BateriaRoverTarefa';
+import { ParalamaTarefa } from './cenas/ParalamaTarefa';
+import { ScannerGeloTarefa } from './cenas/ScannerGeloTarefa';
+import { ManobraNaveTarefa } from './cenas/ManobraNaveTarefa';
+import { HortaTarefa } from './cenas/HortaTarefa';
+import { AquecimentoTarefa } from './cenas/AquecimentoTarefa';
 import { BANCO } from './tarefas';
 import { sessao } from './cenas/sessao';
+import { iniciarMundo3D } from './cenas/irParaMarte';
 import { instalarMenuDev } from './menuDev';
 import { instalarControlesMoveis, instalarOrientacaoMovel } from './mobile';
 import { instalarResolucaoMovel } from './resolucaoMovel';
@@ -140,17 +152,32 @@ const createDebugHarness = () => {
     }, 'rgba(96, 165, 250, 0.8)'));
   };
 
+  // Switches the running game to a chapter, the same way the game does after a chapter ends
+  // (iniciarMundo3D: swaps the world, starts the chapter and restarts Espaco/Superficie/Interface).
+  // Keeps the crew's dose and the scores of the chapters before it.
+  const irParaCapitulo = (numero: number) => {
+    const alvo = Math.min(Math.max(1, numero), CAPITULOS.length);
+    const jogo = (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__;
+    // The loader needs a running scene: any active one will do.
+    const cena = jogo?.scene.getScenes(true)[0];
+    if (!jogo || !cena) {
+      painelMensagem.textContent = `Chapter ${alvo}: game is not ready yet.`;
+      return;
+    }
+    const idx = alvo - 1;
+    iniciarMundo3D(cena, CAPITULOS[idx].tema, idx, sessao.estado.dose, sessao.pontos.slice(0, idx));
+    estadoBase.capitulo = alvo;
+    estadoBase.dia = 1;
+    estadoBase.evento = 'capitulo';
+    estadoBase.estado = inicioDoCapitulo(CAPITULOS[idx].config);
+    estadoBase.dados = { nivel: 0, frio: 0 };
+    atualizarStatus();
+    painelMensagem.textContent = `Chapter ${alvo} (${CAPITULOS[idx].tema}) started.`;
+    console.info('QA chapter set:', estadoBase);
+  };
+
   const botaoCapitulo = (numero: number) => {
-    capitulosTab.appendChild(criarBotaoPadrao(`Chapter ${numero}`, '#111827', () => {
-      const alvo = Math.min(Math.max(1, numero), CAPITULOS.length);
-      estadoBase.capitulo = alvo;
-      estadoBase.dia = 1;
-      estadoBase.evento = 'capitulo';
-      estadoBase.estado = inicioDoCapitulo(CAPITULOS[alvo - 1].config);
-      estadoBase.dados = { nivel: 0, frio: 0 };
-      atualizarStatus();
-      console.info('QA chapter set:', estadoBase);
-    }, 'rgba(148, 163, 184, 0.5)'));
+    capitulosTab.appendChild(criarBotaoPadrao(`Chapter ${numero}`, '#111827', () => irParaCapitulo(numero), 'rgba(148, 163, 184, 0.5)'));
   };
 
   const painelMensagem = document.createElement('div');
@@ -360,7 +387,31 @@ const createDebugHarness = () => {
     ['TaparTempestadeTarefa', 'Block the storm', 'TaparTempestadeTarefa'],
     ['FecharEscotilhasTarefa', 'Close the hatches', 'FecharEscotilhasTarefa'],
     ['PaineisSolaresTarefa', 'Charge the solar panels', 'PaineisSolaresTarefa'],
+    ['SeguirSolTarefa', 'Follow the Sun', 'SeguirSolTarefa'],
+    ['ForaDaSombraTarefa', 'Out of the shadow', 'ForaDaSombraTarefa'],
+    ['LimparJanelaTarefa', 'Clean the window', 'LimparJanelaTarefa'],
+    ['BateriaRoverTarefa', 'Swap the rover battery', 'BateriaRoverTarefa'],
+    ['ParalamaTarefa', 'Fix the rover fender', 'ParalamaTarefa'],
+    ['ScannerGeloTarefa', 'Scan for ice', 'ScannerGeloTarefa'],
+    ['ManobraNaveTarefa', 'Thruster puffs (ship)', 'ManobraNaveTarefa'],
+    ['HortaTarefa', 'Grow the lettuce (ship)', 'HortaTarefa'],
+    ['AquecimentoTarefa', 'Keep the habitat warm (Mars)', 'AquecimentoTarefa'],
   ];
+  // Exploration events: they start an expedition on the ground (flags, hints and an arrow), so they need the map.
+  const exploracoes: Array<[string, string]> = [
+    ['amostra', 'Find the lost sample'], ['balizas', 'Relight the beacons'], ['gelo', 'Scout for ice'], ['tubos', 'Collect the Mars tubes'],
+    ['vazamentos', 'Patch the air leaks (ship)'], ['ferramenta', 'Find the lost wrench (ship)'],
+    ['meteorito', 'Find the space rock (Mars)'], ['redemoinho', 'Catch the dust devil (Mars)'],
+  ];
+  exploracoes.forEach(([tipo, label]) => taskButtons.push({
+    key: `explorar-${tipo}`, label,
+    trigger: () => {
+      const jogo = (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__;
+      const sup = jogo?.scene.getScene('Superficie') as unknown as { iniciarExploracao?: (t: string) => boolean } | undefined;
+      if (!jogo?.scene.isActive('Superficie') || !sup?.iniciarExploracao) { painelMensagem.textContent = `${label}: start the game first.`; return; }
+      painelMensagem.textContent = sup.iniciarExploracao(tipo) ? `${label}: started.` : `${label}: not possible now (another expedition, or no free ground).`;
+    },
+  }));
   outrasTasks.forEach(([key, label, cena]) => taskButtons.push({
     key, label,
     trigger: () => {
@@ -383,12 +434,16 @@ const createDebugHarness = () => {
 
   // The debug panel lists only the tasks already redone (new look, own logic and tests).
   const tasksRefeitas = new Set([
-    'nave-capitulo-1', 'filtrar-o2', 'oxigenio-faixa', ...outrasTasks.map(([key]) => key),
+    'nave-capitulo-1', 'filtrar-o2', 'oxigenio-faixa', ...outrasTasks.map(([key]) => key), ...exploracoes.map(([tipo]) => `explorar-${tipo}`),
     'ligar-reator', 'parar-reator', 'desviar-energia', 'consertar-fiacao', 'ajustar-potencia',
     'estabilizar-direcao', ...BANCO.map((t) => `banco-${t.id}`), 'mapear-a-rota', 'transferir-dados', 'consertar-comunicacoes', 'arrumar-iluminacao',
   ]);
   taskButtons.filter(({ key }) => tasksRefeitas.has(key)).forEach(({ label, trigger }) => {
     tarefasTab.appendChild(criarBotaoPadrao(label, '#1e293b', () => dispararTask(label, trigger), 'rgba(96, 165, 250, 0.8)'));
+  });
+  // The exploration events also go on the Events tab (the one open first), in green.
+  taskButtons.filter(({ key }) => key.startsWith('explorar-')).forEach(({ label, trigger }) => {
+    eventosTab.appendChild(criarBotaoPadrao(`Explore: ${label}`, '#064e3b', () => dispararTask(label, trigger), 'rgba(52, 211, 153, 0.8)'));
   });
 
   // Rocket tab: the launch pad shows one of 5 build stages from the chapter goal (meta 0-100, 25 per stage).
@@ -436,10 +491,8 @@ const createDebugHarness = () => {
   botaoEvento('No oxygen', 'queda-oxigenio');
 
   const avancar = criarBotaoPadrao('Next chapter', '#052e16', () => {
-    const avancado = proximoCapitulo(estadoBase, Math.min(estadoBase.capitulo + 1, CAPITULOS.length));
-    Object.assign(estadoBase, avancado);
-    atualizarStatus();
-    console.info('QA chapter advanced:', estadoBase);
+    // Follows the game's own chapter, not the panel's copy (the player may have advanced by playing).
+    irParaCapitulo(Math.min(sessao.capIdx + 2, CAPITULOS.length));
   }, 'rgba(34, 197, 94, 0.8)');
   eventosTab.appendChild(avancar);
 
@@ -481,13 +534,14 @@ const jogo = new Phaser.Game({
   // title screen flow added on main.
   scene: classico
     ? [Carregar, Chegada, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo, CuriosidadeRover, EditorBase]
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, AquecimentoTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, CuriosidadeRover, EditorBase]
     : [Carregar, Chegada, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo, CuriosidadeRover, EditorBase],
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, ParalamaTarefa, ScannerGeloTarefa, ManobraNaveTarefa, HortaTarefa, AquecimentoTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, CuriosidadeRover, EditorBase],
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;
 instalarResolucaoMovel(jogo);
+instalarIdioma(jogo);
 if (!classico) instalarControlesMoveis(jogo);
 instalarOrientacaoMovel();
 // Dev server only: the DEV button that jumps to the trip and Mars scenes (not in the production build).

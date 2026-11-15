@@ -1,0 +1,296 @@
+{
+ "escala": 0.5,
+ "direcoes": 16,
+ "corpo": [
+  {
+   "arquivo": "lua/rover/lrv_0.png",
+   "w": 217,
+   "h": 169,
+   "ancora": [
+    108.5,
+    105.09
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_1.png",
+   "w": 188,
+   "h": 169,
+   "ancora": [
+    94.0,
+    104.91
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_2.png",
+   "w": 139,
+   "h": 158,
+   "ancora": [
+    69.5,
+    100.72
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_3.png",
+   "w": 188,
+   "h": 169,
+   "ancora": [
+    94.0,
+    104.91
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_4.png",
+   "w": 217,
+   "h": 169,
+   "ancora": [
+    108.5,
+    105.09
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_5.png",
+   "w": 218,
+   "h": 159,
+   "ancora": [
+    109.0,
+    101.73
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_6.png",
+   "w": 192,
+   "h": 140,
+   "ancora": [
+    96.0,
+    95.08
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_7.png",
+   "w": 218,
+   "h": 151,
+   "ancora": [
+    109.0,
+    93.87
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_8.png",
+   "w": 217,
+   "h": 165,
+   "ancora": [
+    108.5,
+    100.87
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_9.png",
+   "w": 188,
+   "h": 165,
+   "ancora": [
+    94.0,
+    100.87
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_10.png",
+   "w": 139,
+   "h": 151,
+   "ancora": [
+    69.5,
+    93.87
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_11.png",
+   "w": 188,
+   "h": 165,
+   "ancora": [
+    94.0,
+    100.87
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_12.png",
+   "w": 217,
+   "h": 165,
+   "ancora": [
+    108.5,
+    100.87
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_13.png",
+   "w": 218,
+   "h": 151,
+   "ancora": [
+    109.0,
+    93.87
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_14.png",
+   "w": 192,
+   "h": 140,
+   "ancora": [
+    96.0,
+    95.08
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_15.png",
+   "w": 218,
+   "h": 159,
+   "ancora": [
+    109.0,
+    101.73
+   ]
+  }
+ ],
+ "frente": [
+  {
+   "arquivo": "lua/rover/lrv_frente_0.png",
+   "w": 128,
+   "h": 154,
+   "ancora": [
+    45.38,
+    137.06
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_1.png",
+   "w": 95,
+   "h": 157,
+   "ancora": [
+    30.78,
+    138.44
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_2.png",
+   "w": 100,
+   "h": 151,
+   "ancora": [
+    50.5,
+    135.12
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_3.png",
+   "w": 145,
+   "h": 142,
+   "ancora": [
+    74.12,
+    128.36
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_4.png",
+   "w": 173,
+   "h": 125,
+   "ancora": [
+    89.0,
+    117.53
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_5.png",
+   "w": 181,
+   "h": 117,
+   "ancora": [
+    93.5,
+    116.0
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_6.png",
+   "w": 169,
+   "h": 127,
+   "ancora": [
+    89.11,
+    129.32
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_7.png",
+   "w": 158,
+   "h": 149,
+   "ancora": [
+    91.57,
+    141.18
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_8.png",
+   "w": 128,
+   "h": 164,
+   "ancora": [
+    82.62,
+    149.73
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_9.png",
+   "w": 95,
+   "h": 170,
+   "ancora": [
+    64.22,
+    153.8
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_10.png",
+   "w": 100,
+   "h": 165,
+   "ancora": [
+    49.5,
+    152.23
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_11.png",
+   "w": 145,
+   "h": 159,
+   "ancora": [
+    70.88,
+    153.49
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_12.png",
+   "w": 173,
+   "h": 145,
+   "ancora": [
+    84.0,
+    149.83
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_13.png",
+   "w": 181,
+   "h": 133,
+   "ancora": [
+    87.5,
+    141.04
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_14.png",
+   "w": 169,
+   "h": 130,
+   "ancora": [
+    79.89,
+    129.41
+   ]
+  },
+  {
+   "arquivo": "lua/rover/lrv_frente_15.png",
+   "w": 158,
+   "h": 141,
+   "ancora": [
+    66.43,
+    130.44
+   ]
+  }
+ ]
+}

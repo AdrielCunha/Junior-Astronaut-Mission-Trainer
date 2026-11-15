@@ -31,6 +31,10 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   abrir.onclick = () => { lista.style.display = lista.style.display === 'none' ? 'flex' : 'none'; };
   raiz.append(abrir, lista);
   document.body.append(raiz);
+  const visibilidadeEditor=(aberto:boolean)=>{raiz.style.display=aberto?'none':'flex';};
+  visibilidadeEditor(sessao.editandoBase);
+  jogo.events.on('base-planner-visibility',visibilidadeEditor);
+  jogo.events.once('destroy',()=>{jogo.events.off('base-planner-visibility',visibilidadeEditor);raiz.remove();});
 
   const avisar = (s: string) => { estado.textContent = s; };
   const titulo = (s: string) => {
@@ -108,10 +112,10 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   botao('Chapter 3: Mars (3D, playable)', marte3D);
   botao('Mars, zoom out to space', () => {
     marte3D();
-    // Once the Mars scenes are up, close the morning report and zoom out (Interface opens MarteVista).
+    // Once the Mars scenes are up, close the morning report and zoom out (the Mars film).
     depois(1500, () => {
       (sm.getScene('Interface') as unknown as { fecharPainel?: () => void }).fecharPainel?.();
-      sessao.emitir('zoomMarte');
+      sessao.voar('lua');
     });
   });
   titulo('Mars map');
