@@ -96,3 +96,22 @@ export function criarPlaneta(cena: Phaser.Scene, x: number, y: number, o: Opcoes
     },
   });
 }
+
+// The spin (degrees, for setGiro) that turns longitude `lon` (degrees east) toward the camera of
+// the tilted view. The shader reads the map at m = R(-giro) n; the camera's ground direction is -Y.
+export function giroOlhando(lon: number) {
+  const L = (lon * Math.PI) / 180;
+  return (Math.atan2(-Math.cos(L), -Math.sin(L)) * 180) / Math.PI;
+}
+
+// Where a place on the planet shows on screen, in planet radii from the center (y down), and
+// whether it faces the camera.
+export function pontoNoPlaneta(lat: number, lon: number, giro: number) {
+  const la = (lat * Math.PI) / 180, lo = (lon * Math.PI) / 180, g = (giro * Math.PI) / 180;
+  const m = { x: Math.cos(la) * Math.cos(lo), y: Math.cos(la) * Math.sin(lo), z: Math.sin(la) };
+  const c = Math.cos(g), s = Math.sin(g);
+  const n = { x: c * m.x - s * m.y, y: s * m.x + c * m.y, z: m.z };
+  const { right, up, cam } = VISTA_INCLINADA;
+  const dot = (a: V3, b: V3) => a.x * b.x + a.y * b.y + a.z * b.z;
+  return { x: dot(n, right), y: -dot(n, up), frente: dot(n, cam) > 0 };
+}

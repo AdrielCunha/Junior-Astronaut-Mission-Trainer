@@ -370,6 +370,21 @@ locally; sky and constellation imagery are unaffected by the surface palette.
    Sun; not a computed trajectory). The ship (`nave_d<k>.png`, 16 headings) follows it.
 3. **Arrival**, chapter 2 "Next chapter" (`'chegada'`): the ship finishes the arc, the wide view fades,
    Mars grows into a live globe and the ship swings around it and brakes, engine first.
+4. **Landing**, right after the arrival: the camera dives toward Jezero crater (18.4° N, 77.6° E,
+   where Perseverance landed) until the ground of Mars fills the screen, then the descent is seen
+   from the side over the Mars landscape: entry with a glowing heat shield, parachute (the shield
+   drops), rockets for the last part (the backshell and chute fly off), dust, touchdown. Each step
+   says why: Mars has thin air, the Moon has none. Then chapter 3 starts.
+
+**Mars in chapter 3.** `marte.ts` holds the landing site, Mars facts and the toon landscape
+(butterscotch sky in flat bands, a small Sun with a pale halo, the crater rim, rocks), drawn behind
+the chapter 3 base by `Base.desenharCeu` and during the landing. `MarteVista` is the zoom out from
+the Mars base (mouse wheel or "Mars from space"; Base pauses under it): the live globe with the base
+pin on Jezero and Phobos and Deimos on their real periods, then the inner solar system on the
+chapter date with Mars where it is and the radio delay to Earth. The Mars map has longitude 0 in the
+middle (checked against Syrtis Major, dark, and Hellas, bright); `giroOlhando` and `pontoNoPlaneta`
+in `planetaShader.ts` turn a place toward the camera and find it on screen. The solar system view
+of chapter 1 (`Espaco`) also draws Mars live with this shader.
 
 With reduced motion, liftoff is skipped and the scene runs three times faster.
 
