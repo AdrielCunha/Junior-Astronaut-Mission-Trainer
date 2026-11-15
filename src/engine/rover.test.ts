@@ -50,3 +50,24 @@ test('no safe exit leaves the astronaut inside the rover', () => {
   assert.equal(desembarcar(r, terreno, [{x0:0,y0:0,x1:30,y1:30,topo:3}]),null);
   assert.equal(r.dirigindo,true);
 });
+
+// The flag route while driving: the A* uses the rover's own footprint test, so it never sends the
+// rover through a gap only a walker fits (it used to, and the rover got stuck at the rim).
+test('rover routes keep its whole footprint on free ground', async () => {
+  const { encontrarCaminho, segmentoLivre } = await import('./caminho.ts');
+  // A steep ridge across the map at x 10..11, with a 1 tile gap at y 14..15 and a 4 tile gap at y 22..26.
+  const fenda = { ...terreno, n: 30, inclinacaoEm: (x: number, y: number) => (x >= 10 && x < 11 && !(y >= 14 && y < 15) && !(y >= 22 && y < 26) ? 40 : 0) };
+  const t = fenda as unknown as Parameters<typeof encontrarCaminho>[0];
+  const livre = (x: number, y: number) => pontoLivre(fenda, [], x, y, RAIO_ROVER);
+  const rota = encontrarCaminho(t, [], RAIO_ROVER, 5, 14.5, 16, 14.5, livre);
+  assert.ok(rota && rota.length > 1, 'the rover goes around through the wide gap');
+  let x = 5, y = 14.5;
+  for (const p of rota!) { assert.ok(segmentoLivre(t, [], RAIO_ROVER, x, y, p.gx, p.gy, livre)); x = p.gx; y = p.gy; }
+  assert.ok(rota!.some((p) => p.gy > 20), 'through the 4 tile gap, not the 1 tile one');
+});
+
+test('a short input asks the rover for less speed (easing into a waypoint)', () => {
+  const r = rover();
+  for (let i = 0; i < 240; i++) dirigirRover(r, { dx: 0.5, dy: 0, pular: false }, terreno, [], 1/120);
+  assert.ok(Math.abs(r.corpo.vx - 3.2) < 0.05);
+});

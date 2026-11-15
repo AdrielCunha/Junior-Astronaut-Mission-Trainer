@@ -292,5 +292,738 @@
     130.44
    ]
   }
+ ],
+ "fases": 6,
+ "giro": [
+  [
+   {
+    "arquivo": "lua/rover/lrv_0_g1.png",
+    "w": 217,
+    "h": 169,
+    "ancora": [
+     108.5,
+     105.09
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_1_g1.png",
+    "w": 188,
+    "h": 169,
+    "ancora": [
+     94.0,
+     104.91
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_2_g1.png",
+    "w": 139,
+    "h": 158,
+    "ancora": [
+     69.5,
+     100.72
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_3_g1.png",
+    "w": 188,
+    "h": 169,
+    "ancora": [
+     94.0,
+     104.91
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_4_g1.png",
+    "w": 217,
+    "h": 169,
+    "ancora": [
+     108.5,
+     105.09
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_5_g1.png",
+    "w": 218,
+    "h": 159,
+    "ancora": [
+     109.0,
+     101.73
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_6_g1.png",
+    "w": 192,
+    "h": 140,
+    "ancora": [
+     96.0,
+     95.08
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_7_g1.png",
+    "w": 218,
+    "h": 151,
+    "ancora": [
+     109.0,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_8_g1.png",
+    "w": 217,
+    "h": 165,
+    "ancora": [
+     108.5,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_9_g1.png",
+    "w": 188,
+    "h": 165,
+    "ancora": [
+     94.0,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_10_g1.png",
+    "w": 139,
+    "h": 151,
+    "ancora": [
+     69.5,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_11_g1.png",
+    "w": 188,
+    "h": 165,
+    "ancora": [
+     94.0,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_12_g1.png",
+    "w": 217,
+    "h": 165,
+    "ancora": [
+     108.5,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_13_g1.png",
+    "w": 218,
+    "h": 151,
+    "ancora": [
+     109.0,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_14_g1.png",
+    "w": 192,
+    "h": 140,
+    "ancora": [
+     96.0,
+     95.08
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_15_g1.png",
+    "w": 218,
+    "h": 159,
+    "ancora": [
+     109.0,
+     101.73
+    ]
+   }
+  ],
+  [
+   {
+    "arquivo": "lua/rover/lrv_0_g2.png",
+    "w": 217,
+    "h": 169,
+    "ancora": [
+     108.5,
+     105.09
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_1_g2.png",
+    "w": 188,
+    "h": 169,
+    "ancora": [
+     94.0,
+     104.91
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_2_g2.png",
+    "w": 139,
+    "h": 158,
+    "ancora": [
+     69.5,
+     100.72
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_3_g2.png",
+    "w": 188,
+    "h": 169,
+    "ancora": [
+     94.0,
+     104.91
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_4_g2.png",
+    "w": 217,
+    "h": 169,
+    "ancora": [
+     108.5,
+     105.09
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_5_g2.png",
+    "w": 218,
+    "h": 159,
+    "ancora": [
+     109.0,
+     101.73
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_6_g2.png",
+    "w": 192,
+    "h": 140,
+    "ancora": [
+     96.0,
+     95.08
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_7_g2.png",
+    "w": 218,
+    "h": 151,
+    "ancora": [
+     109.0,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_8_g2.png",
+    "w": 217,
+    "h": 165,
+    "ancora": [
+     108.5,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_9_g2.png",
+    "w": 188,
+    "h": 165,
+    "ancora": [
+     94.0,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_10_g2.png",
+    "w": 139,
+    "h": 151,
+    "ancora": [
+     69.5,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_11_g2.png",
+    "w": 188,
+    "h": 165,
+    "ancora": [
+     94.0,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_12_g2.png",
+    "w": 217,
+    "h": 165,
+    "ancora": [
+     108.5,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_13_g2.png",
+    "w": 218,
+    "h": 151,
+    "ancora": [
+     109.0,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_14_g2.png",
+    "w": 192,
+    "h": 140,
+    "ancora": [
+     96.0,
+     95.08
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_15_g2.png",
+    "w": 218,
+    "h": 159,
+    "ancora": [
+     109.0,
+     101.73
+    ]
+   }
+  ],
+  [
+   {
+    "arquivo": "lua/rover/lrv_0_g3.png",
+    "w": 217,
+    "h": 169,
+    "ancora": [
+     108.5,
+     105.09
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_1_g3.png",
+    "w": 188,
+    "h": 169,
+    "ancora": [
+     94.0,
+     104.91
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_2_g3.png",
+    "w": 139,
+    "h": 158,
+    "ancora": [
+     69.5,
+     100.72
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_3_g3.png",
+    "w": 188,
+    "h": 169,
+    "ancora": [
+     94.0,
+     104.91
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_4_g3.png",
+    "w": 217,
+    "h": 169,
+    "ancora": [
+     108.5,
+     105.09
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_5_g3.png",
+    "w": 218,
+    "h": 159,
+    "ancora": [
+     109.0,
+     101.73
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_6_g3.png",
+    "w": 192,
+    "h": 140,
+    "ancora": [
+     96.0,
+     95.08
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_7_g3.png",
+    "w": 218,
+    "h": 151,
+    "ancora": [
+     109.0,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_8_g3.png",
+    "w": 217,
+    "h": 165,
+    "ancora": [
+     108.5,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_9_g3.png",
+    "w": 188,
+    "h": 165,
+    "ancora": [
+     94.0,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_10_g3.png",
+    "w": 139,
+    "h": 151,
+    "ancora": [
+     69.5,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_11_g3.png",
+    "w": 188,
+    "h": 165,
+    "ancora": [
+     94.0,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_12_g3.png",
+    "w": 217,
+    "h": 165,
+    "ancora": [
+     108.5,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_13_g3.png",
+    "w": 218,
+    "h": 151,
+    "ancora": [
+     109.0,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_14_g3.png",
+    "w": 192,
+    "h": 140,
+    "ancora": [
+     96.0,
+     95.08
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_15_g3.png",
+    "w": 218,
+    "h": 159,
+    "ancora": [
+     109.0,
+     101.73
+    ]
+   }
+  ],
+  [
+   {
+    "arquivo": "lua/rover/lrv_0_g4.png",
+    "w": 217,
+    "h": 169,
+    "ancora": [
+     108.5,
+     105.09
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_1_g4.png",
+    "w": 188,
+    "h": 169,
+    "ancora": [
+     94.0,
+     104.91
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_2_g4.png",
+    "w": 139,
+    "h": 158,
+    "ancora": [
+     69.5,
+     100.72
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_3_g4.png",
+    "w": 188,
+    "h": 169,
+    "ancora": [
+     94.0,
+     104.91
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_4_g4.png",
+    "w": 217,
+    "h": 169,
+    "ancora": [
+     108.5,
+     105.09
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_5_g4.png",
+    "w": 218,
+    "h": 159,
+    "ancora": [
+     109.0,
+     101.73
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_6_g4.png",
+    "w": 192,
+    "h": 140,
+    "ancora": [
+     96.0,
+     95.08
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_7_g4.png",
+    "w": 218,
+    "h": 151,
+    "ancora": [
+     109.0,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_8_g4.png",
+    "w": 217,
+    "h": 165,
+    "ancora": [
+     108.5,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_9_g4.png",
+    "w": 188,
+    "h": 165,
+    "ancora": [
+     94.0,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_10_g4.png",
+    "w": 139,
+    "h": 151,
+    "ancora": [
+     69.5,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_11_g4.png",
+    "w": 188,
+    "h": 165,
+    "ancora": [
+     94.0,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_12_g4.png",
+    "w": 217,
+    "h": 165,
+    "ancora": [
+     108.5,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_13_g4.png",
+    "w": 218,
+    "h": 151,
+    "ancora": [
+     109.0,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_14_g4.png",
+    "w": 192,
+    "h": 140,
+    "ancora": [
+     96.0,
+     95.08
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_15_g4.png",
+    "w": 218,
+    "h": 159,
+    "ancora": [
+     109.0,
+     101.73
+    ]
+   }
+  ],
+  [
+   {
+    "arquivo": "lua/rover/lrv_0_g5.png",
+    "w": 217,
+    "h": 169,
+    "ancora": [
+     108.5,
+     105.09
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_1_g5.png",
+    "w": 188,
+    "h": 169,
+    "ancora": [
+     94.0,
+     104.91
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_2_g5.png",
+    "w": 139,
+    "h": 158,
+    "ancora": [
+     69.5,
+     100.72
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_3_g5.png",
+    "w": 188,
+    "h": 169,
+    "ancora": [
+     94.0,
+     104.91
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_4_g5.png",
+    "w": 217,
+    "h": 169,
+    "ancora": [
+     108.5,
+     105.09
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_5_g5.png",
+    "w": 218,
+    "h": 159,
+    "ancora": [
+     109.0,
+     101.73
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_6_g5.png",
+    "w": 192,
+    "h": 140,
+    "ancora": [
+     96.0,
+     95.08
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_7_g5.png",
+    "w": 218,
+    "h": 151,
+    "ancora": [
+     109.0,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_8_g5.png",
+    "w": 217,
+    "h": 165,
+    "ancora": [
+     108.5,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_9_g5.png",
+    "w": 188,
+    "h": 165,
+    "ancora": [
+     94.0,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_10_g5.png",
+    "w": 139,
+    "h": 151,
+    "ancora": [
+     69.5,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_11_g5.png",
+    "w": 188,
+    "h": 165,
+    "ancora": [
+     94.0,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_12_g5.png",
+    "w": 217,
+    "h": 165,
+    "ancora": [
+     108.5,
+     100.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_13_g5.png",
+    "w": 218,
+    "h": 151,
+    "ancora": [
+     109.0,
+     93.87
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_14_g5.png",
+    "w": 192,
+    "h": 140,
+    "ancora": [
+     96.0,
+     95.08
+    ]
+   },
+   {
+    "arquivo": "lua/rover/lrv_15_g5.png",
+    "w": 218,
+    "h": 159,
+    "ancora": [
+     109.0,
+     101.73
+    ]
+   }
+  ]
  ]
 }

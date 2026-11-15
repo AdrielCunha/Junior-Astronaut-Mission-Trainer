@@ -89,9 +89,13 @@ function bateCaixas(caixas: Caixa[], x: number, y: number, r: number): boolean {
  * Tests whether a continuous straight-line segment from (x0, y0) to (x1, y1) is
  * free of obstacles, box collisions, map boundary limits and steep slopes.
  */
+// A body's own test of a free spot (the rover checks its whole footprint: engine/rover.ts
+// pontoLivre). Without one, the walker's test: the point's slope and the modules.
+export type Livre = (x: number, y: number) => boolean;
+
 export function segmentoLivre(
   t: Terreno, caixas: Caixa[], raio: number,
-  x0: number, y0: number, x1: number, y1: number,
+  x0: number, y0: number, x1: number, y1: number, livre?: Livre,
 ): boolean {
   const dist = Math.hypot(x1 - x0, y1 - y0);
   if (dist < 1e-4) return true;
@@ -101,6 +105,7 @@ export function segmentoLivre(
     const f = s / passos;
     const x = x0 + f * (x1 - x0);
     const y = y0 + f * (y1 - y0);
+    if (livre) { if (!livre(x, y)) return false; continue; }
     if (x < r || y < r || x > t.n - r || y > t.n - r) return false;
     if (t.inclinacaoEm(x, y) > t.maxAndar) return false;
     if (bateCaixas(caixas, x, y, r)) return false;
@@ -112,8 +117,12 @@ export function segmentoLivre(
  * Builds the tile walkability grid. A tile (i, j) is walkable if its center + body radius
  * does not collide with any module box and slope <= maxAndar.
  */
-function construirGrade(n: number, t: Terreno, caixas: Caixa[], raio: number): Uint8Array {
+function construirGrade(n: number, t: Terreno, caixas: Caixa[], raio: number, livre?: Livre): Uint8Array {
   const g = new Uint8Array(n * n);
+  if (livre) {
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) g[j * n + i] = livre(i + 0.5, j + 0.5) ? 1 : 0;
+    return g;
+  }
   g.fill(1);
   const r = raio + 0.05;
 
@@ -143,16 +152,16 @@ function construirGrade(n: number, t: Terreno, caixas: Caixa[], raio: number): U
  */
 export function encontrarCaminho(
   t: Terreno, caixas: Caixa[], raio: number,
-  ax: number, ay: number, bx: number, by: number,
+  ax: number, ay: number, bx: number, by: number, livre?: Livre,
 ): Ponto[] | null {
   // Direct line-of-sight check first: if unobstructed, walk straight to the goal!
-  if (segmentoLivre(t, caixas, raio, ax, ay, bx, by)) {
+  if (segmentoLivre(t, caixas, raio, ax, ay, bx, by, livre)) {
     return [{ gx: bx, gy: by }];
   }
 
   const n = t.n;
   alocar(n);
-  const grade = construirGrade(n, t, caixas, raio);
+  const grade = construirGrade(n, t, caixas, raio, livre);
 
   let si = Math.min(n - 1, Math.max(0, Math.floor(ax)));
   let sj = Math.min(n - 1, Math.max(0, Math.floor(ay)));
@@ -222,7 +231,10 @@ export function encontrarCaminho(
   }));
 
   // Smooth waypoints using continuous segment collision checks
-  const suavizado = suavizarCaminho(t, caixas, raio, { gx: ax, gy: ay }, waypoints, { gx: bx, gy: by });
+  // A destination the body cannot stand on (a rover's footprint on a crater rim) ends at the
+  // nearest free tile instead, so the route never asks for the impossible last step.
+  const fim = livre && !livre(bx, by) ? waypoints[waypoints.length - 1] : { gx: bx, gy: by };
+  const suavizado = suavizarCaminho(t, caixas, raio, { gx: ax, gy: ay }, waypoints, fim, livre);
   return suavizado;
 }
 
@@ -250,13 +262,13 @@ function maisProximoLivre(grade: Uint8Array, n: number, cx: number, cy: number):
  */
 function suavizarCaminho(
   t: Terreno, caixas: Caixa[], raio: number,
-  inicio: Ponto, waypoints: Ponto[], fim: Ponto,
+  inicio: Ponto, waypoints: Ponto[], fim: Ponto, livre?: Livre,
 ): Ponto[] {
   if (!waypoints.length) return [fim];
 
   // Try to connect directly to the end if possible
   const todos: Ponto[] = [...waypoints];
-  if (segmentoLivre(t, caixas, raio, todos[todos.length - 1].gx, todos[todos.length - 1].gy, fim.gx, fim.gy)) {
+  if (segmentoLivre(t, caixas, raio, todos[todos.length - 1].gx, todos[todos.length - 1].gy, fim.gx, fim.gy, livre)) {
     todos[todos.length - 1] = fim;
   } else {
     todos.push(fim);
@@ -270,7 +282,7 @@ function suavizarCaminho(
     // Look ahead as far as possible
     let melhor = idx;
     for (let j = todos.length - 1; j >= idx; j--) {
-      if (segmentoLivre(t, caixas, raio, cur.gx, cur.gy, todos[j].gx, todos[j].gy)) {
+      if (segmentoLivre(t, caixas, raio, cur.gx, cur.gy, todos[j].gx, todos[j].gy, livre)) {
         melhor = j;
         break;
       }

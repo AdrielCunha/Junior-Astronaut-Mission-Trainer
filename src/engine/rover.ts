@@ -1,6 +1,7 @@
 import { novoCorpo, type Corpo, type Caixa, type Chao, type Entrada } from './fisica.ts';
 
-export type Rover = { corpo: Corpo; dirigindo: boolean; angulo: number };
+// rodado: tiles rolled so far (the wheels turn and the suspension bounces by it, desenharRover.ts).
+export type Rover = { corpo: Corpo; dirigindo: boolean; angulo: number; rodado?: number };
 export const RAIO_ROVER = 0.7;
 
 export function pontoLivre(c: Chao, caixas: Caixa[], x: number, y: number, raio: number) {
@@ -35,7 +36,9 @@ export function dirigirRover(r: Rover, e: Entrada | null, c: Chao, caixas: Caixa
   const k = r.corpo, tempo = Math.max(0, Math.min(0.05, dt));
   const len = e ? Math.hypot(e.dx, e.dy) : 0;
   const velocidade = 6.4 * (c.fatorVelocidade?.(k.x, k.y) ?? 1);
-  const vx = len ? e!.dx / len * velocidade : 0, vy = len ? e!.dy / len * velocidade : 0;
+  // A short input (the route easing into a waypoint, Superficie) asks for less speed; keys are >= 1.
+  const pedido = velocidade * Math.min(1, len);
+  const vx = len ? e!.dx / len * pedido : 0, vy = len ? e!.dy / len * pedido : 0;
   const ax = vx - k.vx, ay = vy - k.vy, dist = Math.hypot(ax, ay);
   const fator = dist ? Math.min(1, (len ? 9 : 18) * tempo / dist) : 0;
   k.vx += ax * fator; k.vy += ay * fator;
@@ -44,6 +47,7 @@ export function dirigirRover(r: Rover, e: Entrada | null, c: Chao, caixas: Caixa
     const delta = Math.atan2(Math.sin(alvo - r.angulo), Math.cos(alvo - r.angulo));
     r.angulo += delta * Math.min(1, tempo * 10);
   }
+  const x0 = k.x, y0 = k.y;
   const passos = Math.max(1, Math.ceil(Math.hypot(k.vx, k.vy) * tempo / 0.1));
   let bloqueado = false;
   for (let i = 0; i < passos; i++) {
@@ -55,6 +59,7 @@ export function dirigirRover(r: Rover, e: Entrada | null, c: Chao, caixas: Caixa
     else { k.vy = 0; bloqueado = true; }
   }
   k.z = c.altura(k.x, k.y); k.vz = 0; k.noChao = true;
+  r.rodado = (r.rodado ?? 0) + Math.hypot(k.x - x0, k.y - y0);
   return { bloqueado };
 }
 

@@ -48,7 +48,7 @@ import { deveQuebrar } from '../paralama-tarefa';
 import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto, alvoDaSeta, pista, moverExpedicao, type Expedicao, type TipoExpedicao } from '../engine/expedicao';
 import { criarExploracao, sortearTipo, AVISOS, type Contexto } from '../engine/exploracao';
 import { ESTACOES, estacaoDisponivel, textoEstacao, estacaoDoModulo, chaveModulo, type Estacao } from '../engine/estacoes';
-import { desenharRover, esconderRover, LINHA_QUADRIL_SENTADO, type PecasRover } from './desenharRover';
+import { desenharRover, direcaoRover, esconderRover, saltoRover, LINHA_QUADRIL_SENTADO, type PecasRover } from './desenharRover';
 
 const P = dadosTerreno.imagem;
 // Mars: warm light on the props and modules (they are rendered under the Moon's light), and the props that make sense in Jezero crater, with
@@ -145,6 +145,7 @@ export class Superficie extends Phaser.Scene {
   private rota: Ponto[] = [];                            // A* waypoints to walk through
   private alvoUsar: Construcao | null = null;             // module to use when we arrive
   private bloqueadoCont = 0;
+  private destinoRota: { gx: number; gy: number } | null = null;   // the flag's spot, to re-plan when stuck
   private proximoPassante = 25 + Math.random() * 35;   // seconds until the next ship fly-by
   private passante: { img: Phaser.GameObjects.Image; t: number; fy: number } | null = null;
   private teclas!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -400,7 +401,9 @@ export class Superficie extends Phaser.Scene {
       sombra: this.add.ellipse(0, 0, 67, 28, 0x111827, 0.28).setVisible(false),
       corpo: this.add.image(0, 0, 'lrv_0').setVisible(false),
       frente: this.add.image(0, 0, 'lrv_frente_0').setVisible(false),
+      poeira: this.add.graphics(),
     };
+    this.mapa.add(this.pecasRover.poeira!);
     if (sessao.mundo === 'marte') { this.pecasRover.corpo.setTint(TOM_MARTE); this.pecasRover.frente.setTint(TOM_MARTE); }
     this.dicaRover = this.add.text(0, 0, '', letra(13, '#ffffff', {
       padding: { x: 12, y: 6 }, align: 'center',
@@ -537,15 +540,22 @@ export class Superficie extends Phaser.Scene {
       destGx = q.gx; destGy = q.gy;
       this.alvoUsar = null;
     }
-    const caixas = sessao.grade.caixas();
-    const caminho = encontrarCaminho(sessao.terreno, caixas, this.corpo.raio, this.corpo.x, this.corpo.y, destGx, destGy);
-    this.rota = caminho ?? [];
+    this.destinoRota = { gx: destGx, gy: destGy };
+    this.rota = this.tracarRota(destGx, destGy);
     this.bloqueadoCont = 0;
     if (this.rota.length > 0) {
       this.plantarBandeira(destGx, destGy, this.planetaBandeira);
     } else {
       this.recolherBandeira();
     }
+  }
+
+  // The A* route to a spot. Driving, it uses the rover's own free test (its whole footprint, like
+  // its physics), so the route never squeezes it past a crater rim it cannot cross.
+  private tracarRota(gx: number, gy: number) {
+    const caixas = sessao.grade.caixas(), t = sessao.terreno;
+    const livre = sessao.rover?.dirigindo ? (x: number, y: number) => pontoLivre(t, caixas, x, y, RAIO_ROVER) : undefined;
+    return encontrarCaminho(t, caixas, this.corpo.raio, this.corpo.x, this.corpo.y, gx, gy, livre) ?? [];
   }
 
   /** Plants the flag marking the chosen destination spot on the terrain. */
@@ -690,6 +700,15 @@ export class Superficie extends Phaser.Scene {
       const wp = this.rota[0];
       dx = wp.gx - this.corpo.x; dy = wp.gy - this.corpo.y;
       const d = Math.hypot(dx, dy);
+      // The rover is heavy and fast: it eases into each waypoint (and stops at the last one)
+      // instead of overshooting and circling it, and a waypoint counts as reached at its size.
+      const dirigindo = !!sessao.rover?.dirigindo;
+      const chegou = dirigindo ? (this.rota.length > 1 ? 0.8 : 0.45) : 0.35;
+      if (dirigindo && d > 1e-4) {
+        const ultimo = this.rota.length === 1;
+        const forca = Phaser.Math.Clamp(d / (ultimo ? 2.6 : 1.6), ultimo ? 0.2 : 0.4, 1);
+        dx = (dx / d) * forca; dy = (dy / d) * forca;
+      }
 
       // Check if we should interact with the target module (close enough to any edge).
       if (this.alvoUsar && this.perto(this.alvoUsar)) {
@@ -697,7 +716,7 @@ export class Superficie extends Phaser.Scene {
         this.rota = []; this.alvoUsar = null; dx = dy = 0;
         this.recolherBandeira();
         this.usar(u);
-      } else if (d < 0.35) {
+      } else if (d < chegou) {
         // Reached this waypoint, advance to the next.
         this.rota.shift();
         if (!this.rota.length) {
@@ -1710,7 +1729,12 @@ export class Superficie extends Phaser.Scene {
       this.controlesObservados.add('pulo'); sessao.emitir('controleUsado', 'pulo');
     }
     if (this.rota.length > 0 && bloqueado) {
-      if (++this.bloqueadoCont > 20) {
+      // Stuck against something: plan the route again from here once, then give up.
+      if (++this.bloqueadoCont === 10 && this.destinoRota) {
+        const nova = this.tracarRota(this.destinoRota.gx, this.destinoRota.gy);
+        if (nova.length) this.rota = nova;
+      }
+      if (this.bloqueadoCont > 30) {
         this.rota = [];
         this.alvoUsar = null;
         this.bloqueadoCont = 0;
@@ -1768,7 +1792,7 @@ export class Superficie extends Phaser.Scene {
     if (!sessao.rover) { esconderRover(this.gRover, this.pecasRover); this.dicaRover.setVisible(false); fundoRotulo(this.fundoDicaRover, this.dicaRover); }
     if (sessao.rover) {
       const r = sessao.rover;
-      desenharRover(this.gRover, P, r, this.pecasRover, sessao.roverCarregado, sessao.abastecendoRover);
+      desenharRover(this.gRover, P, r, this.pecasRover, sessao.roverCarregado, sessao.abastecendoRover, dt, COR_SOLO_CLARO, movimentoReduzido());
       const p = paraTela(P, r.corpo.x, r.corpo.y, r.corpo.z + 1.25);
       const carregado = sessao.roverCarregado;
       // Only when standing next to it: not from afar, not while driving.
@@ -2085,12 +2109,20 @@ export class Superficie extends Phaser.Scene {
     if (dirigindo) {
       const r = sessao.rover!;
       this.direcao = ((Math.round(-r.angulo/(Math.PI/4))%8)+8)%8;
+      // The rover is drawn in 16 fixed headings: the seat and the driver follow that same heading,
+      // not the rover's exact angle, or the driver slid on the seat while the picture stood still.
+      // (The seated sheet has 16 directions; an older 8 row one still works.)
+      const k16 = direcaoRover(r.angulo), aq = (k16 * 2 * Math.PI) / 16;
+      const n = this.textures.get(textura).frameTotal - 1 >= 16 ? 16 : 8;
+      const quadroSentado = n === 16 ? (16 - k16) % 16 : ((Math.round(-aq / (Math.PI / 4)) % 8) + 8) % 8;
+      // Fixed to the seat: the driver rides exactly the rover's own bounce, no lag, no slide.
+      const salto = movimentoReduzido() ? 0 : saltoRover(r);
       const assento = paraTela(P,
-        r.corpo.x-0.21*Math.cos(r.angulo)+0.19*Math.sin(r.angulo),
-        r.corpo.y-0.21*Math.sin(r.angulo)-0.19*Math.cos(r.angulo),r.corpo.z+0.47);
-      this.comandante.setFrame(this.direcao)
-        .setPosition(assento.x,assento.y+(sprite.pe[1]-LINHA_QUADRIL_SENTADO)*sprite.escala)
-        .setDepth(profundidade(r.corpo.x+0.7,r.corpo.y+0.7)+0.1);
+        r.corpo.x-0.21*Math.cos(aq)+0.19*Math.sin(aq),
+        r.corpo.y-0.21*Math.sin(aq)-0.19*Math.cos(aq),r.corpo.z+0.47);
+      this.comandante.setFrame(quadroSentado)
+        .setPosition(assento.x,assento.y-salto+(sprite.pe[1]-LINHA_QUADRIL_SENTADO)*sprite.escala)
+        .setDepth(profundidade(r.corpo.x+0.7,r.corpo.y+0.7)+0.25);   // over the whole rover: its frames are cut where the rover is in front (make_astronaut.py SENTADO)
       this.atualizarCarga();
       return;
     }

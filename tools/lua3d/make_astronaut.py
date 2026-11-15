@@ -13,8 +13,9 @@ from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
-# SENTADO=1: the seated driver for the Apollo LRV (one column, 8 directions): the same model with
-# its legs stretched straight forward, written next to the walk sheet as <name>_sentado.png.
+# SENTADO=1: the seated driver for the Apollo LRV (one column, 16 directions, like the rover's 16
+# headings): the same model with its legs stretched straight forward, written next to the walk
+# sheet as <name>_sentado.png. Row d faces map angle d * 22.5 deg.
 SENTADO = os.environ.get('SENTADO') == '1'
 PNG = os.path.join(ROOT, 'public', 'lua', 'astronaut.png' if os.environ.get('SKIN', 'comandante') == 'comandante' else 'astronaut_%s.png' % os.environ['SKIN'])
 if SENTADO: PNG = PNG[:-4] + '_sentado.png'
@@ -231,6 +232,29 @@ sc.render.resolution_x = sc.render.resolution_y = FRAME
 pe = Vector((0, 0, 0)) - centro
 anchor = [FRAME / 2 + pe.dot(right) * s, FRAME / 2 - pe.dot(up) * s]
 
+# The seated driver sits in the Apollo LRV: the rover itself (make_lrv.py LRV_BLEND) is loaded as a
+# holdout, placed exactly where the game seats the driver (Superficie: the frame's row 128, the
+# hip line, on the seat 0.21 tile behind the rover's centre, 0.19 to its side, 0.47 up), turning
+# with the figure. Each frame then comes out cut wherever the rover is in front of the driver, and
+# the game draws the driver over the whole rover. Without the .blend the frames stay uncut.
+OCLUSOR = os.path.join(HERE, '.cache', 'lrv_oclusor.blend')
+if SENTADO and os.path.exists(OCLUSOR):
+    recorte = bpy.data.materials.new('Recorte do LRV'); recorte.use_nodes = True
+    rn = recorte.node_tree.nodes; rn.clear()
+    recorte.node_tree.links.new(rn.new('ShaderNodeHoldout').outputs[0], rn.new('ShaderNodeOutputMaterial').inputs['Surface'])
+    quadril = (anchor[1] - 128) / (s * up.z)                     # hip height above the feet, tiles
+    lrv = bpy.data.objects.new('LRV (recorte)', None); sc.collection.objects.link(lrv)
+    lrv.parent = root; lrv.location = (0.21, -0.19, quadril - 0.47)
+    with bpy.data.libraries.load(OCLUSOR) as (de, para):
+        para.objects = list(de.objects)
+    for o in para.objects:
+        if o is None: continue
+        sc.collection.objects.link(o)
+        o.parent = lrv
+        o.visible_shadow = False
+        for slot in o.material_slots: slot.material = recorte
+    print('LRV holdout', len(para.objects), 'pieces, hip', round(quadril, 3), flush=True)
+
 if LIVE:
     pose(0.25)
     root.rotation_euler = (0, 0, math.radians(-45))
@@ -239,10 +263,11 @@ else:
     import numpy as np, subprocess
     os.makedirs(TMP, exist_ok=True)
     cols = 1 if SENTADO else 1 + WALK
-    sheet = np.zeros((8 * FRAME, cols * FRAME, 4), np.float32)
-    for d in range(8):
-        # Direction d faces map angle d * 45 deg, measured in Blender's XY (map gx, -gy).
-        root.rotation_euler = (0, 0, math.radians(d * 45))
+    dirs = 16 if SENTADO else 8
+    sheet = np.zeros((dirs * FRAME, cols * FRAME, 4), np.float32)
+    for d in range(dirs):
+        # Direction d faces map angle d * 360 / dirs deg, measured in Blender's XY (map gx, -gy).
+        root.rotation_euler = (0, 0, math.radians(d * 360 / dirs))
         for c in range(cols):
             pose('sentado' if SENTADO else None if c == 0 else (c - 1) / WALK)
             bpy.context.view_layer.update()
@@ -251,10 +276,10 @@ else:
             bpy.ops.render.render(write_still=True)
             im = bpy.data.images.load(p)
             px = np.array(im.pixels[:], np.float32).reshape(FRAME, FRAME, 4)
-            r = 8 - 1 - d                                  # Blender rows start at the bottom
+            r = dirs - 1 - d                               # Blender rows start at the bottom
             sheet[r * FRAME:(r + 1) * FRAME, c * FRAME:(c + 1) * FRAME] = px
             bpy.data.images.remove(im)
-    img = bpy.data.images.new('astro', cols * FRAME, 8 * FRAME, alpha=True)
+    img = bpy.data.images.new('astro', cols * FRAME, dirs * FRAME, alpha=True)
     img.pixels = sheet.ravel(); img.filepath_raw = PNG; img.file_format = 'PNG'; img.save()
     try:
         subprocess.run(['magick', PNG, '-dither', 'None', '-colors', '255', 'PNG8:' + PNG], check=True)
