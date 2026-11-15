@@ -425,7 +425,7 @@ export function criarBotaoConfiguracoes(cena: Phaser.Scene, b: Caixa, acao: () =
 
 
 // Vector controls avoid font-dependent glyph baselines and share the same visual center.
-export function criarBotaoZoom(cena: Phaser.Scene, b: Caixa, u: number, icone: 'mais' | 'menos' | 'casa', acao: () => void) {
+export function criarBotaoZoom(cena: Phaser.Scene, b: Caixa, u: number, icone: 'mais' | 'menos' | 'mira', acao: () => void) {
   const botao = criarBotaoPilula(cena, b, u, '', acao);
   botao.texto.setVisible(false);
   const g = cena.add.graphics();
@@ -433,10 +433,10 @@ export function criarBotaoZoom(cena: Phaser.Scene, b: Caixa, u: number, icone: '
   const x = (v: number) => cx + Math.round(v * u), y = (v: number) => cy + Math.round(v * u);
   const desenhar = (cor: number) => {
     g.clear().lineStyle(Math.max(2, Math.round(2.5 * u)), cor);
-    if (icone === 'casa') {
-      g.beginPath().moveTo(x(-9), y(-1)).lineTo(x(0), y(-8)).lineTo(x(9), y(-1)).strokePath();
-      g.beginPath().moveTo(x(-6), y(-1)).lineTo(x(-6), y(8)).lineTo(x(6), y(8)).lineTo(x(6), y(-1)).strokePath();
-      g.beginPath().moveTo(x(-2), y(8)).lineTo(x(-2), y(2)).lineTo(x(2), y(2)).lineTo(x(2), y(8)).strokePath();
+    if (icone === 'mira') {
+      g.strokeCircle(x(0), y(0), Math.round(6 * u));
+      g.lineBetween(x(0), y(-10), x(0), y(-3)).lineBetween(x(0), y(3), x(0), y(10));
+      g.lineBetween(x(-10), y(0), x(-3), y(0)).lineBetween(x(3), y(0), x(10), y(0));
     } else {
       g.lineBetween(x(-6), y(0), x(6), y(0));
       if (icone === 'mais') g.lineBetween(x(0), y(-6), x(0), y(6));

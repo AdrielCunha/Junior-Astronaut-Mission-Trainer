@@ -427,7 +427,7 @@ export class Interface extends Phaser.Scene {
     this.objetivo.add([estrela, this.textos.tarefa]);
     // Pulse only the star; the second-row elements stay on the same baseline.
     if (!movimentoReduzido()) this.tweens.add({ targets: estrela, alpha: 0.45, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    (['mais', 'menos', 'casa'] as const).forEach((icone, i) => criarBotaoZoom(this, l.zoom[i], u, icone,
+    (['mais', 'menos', 'mira'] as const).forEach((icone, i) => criarBotaoZoom(this, l.zoom[i], u, icone,
       () => i === 2 ? sessao.irPara(U_INICIAL) : sessao.zoom(i === 0 ? -0.5 : 0.5)));
     const nivel = criarPilula(this, l.nivel.x, l.nivel.y, l.nivel.w, l.nivel.h, u);
     this.textos.altitude = this.add.text(Math.round(l.nivel.w / 2), Math.round(l.nivel.h / 2), '', letra(px(12), '#ffffff')).setOrigin(0.5);
