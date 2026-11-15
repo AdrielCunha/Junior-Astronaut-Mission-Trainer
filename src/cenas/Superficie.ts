@@ -27,6 +27,7 @@ import { VOO as voo } from './qualidade';
 import { sortear } from '../tarefas';
 import type { DadosTarefa } from './Tarefa';
 import modelos from '../dados/modulos.json';
+import { origemBaterias, modeloBancoBaterias } from '../engine/estacaoSolar';
 import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 import dadosViagem from '../dados/viagem.json';
@@ -109,7 +110,7 @@ export class Superficie extends Phaser.Scene {
     // lander and the panels are; the rooms are construction sites (BASE_MARTE).
     if (!sessao.grade.lista.length) montarBasePadrao(sessao.grade, marte ? BASE_MARTE : undefined);
     // Labels and construction sites follow the rules state.
-    sessao.ouvir(this, 'estado', () => { for (const c of sessao.grade.lista) if (c.tipo.sala) this.desenharModulo(c); });
+    sessao.ouvir(this, 'estado', () => { for (const c of sessao.grade.lista) if (c.tipo.sala || c.tipo.id === 'bateria') this.desenharModulo(c); });
     const hab = sessao.grade.lista.find((c) => c.tipo.id === 'habitat')!;
     const sx = hab.gx + hab.tipo.w + 0.7, sy = hab.gy + hab.tipo.h / 2;
     this.corpo = novoCorpo(sx, sy, sessao.terreno.altura(sx, sy));
@@ -352,7 +353,7 @@ export class Superficie extends Phaser.Scene {
 
   // Rooms you can use light up under the cursor, like buttons.
   private destacar(c: Construcao | null) {
-    const usavel = c && (c.tipo.id === 'habitat' || c.tipo.sala) ? c : null;
+    const usavel = c && (c.tipo.id === origemBaterias(sessao.mundo) || c.tipo.sala) ? c : null;
     if (usavel === this.sobre) return;
     if (this.sobre) this.desenhos.get(this.sobre.id)?.img.clearTint();
     this.sobre = usavel;
@@ -410,13 +411,13 @@ export class Superficie extends Phaser.Scene {
   }
 
   private usarPerto() {
-    const c = sessao.grade.lista.find((m) => this.perto(m) && (m.tipo.id === 'habitat' || m.tipo.sala));
+    const c = sessao.grade.lista.find((m) => this.perto(m) && (m.tipo.id === origemBaterias(sessao.mundo) || m.tipo.sala));
     if (c) this.usar(c);
   }
 
   private usar(c: Construcao) {
     if (sessao.emTarefa) return;
-    if (!c.tipo.sala && c.tipo.id !== 'habitat') {
+    if (!c.tipo.sala && c.tipo.id !== origemBaterias(sessao.mundo)) {
       sessao.emitir('mensagem', `${c.tipo.nome}: ${c.tipo.papel}`);
       return;
     }
@@ -424,13 +425,13 @@ export class Superficie extends Phaser.Scene {
       sessao.emitir('mensagem', sessao.fase === 'inicio' ? 'Press "Start mission" to begin day 1.' : 'Wait for the morning report.');
       return;
     }
-    if (c.tipo.id === 'habitat') {
-      if (!sessao.noHabitat) { sessao.emitir('mensagem', 'No batteries left at the habitat today.'); return; }
+    if (c.tipo.id === origemBaterias(sessao.mundo)) {
+      if (!sessao.noHabitat) { sessao.emitir('mensagem', 'No charged batteries left here today.'); return; }
       sessao.carregando += sessao.noHabitat;
       sessao.noHabitat = 0;
       sessao.emitir('mensagem', `You picked up ${sessao.carregando} batteries. Take them to the rooms.`, '#86efac');
     } else if (c.tipo.sala) {
-      if (!sessao.carregando) { sessao.emitir('mensagem', 'Your hands are empty. Pick up batteries at the habitat.'); return; }
+      if (!sessao.carregando) { sessao.emitir('mensagem', `Your hands are empty. Pick up batteries at the ${sessao.mundo === 'lua' ? 'Battery Bank' : 'Lander'}.`); return; }
       // The first battery a room gets each day comes with a task from the bank (../tarefas).
       const sala = c.tipo.sala;
       const tarefa = sessao.tarefasHoje.has(sala) ? undefined : sortear(sala, sessao.ultimaTarefa[sala]);
@@ -677,6 +678,7 @@ export class Superficie extends Phaser.Scene {
     }
     if (c.tipo.id === 'aquecedor') return 'oficina';
     if (c.tipo.id === 'cupula') return 'habitat';
+    if (c.tipo.id === 'bateria') return modeloBancoBaterias(sessao.noHabitat, sessao.fase === 'inicio') as Modelo;
     const meta = sessao.estado.meta;
     if (c.tipo.id === 'plataforma' && this.foguetePartiu) return 'plataforma';
     if (c.tipo.id === 'plataforma') return `foguete${Math.min(4, Math.floor(meta / 25))}` as Modelo;

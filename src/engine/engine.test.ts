@@ -7,10 +7,11 @@ import { readFileSync } from 'node:fs';
 import { Terreno, type DadosTerreno } from './terreno.ts';
 import { paraTela, paraChao, type Projecao } from './iso.ts';
 import { passo, novoCorpo, G, G_LUA, G_TERRA, pulo } from './fisica.ts';
-import { Grade, TIPOS, BASE_PADRAO, SETORES_SUPRIMENTOS, montarBasePadrao } from './construcao.ts';
+import { Grade, TIPOS, BASE_PADRAO, BASE_MARTE, SETORES_SUPRIMENTOS, montarBasePadrao } from './construcao.ts';
 import { posicao, PLANETAS, lua } from './astro.ts';
 import { SUPRIMENTOS, empuxoDePouso } from './suprimentos.ts';
 import { encontrarCaminho } from './caminho.ts';
+import { origemBaterias, modeloBancoBaterias } from './estacaoSolar.ts';
 
 const dados = JSON.parse(readFileSync(new URL('../dados/terreno.json', import.meta.url), 'utf8')) as DadosTerreno & { imagem: Projecao };
 const real = new Terreno(dados);
@@ -82,6 +83,47 @@ test('the default base fits on the real map, every room within a short walk of t
   for (const c of feitas.filter((m) => m.tipo.sala)) {
     const d = Math.hypot(c.gx - hab.gx, c.gy - hab.gy);
     assert.ok(d < 12, `${c.tipo.nome} is ${d.toFixed(1)} tiles from the habitat`);
+  }
+});
+
+test('six solar panels stay aligned in two rows beside a reachable five-slot bank', () => {
+  const g = new Grade(real);
+  montarBasePadrao(g);
+  const panels = g.lista.filter(c => c.tipo.id === 'painel');
+  const bank = g.lista.find(c => c.tipo.id === 'bateria')!;
+  assert.equal(panels.length, 6);
+  const xs = [...new Set(panels.map(c => c.gx))].sort((a,b) => a-b);
+  const ys = [...new Set(panels.map(c => c.gy))].sort((a,b) => a-b);
+  assert.deepEqual(xs.map(x => x-xs[0]), [0,3,6]);
+  assert.deepEqual(ys.map(y => y-ys[0]), [0,3]);
+  assert.equal(bank.gx, xs[0]+9);
+  assert.equal(bank.gy, ys[0]);
+  assert.equal(bank.tipo.h, 5);
+  const hab = g.lista.find(c => c.tipo.id === 'habitat')!;
+  const start = {x: hab.gx+hab.tipo.w+0.7, y: hab.gy+hab.tipo.h/2};
+  assert.ok(encontrarCaminho(real,g.caixas(),0.22,start.x,start.y,bank.gx-0.65,bank.gy+2.5));
+});
+
+test('battery pickup uses the Moon bank, preserves the Mars lander, and displays remaining cartridges', () => {
+  assert.equal(origemBaterias('lua'), 'bateria');
+  assert.equal(origemBaterias('marte'), 'habitat');
+  assert.equal(modeloBancoBaterias(0, true), 'bateria_carga5');
+  for (const n of [0,1,2,3,4,5]) assert.equal(modeloBancoBaterias(n, false), `bateria_carga${n}`);
+  assert.equal(modeloBancoBaterias(-1, false), 'bateria_carga0');
+  assert.equal(modeloBancoBaterias(9, false), 'bateria_carga5');
+});
+
+test('the larger solar models preserve the Mars base and paths from its lander', () => {
+  const t = new Terreno(JSON.parse(readFileSync(new URL('../dados/terreno_marte.json', import.meta.url), 'utf8')));
+  const g = new Grade(t);
+  assert.equal(montarBasePadrao(g, BASE_MARTE).length, BASE_MARTE.length);
+  assert.equal(g.lista.filter(c => c.tipo.id === 'painel').length, 2);
+  assert.equal(g.lista.some(c => c.tipo.id === 'bateria'), false);
+  const lander = g.lista.find(c => c.tipo.id === 'habitat')!;
+  for (const room of g.lista.filter(c => c.tipo.sala)) {
+    assert.ok(encontrarCaminho(t, g.caixas(), 0.22,
+      lander.gx+lander.tipo.w+0.7, lander.gy+lander.tipo.h/2,
+      room.gx+room.tipo.w+0.65, room.gy+room.tipo.h/2), room.tipo.nome);
   }
 });
 
