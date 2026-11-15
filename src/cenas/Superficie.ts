@@ -45,14 +45,14 @@ import { dirigirRover, estacionarRover, desembarcar, pontoLivre, RAIO_ROVER } fr
 import { deveQuebrar } from '../paralama-tarefa';
 import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto, alvoDaSeta, pista, moverExpedicao, type Expedicao, type TipoExpedicao } from '../engine/expedicao';
 import { criarExploracao, sortearTipo, AVISOS, type Contexto } from '../engine/exploracao';
-import { sortearPremio, textoDoPremio, skinsDePremio, CHANCE_PREMIO_SALA, type Posse, type TipoPremio } from '../engine/presentes';
+import { sortearPremio, textoDoPremio, skinsDePremio, CHANCE_PREMIO_SALA, type Posse, type Premio, type TipoPremio } from '../engine/presentes';
 import { salasComTarefaHoje } from '../engine/tarefasDoDia';
 import { t } from '../idioma';
 import { ACESSORIOS, acessorioPorId, chaveAcessorio } from '../dados/acessorios';
 import { ganharAcessorio, acessoriosGanhos, ganharSkin, skinsGanhas, dicaDeTrocaVista, marcarDicaDeTroca } from '../acessorios';
 import { corPorId, proximaCor, multiplicarTom } from '../dados/cores';
 import { coresGanhas, corDoModulo, ganharCor, pintarModulo, dicaDeTintaVista, marcarDicaDeTinta } from '../cores';
-import { ESTACOES, estacaoDisponivel, textoEstacao, estacaoDoModulo, chaveModulo, type Estacao } from '../engine/estacoes';
+import { ESTACOES, estacaoDisponivel, textoEstacao, estacaoDoModulo, chaveModulo, itemDaEstacao, type Estacao } from '../engine/estacoes';
 import { desenharRover, esconderRover, LINHA_QUADRIL_SENTADO, type PecasRover } from './desenharRover';
 import { controleMovel, consumirPuloMovel, dispositivoMovel } from '../mobile';
 
@@ -836,6 +836,11 @@ export class Superficie extends Phaser.Scene {
       }
       const premio = ganhoOxigenio > 0 ? ` +${ganhoOxigenio} oxygen.` : '';
       sessao.emitir('mensagem', `✅ ${d.nome}: ${e.acao.toLowerCase()} done!${premio}`, '#86efac');
+      // Sometimes the station gives its own themed item (engine/estacoes.ts), if not owned yet (nor still being made).
+      const item = itemDaEstacao(e, (i) => i.tipo === 'skin'
+        ? skinsGanhas().includes(i.id) || !this.textures.exists(chaveSkin(i.id))
+        : acessoriosGanhos().includes(i.id) || !this.textures.exists(chaveAcessorio(i.id)));
+      if (item) this.aplicarPremio(item);
     } });
     this.scene.bringToTop(e.cena);
   }
@@ -1179,7 +1184,11 @@ export class Superficie extends Phaser.Scene {
       cores: coresGanhas(),
       skins: [...skinsGanhas(), ...skinsDePremio().filter((id) => !this.textures.exists(chaveSkin(id)))],
     };
-    const premio = sortearPremio(tipo, posse);
+    this.aplicarPremio(sortearPremio(tipo, posse));
+  }
+
+  // Gives one prize (from the draw, or a station's own item) and says so; the first of a kind teaches how to use it.
+  private aplicarPremio(premio: Premio) {
     let ensina: 'roupa' | 'tinta' | null = null;
     switch (premio.tipo) {
       case 'bateria': sessao.carregando += premio.qtd; break;

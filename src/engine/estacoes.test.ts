@@ -39,3 +39,19 @@ test('cargo landers bring equipment only to the Moon: never to the ship or to Ma
     assert.equal(suprimentoDoMundo('marte', s.dia), undefined, `day ${s.dia} on Mars`);
   }
 });
+
+test('every station has its own themed item, a real astronaut or accessory, and gives it only sometimes', async () => {
+  const { itemDaEstacao, CHANCE_ITEM_ESTACAO } = await import('./estacoes.ts');
+  const { ACESSORIOS } = await import('../dados/acessorios.ts');
+  const { SKINS } = await import('../dados/skins.ts');
+  const todas = [...Object.values(ESTACOES), ...Object.values(ESTACOES_MODULO)];
+  for (const e of todas) {
+    assert.ok(e.item, `${e.acao}: no item`);
+    const existe = e.item!.tipo === 'skin' ? SKINS.some((s) => s.id === e.item!.id && s.premio) : ACESSORIOS.some((a) => a.id === e.item!.id);
+    assert.ok(existe, `${e.acao}: unknown item ${e.item!.id}`);
+  }
+  const radio = ESTACOES.nave_radio;
+  assert.deepEqual(itemDaEstacao(radio, () => false, () => CHANCE_ITEM_ESTACAO - 0.01), radio.item);   // lucky
+  assert.equal(itemDaEstacao(radio, () => false, () => CHANCE_ITEM_ESTACAO), undefined);              // not this time
+  assert.equal(itemDaEstacao(radio, () => true, () => 0), undefined);                                 // already owned
+});
