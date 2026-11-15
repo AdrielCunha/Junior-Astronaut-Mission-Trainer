@@ -2,6 +2,8 @@
 // Launch animation: after LAUNCH MISSION and the countdown (Radar.ts), the game's rocket crosses
 // the stars, brakes and arrives at the Moon, then the camera dives in and the first morning
 // opens. The Moon is the same live shader used by the loading screen. Click or any key skips it.
+// Chapter 3 uses the same film to arrive at Mars: the same rocket, and Mars (planetaShader.ts)
+// turning as it grows.
 import Phaser from 'phaser';
 import { movimentoReduzido } from '../video';
 import { tocarMotor, tocarSfx } from '../sfx';
@@ -9,6 +11,8 @@ import { sessao } from './sessao';
 import { letra } from '../tarefas/estilo';
 import { criarLua, LADO } from './luaShader';
 import { giroEm } from './globo';
+import { criarPlaneta, diametroPlaneta, giroOlhando } from './planetaShader';
+import { JEZERO } from './marte';
 import foguetevoo from '../dados/foguete_voo.json';
 
 const DURACAO = 6800;   // ms of the full flight
@@ -16,12 +20,16 @@ const DURACAO = 6800;   // ms of the full flight
 // Blender picture foguete4.png by tools/lua3d/make_flying_rocket.py; loaded by Carregar).
 export const CHAVE_FOGUETE = 'foguete_voo';
 
-export type DadosChegada = { aoTerminar?: () => void };
+export type DadosChegada = { aoTerminar?: () => void; mundo?: 'lua' | 'marte' };
 
 export class Chegada extends Phaser.Scene {
   private fim = false;
 
   constructor() { super({ key: 'Chegada' }); }
+
+  preload() {
+    if (!this.textures.exists('planeta_marte')) this.load.image('planeta_marte', 'lua/planetas/marte.png');
+  }
 
   create(d: DadosChegada = {}) {
     const W = this.scale.width, H = this.scale.height;
@@ -55,15 +63,25 @@ export class Chegada extends Phaser.Scene {
     const luaX = W * 0.72, luaY = H * 0.62;
     const diametroFim = Math.min(W, H) * 1.05;
     const diametroIni = diametroFim * 0.28;
+    const emMarte = d.mundo === 'marte';
     let lua: ReturnType<typeof criarLua> | null = null;
+    let marte: ReturnType<typeof criarPlaneta> | null = null;
     let luaFalsa: Phaser.GameObjects.Arc | null = null;
-    if (this.textures.exists('luaAlbedo') && this.textures.exists('luaAltura')) {
+    // Mars turns while we fly in, ending with Jezero crater (the base) facing us.
+    const giroFim = giroOlhando(JEZERO.lon) - 12, GIRO_VOO = 70;
+    if (emMarte && this.textures.exists('planeta_marte')) {
+      marte = criarPlaneta(this, luaX, luaY, { textura: 'planeta_marte', atmos: 0xfdba74, atmosForca: 0.35 });
+      marte.setSolTela(-1, 0.5);
+      marte.setGiro(giroFim - GIRO_VOO).setScale(diametroIni / diametroPlaneta(1)).setDepth(-60);
+    } else if (emMarte) {
+      luaFalsa = this.add.circle(luaX, luaY, diametroIni / 2, 0xc2410c).setDepth(-60);
+    } else if (this.textures.exists('luaAlbedo') && this.textures.exists('luaAltura')) {
       lua = criarLua(this, luaX, luaY);
       lua.setGiro(giroEm(Date.parse('2024-05-05T12:00:00Z'))).setScale(diametroIni / LADO).setDepth(-60);
     } else {
       luaFalsa = this.add.circle(luaX, luaY, diametroIni / 2, 0x94a3b8).setDepth(-60);
     }
-    const brilho = this.add.circle(luaX, luaY, diametroIni * 0.62, 0x60a5fa, 0.08).setDepth(-65);
+    const brilho = this.add.circle(luaX, luaY, diametroIni * 0.62, emMarte ? 0xfb923c : 0x60a5fa, 0.08).setDepth(-65);
 
     // ---- the rocket ----
     const chama = this.add.graphics().setDepth(9);
@@ -73,7 +91,7 @@ export class Chegada extends Phaser.Scene {
 
     // ---- text ----
     // Same lettering as the title screen logo and footer.
-    const titulo = this.add.text(W / 2, H * 0.12, 'ARRIVING AT THE MOON', letra(34 * u, '#fde047', {
+    const titulo = this.add.text(W / 2, H * 0.12, emMarte ? 'ARRIVING AT MARS' : 'ARRIVING AT THE MOON', letra(34 * u, '#fde047', {
       stroke: '#1e293b', strokeThickness: 8 * u, letterSpacing: 2 * u,
     })).setOrigin(0.5).setDepth(20).setAlpha(0);
     const dica = this.add.text(W / 2, H - 26 * u, 'Click or press any key to skip', letra(13 * u, '#bfdbfe', { fontStyle: '500' }))
@@ -142,6 +160,7 @@ export class Chegada extends Phaser.Scene {
       // Moon grows
       const d = Phaser.Math.Linear(diametroIni, diametroFim, Phaser.Math.Easing.Sine.InOut(t));
       lua?.setScale(d / LADO);
+      marte?.setGiro(giroFim - GIRO_VOO * (1 - Phaser.Math.Easing.Sine.Out(t))).setScale(d / diametroPlaneta(1));
       luaFalsa?.setRadius(d / 2);
       brilho.setRadius(d * 0.62);
       // stars drift

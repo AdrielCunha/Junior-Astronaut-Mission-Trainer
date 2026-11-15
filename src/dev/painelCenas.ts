@@ -75,10 +75,10 @@ export function criarPainelCenas(jogo: Phaser.Game) {
     if (!ativa) { avisar('No running scene to load from.'); return; }
     iniciarMarte3D(ativa, 10, [200, 200]);
   };
-  const chegada = (pularParaPouso: boolean) => {
+  const chegada = () => {
     sm.getScenes(true).forEach((s) => { if (s.scene.key === 'Radar') sm.stop('Radar'); });
-    sm.run('Viagem', { etapa: 'chegada', aoTerminar: marte3D });
-    if (pularParaPouso) depois(60, () => { (sm.getScene('Viagem') as unknown as { t: number }).t = 0.995; });
+    sm.run('Chegada', { mundo: 'marte', aoTerminar: marte3D });
+    sm.bringToTop('Chegada');
   };
 
   // --- the scenes ---
@@ -101,8 +101,8 @@ export function criarPainelCenas(jogo: Phaser.Game) {
     sessao.partida = { fase: 'cruzeiro', t: 0, fim: fimPartida, acabou: false };
   });
   titulo('Arriving at Mars');
-  botao('Arrival: orbit, then landing', () => chegada(false));
-  botao('Skip to the landing', () => chegada(true));
+  botao('Arrival: flight to Mars, then landing', chegada);
+  botao('Skip to the landing', marte3D);
   titulo('Chapters');
   botao('Chapter 2: the ship (3D, playable)', () => {
     const ativa = cenaRodando();
@@ -117,6 +117,14 @@ export function criarPainelCenas(jogo: Phaser.Game) {
       (sm.getScene('Interface') as unknown as { fecharPainel?: () => void }).fecharPainel?.();
       sessao.voar('lua');
     });
+  });
+  botao('Win the game: party + zoom out to the planets', () => {
+    const vencer = () => (sm.getScene('Interface') as unknown as { devVencerJogo(): boolean }).devVencerJogo();
+    if (sessao.mundo === 'marte' && ativa('Interface')) { vencer(); return; }
+    const c = cenaRodando();
+    if (!c) { avisar('No running scene to load from.'); return; }
+    iniciarMarte3D(c, 10, [200, 200], false);
+    depois(1500, vencer);
   });
   titulo('Mars map');
   botao('Mars map preview (Jezero)', () => {

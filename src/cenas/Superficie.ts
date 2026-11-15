@@ -1732,6 +1732,7 @@ export class Superficie extends Phaser.Scene {
   // The rocket comes down on the launch pad braking with its engine, lands, then vanishes in a
   // puff of smoke and leaves the empty pad: the crew has to build a new one to reach Mars.
   private pousarFoguete(fim: () => void) {
+    if (sessao.mundo === 'marte') { this.pousarNaveMarte(fim); return; }
     const c = sessao.grade.lista.find((k) => k.tipo.id === 'plataforma');
     const d = c && this.desenhos.get(c.id);
     if (!c || !d || !this.textures.exists(CHAVE_FOGUETE)) { fim(); return; }
@@ -1784,6 +1785,62 @@ export class Superficie extends Phaser.Scene {
           sessao.emitir('mensagem', '🚀 Our rocket broke. Build a new one to fly to Mars!', '#fde047');
           // Time to read it before the morning chat opens (the chat repeats it on day 1).
           this.time.delayedCall(4500, () => { sessao.emTarefa = false; this.seguir = true; fim(); });
+        }));
+      },
+    });
+  }
+
+  // ---------- the crew's rocket arriving on Mars (chapter 3) ----------
+  // The same rocket as on the Moon comes down braking with its engine onto the spot of the crew's home,
+  // lands, and in a puff of smoke is unpacked into the home (the Habitat on Mars is the lander picture).
+  private pousarNaveMarte(fim: () => void) {
+    const c = sessao.grade.lista.find((k) => k.tipo.id === 'habitat');
+    const d = c && this.desenhos.get(c.id);
+    if (!c || !d || !this.textures.exists(CHAVE_FOGUETE)) { fim(); return; }
+    sessao.emTarefa = true;
+    this.seguir = false;
+    this.posicionar(d.img, c, this.modelo(c));
+    const cam = this.cameras.main, m4 = modelos.foguete4, mc = modelos.chama;
+    const cx = c.gx + c.tipo.w / 2, cy = c.gy + c.tipo.h / 2;
+    const pe = paraTela(P, cx, cy, c.z);
+    const altura = pe.y - paraTela(P, cx, cy, c.z + ALTURA_POUSO).y;
+    const alturaFoguete = foguetevoo.h * m4.escala;
+    const prof = d.img.depth;
+    const rotuloVisivel = d.rotulo?.visible ?? false;
+    d.img.setVisible(false); d.rotulo?.setVisible(false);
+
+    const sombra = this.add.ellipse(pe.x, pe.y - 6, 70, 26, 0x000000, 0.1).setDepth(prof - 0.5);
+    const chama = this.add.image(pe.x, pe.y, 'mod_chama').setOrigin(0.5, 0.05).setTint(0xfb923c, 0xfb923c, 0xfde047, 0xfde047).setDepth(prof - 0.4);
+    const foguete = this.add.image(pe.x, pe.y - altura, CHAVE_FOGUETE).setOrigin(foguetevoo.pe[0] / foguetevoo.w, 1).setScale(m4.escala).setDepth(prof + 1);
+    this.mapa.add([sombra, chama, foguete]);
+    sessao.emitir('mensagem', '🚀 Landing on Mars! The thin air slows us a bit, the engine does the rest.', '#fde68a');
+
+    tocarMotor(3.5, 1, 0.3);
+    const voo = { h: 1 };
+    const desenhar = () => {
+      const y = pe.y - voo.h * altura;
+      foguete.setY(y);
+      const forca = (0.75 + 0.5 * voo.h) * Phaser.Math.Clamp(voo.h / 0.12, 0, 1);
+      chama.setPosition(pe.x, y - 22 * m4.escala).setScale(mc.escala * 1.3 * forca, mc.escala * 1.6 * forca * Phaser.Math.FloatBetween(0.85, 1.15));
+      sombra.setScale(1 / (1 + voo.h * 1.5)).setAlpha(0.32 - voo.h * 0.22);
+      cam.centerOn(pe.x, Phaser.Math.Linear(pe.y - alturaFoguete * 0.5, y - alturaFoguete * 0.5, 0.6));
+    };
+    desenhar();
+    this.tweens.add({
+      targets: voo, h: 0, duration: movimentoReduzido() ? 1200 : 3400, ease: 'Cubic.easeOut', onUpdate: desenhar,
+      onComplete: () => {
+        chama.destroy(); sombra.destroy();
+        this.poeira(cx, cy, c.z);
+        cam.shake(260, 0.004);
+        tocarSfx('pouso');
+        this.time.delayedCall(450, () => tocarSfx('sucesso'));
+        sessao.emitir('mensagem', '🎉 Touchdown in Jezero crater! Welcome to Mars!', '#86efac');
+        this.time.delayedCall(1300, () => this.fumacaFoguete(pe, alturaFoguete, prof, () => {
+          foguete.destroy();
+          d.img.setVisible(true); d.rotulo?.setVisible(rotuloVisivel);   // the rocket unpacks into our home
+        }, () => {
+          sessao.emitir('mensagem', '🏠 The rocket became our first Mars home!', '#fde68a');
+          this.time.delayedCall(2500, () => { sessao.emTarefa = false; this.seguir = true; fim(); });
         }));
       },
     });

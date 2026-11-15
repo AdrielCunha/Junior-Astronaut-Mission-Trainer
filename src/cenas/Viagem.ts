@@ -4,15 +4,14 @@
 //              transfer path from the Earth-Moon system to Mars, and the ship setting out on it.
 //   'chegada'  at the end of chapter 2: the ship finishes the path, Mars grows from a dot into
 //              a live globe (planetaShader.ts), and the ship fires its engine to enter orbit.
-//              Then the landing: the camera dives to Jezero crater and the lander comes down
-//              through the air of Mars (heat shield, parachute, rockets), seen from the side.
+//              The landing itself happens on the Mars map, like the rocket on the Moon
+//              (Superficie.pousarNaveMarte).
 // Planet positions are real for the dates (engine/astro.ts). The path is a simplified transfer
 // arc (it bends out from Earth's orbit to Mars's), not a computed trajectory.
 import Phaser from 'phaser';
 import viagem from '../dados/viagem.json';
 import { PLANETAS, posicao } from '../engine/astro';
-import { criarPlaneta, diametroPlaneta, giroOlhando, pontoNoPlaneta } from './planetaShader';
-import { COR_MARTE, JEZERO, desenharPaisagemMarte } from './marte';
+import { criarPlaneta, diametroPlaneta } from './planetaShader';
 import { fonte, dataBonita } from './sessao';
 import { movimentoReduzido } from '../video';
 
@@ -23,8 +22,6 @@ const ACHATAR = 0.6;                                  // the solar system is dra
 const AU_TELA = 1.75;                                 // the view fits out to Mars's orbit
 const terra = PLANETAS.find((p) => p.nome === 'Earth')!;
 const marte = PLANETAS.find((p) => p.nome === 'Mars')!;
-const POUSO_S = 12;                                   // the landing, seconds (reduced motion: a third)
-const CONTORNO = COR_MARTE.contorno;
 
 type Ponto = { x: number; y: number };
 
@@ -43,9 +40,6 @@ export class Viagem extends Phaser.Scene {
   private legenda!: Phaser.GameObjects.Text;
   private caminho: Ponto[] = [];      // transfer arc in AU, from Earth (0) to Mars (1)
   private terminou = false;
-  private pouso: number | null = null;  // 0..1 once the landing has started
-  private descida!: Phaser.GameObjects.Graphics;
-  private fogo!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super({ key: 'Viagem' });
@@ -55,7 +49,6 @@ export class Viagem extends Phaser.Scene {
     this.d = d;
     this.t = 0;
     this.terminou = false;
-    this.pouso = null;
   }
 
   preload() {
@@ -100,8 +93,6 @@ export class Viagem extends Phaser.Scene {
 
     this.titulo = this.add.text(W / 2, 28, '', fonte(22, '#f8fafc', { fontStyle: 'bold', stroke: '#020617', strokeThickness: 5 })).setOrigin(0.5, 0).setDepth(10);
     this.legenda = this.add.text(W / 2, H - 22, '', fonte(14, '#cbd5e1', { align: 'center', stroke: '#020617', strokeThickness: 4, wordWrap: { width: W - 40 } })).setOrigin(0.5, 1).setDepth(10);
-    this.descida = this.add.graphics().setDepth(8).setVisible(false);
-    this.fogo = this.add.graphics().setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
     this.cameras.main.fadeIn(500, 2, 6, 23);
   }
 
@@ -136,7 +127,6 @@ export class Viagem extends Phaser.Scene {
   update(_t: number, dtMs: number) {
     const W = this.scale.width, H = this.scale.height;
     const lento = movimentoReduzido();
-    if (this.pouso !== null) { this.atualizarPouso(dtMs / 1000 / (lento ? POUSO_S / 3 : POUSO_S)); return; }
     const dur = this.d.etapa === 'partida' ? 6 : 8;
     this.t = Math.min(1, this.t + dtMs / 1000 / (lento ? dur / 3 : dur));
     const t = this.t;
@@ -203,142 +193,10 @@ export class Viagem extends Phaser.Scene {
       (zoom > 0 ? 'No air to brake in space: the engine fires backward!'
         : 'The ship glides most of the way. The engine fires only to leave and arrive.'));
 
-    if (t >= 1 && this.d.etapa === 'chegada') { this.pouso = 0; return; }
     if (t >= 1 && !this.terminou) {
       this.terminou = true;
       this.cameras.main.fadeOut(600, 2, 6, 23);
       this.cameras.main.once('camerafadeoutcomplete', () => { this.d.aoTerminar(); this.scene.stop(); });
-    }
-  }
-
-  // ---------- The landing ----------
-
-  // A shape given in lander units (x right, y down), turned by `ang` and placed at (x, y).
-  private forma(pts: number[][], x: number, y: number, k: number, ang: number) {
-    const c = Math.cos(ang), s = Math.sin(ang);
-    return pts.map(([a, b]) => ({ x: x + (a * c - b * s) * k, y: y + (a * s + b * c) * k }));
-  }
-
-  private atualizarPouso(dp: number) {
-    const W = this.scale.width, H = this.scale.height, M = Math.min(W, H);
-    const u = Phaser.Math.Clamp(M / 650, 0.7, 1.5);
-    this.pouso = Math.min(1, (this.pouso ?? 0) + dp);
-    const p = this.pouso;
-    this.g.clear();
-    this.sol.setVisible(false); this.terraP.setVisible(false);
-    this.nomeTerra.setVisible(false); this.nomeMarte.setVisible(false);
-    this.nave.setVisible(false); this.chama.clear();
-
-    // 1. From orbit the camera dives to Jezero crater: Mars grows until its ground fills the screen.
-    const a = Phaser.Math.Easing.Cubic.In(Phaser.Math.Clamp(p / 0.27, 0, 1));
-    const D = Math.exp(Phaser.Math.Linear(Math.log(0.62 * M), Math.log(14 * M), a));
-    const giro = Phaser.Math.Linear(60, giroOlhando(JEZERO.lon) - 12, Phaser.Math.Easing.Sine.InOut(Math.min(1, p / 0.15)));
-    const pino = pontoNoPlaneta(JEZERO.lat, JEZERO.lon, giro);
-    const segue = Math.min(1, p / 0.15);
-    this.marteP.setPosition(W / 2 - pino.x * (D / 2) * segue, H / 2 - pino.y * (D / 2) * segue).setScale(D / diametroPlaneta(1));
-    this.marteP.setGiro(giro);
-    this.marteP.setSolTela(-1, Phaser.Math.Linear(-0.3, 0.5, segue));
-    const g = this.descida;
-    const f = this.fogo.clear();
-    if (p < 0.25) {
-      g.setVisible(false);
-      const bx = W / 2 + pino.x * (D / 2) * (1 - segue), by = H / 2 + pino.y * (D / 2) * (1 - segue);
-      this.g.fillStyle(0xf97316).fillCircle(bx, by - 18, 6).fillTriangle(bx - 4, by - 14, bx + 4, by - 14, bx, by);
-      this.g.lineStyle(2, CONTORNO).strokeCircle(bx, by - 18, 6);
-      this.titulo.setText('Heading down to Jezero crater');
-      this.legenda.setText(`The lander aims for ${JEZERO.nome}, an old lake bed. NASA's Perseverance landed there in 2021!`);
-      return;
-    }
-
-    // 2. Seen from the side: the lander falls through the sky of Mars as the ground comes up.
-    g.setVisible(true).setAlpha(Phaser.Math.Clamp((p - 0.25) / 0.05, 0, 1)).clear();
-    const q = (p - 0.25) / 0.75;                                   // 0..1 of the descent
-    const hz = H * Phaser.Math.Linear(1.35, 0.5, Phaser.Math.Easing.Sine.Out(Math.min(1, q / 0.75)));
-    desenharPaisagemMarte(g, W, H, hz, u, { x: 0.82, y: 0.3 });
-    const solo = hz + 30 * u + (H - hz - 30 * u) * 0.45;           // where the lander touches down
-    const k = 34 * u;                                              // lander size
-    const t = this.time.now / 1000;
-    const x = W * Phaser.Math.Linear(0.3, 0.5, Math.min(1, q / 0.6));
-    const altura = q < 0.62 ? H * 0.38 : Phaser.Math.Linear(H * 0.38, solo - 0.45 * k, Phaser.Math.Easing.Sine.InOut(Math.min(1, (q - 0.62) / 0.3)));
-    const y = q < 0.62 ? altura + Math.sin(t * 3) * 3 * u : altura;
-    const balanco = q > 0.3 && q < 0.62 ? Math.sin(t * 2.2) * 0.12 : 0;
-    const inclina = q < 0.3 ? -0.35 : balanco;
-
-    // Entry: the heat shield glows, hot air streams behind.
-    const chamas = (fx: number, fy: number, comp: number) => {
-      const l = comp * Phaser.Math.FloatBetween(0.85, 1.15);
-      f.fillStyle(0xfb923c, 0.85).fillTriangle(fx - 6 * u, fy, fx + 6 * u, fy, fx, fy + l);
-      f.fillStyle(0xfde68a, 0.95).fillTriangle(fx - 3 * u, fy, fx + 3 * u, fy, fx, fy + l * 0.55);
-    };
-    if (q < 0.32) {
-      const brasa = Math.sin(Math.min(1, q / 0.3) * Math.PI);
-      f.fillStyle(0xf97316, 0.55 * brasa).fillPoints(this.forma([[-1.3, 0.1], [1.3, 0.1], [0, 1.0]], x, y, k, inclina), true);
-      f.fillStyle(0xfde68a, 0.6 * brasa).fillPoints(this.forma([[-1.1, 0.15], [1.1, 0.15], [0, 0.6]], x, y, k, inclina), true);
-      for (let i = 0; i < 7; i++) {
-        const o = ((t * 3 + i * 0.37) % 1);
-        const px = x + (i - 3) * 0.32 * k - o * 3.5 * k, py = y - 0.2 * k - o * 5 * k;   // the wake trails behind, up and left
-        f.lineStyle(3 * u, 0xfdba74, 0.6 * brasa * (1 - o)).lineBetween(px, py, px - 0.9 * k, py - 1.3 * k);
-      }
-    }
-    // Parachute (red and white, like Perseverance's), from opening until the lander lets go.
-    const corte = Phaser.Math.Clamp((q - 0.62) / 0.2, 0, 1);       // chute and backshell fly off
-    if (q > 0.3 && corte < 1) {
-      const abre = Phaser.Math.Easing.Back.Out(Math.min(1, (q - 0.3) / 0.06));
-      const cx = x + corte * -3 * k, cy = y - 3.6 * k - corte * 4 * k;
-      const R = 1.9 * k * abre;
-      for (let i = 0; i < 8; i++) {
-        const a0 = Math.PI + (i / 8) * Math.PI, a1 = Math.PI + ((i + 1) / 8) * Math.PI;
-        g.fillStyle(i % 2 ? 0xffffff : 0xdc2626, 1 - corte).slice(cx, cy, R, a0, a1, false).fillPath();
-      }
-      g.lineStyle(2 * u, CONTORNO, 1 - corte).beginPath().arc(cx, cy, R, Math.PI, 0).strokePath();
-      const topo = this.forma([[-0.45, -0.75], [0.45, -0.75]], x + corte * -3 * k, y - corte * 4 * k, k, inclina);
-      g.lineStyle(1.2 * u, 0xf8fafc, 0.8 * (1 - corte)).lineBetween(cx - R, cy, topo[0].x, topo[0].y).lineBetween(cx + R, cy, topo[1].x, topo[1].y);
-      // The backshell rides with the chute.
-      g.fillStyle(0xe5e7eb, 1 - corte).fillPoints(this.forma([[-0.95, 0], [-0.45, -0.75], [0.45, -0.75], [0.95, 0]], x + corte * -3 * k, y - corte * 4 * k, k, inclina), true);
-    }
-    if (q <= 0.3) g.fillStyle(0xe5e7eb).fillPoints(this.forma([[-0.95, 0], [-0.45, -0.75], [0.45, -0.75], [0.95, 0]], x, y, k, inclina), true);
-    // Heat shield: on until the chute has slowed the lander, then it drops away.
-    const solta = Phaser.Math.Clamp((q - 0.42) / 0.15, 0, 1);
-    if (solta < 1) {
-      g.fillStyle(0x7c2d12, 1 - solta).fillPoints(this.forma([[-1, 0], [1, 0], [0, 0.35]], x, y + solta * solta * 4 * k, k, inclina), true);
-      g.lineStyle(2 * u, CONTORNO, 1 - solta).strokePoints(this.forma([[-1, 0], [1, 0], [0, 0.35]], x, y + solta * solta * 4 * k, k, inclina), true);
-    }
-    // The lander itself (gold foil, legs out), seen once the heat shield is gone.
-    if (q > 0.42) {
-      g.fillStyle(0xfbbf24).fillPoints(this.forma([[-0.6, -0.55], [0.6, -0.55], [0.7, 0], [-0.7, 0]], x, y, k, inclina), true);
-      g.lineStyle(2 * u, CONTORNO).strokePoints(this.forma([[-0.6, -0.55], [0.6, -0.55], [0.7, 0], [-0.7, 0]], x, y, k, inclina), true);
-      const pernas = this.forma([[-0.5, 0], [-0.95, 0.45], [0.5, 0], [0.95, 0.45]], x, y, k, inclina);
-      g.lineStyle(3 * u, CONTORNO).lineBetween(pernas[0].x, pernas[0].y, pernas[1].x, pernas[1].y).lineBetween(pernas[2].x, pernas[2].y, pernas[3].x, pernas[3].y);
-      g.fillStyle(0x334155).fillRect(x - 0.15 * k, y - 0.4 * k, 0.3 * k, 0.2 * k);
-    }
-    // Rockets for the last part, and the dust they blow up near the ground.
-    const queima = q > 0.6 && q < 0.93;
-    if (queima) {
-      chamas(x - 0.35 * k, y + 0.05 * k, 1.1 * k);
-      chamas(x + 0.35 * k, y + 0.05 * k, 1.1 * k);
-      const perto = Phaser.Math.Clamp(1 - (solo - y) / (2.5 * k), 0, 1);
-      for (let i = 0; i < 10; i++) {
-        const o = (t * 1.6 + i * 0.1) % 1;
-        const lado = i % 2 ? 1 : -1;
-        g.fillStyle(0xc98a5e, 0.55 * perto * (1 - o)).fillCircle(x + lado * (0.4 + o * 2.4) * k, solo - o * 0.5 * k, (0.25 + o * 0.6) * k);
-      }
-    }
-
-    const fase = q < 0.3 ? 0 : q < 0.6 ? 1 : q < 0.93 ? 2 : 3;
-    this.titulo.setText(['Entry: through the air of Mars', 'Parachute out!', 'Rockets for the last part', 'Touchdown! Welcome to Jezero crater'][fase]);
-    this.legenda.setText([
-      'Rushing through thin Mars air heats the shield to 1,300 °C!',
-      'Mars has a little air, so a parachute helps. On the Moon it would not!',
-      'The air is too thin for a parachute alone. Rockets do the rest!',
-      'Earth is too far to help live. The lander lands all by itself!',
-    ][fase]);
-
-    if (p >= 1 && !this.terminou) {
-      this.terminou = true;
-      this.time.delayedCall(movimentoReduzido() ? 300 : 1400, () => {
-        this.cameras.main.fadeOut(600, 2, 6, 23);
-        this.cameras.main.once('camerafadeoutcomplete', () => { this.d.aoTerminar(); this.scene.stop(); });
-      });
     }
   }
 }
