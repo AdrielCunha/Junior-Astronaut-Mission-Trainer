@@ -1,0 +1,1850 @@
+{
+ "habitat_r1": {
+  "arquivo": "lua/modulos/habitat_r1.png",
+  "w": 396,
+  "h": 333,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   133.37
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "habitat_r2": {
+  "arquivo": "lua/modulos/habitat_r2.png",
+  "w": 396,
+  "h": 333,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   133.37
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "habitat_r3": {
+  "arquivo": "lua/modulos/habitat_r3.png",
+  "w": 396,
+  "h": 333,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   133.37
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "suporte_r1": {
+  "arquivo": "lua/modulos/suporte_r1.png",
+  "w": 336,
+  "h": 251,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   81.43
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "suporte_r2": {
+  "arquivo": "lua/modulos/suporte_r2.png",
+  "w": 336,
+  "h": 258,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   88.1
+  ],
+  "pegada": [
+   3,
+   2
+  ]
+ },
+ "suporte_r3": {
+  "arquivo": "lua/modulos/suporte_r3.png",
+  "w": 336,
+  "h": 279,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   109.1
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "blindagem_r1": {
+  "arquivo": "lua/modulos/blindagem_r1.png",
+  "w": 276,
+  "h": 263,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   123.29
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_r2": {
+  "arquivo": "lua/modulos/blindagem_r2.png",
+  "w": 276,
+  "h": 258,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   118.39
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_r3": {
+  "arquivo": "lua/modulos/blindagem_r3.png",
+  "w": 276,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   120.47
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "oficina_r1": {
+  "arquivo": "lua/modulos/oficina_r1.png",
+  "w": 396,
+  "h": 358,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   158.36
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "oficina_r2": {
+  "arquivo": "lua/modulos/oficina_r2.png",
+  "w": 396,
+  "h": 358,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   158.36
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "oficina_r3": {
+  "arquivo": "lua/modulos/oficina_r3.png",
+  "w": 396,
+  "h": 359,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   159.17
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "plataforma_r1": {
+  "arquivo": "lua/modulos/plataforma_r1.png",
+  "w": 380,
+  "h": 353,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   156.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "plataforma_r2": {
+  "arquivo": "lua/modulos/plataforma_r2.png",
+  "w": 380,
+  "h": 284,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   87.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "plataforma_r3": {
+  "arquivo": "lua/modulos/plataforma_r3.png",
+  "w": 380,
+  "h": 353,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   156.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "antena_r1": {
+  "arquivo": "lua/modulos/antena_r1.png",
+  "w": 276,
+  "h": 263,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   123.42
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "antena_r2": {
+  "arquivo": "lua/modulos/antena_r2.png",
+  "w": 276,
+  "h": 265,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   125.52
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "antena_r3": {
+  "arquivo": "lua/modulos/antena_r3.png",
+  "w": 276,
+  "h": 252,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   112.26
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "estufa_r1": {
+  "arquivo": "lua/modulos/estufa_r1.png",
+  "w": 336,
+  "h": 267,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   97.44
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "estufa_r2": {
+  "arquivo": "lua/modulos/estufa_r2.png",
+  "w": 336,
+  "h": 267,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   97.44
+  ],
+  "pegada": [
+   3,
+   2
+  ]
+ },
+ "estufa_r3": {
+  "arquivo": "lua/modulos/estufa_r3.png",
+  "w": 336,
+  "h": 267,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   97.44
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "perfuratriz_r1": {
+  "arquivo": "lua/modulos/perfuratriz_r1.png",
+  "w": 276,
+  "h": 272,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   132.1
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "perfuratriz_r2": {
+  "arquivo": "lua/modulos/perfuratriz_r2.png",
+  "w": 276,
+  "h": 272,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   132.1
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "perfuratriz_r3": {
+  "arquivo": "lua/modulos/perfuratriz_r3.png",
+  "w": 276,
+  "h": 272,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   132.1
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "rover_r1": {
+  "arquivo": "lua/modulos/rover_r1.png",
+  "w": 200,
+  "h": 204,
+  "escala": 0.5,
+  "ancora": [
+   130.0,
+   97.88
+  ],
+  "pegada": [
+   1,
+   2
+  ]
+ },
+ "rover_r2": {
+  "arquivo": "lua/modulos/rover_r2.png",
+  "w": 200,
+  "h": 159,
+  "escala": 0.5,
+  "ancora": [
+   70.0,
+   52.88
+  ],
+  "pegada": [
+   2,
+   1
+  ]
+ },
+ "rover_r3": {
+  "arquivo": "lua/modulos/rover_r3.png",
+  "w": 200,
+  "h": 159,
+  "escala": 0.5,
+  "ancora": [
+   130.0,
+   52.88
+  ],
+  "pegada": [
+   1,
+   2
+  ]
+ },
+ "usina_r1": {
+  "arquivo": "lua/modulos/usina_r1.png",
+  "w": 336,
+  "h": 262,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   92.12
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "usina_r2": {
+  "arquivo": "lua/modulos/usina_r2.png",
+  "w": 336,
+  "h": 278,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   108.1
+  ],
+  "pegada": [
+   3,
+   2
+  ]
+ },
+ "usina_r3": {
+  "arquivo": "lua/modulos/usina_r3.png",
+  "w": 336,
+  "h": 265,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   95.12
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "reciclador_r1": {
+  "arquivo": "lua/modulos/reciclador_r1.png",
+  "w": 276,
+  "h": 249,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   109.57
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "reciclador_r2": {
+  "arquivo": "lua/modulos/reciclador_r2.png",
+  "w": 276,
+  "h": 241,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   101.47
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "reciclador_r3": {
+  "arquivo": "lua/modulos/reciclador_r3.png",
+  "w": 276,
+  "h": 249,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   109.57
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "eclusa_r1": {
+  "arquivo": "lua/modulos/eclusa_r1.png",
+  "w": 216,
+  "h": 208,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   98.45
+  ],
+  "pegada": [
+   1,
+   2
+  ]
+ },
+ "eclusa_r2": {
+  "arquivo": "lua/modulos/eclusa_r2.png",
+  "w": 216,
+  "h": 196,
+  "escala": 0.5,
+  "ancora": [
+   78.0,
+   86.16
+  ],
+  "pegada": [
+   2,
+   1
+  ]
+ },
+ "eclusa_r3": {
+  "arquivo": "lua/modulos/eclusa_r3.png",
+  "w": 216,
+  "h": 198,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   88.36
+  ],
+  "pegada": [
+   1,
+   2
+  ]
+ },
+ "impressora_r1": {
+  "arquivo": "lua/modulos/impressora_r1.png",
+  "w": 336,
+  "h": 299,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   129.42
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "impressora_r2": {
+  "arquivo": "lua/modulos/impressora_r2.png",
+  "w": 336,
+  "h": 299,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   129.42
+  ],
+  "pegada": [
+   3,
+   2
+  ]
+ },
+ "impressora_r3": {
+  "arquivo": "lua/modulos/impressora_r3.png",
+  "w": 336,
+  "h": 299,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   129.42
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "radiotelescopio_r1": {
+  "arquivo": "lua/modulos/radiotelescopio_r1.png",
+  "w": 396,
+  "h": 353,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   153.47
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "radiotelescopio_r2": {
+  "arquivo": "lua/modulos/radiotelescopio_r2.png",
+  "w": 396,
+  "h": 362,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   162.4
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "radiotelescopio_r3": {
+  "arquivo": "lua/modulos/radiotelescopio_r3.png",
+  "w": 396,
+  "h": 336,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   136.22
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "pouso_r1": {
+  "arquivo": "lua/modulos/pouso_r1.png",
+  "w": 278,
+  "h": 254,
+  "escala": 0.5,
+  "ancora": [
+   139.0,
+   114.42
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "pouso_r2": {
+  "arquivo": "lua/modulos/pouso_r2.png",
+  "w": 278,
+  "h": 254,
+  "escala": 0.5,
+  "ancora": [
+   139.0,
+   114.42
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "pouso_r3": {
+  "arquivo": "lua/modulos/pouso_r3.png",
+  "w": 278,
+  "h": 254,
+  "escala": 0.5,
+  "ancora": [
+   139.0,
+   114.42
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "deco_rover_velho_r1": {
+  "arquivo": "lua/modulos/deco_rover_velho_r1.png",
+  "w": 213,
+  "h": 188,
+  "escala": 0.5,
+  "ancora": [
+   144.98,
+   82.34
+  ],
+  "pegada": [
+   1,
+   2
+  ]
+ },
+ "deco_rover_velho_r2": {
+  "arquivo": "lua/modulos/deco_rover_velho_r2.png",
+  "w": 196,
+  "h": 158,
+  "escala": 0.5,
+  "ancora": [
+   68.0,
+   52.34
+  ],
+  "pegada": [
+   2,
+   1
+  ]
+ },
+ "deco_rover_velho_r3": {
+  "arquivo": "lua/modulos/deco_rover_velho_r3.png",
+  "w": 213,
+  "h": 153,
+  "escala": 0.5,
+  "ancora": [
+   128.02,
+   47.44
+  ],
+  "pegada": [
+   1,
+   2
+  ]
+ },
+ "deco_modulo_descida_r1": {
+  "arquivo": "lua/modulos/deco_modulo_descida_r1.png",
+  "w": 286,
+  "h": 212,
+  "escala": 0.5,
+  "ancora": [
+   143.0,
+   70.72
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "deco_modulo_descida_r2": {
+  "arquivo": "lua/modulos/deco_modulo_descida_r2.png",
+  "w": 286,
+  "h": 212,
+  "escala": 0.5,
+  "ancora": [
+   143.0,
+   70.72
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "deco_modulo_descida_r3": {
+  "arquivo": "lua/modulos/deco_modulo_descida_r3.png",
+  "w": 286,
+  "h": 212,
+  "escala": 0.5,
+  "ancora": [
+   143.0,
+   70.72
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "deco_sonda_r1": {
+  "arquivo": "lua/modulos/deco_sonda_r1.png",
+  "w": 154,
+  "h": 151,
+  "escala": 0.5,
+  "ancora": [
+   83.69,
+   73.5
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_sonda_r2": {
+  "arquivo": "lua/modulos/deco_sonda_r2.png",
+  "w": 153,
+  "h": 139,
+  "escala": 0.5,
+  "ancora": [
+   76.5,
+   64.5
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_sonda_r3": {
+  "arquivo": "lua/modulos/deco_sonda_r3.png",
+  "w": 154,
+  "h": 139,
+  "escala": 0.5,
+  "ancora": [
+   70.31,
+   61.5
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_caixas_r1": {
+  "arquivo": "lua/modulos/deco_caixas_r1.png",
+  "w": 131,
+  "h": 145,
+  "escala": 0.5,
+  "ancora": [
+   59.04,
+   64.31
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_caixas_r2": {
+  "arquivo": "lua/modulos/deco_caixas_r2.png",
+  "w": 148,
+  "h": 135,
+  "escala": 0.5,
+  "ancora": [
+   76.35,
+   56.09
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_caixas_r3": {
+  "arquivo": "lua/modulos/deco_caixas_r3.png",
+  "w": 131,
+  "h": 139,
+  "escala": 0.5,
+  "ancora": [
+   71.96,
+   64.25
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_sismografo_r1": {
+  "arquivo": "lua/modulos/deco_sismografo_r1.png",
+  "w": 132,
+  "h": 143,
+  "escala": 0.5,
+  "ancora": [
+   70.82,
+   72.06
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_sismografo_r2": {
+  "arquivo": "lua/modulos/deco_sismografo_r2.png",
+  "w": 122,
+  "h": 143,
+  "escala": 0.5,
+  "ancora": [
+   61.0,
+   72.06
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_sismografo_r3": {
+  "arquivo": "lua/modulos/deco_sismografo_r3.png",
+  "w": 132,
+  "h": 143,
+  "escala": 0.5,
+  "ancora": [
+   61.18,
+   72.06
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_refletor_r1": {
+  "arquivo": "lua/modulos/deco_refletor_r1.png",
+  "w": 139,
+  "h": 119,
+  "escala": 0.5,
+  "ancora": [
+   69.5,
+   45.16
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_refletor_r2": {
+  "arquivo": "lua/modulos/deco_refletor_r2.png",
+  "w": 139,
+  "h": 119,
+  "escala": 0.5,
+  "ancora": [
+   69.5,
+   45.16
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_refletor_r3": {
+  "arquivo": "lua/modulos/deco_refletor_r3.png",
+  "w": 139,
+  "h": 120,
+  "escala": 0.5,
+  "ancora": [
+   69.5,
+   46.2
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_baliza_r1": {
+  "arquivo": "lua/modulos/deco_baliza_r1.png",
+  "w": 89,
+  "h": 163,
+  "escala": 0.5,
+  "ancora": [
+   44.5,
+   100.69
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_baliza_r2": {
+  "arquivo": "lua/modulos/deco_baliza_r2.png",
+  "w": 89,
+  "h": 163,
+  "escala": 0.5,
+  "ancora": [
+   44.5,
+   100.69
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_baliza_r3": {
+  "arquivo": "lua/modulos/deco_baliza_r3.png",
+  "w": 89,
+  "h": 163,
+  "escala": 0.5,
+  "ancora": [
+   44.5,
+   100.69
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_barris_r1": {
+  "arquivo": "lua/modulos/deco_barris_r1.png",
+  "w": 135,
+  "h": 120,
+  "escala": 0.5,
+  "ancora": [
+   64.38,
+   43.28
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_barris_r2": {
+  "arquivo": "lua/modulos/deco_barris_r2.png",
+  "w": 135,
+  "h": 120,
+  "escala": 0.5,
+  "ancora": [
+   70.62,
+   43.28
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_barris_r3": {
+  "arquivo": "lua/modulos/deco_barris_r3.png",
+  "w": 135,
+  "h": 128,
+  "escala": 0.5,
+  "ancora": [
+   70.62,
+   53.78
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_bandeira_r1": {
+  "arquivo": "lua/modulos/deco_bandeira_r1.png",
+  "w": 95,
+  "h": 144,
+  "escala": 0.5,
+  "ancora": [
+   48.97,
+   83.99
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_bandeira_r2": {
+  "arquivo": "lua/modulos/deco_bandeira_r2.png",
+  "w": 94,
+  "h": 149,
+  "escala": 0.5,
+  "ancora": [
+   48.93,
+   86.71
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_bandeira_r3": {
+  "arquivo": "lua/modulos/deco_bandeira_r3.png",
+  "w": 95,
+  "h": 148,
+  "escala": 0.5,
+  "ancora": [
+   46.03,
+   86.44
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_pedras_r1": {
+  "arquivo": "lua/modulos/deco_pedras_r1.png",
+  "w": 138,
+  "h": 106,
+  "escala": 0.5,
+  "ancora": [
+   71.37,
+   32.36
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_pedras_r2": {
+  "arquivo": "lua/modulos/deco_pedras_r2.png",
+  "w": 137,
+  "h": 106,
+  "escala": 0.5,
+  "ancora": [
+   68.77,
+   33.37
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_pedras_r3": {
+  "arquivo": "lua/modulos/deco_pedras_r3.png",
+  "w": 138,
+  "h": 104,
+  "escala": 0.5,
+  "ancora": [
+   66.63,
+   30.58
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_camera_r1": {
+  "arquivo": "lua/modulos/deco_camera_r1.png",
+  "w": 85,
+  "h": 133,
+  "escala": 0.5,
+  "ancora": [
+   41.55,
+   71.79
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_camera_r2": {
+  "arquivo": "lua/modulos/deco_camera_r2.png",
+  "w": 84,
+  "h": 132,
+  "escala": 0.5,
+  "ancora": [
+   45.17,
+   71.65
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_camera_r3": {
+  "arquivo": "lua/modulos/deco_camera_r3.png",
+  "w": 85,
+  "h": 129,
+  "escala": 0.5,
+  "ancora": [
+   43.45,
+   71.83
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_amostras_r1": {
+  "arquivo": "lua/modulos/deco_amostras_r1.png",
+  "w": 132,
+  "h": 113,
+  "escala": 0.5,
+  "ancora": [
+   68.08,
+   38.57
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_amostras_r2": {
+  "arquivo": "lua/modulos/deco_amostras_r2.png",
+  "w": 135,
+  "h": 111,
+  "escala": 0.5,
+  "ancora": [
+   63.62,
+   36.67
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_amostras_r3": {
+  "arquivo": "lua/modulos/deco_amostras_r3.png",
+  "w": 132,
+  "h": 107,
+  "escala": 0.5,
+  "ancora": [
+   63.92,
+   31.72
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_lanterna_r1": {
+  "arquivo": "lua/modulos/deco_lanterna_r1.png",
+  "w": 86,
+  "h": 137,
+  "escala": 0.5,
+  "ancora": [
+   46.91,
+   78.79
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_lanterna_r2": {
+  "arquivo": "lua/modulos/deco_lanterna_r2.png",
+  "w": 86,
+  "h": 140,
+  "escala": 0.5,
+  "ancora": [
+   46.91,
+   82.06
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_lanterna_r3": {
+  "arquivo": "lua/modulos/deco_lanterna_r3.png",
+  "w": 86,
+  "h": 140,
+  "escala": 0.5,
+  "ancora": [
+   39.09,
+   82.06
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_ferramentas_r1": {
+  "arquivo": "lua/modulos/deco_ferramentas_r1.png",
+  "w": 101,
+  "h": 115,
+  "escala": 0.5,
+  "ancora": [
+   54.27,
+   52.06
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_ferramentas_r2": {
+  "arquivo": "lua/modulos/deco_ferramentas_r2.png",
+  "w": 98,
+  "h": 115,
+  "escala": 0.5,
+  "ancora": [
+   46.73,
+   52.06
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_ferramentas_r3": {
+  "arquivo": "lua/modulos/deco_ferramentas_r3.png",
+  "w": 101,
+  "h": 127,
+  "escala": 0.5,
+  "ancora": [
+   46.73,
+   58.45
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_carretel_r1": {
+  "arquivo": "lua/modulos/deco_carretel_r1.png",
+  "w": 125,
+  "h": 130,
+  "escala": 0.5,
+  "ancora": [
+   65.54,
+   71.74
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_carretel_r2": {
+  "arquivo": "lua/modulos/deco_carretel_r2.png",
+  "w": 119,
+  "h": 130,
+  "escala": 0.5,
+  "ancora": [
+   59.5,
+   71.74
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_carretel_r3": {
+  "arquivo": "lua/modulos/deco_carretel_r3.png",
+  "w": 125,
+  "h": 132,
+  "escala": 0.5,
+  "ancora": [
+   59.46,
+   71.99
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_mochila_r1": {
+  "arquivo": "lua/modulos/deco_mochila_r1.png",
+  "w": 127,
+  "h": 101,
+  "escala": 0.5,
+  "ancora": [
+   69.83,
+   32.61
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_mochila_r2": {
+  "arquivo": "lua/modulos/deco_mochila_r2.png",
+  "w": 107,
+  "h": 111,
+  "escala": 0.5,
+  "ancora": [
+   51.37,
+   39.71
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "deco_mochila_r3": {
+  "arquivo": "lua/modulos/deco_mochila_r3.png",
+  "w": 127,
+  "h": 99,
+  "escala": 0.5,
+  "ancora": [
+   57.17,
+   27.23
+  ],
+  "pegada": [
+   1,
+   1
+  ]
+ },
+ "foguete0_r1": {
+  "arquivo": "lua/modulos/foguete0_r1.png",
+  "w": 380,
+  "h": 353,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   156.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete0_r2": {
+  "arquivo": "lua/modulos/foguete0_r2.png",
+  "w": 380,
+  "h": 284,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   87.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete0_r3": {
+  "arquivo": "lua/modulos/foguete0_r3.png",
+  "w": 380,
+  "h": 353,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   156.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete1_r1": {
+  "arquivo": "lua/modulos/foguete1_r1.png",
+  "w": 380,
+  "h": 353,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   156.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete1_r2": {
+  "arquivo": "lua/modulos/foguete1_r2.png",
+  "w": 380,
+  "h": 284,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   87.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete1_r3": {
+  "arquivo": "lua/modulos/foguete1_r3.png",
+  "w": 380,
+  "h": 353,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   156.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete2_r1": {
+  "arquivo": "lua/modulos/foguete2_r1.png",
+  "w": 380,
+  "h": 353,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   156.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete2_r2": {
+  "arquivo": "lua/modulos/foguete2_r2.png",
+  "w": 380,
+  "h": 303,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   106.74
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete2_r3": {
+  "arquivo": "lua/modulos/foguete2_r3.png",
+  "w": 380,
+  "h": 353,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   156.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete3_r1": {
+  "arquivo": "lua/modulos/foguete3_r1.png",
+  "w": 380,
+  "h": 353,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   156.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete3_r2": {
+  "arquivo": "lua/modulos/foguete3_r2.png",
+  "w": 380,
+  "h": 336,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   139.77
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete3_r3": {
+  "arquivo": "lua/modulos/foguete3_r3.png",
+  "w": 380,
+  "h": 353,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   156.88
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete4_r1": {
+  "arquivo": "lua/modulos/foguete4_r1.png",
+  "w": 380,
+  "h": 468,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   271.94
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete4_r2": {
+  "arquivo": "lua/modulos/foguete4_r2.png",
+  "w": 380,
+  "h": 468,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   271.94
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "foguete4_r3": {
+  "arquivo": "lua/modulos/foguete4_r3.png",
+  "w": 380,
+  "h": 468,
+  "escala": 0.5,
+  "ancora": [
+   190.0,
+   271.94
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "blindagem_agua0_r1": {
+  "arquivo": "lua/modulos/blindagem_agua0_r1.png",
+  "w": 276,
+  "h": 263,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   123.29
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_agua0_r2": {
+  "arquivo": "lua/modulos/blindagem_agua0_r2.png",
+  "w": 276,
+  "h": 258,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   118.39
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_agua0_r3": {
+  "arquivo": "lua/modulos/blindagem_agua0_r3.png",
+  "w": 276,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   120.47
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_agua1_r1": {
+  "arquivo": "lua/modulos/blindagem_agua1_r1.png",
+  "w": 276,
+  "h": 263,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   123.29
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_agua1_r2": {
+  "arquivo": "lua/modulos/blindagem_agua1_r2.png",
+  "w": 276,
+  "h": 258,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   118.39
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_agua1_r3": {
+  "arquivo": "lua/modulos/blindagem_agua1_r3.png",
+  "w": 276,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   120.47
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_agua2_r1": {
+  "arquivo": "lua/modulos/blindagem_agua2_r1.png",
+  "w": 276,
+  "h": 263,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   123.29
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_agua2_r2": {
+  "arquivo": "lua/modulos/blindagem_agua2_r2.png",
+  "w": 276,
+  "h": 258,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   118.39
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_agua2_r3": {
+  "arquivo": "lua/modulos/blindagem_agua2_r3.png",
+  "w": 276,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   120.47
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_agua3_r1": {
+  "arquivo": "lua/modulos/blindagem_agua3_r1.png",
+  "w": 276,
+  "h": 263,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   123.29
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_agua3_r2": {
+  "arquivo": "lua/modulos/blindagem_agua3_r2.png",
+  "w": 276,
+  "h": 258,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   118.39
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "blindagem_agua3_r3": {
+  "arquivo": "lua/modulos/blindagem_agua3_r3.png",
+  "w": 276,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   120.47
+  ],
+  "pegada": [
+   2,
+   2
+  ]
+ },
+ "suporte_anim1_r1": {
+  "arquivo": "lua/modulos/suporte_anim1_r1.png",
+  "w": 336,
+  "h": 251,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   81.43
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "suporte_anim1_r2": {
+  "arquivo": "lua/modulos/suporte_anim1_r2.png",
+  "w": 336,
+  "h": 258,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   88.1
+  ],
+  "pegada": [
+   3,
+   2
+  ]
+ },
+ "suporte_anim1_r3": {
+  "arquivo": "lua/modulos/suporte_anim1_r3.png",
+  "w": 336,
+  "h": 279,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   109.1
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "suporte_anim2_r1": {
+  "arquivo": "lua/modulos/suporte_anim2_r1.png",
+  "w": 336,
+  "h": 251,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   81.43
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "suporte_anim2_r2": {
+  "arquivo": "lua/modulos/suporte_anim2_r2.png",
+  "w": 336,
+  "h": 258,
+  "escala": 0.5,
+  "ancora": [
+   138.0,
+   88.1
+  ],
+  "pegada": [
+   3,
+   2
+  ]
+ },
+ "suporte_anim2_r3": {
+  "arquivo": "lua/modulos/suporte_anim2_r3.png",
+  "w": 336,
+  "h": 279,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   109.1
+  ],
+  "pegada": [
+   2,
+   3
+  ]
+ },
+ "oficina_anim1_r1": {
+  "arquivo": "lua/modulos/oficina_anim1_r1.png",
+  "w": 396,
+  "h": 358,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   158.36
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "oficina_anim1_r2": {
+  "arquivo": "lua/modulos/oficina_anim1_r2.png",
+  "w": 396,
+  "h": 358,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   158.36
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "oficina_anim1_r3": {
+  "arquivo": "lua/modulos/oficina_anim1_r3.png",
+  "w": 396,
+  "h": 359,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   159.17
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "oficina_anim2_r1": {
+  "arquivo": "lua/modulos/oficina_anim2_r1.png",
+  "w": 396,
+  "h": 358,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   158.36
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "oficina_anim2_r2": {
+  "arquivo": "lua/modulos/oficina_anim2_r2.png",
+  "w": 396,
+  "h": 358,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   158.36
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ },
+ "oficina_anim2_r3": {
+  "arquivo": "lua/modulos/oficina_anim2_r3.png",
+  "w": 396,
+  "h": 359,
+  "escala": 0.5,
+  "ancora": [
+   198.0,
+   159.17
+  ],
+  "pegada": [
+   3,
+   3
+  ]
+ }
+}

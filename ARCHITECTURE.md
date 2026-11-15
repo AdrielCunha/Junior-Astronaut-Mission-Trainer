@@ -40,13 +40,16 @@ test**. Scenes only read input, call the engine and draw.
 | `src/engine/astro.ts` | Sun, planets and Moon positions for a date (NASA JPL orbital elements). |
 | `src/engine/engine.test.ts` | Tests for all of the above. |
 | `src/cenas/sessao.ts` | State shared by the scenes, event bus, the zoom model. |
+| `src/salvamento.ts` | Versioned browser-local save format, validation, storage and deletion. Session snapshots include world layout, storm state and night report; moving/animation callbacks are never serialized. |
 | `src/cenas/Espaco.ts` | Sky, constellation tracing, Moon view, solar system. |
 | `src/cenas/Superficie.ts` | The map, modules (Blender pictures), the commander, cargo; the ground camera. |
 | `src/cenas/Interface.ts` | HUD bars, build bar, zoom buttons, morning / night / end panels. |
 | `src/cenas/tempestadeSolar.ts` | Extreme Moon storm countdown, protection states, and impact damage. |
 | `src/cenas/desenharRover.ts` | Apollo LRV rendering, seated legs, and foreground layers around the original astronaut sprite. |
 | `src/cenas/CuriosidadeRover.ts` | First-boarding fact card; pauses the world and storm while reading. |
+| `src/cenas/EditorBase.ts` | Paused base-layout planner with independent world/UI cameras, placement feedback, undo and save. Terrain grid points and static obstruction masks are cached; previews refresh on tile/camera changes. |
 | `src/cenas/ambiente.ts` | Astronaut footprints, rover tire tracks, and surface dust for each world. |
+| `src/sfx.ts` | Synthesized effects plus suit/contact ambience. Each ground scene owns and disposes its continuous voices; pause/visibility and effects settings control their gain. |
 | `src/dados/roverApollo.ts` | Short English Apollo LRV facts and their source. |
 | `public/icons/lunar-v6/` | User-selected `lunar_icons_v6` pack: eight PNG textures plus their original SVG sources and preview. Mapped in `src/dados/icones.ts`; the backpack represents carried batteries. |
 | `src/cenas/desenho.ts` | Code-drawn extras: foundations on slopes, the commander's shadow and batteries, cargo. |
@@ -74,6 +77,14 @@ They never call each other's drawing code. They share `sessao` (state) and talk 
 same zoom in the same frame.
 
 ## Coordinates
+
+The Base Planner pauses the three live scenes and disables their input until it closes. `Grade.podeMover` validates the complete footprint, terrain, slope and service gaps before `Grade.mover` updates occupancy and invalidates collision caches. The overlay also protects the astronaut and rover. Confirmed moves redraw modules and paths and use the existing layout save format; canceling a preview never changes the grid. Undo may restore an original tight service gap, while still checking terrain and occupancy.
+
+The planner opens from the bottom DEV menu's Edit Base & Objects action, which resumes the developer pause before launching the planner. It uses left click to select, pointer motion to preview, and another left click or E to confirm. R cycles four ground-plane orientations rendered from the 3D models; sprites always have zero screen rotation, and the camera and terrain remain fixed. `tools/lua3d/export_editor_rotations.py` renders quarter turns around the vertical axis, including animated/state variants and the approved solar station model. Its separate metadata index, `src/dados/rotacoesModulos.json`, preserves the original zero-degree sprites and provides anchors and oriented model footprints.
+
+`tipoOrientado` derives building dimensions from the immutable type catalog; `dimensoesDeco` derives surface object dimensions from their current quarter-turn. Both swap width/height on odd quarter-turns. The grid validates and commits position and orientation together, invalidates collision caches, and saves the optional `rotacao` field (old saves default to zero). Each surface object has a distinct negative occupancy ID, including duplicate props, and collision boxes rebuild from the current decoration list. Undo restores both fields for either type of object. Preview and committed images share placement functions; picking applies the inverse object transform before checking texture alpha.
+
+World and UI use separate cameras; only zoom is shared with the paused surface camera. The UI camera explicitly resizes with the viewport. Terrain grid geometry is cached and only redrawn when its center tile or zoom changes. The revised four-step guide measures a centered content column before sizing and positioning its card, scales to available height, blocks map controls while open and remains accessible from Help even when storage is unavailable.
 
 * **Map**: `gx, gy` in tiles (0..64), `z` height in tiles, up. One tile = 80 m of real ground.
   Blender builds the map with X = gx, Y = −gy, Z = height.

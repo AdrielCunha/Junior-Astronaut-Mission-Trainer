@@ -11,6 +11,7 @@ import { CenaTarefa } from './cenas/Tarefa';
 import { Radar } from './cenas/Radar';
 import { MenuJogo } from './cenas/MenuJogo';
 import { CuriosidadeRover } from './cenas/CuriosidadeRover';
+import { EditorBase } from './cenas/EditorBase';
 import { Carregar } from './cenas/Carregar';
 import { Chegada } from './cenas/Chegada';
 import { Viagem } from './cenas/Viagem';
@@ -477,9 +478,9 @@ const jogo = new Phaser.Game({
   // title screen flow added on main.
   scene: classico
     ? [Carregar, Chegada, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, CuriosidadeRover]
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, CuriosidadeRover, EditorBase]
     : [Carregar, Chegada, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, CuriosidadeRover],
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, Astro, MenuJogo, CuriosidadeRover, EditorBase],
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;

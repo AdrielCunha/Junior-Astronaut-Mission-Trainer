@@ -3,7 +3,7 @@
 // and the morning / night / end panels that run the chapter rules (../regras.ts).
 import Phaser from 'phaser';
 import { tocarSfx } from '../sfx';
-import { PRAZO_TEMPESTADE_MS, danoDaTempestade } from './tempestadeSolar';
+import { PRAZO_TEMPESTADE_MS, BATERIAS_TEMPESTADE_EXTREMA, danoDaTempestade } from './tempestadeSolar';
 import { configuracoesAbertas, movimentoReduzido } from '../video';
 import { CAPITULOS } from '../capitulos';
 import { calcularLayoutHud } from './layoutHud';
@@ -15,7 +15,8 @@ import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, DESCANSO, 
 import { iniciarNave3D, iniciarMarte3D } from './irParaMarte';
 import { suprimentoDoDia } from '../engine/suprimentos';
 import { DOSE_ALARME } from '../engine/eventos';
-import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase } from './sessao';
+import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase, type RelatorioDia } from './sessao';
+import { apagarPartida } from '../salvamento';
 import { alternarMudo } from '../audio';
 import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndicador, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
 import { resolverIcone, textoDoJogo, type IconeJogo } from '../dados/icones';
@@ -55,11 +56,14 @@ export class Interface extends Phaser.Scene {
   private contagemSolar!: Phaser.GameObjects.Text;
   private danoSolar!: Phaser.GameObjects.Text;
   private bateriasSolar: Phaser.GameObjects.Image[] = [];
-  private totalBateriasSolar = 3;
+  private readonly totalBateriasSolar = BATERIAS_TEMPESTADE_EXTREMA;
   private flashSolar!: Phaser.GameObjects.Graphics;
-  private desfechoPendente: { tipo: 'protegida' | 'atingida'; baterias: number } | null = null;
-  private danoTempestade = 0;
-  private bateriasTempestade = 0;
+  private get desfechoPendente() { return sessao.desfechoPendente; }
+  private set desfechoPendente(v: typeof sessao.desfechoPendente) { sessao.desfechoPendente=v; }
+  private get danoTempestade() { return sessao.danoTempestade; }
+  private set danoTempestade(v: number) { sessao.danoTempestade=v; }
+  private get bateriasTempestade() { return sessao.bateriasTempestade; }
+  private set bateriasTempestade(v: number) { sessao.bateriasTempestade=v; }
   private proximoAlarme = 0;
   private animacaoSolar = 0;
   private alertaSolarX = 0;
@@ -152,6 +156,7 @@ export class Interface extends Phaser.Scene {
     kb.on('keydown-H', () => sessao.irPara(U_INICIAL));
     kb.on('keydown-M', () => { if (!configuracoesAbertas) alternarMudo(); });
     kb.on('keydown-ESC', () => this.abrirMenu());
+    kb.on('keydown-B', () => this.abrirEditor());
     kb.on('keydown-ENTER', () => { if (!configuracoesAbertas) this.acaoPrincipal?.(); });
 
     sessao.ouvir(this, 'mensagem', (s, cor) => this.mensagem(s, cor));
@@ -160,12 +165,23 @@ export class Interface extends Phaser.Scene {
     sessao.ouvir(this, 'zoomMarte', () => this.zoomMarte());
 
     this.atualizar();
-    this.mostrarFase();
+    if (sessao.partidaRestaurada) {
+      sessao.partidaRestaurada=false;
+      this.abrirTelaInicial();
+    } else this.mostrarFase();
   }
 
   private abrirMenu() {
-    if (sessao.emTarefa || sessao.transicao || configuracoesAbertas || this.scene.isActive('MenuJogo')) return;
+    if (sessao.emTarefa || sessao.abastecendoRover || sessao.transicao || configuracoesAbertas || this.scene.isActive('MenuJogo')) return;
     this.scene.launch('MenuJogo', { aoSairTitulo: () => this.abrirTelaInicial() });
+  }
+
+  abrirEditor(): boolean {
+    if(sessao.emTarefa || sessao.abastecendoRover || sessao.editandoBase || sessao.partida || sessao.voo || sessao.transicao
+      || configuracoesAbertas || this.scene.isActive('MenuJogo') || this.scene.isActive('EditorBase'))return false;
+    if(sessao.mundo==='nave' || sessao.vista!=='chao' || (sessao.fase!=='dia' && sessao.fase!=='inicio'))return false;
+    this.scene.launch('EditorBase');
+    return true;
   }
 
   private abrirTelaInicial() {
@@ -176,8 +192,10 @@ export class Interface extends Phaser.Scene {
         this.entregaPendente?.remove();
         this.entregaPendente = undefined;
         this.aviso?.destroy();
-        sessao.reiniciar();
+        apagarPartida();
+        sessao.capIdx=0;sessao.pontos=[];sessao.usarMundo('lua');
         this.ultimoDia = undefined;
+        this.scene.get('Espaco').scene.restart();
         this.scene.get('Superficie').scene.restart();
         this.irPara('manha');
       },
@@ -230,9 +248,9 @@ export class Interface extends Phaser.Scene {
     this.tituloSolar = this.add.text(Math.round(w / 2), Math.round(h * 0.26), 'SOLAR STORM!', letra(px(23), '#ffd93b', {
       stroke: '#0b1a4a', strokeThickness: px(5), align: 'center',
     })).setOrigin(0.5);
-    // Battery slots: each delivered battery fills one slot. The banner is built once, before the
-    // storm day, so size it for the strongest storm in the chapter instead of today's level.
-    const n = this.totalBateriasSolar = Math.max(1, ...sessao.cap.dados.dias.map((dia) => dia.nivel));
+    // This banner represents an extreme storm, independent of the chapter's forecast range.
+    // Use the same requirement as the protection rule, including developer-triggered storms.
+    const n = this.totalBateriasSolar;
     const rowY = Math.round(h * 0.60), slotW = px(22), slotH = px(30), espacoSlot = px(6);
     this.contagemSolar = this.add.text(0, rowY, `0/${n}`, letra(px(19), '#ffffff', {
       fontStyle: 'bold', stroke: '#0b1a4a', strokeThickness: px(4),
@@ -413,7 +431,7 @@ export class Interface extends Phaser.Scene {
       ? `Exploring \u00b7 ${marte ? 'Jezero crater' : 'Shackleton rim'}`
       : `${marte ? 'Mars \u00b7 ' : sessao.mundo === 'nave' ? 'Ship \u00b7 ' : ''}Day ${Math.min(e.dia, C_().dias)} of ${C_().dias} \u00b7 ${dataBonita(sessao.data)}`);
     this.tituloHud.atualizar(this.textos.dia.text);
-    const valores = [e.oxigenio, e.dose, e.meta];
+    const valores = [e.oxigenio, e.dose, sessao.mundo==='lua'?sessao.progressoFoguete:e.meta];
     this.recursos.forEach((r, i) => { r.caixa.setVisible(sessao.fase !== 'inicio'); r.atualizar(valores[i]); });
     const d = sessao.entregas;
     // On Mars the last counter is the heating (the dome is built through construction, not powered).
@@ -489,6 +507,7 @@ export class Interface extends Phaser.Scene {
   }
 
   private terminarDia() {
+    if (sessao.abastecendoRover) return;
     // While exploring, this button goes back to the title screen.
     if (sessao.fase === 'inicio') { this.mostrarFase(); return; }
     if (sessao.fase !== 'dia') return;
@@ -507,14 +526,12 @@ export class Interface extends Phaser.Scene {
       danoTempestade: ataque ? this.danoTempestade : 0, bateriasTempestade: this.bateriasTempestade };
     sessao.carregando = 0;
     sessao.noHabitat = 0;
-    sessao.emitir('estado');
     this.irPara('noite');
+    sessao.emitir('estado');
   }
 
-  private ultimoDia?: {
-    antes: Estado; entregas: typeof sessao.entregas; nivel: number; fato: string; frio: number;
-    danoTempestade: number; bateriasTempestade: number;
-  };
+  private get ultimoDia() { return sessao.ultimoDia ?? undefined; }
+  private set ultimoDia(v: RelatorioDia | undefined) { sessao.ultimoDia=v??null; }
 
   private mostrarFase() {
     this.fecharPainel();
@@ -548,7 +565,7 @@ export class Interface extends Phaser.Scene {
         ...(sessao.mundo === 'lua' ? ['Optional rover: bring 1 battery from the Battery Bank to drive all day. A new day needs a new battery.'] : []),
         ...(sessao.mundo === 'lua' && sessao.estado.dia === 1 ? [
           'First mission: pick up batteries at the Battery Bank, then take one to Life Support and one to the Rocket Workshop. Click a building or press E nearby.',
-          'Complete each room\'s task to deliver its first battery. Choose where the rest go, then press "End day". Oxygen and rocket progress update overnight.',
+          'Complete each room\'s task to deliver its first battery. Rocket parts appear as you deliver batteries. Oxygen updates overnight. Choose where the rest go, then press "End day".',
         ] : []),
         ...(sessao.mundo === 'lua' && d.nivel >= 3 ? [{ texto: `Emergency: ${PRAZO_TEMPESTADE_MS / 1000} seconds to deliver ${d.nivel} batteries to the Radiation Shield. The countdown starts when you press Go and continues during tasks. The pause menu stops it.`, cor: '#fde68a', negrito: true }] : []),
         ...frio,
@@ -693,6 +710,7 @@ export class Interface extends Phaser.Scene {
   // every message from the start, so it never jumps. It shrinks on small screens so it always fits.
   private abrirPainel(titulo: string, quem: Remetente, partes: Parte[], botoes: Botao[]) {
     this.fecharPainel();
+    if (quem===CONTROLE) tocarSfx('radio');
     this.aviso?.destroy();   // an old notice would sit on top of the panel
     this.aviso = undefined;
     const W = this.scale.width, H = this.scale.height;

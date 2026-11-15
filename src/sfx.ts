@@ -4,7 +4,7 @@
 
 export type NomeSfx = 'alarme' | 'clique' | 'ok' | 'erro' | 'aviso' | 'sucesso' | 'fechar'
   | 'pegar' | 'soltar' | 'encaixe' | 'girar' | 'ligar' | 'bip' | 'whoosh' | 'zap' | 'bolha' | 'tic' | 'suave'
-  | 'pouso' | 'fumaca';
+  | 'pouso' | 'fumaca' | 'radio' | 'montagem' | 'bateria';
 
 const VOLUME = 0.55;
 const CHAVE_MUDO = 'lunar-odyssey-efeitos-mudos';
@@ -12,6 +12,7 @@ const CHAVE_VOLUME = 'lunar-odyssey-volume-efeitos';
 let mudo = (() => { try { return localStorage.getItem(CHAVE_MUDO) === '1'; } catch { return false; } })();
 let volume = (() => { try { const salvo = localStorage.getItem(CHAVE_VOLUME); if (salvo === null) return 0.7; const n = Number(salvo); return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.7; } catch { return 0.7; } })();
 let ctx: AudioContext | null = null;
+let audioLiberado = false;
 const ultimo: Partial<Record<NomeSfx, number>> = {};
 
 function contexto(): AudioContext | null {
@@ -42,6 +43,7 @@ function nota(c: AudioContext, freq: number, inicio: number, dur: number, tipo: 
   o.connect(g).connect(c.destination);
   o.start(t);
   o.stop(t + dur + 0.02);
+  o.onended=()=>{o.disconnect();g.disconnect();};
 }
 
 // White noise through a filter: rumbles, thuds and puffs. The filter sweeps from 'de' to 'ate' Hz.
@@ -64,6 +66,7 @@ function ruido(c: AudioContext, inicio: number, dur: number, vol: number, de: nu
   src.connect(f).connect(g).connect(c.destination);
   src.start(t);
   src.stop(t + dur + 0.02);
+  src.onended=()=>{src.disconnect();f.disconnect();g.disconnect();};
   return g;
 }
 
@@ -110,6 +113,18 @@ const SONS: Record<NomeSfx, (c: AudioContext) => void> = {
   bolha: (c) => nota(c, 400, 0, 0.1, 'sine', 0.7, 900),
   tic: (c) => nota(c, 1400, 0, 0.02, 'square', 0.2),
   suave: (c) => nota(c, 640, 0, 0.09, 'sine', 0.22, 760),            // gentle hover
+  radio: (c) => {
+    ruido(c,0,0.28,0.08,1700,900,0.015,'bandpass');
+    nota(c,1040,0.02,0.07,'sine',0.20);nota(c,780,0.12,0.10,'sine',0.16);
+  },
+  montagem: (c) => {
+    [0,0.13,0.28].forEach(t=>{ruido(c,t,0.10,0.13,1500,250,0.006);nota(c,320,t,0.08,'triangle',0.16,150);});
+    nota(c,880,0.4,0.15,'sine',0.20);
+  },
+  bateria: (c) => {
+    ruido(c,0,0.22,0.10,900,250,0.01);
+    nota(c,220,0.12,0.14,'triangle',0.20,420);
+  },
   pouso: (c) => { ruido(c, 0, 0.5, 1.1, 900, 60, 0.005); nota(c, 90, 0, 0.35, 'sine', 0.9, 45); },   // touchdown thud
   fumaca: (c) => { ruido(c, 0, 1.1, 0.7, 2400, 300, 0.06, 'bandpass'); nota(c, 300, 0.02, 0.4, 'sine', 0.25, 120); }, // puff of smoke
 };
@@ -147,6 +162,7 @@ export function tocarMotor(dur: number, forte = 1, ataque = 0.6): () => void {
 
 // Browsers keep sound locked until the first click or key. Unlock it on that first gesture, so even the very first hover afterwards has sound.
 function destravar() {
+  audioLiberado = true;
   window.removeEventListener('pointerdown', destravar);
   window.removeEventListener('keydown', destravar);
   contexto();
@@ -168,6 +184,46 @@ export function tocarSfx(nome: NomeSfx) {
 
 export function efeitosEstaoMudos() { return mudo; }
 export function volumeEfeitos() { return volume; }
+
+// Contact vibrations and machine telemetry heard through the suit/radio, not exterior wind.
+// Each ground scene owns its voices and silences them on pause/hidden/shutdown.
+export function criarAmbienteSonoro() {
+  let canais: {c: AudioContext; oscs: OscillatorNode[]; ganhos: GainNode[]} | null = null;
+  const silenciar=()=>{
+    if (!canais) return;
+    for (const ganho of canais.ganhos) ganho.gain.setTargetAtTime(0,canais.c.currentTime,0.06);
+  };
+  return {
+    atualizar(rover: number, maquinas: number, ativo: boolean) {
+      if (!ativo || mudo || volume<=0 || !audioLiberado) { silenciar(); return; }
+      if (!canais) {
+        const c=contexto();if(!c)return;
+        const oscs: OscillatorNode[]=[],ganhos: GainNode[]=[];
+        for (const [tipo,freq] of [['sine',64],['triangle',112],['sine',148]] as const) {
+          const osc=c.createOscillator(),ganho=c.createGain();
+          osc.type=tipo;osc.frequency.value=freq;ganho.gain.value=0;
+          osc.connect(ganho).connect(c.destination);osc.start();oscs.push(osc);ganhos.push(ganho);
+        }
+        canais={c,oscs,ganhos};
+      }
+      const {c,oscs,ganhos}=canais;
+      const r=Math.max(0,Math.min(1,rover)),m=Math.max(0,Math.min(1,maquinas));
+      const nivel=VOLUME*volume;
+      ganhos[0].gain.setTargetAtTime(nivel*0.07*m,c.currentTime,0.18);
+      ganhos[1].gain.setTargetAtTime(nivel*0.10*r,c.currentTime,0.10);
+      ganhos[2].gain.setTargetAtTime(nivel*0.025*r,c.currentTime,0.10);
+      oscs[1].frequency.setTargetAtTime(82+r*110,c.currentTime,0.12);
+      oscs[2].frequency.setTargetAtTime(140+r*65,c.currentTime,0.12);
+    },
+    silenciar,
+    parar() {
+      if(!canais)return;
+      for(const osc of canais.oscs){osc.stop();osc.disconnect();}
+      for(const ganho of canais.ganhos)ganho.disconnect();
+      canais=null;
+    },
+  };
+}
 export function definirVolumeEfeitos(valor: number) {
   volume = Math.max(0, Math.min(1, valor));
   try { localStorage.setItem(CHAVE_VOLUME, String(volume)); } catch { /* private mode */ }

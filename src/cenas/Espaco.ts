@@ -27,7 +27,18 @@ const ACHATAR = 0.6;
 const GIRO_FILME = giroEm(Date.parse(`2024-05-${String(4 + voo.dia).padStart(2, '0')}T12:00:00Z`));                         // the solar system is drawn tilted, like the map
 const DIA_MARTE_MS = 88775244;               // one Mars day (sol), 24 h 39 min
 const MARTE_MIN_PX = 30;                     // Mars is drawn at least this wide, so you can see its face
-const HORAS_POR_SEG = 6;                     // gentle time drift while you look from space
+const HORAS_POR_SEG = 6;
+// The trip to Mars (chapter 2): the sky streams past the ship. The ship points to +gx, which on the
+// map is right and down (30, 15), so everything moves up and left. Speeds in px per second; far
+// stars barely move, near ones leave a short trail, and soft clouds of stellar dust drift between.
+const RUMO = { x: -30 / Math.hypot(30, 15), y: -15 / Math.hypot(30, 15) };
+const CAMADAS = [
+  { n: 220, v: 7, r: 0.9, a: 0.55, cor: 0xffffff, rastro: 0, poeira: false },
+  { n: 90, v: 28, r: 1.3, a: 0.75, cor: 0xdbeafe, rastro: 0, poeira: false },
+  { n: 30, v: 110, r: 1.6, a: 0.7, cor: 0xe0f2fe, rastro: 14, poeira: false },
+  { n: 14, v: 45, r: 46, a: 0.045, cor: 0xa78bfa, rastro: 0, poeira: true },
+  { n: 10, v: 70, r: 30, a: 0.05, cor: 0x7dd3fc, rastro: 0, poeira: true },
+];                     // gentle time drift while you look from space
 
 // Seconds per turn on screen for each body (sped up a lot; Venus turns backward in its frames).
 const GIRO_S: Record<string, number> = { sol: 40, mercurio: 30, venus: 36, terra: 8, lua: 24, marte: 9 };
@@ -42,6 +53,9 @@ export class Espaco extends Phaser.Scene {
   private corpos = new Map<string, Phaser.GameObjects.Sprite>();   // Blender planets, lit from 16 sides
   private solBrilho!: Phaser.GameObjects.Image;
   private corposProx = new Map<string, Phaser.GameObjects.Sprite>();   // the next turn frame, faded in over it: a smooth turn
+  // Chapter 2, the ship: stars and stellar dust streaming past, in parallax layers.
+  private viagem: Phaser.GameObjects.Graphics | null = null;
+  private estrelas: { x: number; y: number; c: number; r: number }[] = [];
   private escalaCeu = 1;
   private lua!: ReturnType<typeof criarLua>;        // live GPU Moon (luaShader.ts)
   private marte: ReturnType<typeof criarPlaneta> | null = null;   // live GPU Mars (planetaShader.ts)
@@ -72,6 +86,13 @@ export class Espaco extends Phaser.Scene {
     this.modoConstelacao = '';
     this.events.once('shutdown',()=>this.limparConstelacao());
     this.ceuMarte = this.add.rectangle(0, 0, W, H, 0xc99a72).setOrigin(0).setDepth(-99).setVisible(false);
+    this.viagem = null; this.estrelas = [];
+    if (sessao.mundo === 'nave') {
+      this.viagem = this.add.graphics().setDepth(-98);
+      for (let c = 0; c < CAMADAS.length; c++)
+        for (let i = 0; i < CAMADAS[c].n; i++)
+          this.estrelas.push({ x: Math.random() * W, y: Math.random() * H, c, r: CAMADAS[c].r * (0.6 + Math.random() * 0.8) });
+    }
     this.escalaCeu = Math.max(W / this.ceu.width, H / this.ceu.height);
     this.ceu.setScale(this.escalaCeu);
     this.ceuSistema = this.add.image(W / 2, H / 2, 'ceu_sistema').setDepth(-100).setAlpha(0)
@@ -233,6 +254,30 @@ export class Espaco extends Phaser.Scene {
     }
   }
 
+  // Moves and draws the streaming sky (chapter 2). Still with reduced motion or effects off.
+  private viajar(dt: number, W: number, H: number) {
+    const g = this.viagem!;
+    g.clear();
+    const anda = !movimentoReduzido() && video.efeitos && !configuracoesAbertas;
+    for (const e of this.estrelas) {
+      const c = CAMADAS[e.c];
+      if (anda) {
+        e.x += RUMO.x * c.v * dt; e.y += RUMO.y * c.v * dt;
+        const m = c.poeira ? e.r * 2 : 20;               // wrap around, entering from the far side
+        if (e.x < -m) e.x += W + 2 * m; if (e.y < -m) e.y += H + 2 * m;
+        if (e.x > W + m) e.x -= W + 2 * m; if (e.y > H + m) e.y -= H + 2 * m;
+      }
+      if (c.poeira) {
+        for (const k of [1, 0.7, 0.45]) g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r * k);
+      } else if (c.rastro && anda) {
+        g.lineStyle(e.r, c.cor, c.a * 0.5).lineBetween(e.x, e.y, e.x - RUMO.x * c.rastro, e.y - RUMO.y * c.rastro);
+        g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r);
+      } else {
+        g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r);
+      }
+    }
+  }
+
   private rotulo(id: string, x: number, y: number, s: string, cor: string, alpha: number) {
     let t = this.rotulos.get(id);
     if (!t) { t = this.add.text(0, 0, s, fonte(13, cor, { fontStyle: 'bold', stroke: '#020617', strokeThickness: 4 })).setOrigin(0.5, 0); this.rotulos.set(id, t); }
@@ -258,6 +303,7 @@ export class Espaco extends Phaser.Scene {
       const nave = sessao.mundo === 'nave';
       this.ceuSistema.setAlpha(nave ? 1 : 0); if (nave) this.ceu.setVisible(false);
       this.cintilar(nave ? 'sistema' : null, W, H);
+      if (this.viagem) this.viajar(dtMs / 1000, W, H);
       this.lua.setVisible(false); this.quadro.setVisible(false); this.pino.setVisible(false); this.brilho.setVisible(false);
       this.g.clear(); this.legendaNova = '';
       for (const r of this.rotulos.values()) r.setVisible(false);

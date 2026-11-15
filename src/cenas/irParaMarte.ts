@@ -9,13 +9,20 @@ import terrenoNave from '../dados/terreno_nave.json';
 import naveProps from '../dados/nave_props.json';
 import { sessao, type Mundo } from './sessao';
 
-const OUTRAS = ['Base', 'Viagem', 'MarteVista', 'Radar', 'Tarefa', 'TerrenoMarte', 'NaveTarefa', 'CuriosidadeRover'];
+const OUTRAS = ['Base', 'Viagem', 'MarteVista', 'Radar', 'Tarefa', 'TerrenoMarte', 'NaveTarefa', 'CuriosidadeRover', 'EditorBase'];
 
 // Pictures each world needs that the loading screen did not load.
 const IMAGENS: Partial<Record<Mundo, [string, string][]>> = {
   marte: [['terreno_marte', terrenoMarte.imagem.arquivo]],
   nave: [['terreno_nave', terrenoNave.imagem.arquivo], ['terreno_nave_teto', terrenoNave.imagemTeto], ...Object.entries(naveProps).map(([id, p]) => [`mod_${id}`, p.arquivo] as [string, string])],
 };
+
+export function carregarImagensMundo(cena: Phaser.Scene, mundo: Mundo, pronto: () => void) {
+  const faltam=(IMAGENS[mundo]??[]).filter(([chave])=>!cena.textures.exists(chave));
+  if (!faltam.length) { pronto(); return; }
+  for (const [chave,arquivo] of faltam) cena.load.image(chave,arquivo);
+  cena.load.once('complete',pronto);cena.load.start();
+}
 
 export function iniciarMundo3D(cena: Phaser.Scene, mundo: Mundo, capIdx: number, dose: number, pontos: number[]) {
   const comecar = () => {
