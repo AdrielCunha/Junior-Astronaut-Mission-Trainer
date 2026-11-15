@@ -142,7 +142,7 @@ export const poeiraDuto: Tarefa = {
         const seta = cena.add.text(sx, sy, lado < 0 ? '‹‹' : '››', letra(30 * u, '#bae6fd', { stroke: '#1e293b', strokeThickness: 5 * u })).setOrigin(0.5).setAlpha(0);
         cena.tweens.add({ targets: seta, x: sx + lado * 30 * u, alpha: { from: 1, to: 0 }, duration: 650, delay: k * 110, repeat: -1 });
       }
-      cena.time.delayedCall(350, feito);
+      cena.time.delayedCall(50, feito);
     }
   },
 };

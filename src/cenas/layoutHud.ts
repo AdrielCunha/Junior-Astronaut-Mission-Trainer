@@ -42,12 +42,12 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
     const dicas = { x: margem, y: dicasPainel.y, w: abaW, h: lado };
     return { u, margem, espaco, titulo, faixa, menu, recursos, capsula, objetivo, avisoY, zoom, controles, nivel, editar, fimDia, dicas, dicasCompactas, dicasPainel, dicasAba, dicasFechadasX: margem - dicasAba.x };
   }
-  const margem = px(12), espaco = px(8), h1 = px(52), h2 = px(34);
+  const margem = px(12), espaco = px(8), h1 = largura<680 ? Math.max(52,px(52)) : px(52), h2 = px(34);
   const caixa = (x: number, y: number, w: number, h: number) => ({ x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) });
   const lado = px(38), passo = lado + espaco;
   const util = largura - 2 * margem;
   // Top left: the logo with the date.
-  const titulo = caixa(margem, margem, Math.min(px(220), Math.round(util * 0.4)), h1);
+  const titulo = caixa(margem, margem, largura<680 ? Math.max(150,Math.round(util*0.4)) : Math.min(px(220), Math.round(util * 0.4)), h1);
   // Top right: one slim bar per resource, stacked.
   const recursoW = Math.min(px(230), Math.round(util * 0.42)), recursoH = px(48), recursoGap = px(6);
   const recursos = Array.from({ length: 3 }, (_, i) =>

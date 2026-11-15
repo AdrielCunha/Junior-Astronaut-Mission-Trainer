@@ -186,7 +186,7 @@ export const escudoSol: Tarefa = {
       luz.setFillStyle(0x22c55e);
       for (const q of particulas) cena.tweens.add({ targets: q.c, alpha: 0, duration: 250 });
       cena.tweens.add({ targets: sol, scale: 1.15, duration: 300, yoyo: true, ease: 'Sine.easeInOut' });
-      cena.time.delayedCall(350, feito);
+      cena.time.delayedCall(50, feito);
     }
   },
 };

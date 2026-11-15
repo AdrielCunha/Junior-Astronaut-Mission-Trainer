@@ -9,6 +9,8 @@ import type { Tarefa } from '../tarefas';
 import { CORES_FESTA, botaoFechar, criarIconeJogo, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { tocarSfx } from '../sfx';
 import { sessao } from './sessao';
+import { TEMPO_SUCESSO } from './conclusaoTarefa';
+import { registrarDescoberta } from '../descobertas';
 
 export type DadosTarefa = { tarefa: Tarefa; aoTerminar: () => void };
 
@@ -66,12 +68,14 @@ export class CenaTarefa extends Phaser.Scene {
 
     // Red close button on the top-left corner (closing still delivers the battery).
     botaoFechar(this, x0 + 4 * u, y0 + 4 * u, u, () => { tocarSfx('fechar'); fechar(); });
+    this.add.text(x0+40*u,y0+6*u,'Skip',letra(17*u,'#ffffff',{stroke:'#1e293b',strokeThickness:3*u}));
     this.input.keyboard?.once('keydown-ESC', fechar);
 
     let terminou = false;
     const feito = () => {
       if (terminou || fechado) return;
       terminou = true;
+      registrarDescoberta(d.tarefa.titulo,d.tarefa.fato);
       const cx = tela.x + tela.w / 2, cy = tela.y + tela.h / 2;
 
       tocarSfx('sucesso');
@@ -85,20 +89,25 @@ export class CenaTarefa extends Phaser.Scene {
       // Sticker.
       const selo = this.add.text(cx, tela.y + tela.h * 0.2, 'GREAT JOB!', letra(40 * u, '#fde047', { stroke: '#1e293b', strokeThickness: 8 * u }))
         .setOrigin(0.5).setAngle(-6).setScale(0).setDepth(5);
-      this.tweens.add({ targets: selo, scale: 1, duration: 450, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: selo, scale: 1, duration: 200, ease: 'Back.easeOut' });
       this.tweens.add({ targets: selo, angle: 6, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 450 });
 
       // The fact replaces the instruction; no button: the overlay closes by itself (Enter or the red X close it sooner).
       tInstr.setStyle(letra(13.5 * u, '#e2e8f0', { align: 'center', fontStyle: '500', wordWrap: { width: pw0 - 32 * u } }))
         .setText(`Did you know? ${d.tarefa.fato}`);
-      this.time.delayedCall(3500, fechar);
+      this.time.delayedCall(TEMPO_SUCESSO, fechar);
       this.input.keyboard?.once('keydown-ENTER', fechar);
     };
 
     // shortcut: a resize starts the task over; fine for a task of a few seconds.
-    const redimensionar = () => this.scene.restart(d);
+    const redimensionar = () => terminou ? fechar() : this.scene.restart(d);
     this.scale.on('resize', redimensionar);
-    this.events.once('shutdown', () => { this.scale.off('resize', redimensionar); this.input.setDefaultCursor('default'); });
+    this.events.once('shutdown', () => {
+      fechado = true;
+      this.input.keyboard?.off('keydown-ESC', fechar);
+      this.input.keyboard?.off('keydown-ENTER', fechar);
+      this.scale.off('resize', redimensionar); this.input.setDefaultCursor('default');
+    });
   }
 
   update() {

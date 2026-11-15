@@ -3,7 +3,7 @@
 // The rules live in ../oxigenio-faixa-tarefa.ts (pure functions, tested); this scene only draws and reads the mouse.
 import Phaser from 'phaser';
 import { criarTarefaOxigenioFaixa, passo, progresso, tarefaConcluida, naFaixa, emAlerta, type TarefaOxigenioFaixa } from '../oxigenio-faixa-tarefa';
-import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
@@ -159,8 +159,8 @@ export class OxigenioFaixaTarefa extends Phaser.Scene {
         texto(this, 0, 32, 'has about 21% oxygen, just like Earth.', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-      this.time.delayedCall(3600, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     let bolha = 0, somBolha = 0;

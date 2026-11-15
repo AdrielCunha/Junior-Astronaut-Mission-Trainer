@@ -36,8 +36,11 @@ export function desenharRover(g: Phaser.GameObjects.Graphics, p: Projecao, r: Ro
   pecas.sombra.setPosition(solo.x, solo.y + 3).setDepth(prof - 0.02).setVisible(true);
   for (const [img, parte, chave, dz] of [[pecas.corpo, roverLrv.corpo, 'lrv_', 0], [pecas.frente, roverLrv.frente, 'lrv_frente_', 0.2]] as const) {
     const quadro = parte[d];
-    img.setTexture(`${chave}${d}`).setOrigin(quadro.ancora[0] / quadro.w, quadro.ancora[1] / quadro.h)
-      .setScale(roverLrv.escala).setPosition(solo.x, solo.y).setDepth(prof + dz).setVisible(true);
+    if (!img.visible || img.texture.key !== `${chave}${d}`) {
+      img.setTexture(`${chave}${d}`).setOrigin(quadro.ancora[0] / quadro.w, quadro.ancora[1] / quadro.h)
+        .setScale(roverLrv.escala);
+    }
+    img.setPosition(solo.x, solo.y).setDepth(prof + dz).setVisible(true);
   }
   g.clear().setDepth(prof + 0.05);
   // Battery status light on the front blankets: green charged, yellow installing, grey empty.

@@ -156,15 +156,18 @@ export function desenharBotao(g: Phaser.GameObjects.Graphics, w: number, h: numb
 
 // Dark rounded label behind a text that floats over the map (prop and rover tooltips).
 // Redraw it whenever the text changes, moves or is scaled; it follows the text's visibility.
-// opacidade: the pill's fill (a little see-through for labels that sit over the map).
+const fundosRotulo = new WeakMap<Phaser.GameObjects.Graphics, { w: number; h: number; s: number; opacidade: number }>();
 export function fundoRotulo(g: Phaser.GameObjects.Graphics, t: Phaser.GameObjects.Text, opacidade = 0.96) {
   const s = t.scaleX, w = t.width * s, h = t.height * s;
   const x = t.x - w * t.originX, y = t.y - h * t.originY, r = Math.min(h / 2, 16 * s);
-  g.clear().setDepth(t.depth - 0.001).setVisible(t.visible).setAlpha(t.alpha);
-  if (!t.visible || !t.text) return g;
-  return g.fillStyle(0x000000, 0.3).fillRoundedRect(x + 2 * s, y + 4 * s, w, h, r)
-    .fillStyle(CONTORNO, opacidade).fillRoundedRect(x, y, w, h, r)
-    .lineStyle(2.5 * s, 0xffffff).strokeRoundedRect(x, y, w, h, r);
+  g.setPosition(x, y).setDepth(t.depth - 0.001).setVisible(t.visible && !!t.text).setAlpha(t.alpha);
+  if (!g.visible) return g;
+  const anterior = fundosRotulo.get(g);
+  if (anterior && anterior.w === w && anterior.h === h && anterior.s === s && anterior.opacidade === opacidade) return g;
+  fundosRotulo.set(g, { w, h, s, opacidade });
+  return g.clear().fillStyle(0x000000, 0.3).fillRoundedRect(2 * s, 4 * s, w, h, r)
+    .fillStyle(CONTORNO, opacidade).fillRoundedRect(0, 0, w, h, r)
+    .lineStyle(2.5 * s, 0xffffff).strokeRoundedRect(0, 0, w, h, r);
 }
 
 // A short label over the map (e.g. "Installing battery..."): text on a dark pill, bottom-centre at (x, y).
@@ -218,7 +221,13 @@ export function criarTituloHud(cena: Phaser.Scene, b: Caixa, u: number) {
   const pilula = cena.add.container(0, 0, [fundoData, data]);
   caixa.add([sombra, logo, pilula]);
   const atualizar = (texto: string) => {
-    const margem = px(2), gap = px(3), alturaData = px(20), paddingData = px(10);
+    const compacto=cena.scale.width<680;
+    if(compacto) {
+      texto=texto.replace(/^(Mars|Ship) · Day (\d+) of (\d+) · .+$/,'$1 · $2/$3').replace(/^Day (\d+) of (\d+) · .+$/,'Moon · $1/$2');
+      if(texto.startsWith('Exploring'))texto='Explore';
+    }
+    data.setFontSize(compacto ? Math.max(12,px(13)) : px(13));
+    const margem = px(2), gap = px(3), alturaData = compacto ? Math.max(20,px(20)) : px(20), paddingData = px(10);
     const centroX = Math.round(b.w / 2);
     data.setText(texto).setScale(1);
     const maximo = Math.floor(b.w * 0.85);

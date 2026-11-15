@@ -6,7 +6,7 @@ import {
   criarDivisao, alternarSistema, consumoTotal, rodadaAtual, SISTEMAS, RODADAS, CAPACIDADE_MAXIMA,
   type TarefaDivisao, type IdSistema,
 } from '../desviar-energia-tarefa';
-import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
@@ -163,7 +163,6 @@ export class DesviarEnergiaTarefa extends Phaser.Scene {
     pintar();
 
     let bloqueado = false;
-    let concluiu = false;
 
     const vencer = () => {
       bloqueado = true;
@@ -181,13 +180,8 @@ export class DesviarEnergiaTarefa extends Phaser.Scene {
         texto(this, 0, 24, 'Batteries save solar power\nfor when the Sun is hidden.', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-      this.time.delayedCall(3200, () => {
-        if (concluiu) return;
-        concluiu = true;
-        this.scene.stop();
-        this.aoConcluir?.();
-      });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     const tocar = (id: IdSistema) => {

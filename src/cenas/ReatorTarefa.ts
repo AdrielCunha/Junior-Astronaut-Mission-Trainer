@@ -3,7 +3,7 @@
 // The rules live in ../reator-tarefa.ts (pure functions, tested); this scene only draws and reads the mouse.
 import Phaser from 'phaser';
 import { criarTarefaReator, ligarEmOrdem, proximoModulo, carregar, reatorOnline, type TarefaReator } from '../reator-tarefa';
-import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
@@ -211,8 +211,8 @@ export class ReatorTarefa extends Phaser.Scene {
         texto(this, 0, 26, 'A Moon night lasts 14 days. Save power!', 14, '#dcfce7', 0x1e293b),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-      this.time.delayedCall(2800, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     let tempo = 0;

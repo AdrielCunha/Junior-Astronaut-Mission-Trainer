@@ -1,0 +1,199 @@
+{
+  "url": "http://127.0.0.1:5277/?leve",
+  "cpuSlowdown": 4,
+  "viewport": {
+    "width": 412,
+    "height": 915
+  },
+  "motion": "reduced",
+  "softwareRequested": false,
+  "date": "2026-11-15T21:12:40.806Z",
+  "stages": [
+    {
+      "name": "surface idle",
+      "initial": {
+        "vista": "chao",
+        "flight": false,
+        "transition": false
+      },
+      "finalView": "chao",
+      "frames": 79,
+      "meanMs": 38.482278481012685,
+      "p95Ms": 60,
+      "fps": 25.985987303049225,
+      "over50msPercent": 7.594936708860759,
+      "longTasks": 6,
+      "longTaskMs": 336,
+      "heapBytes": 70567492,
+      "distanceTiles": 0,
+      "footprints": 0,
+      "elapsedMs": 3020.900000002235
+    },
+    {
+      "name": "surface walking",
+      "initial": {
+        "vista": "chao",
+        "flight": false,
+        "transition": false
+      },
+      "finalView": "chao",
+      "frames": 105,
+      "meanMs": 38.666666666666664,
+      "p95Ms": 50,
+      "fps": 25.862068965517242,
+      "over50msPercent": 2.857142857142857,
+      "longTasks": 2,
+      "longTaskMs": 113,
+      "heapBytes": 70770820,
+      "distanceTiles": 12.04263309400001,
+      "footprints": 38,
+      "elapsedMs": 4040.5
+    },
+    {
+      "name": "surface driving",
+      "initial": {
+        "vista": "chao",
+        "flight": false,
+        "transition": false
+      },
+      "finalView": "chao",
+      "frames": 2224,
+      "meanMs": 40.481115107913745,
+      "p95Ms": 60,
+      "fps": 24.70287681883812,
+      "over50msPercent": 9.082733812949641,
+      "longTasks": 190,
+      "longTaskMs": 13259,
+      "heapBytes": 103487020,
+      "distanceTiles": 449.1453182218244,
+      "footprints": 496,
+      "elapsedMs": 90030.40000000224,
+      "windows": [
+        {
+          "fromMs": 0,
+          "frames": 759,
+          "fps": 25.29156947684105,
+          "p95Ms": 60.099999999998545,
+          "over50msPercent": 7.7733860342556
+        },
+        {
+          "fromMs": 30000,
+          "frames": 701,
+          "fps": 23.37438021213668,
+          "p95Ms": 70.09999999999127,
+          "over50msPercent": 13.837375178316691
+        },
+        {
+          "fromMs": 60000,
+          "frames": 764,
+          "fps": 25.44131016087299,
+          "p95Ms": 50.09999999999127,
+          "over50msPercent": 6.020942408376963
+        }
+      ]
+    },
+    {
+      "name": "surface to Moon",
+      "initial": {
+        "vista": "chao",
+        "flight": false,
+        "transition": true
+      },
+      "finalView": "lua",
+      "frames": 25,
+      "meanMs": 37.20399999999965,
+      "p95Ms": 60,
+      "fps": 26.8788302333085,
+      "over50msPercent": 8,
+      "longTasks": 2,
+      "longTaskMs": 172,
+      "heapBytes": 105962185,
+      "distanceTiles": 0,
+      "footprints": 508,
+      "elapsedMs": 915.8999999985099
+    },
+    {
+      "name": "Moon idle",
+      "initial": {
+        "vista": "lua",
+        "flight": false,
+        "transition": false
+      },
+      "finalView": "lua",
+      "frames": 81,
+      "meanMs": 27.53209876543199,
+      "p95Ms": 30.09999999999127,
+      "fps": 36.321241199946336,
+      "over50msPercent": 0,
+      "longTasks": 0,
+      "longTaskMs": 0,
+      "heapBytes": 79588745,
+      "distanceTiles": 0,
+      "footprints": 508,
+      "elapsedMs": 2229.900000002235
+    },
+    {
+      "name": "Moon to planets",
+      "initial": {
+        "vista": "lua",
+        "flight": false,
+        "transition": true
+      },
+      "finalView": "sistema",
+      "frames": 15,
+      "meanMs": 60.666666666666664,
+      "p95Ms": 240.10000000000582,
+      "fps": 16.483516483516485,
+      "over50msPercent": 20,
+      "longTasks": 3,
+      "longTaskMs": 256,
+      "heapBytes": 78045848,
+      "distanceTiles": 0,
+      "footprints": 508,
+      "elapsedMs": 925.3000000007451
+    },
+    {
+      "name": "solar system idle",
+      "initial": {
+        "vista": "sistema",
+        "flight": false,
+        "transition": false
+      },
+      "finalView": "sistema",
+      "frames": 55,
+      "meanMs": 40.72727272727273,
+      "p95Ms": 60.09999999999127,
+      "fps": 24.55357142857143,
+      "over50msPercent": 18.181818181818183,
+      "longTasks": 10,
+      "longTaskMs": 576,
+      "heapBytes": 93530308,
+      "distanceTiles": 0,
+      "footprints": 508,
+      "elapsedMs": 2233.7999999970198
+    }
+  ],
+  "errors": [],
+  "browser": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/157.0.8103.52",
+    "revision": "@0985600c06a688b9c669e74afde7dacd5aaed047",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+    "jsVersion": "15.7.112.23"
+  },
+  "readyMs": 20480.900000002235,
+  "firstContentfulPaintMs": 3520,
+  "renderer": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164C) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "warmup": "all flight downloads completed, then 3 seconds idle",
+  "network": {
+    "requests": 907,
+    "encodedBytes": 68128522
+  },
+  "constellations": {
+    "loaded": true,
+    "current": false,
+    "skyDepth": -100,
+    "figureDepth": null
+  },
+  "completed": true
+}

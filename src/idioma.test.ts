@@ -14,6 +14,9 @@ test('Portuguese: exact texts, patterns and their parts', () => {
   escolherIdioma('pt');
   try {
     assert.equal(t('Heating'), 'Aquecimento');
+    assert.equal(t('SCIENCE LOG'), 'DIÁRIO CIENTÍFICO');
+    assert.equal(t('Try Mars again'), 'Tentar Marte novamente');
+    assert.ok(t('Forecast: HIGH. Shield: 2 batteries.').startsWith('Previsão:'));
     assert.equal(t('Heating is built!'), 'Aquecimento está construído!');
     assert.equal(t('Chapter 1 of 3: The Moon base'), 'Capítulo 1 de 3: A base na Lua');
     assert.equal(t('Chapter 2'), 'Capítulo 2');

@@ -9,7 +9,7 @@ import terrenoNave from '../dados/terreno_nave.json';
 import naveProps from '../dados/nave_props.json';
 import { sessao, type Mundo } from './sessao';
 
-const OUTRAS = ['Base', 'Viagem', 'MarteVista', 'Radar', 'Tarefa', 'TerrenoMarte', 'NaveTarefa', 'CuriosidadeRover', 'EditorBase'];
+const OUTRAS = ['Base', 'Viagem', 'MarteVista', 'Radar', 'Tarefa', 'TerrenoMarte', 'NaveTarefa', 'CuriosidadeRover', 'EditorBase', 'MenuJogo'];
 
 // Pictures each world needs that the loading screen did not load.
 const IMAGENS: Partial<Record<Mundo, [string, string][]>> = {
@@ -29,8 +29,8 @@ export function iniciarMundo3D(cena: Phaser.Scene, mundo: Mundo, capIdx: number,
     const sm = cena.game.scene;
     sessao.usarMundo(mundo);
     sessao.comecarCapitulo(capIdx, dose, pontos);
-    sessao.fase = explorar ? 'inicio' : 'manha';      // no title screen: the first morning (with the intro)
     sessao.explorando = explorar;
+    sessao.fase = explorar ? 'inicio' : 'manha';
     for (const k of OUTRAS) if (sm.getScene(k) && (sm.isActive(k) || sm.isPaused(k) || sm.isSleeping(k))) sm.stop(k);
     for (const k of ['Espaco', 'Superficie', 'Interface']) {
       if (sm.isActive(k) || sm.isPaused(k)) sm.stop(k);

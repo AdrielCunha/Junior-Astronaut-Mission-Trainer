@@ -4,6 +4,22 @@
 export type Traducao = string | ((...partes: string[]) => string);
 
 export const PT: Record<string, Traducao> = {
+  'SCIENCE LOG': 'DIÁRIO CIENTÍFICO',
+  'Your discoveries': 'Suas descobertas',
+  'Complete a task to save its science fact here. You can read it any time.': 'Conclua uma tarefa para guardar sua curiosidade científica aqui. Leia quando quiser.',
+  'Explore': 'Explorar',
+  'Try Mars again': 'Tentar Marte novamente',
+  'JUMP ↑': 'PULAR ↑',
+  'Charging task skipped. Your batteries are ready.': 'Tarefa de recarga pulada. Suas baterias estão prontas.',
+  'Task skipped. One battery delivered.': 'Tarefa pulada. Uma bateria foi entregue.',
+  'The crew ran out of oxygen. Power Life Support before ending the day.': 'A tripulação ficou sem oxigênio. Abasteça o suporte de vida antes de encerrar o dia.',
+  'Radiation became too high. Power the Shield when a storm is forecast.': 'A radiação ficou alta demais. Abasteça o escudo quando houver previsão de tempestade.',
+  'Forecast: {}. Shield: {} batteries.': (previsao,baterias) => {
+    const niveis: Record<string,string> = { CALM:'calmo',RISING:'em alta',HIGH:'alto',EXTREME:'extremo' };
+    return `Previsão: ${previsao.split(' to ').map(n=>niveis[n]??n).join(' a ')}. Escudo: ${baterias} baterias.`;
+  },
+  'If the extreme-storm alarm sounds: {} seconds to deliver 3 Shield batteries.': 'Se o alarme de tempestade extrema tocar: {} segundos para levar 3 baterias ao escudo.',
+  'Soundtrack files': 'Arquivos da trilha sonora',
   "BLANKETS": "MANTAS",
   "Drag a gold blanket onto each BLUE cold spot.": "Arraste uma manta dourada para cada ponto frio AZUL.",
   "Good! {} cold spot{} left.": (n) => n === '1' ? 'Boa! Falta 1 ponto frio.' : `Boa! Faltam ${n} pontos frios.`,

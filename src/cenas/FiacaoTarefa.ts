@@ -6,7 +6,7 @@ import {
   criarFiacao, tocarTrecho, escolherReparo, defeitoAtual, lampadaApagada, fiacaoConcluida,
   TRECHOS, FIOS, RODADAS, type Fiacao, type Reparo, type Dano,
 } from '../fiacao-tarefa';
-import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
@@ -179,8 +179,8 @@ export class FiacaoTarefa extends Phaser.Scene {
         texto(this, 0, 24, 'NASA space shuttles had\nhundreds of kilometers of wires.', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-      this.time.delayedCall(2800, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     // ---- Electric current only at the damage: a pulsing glow with small crackling arcs on the broken wire.

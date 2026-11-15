@@ -4,6 +4,7 @@ import type { Rover } from './engine/rover';
 import type { TipoId } from './engine/construcao';
 import type { DecoColocada } from './dados/decoracao';
 import type { Fase, Mundo, RelatorioDia } from './cenas/sessao';
+import type { Expedicao } from './engine/expedicao';
 
 const CHAVE = 'lunar-odyssey-save-v1';
 export type DadosPartida = {
@@ -17,6 +18,8 @@ export type DadosPartida = {
   desfechoPendente: {tipo: 'protegida' | 'atingida'; baterias: number} | null;
   ultimoDia: RelatorioDia | null; evento: {id: string; construcaoId: number} | null;
   eventoEm: number | null; ultimoEvento?: string; diasCalmos: number; tempoCalmo?: number; pulou: boolean;
+  estacoesHoje?: string[]; exploracaoEm?: number | null; expedicao?: Expedicao | null;
+  corridaHoje?: boolean; paralamaHoje?: boolean; odometroRover?: number; ultimaExploracao?: string; tempoExpedicao?: number;
   condicoes?: ('sol'|'sinal'|'estufa'|null)[]; alarmePendente?: boolean;
 };
 const objeto = (v: unknown): v is Record<string,unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -25,6 +28,22 @@ const orientacao = (v: unknown) => v===undefined || (Number.isInteger(v) && nume
 function corpo(v: unknown) {
   return objeto(v) && numero(v.x,0,256) && numero(v.y,0,256) && numero(v.z,-256,256)
     && numero(v.raio,0.1,2) && ['vx','vy','vz'].every(k=>numero(v[k],-100,100)) && typeof v.noChao === 'boolean';
+}
+const ponto = (v: unknown) => objeto(v) && numero(v.x,0,256) && numero(v.y,0,256);
+function expedicaoValida(v: unknown) {
+  if (v===null || v===undefined) return true;
+  if (!objeto(v) || !['corrida','amostra','balizas','gelo','tubos','vazamentos','ferramenta','meteorito','redemoinho'].includes(String(v.tipo))) return false;
+  return ['id','titulo','destino','fato'].every(k=>typeof v[k]==='string' && (v[k] as string).length<=2000)
+    && Array.isArray(v.pontos) && v.pontos.length>0 && v.pontos.length<=32 && v.pontos.every(ponto)
+    && Number.isInteger(v.atual) && numero(v.atual,0,v.pontos.length)
+    && Array.isArray(v.feitos) && v.feitos.length===v.pontos.length && v.feitos.every(x=>typeof x==='boolean')
+    && v.feitos.filter(Boolean).length===v.atual
+    && typeof v.livre==='boolean' && typeof v.deRover==='boolean'
+    && numero(v.raio,0.01,20) && numero(v.segurar,0,60) && numero(v.espera,0,60)
+    && Number.isInteger(v.escondidoAte) && numero(v.escondidoAte,0,v.pontos.length)
+    && (v.escala===undefined || numero(v.escala,0.01,10))
+    && (v.cena===undefined || v.cena==='ScannerGeloTarefa')
+    && (v.movel===undefined || (objeto(v.movel) && ponto(v.movel.origem) && numero(v.movel.semente,0,1e9)));
 }
 function valido(v: unknown): v is DadosPartida {
   if (!objeto(v) || v.versao !== 1 || !['lua','nave','marte'].includes(String(v.mundo))
@@ -46,6 +65,12 @@ function valido(v: unknown): v is DadosPartida {
   if (!objeto(v.tempestade) || !numero(v.tempestade.restante,0,45_000)
     || !['inativa','alerta','protegida','atingida'].includes(String(v.tempestade.status))) return false;
   if (v.fase==='noite' && (!objeto(v.ultimoDia) || !objeto(v.ultimoDia.antes) || !objeto(v.ultimoDia.entregas) || typeof v.ultimoDia.fato!=='string')) return false;
+  if ((v.estacoesHoje!==undefined && (!Array.isArray(v.estacoesHoje) || v.estacoesHoje.length>4 || !v.estacoesHoje.every(k=>['nave_cockpit','nave_janela','nave_radio','nave_plantas'].includes(String(k)))))
+    || (v.exploracaoEm!==undefined && v.exploracaoEm!==null && !numero(v.exploracaoEm,0,3600)) || !expedicaoValida(v.expedicao)
+    || ['corridaHoje','paralamaHoje'].some(k=>v[k]!==undefined && typeof v[k]!=='boolean')
+    || (v.odometroRover!==undefined && !numero(v.odometroRover,0,1e9))
+    || (v.tempoExpedicao!==undefined && !numero(v.tempoExpedicao,0,1e9))
+    || (v.ultimaExploracao!==undefined && typeof v.ultimaExploracao!=='string')) return false;
   return numero(v.danoTempestade) && numero(v.bateriasTempestade,0,100)
     && (v.diaCargaRover===null || numero(v.diaCargaRover,1,9))
     && (v.eventoEm===null || numero(v.eventoEm,0,3600)) && (v.alarmePendente===undefined || typeof v.alarmePendente==='boolean') && numero(v.diasCalmos,0,100) && (v.tempoCalmo===undefined || numero(v.tempoCalmo,0,1e6))

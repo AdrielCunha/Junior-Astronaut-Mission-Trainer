@@ -19,7 +19,7 @@ import { sessao, type Mundo } from './sessao';
 import { basesLiberadas } from '../salvamento';
 import type { DadosChegada } from './Chegada';
 import { CONTORNO, COR_BOTAO_TELA, botaoFechar, botaoVerde, criarIconeJogo, letra, moldura, pilulaEscura } from '../tarefas/estilo';
-import { alternarMudo, estaMudo } from '../audio';
+import { alternarMudo, estaMudo, definirAmbienteMusica } from '../audio';
 import { definirVolumeMusica, volumeMusica } from '../audio';
 import { definirVolumeEfeitos, tocarSfx, volumeEfeitos } from '../sfx';
 import { idioma, escolherIdioma } from '../idioma';
@@ -62,6 +62,11 @@ const CREDITOS: [string, [string, string][]][] = [
     ['3D models', 'Blender'],
     ['Font', 'Fredoka · SIL OFL'],
     ['Music', 'AI-generated (Google Gemini, Flow Music)'],
+    ['', 'Lunar Odyssey Theme'],
+    ['', 'Beneath the Silver Tide'],
+    ['', 'Across the Crimson Basin'],
+    ['', 'Aventura Espacial 8-Bit'],
+    ['Soundtrack files', 'AndreaAyalaa'],
   ]],
   ['AI TOOLS', [
     ['Coding help', 'Claude · Anthropic'],
@@ -85,6 +90,7 @@ export class Radar extends Phaser.Scene {
   }
 
   create(d: DadosRadar) {
+    definirAmbienteMusica('inicio');
     const W = this.scale.width, H = this.scale.height;
     const movel = dispositivoMovel() && W > H;
     const u = (this.u = escalaInterface(W, H, 0.5));
@@ -101,6 +107,7 @@ export class Radar extends Phaser.Scene {
     this.events.once('idioma', () => { this.reabrirConfiguracoes = true; redimensionar(); });
     this.scale.on('resize', redimensionar);
     this.events.once('shutdown', () => {
+      definirAmbienteMusica(sessao.mundo);
       sessao.emTarefa = false;
       for (const k of jogo) this.scene.setVisible(true, k);
       this.scale.off('resize', redimensionar);
@@ -109,7 +116,7 @@ export class Radar extends Phaser.Scene {
     });
 
     const lancar = () => { if (this.travado || this.janelaAberta) return; this.travado = true; if (d.continuar) { this.scene.stop(); d.aoComecar(); } else { tocarSfx('ligar'); this.contagem(d.aoComecar); } };
-    const explorar = (mundo: Mundo) => { if (this.travado) return; this.travado = true; this.scene.stop(); d.aoExplorar(mundo); };
+    const explorar = (mundo: Mundo = 'lua') => { if (this.travado) return; this.travado = true; this.scene.stop(); d.aoExplorar(mundo); };
 
     const j = this.pontosJornada(W, H);
     this.fundo(W, H, j.rota);
@@ -464,7 +471,7 @@ export class Radar extends Phaser.Scene {
       this.add.text(cx, tela.y + tela.h * 0.25, 'Start a new mission?\nYour current mission will be reset.',
         letra(18 * u, '#ffffff', { align: 'center', wordWrap: { width: tela.w - 24 * u } })).setOrigin(0.5);
       botaoVerde(this, cx, tela.y + tela.h * 0.77, 'START NEW GAME', 19 * u, 44 * u, u, () => {
-        fechar(); this.travado = true; zerar(); tocarSfx('ligar'); this.contagem(comecar);
+        fechar(); this.travado = true; this.scene.stop(); zerar(); tocarSfx('ligar');
       }).setData('acao', 'confirm-new-game');
     }, 'CANCEL');
   }
@@ -516,7 +523,7 @@ export class Radar extends Phaser.Scene {
   }
 
   // Pick a base to walk around freely, no mission. A base opens once a mission reaches it.
-  private escolherBase(explorar: (mundo: Mundo) => void) {
+  private escolherBase(explorarBase: (mundo: Mundo) => void) {
     const u = this.u, liberadas = basesLiberadas();
     const bases: [string, Mundo, boolean][] = ([['MOON BASE', 'lua'], ['SPACESHIP', 'nave'], ['MARS BASE', 'marte']] as const).map(([n, m]) => [n, m, liberadas.includes(m)]);
     this.janela('EXPLORE A BASE', 660, 480, (tela, fechar) => {
@@ -529,7 +536,7 @@ export class Radar extends Phaser.Scene {
         if (qual === 'nave') icone.setAngle(-30);
         this.add.text(cx, y + h * 0.62, nome, letra(17 * u)).setOrigin(0.5);
         if (aberta) {
-          botaoVerde(this, cx, y + h * 0.82, 'GO!  ▶', 18 * u, 44 * u, u, () => { tocarSfx('ligar'); fechar(); explorar(qual); });
+          botaoVerde(this, cx, y + h * 0.82, 'GO!  ▶', 18 * u, 44 * u, u, () => { tocarSfx('ligar'); fechar(); explorarBase(qual); });
         } else {
           this.add.text(cx, y + h * 0.82, 'LOCKED\nreach it in the mission', letra(14 * u, '#fde047', { align: 'center' })).setOrigin(0.5);
           icone.setAlpha(0.45);
