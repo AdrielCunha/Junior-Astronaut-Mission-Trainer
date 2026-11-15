@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { mostrarContadoresHud } from './visibilidadeHud.ts';
+import { mostrarContadoresHud, mostrarHudNaSuperficie } from './visibilidadeHud.ts';
 
 test('mobile counters hide during flights and planet views and return after landing', () => {
   for (const mundo of ['lua', 'marte']) {
@@ -13,6 +13,19 @@ test('mobile counters hide during flights and planet views and return after land
     assert.equal(mostrarContadoresHud(true, mundo, 'dia', 'lua', null, { destino: 'chao' }), false);
     assert.equal(mostrarContadoresHud(true, mundo, 'dia', 'chao', null, null), true);
   }
+});
+
+test('mobile resource indicators and objective follow the same flight visibility', () => {
+  for (const mundo of ['lua', 'marte']) {
+    assert.equal(mostrarHudNaSuperficie(true, mundo, 'chao', null, null), true);
+    assert.equal(mostrarHudNaSuperficie(true, mundo, 'chao', { destino: 'lua' }, null), false);
+    assert.equal(mostrarHudNaSuperficie(true, mundo, 'lua', null, null), false);
+    assert.equal(mostrarHudNaSuperficie(true, mundo, 'sistema', null, null), false);
+    assert.equal(mostrarHudNaSuperficie(true, mundo, 'lua', { destino: 'chao' }, null), false);
+    assert.equal(mostrarHudNaSuperficie(true, mundo, 'chao', null, null), true);
+  }
+  assert.equal(mostrarHudNaSuperficie(false, 'lua', 'lua', null, null), true);
+  assert.equal(mostrarHudNaSuperficie(true, 'nave', 'sistema', null, null), true);
 });
 
 test('desktop, ship and non-day phases retain their existing behavior', () => {

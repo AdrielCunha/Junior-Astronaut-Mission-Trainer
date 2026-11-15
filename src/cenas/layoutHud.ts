@@ -14,12 +14,13 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
     // Keep the main meters centered while leaving room for the menu and END DAY on the right.
     const maximoGrupo = largura - 2 * (margem + lado + espaco);
     const diametro = Math.min(px(58), Math.floor((maximoGrupo - 2 * entreCirculos) / 3));
-    const larguraObjetivo = Math.min(px(320), largura - 2 * (margem + lado + espaco));
-    const objetivo = { x: Math.round((largura - larguraObjetivo) / 2), y: margem, w: larguraObjetivo, h: px(38) };
     const menu = { x: largura - margem - lado, y: margem, w: lado, h: lado };
-    // Same visual as the desktop web button: never smaller than the 116 x 38 reference.
-    const escalaFim = Math.max(u, 1), larguraFimDia = Math.round(116 * escalaFim), alturaFimDia = Math.round(38 * escalaFim);
+    // Match the desktop's 128 x 38 reference, including space for the play arrow.
+    const escalaFim = Math.max(u, 1), larguraFimDia = Math.round(128 * escalaFim), alturaFimDia = Math.round(38 * escalaFim);
     const fimDia = { x: menu.x - px(20) - larguraFimDia, y: margem, w: larguraFimDia, h: alturaFimDia };
+    // Keep the task centred on the screen, shrinking symmetrically only when the button needs room.
+    const larguraObjetivo = Math.min(px(320), largura - 2 * margem, Math.max(0, 2 * (fimDia.x - espaco) - largura));
+    const objetivo = { x: Math.round((largura - larguraObjetivo) / 2), y: margem, w: larguraObjetivo, h: px(38) };
     const topo = Math.max(objetivo.y + objetivo.h, fimDia.y + fimDia.h) + espaco;
     const titulo = { x: margem, y: topo, w: 0, h: 0 };
     const larguraGrupo = 3 * diametro + 2 * entreCirculos;

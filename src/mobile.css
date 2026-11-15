@@ -2,7 +2,8 @@ html, body, #jogo { width: 100%; height: 100%; height: 100dvh; overscroll-behavi
 #jogo canvas { touch-action: none; display: block; }
 #controles-moveis { display: none; position: fixed; inset: 0; z-index: 50; pointer-events: none; user-select: none; -webkit-user-select: none; }
 #controles-moveis.visivel { display: block; }
-#controles-moveis .joystick { position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: max(20px, env(safe-area-inset-left)); width: clamp(112px, 34dvh, 148px); aspect-ratio: 1; pointer-events: auto; touch-action: none; box-sizing: border-box; }
+#controles-moveis .joystick-area { position: absolute; left: 0; bottom: 0; width: 35%; height: 55%; pointer-events: auto; touch-action: none; }
+#controles-moveis .joystick { position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: max(20px, env(safe-area-inset-left)); width: clamp(112px, 34dvh, 148px); aspect-ratio: 1; pointer-events: none; box-sizing: border-box; }
 #controles-moveis .joystick-arte { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-select: none; filter: drop-shadow(0 6px 9px #0006); }
 #controles-moveis .joystick-manopla { position: absolute; left: 37.7%; top: 43.2%; width: 26%; height: 26%; border-radius: 50%; background: #eff6ff; border: 4px solid #45b7db; box-sizing: border-box; box-shadow: 0 2px 8px #0008, inset 0 0 0 2px #0d2740; }
 #controles-moveis .botoes-moveis { position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); right: max(20px, env(safe-area-inset-right)); display: flex; align-items: end; gap: clamp(10px, 2.5vw, 22px); pointer-events: auto; }

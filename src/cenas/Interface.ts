@@ -22,7 +22,7 @@ import { alternarMudo } from '../audio';
 import { letra, criarPilula, criarCapsulaRecursos, criarCapsulaRecursosMovel, criarBotaoPilula, criarIndicador, criarIndicadorCircular, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
 import { resolverIcone, textoDoJogo, type IconeJogo } from '../dados/icones';
 import { escalaInterface, dispositivoMovel } from '../mobile';
-import { mostrarContadoresHud } from './visibilidadeHud';
+import { mostrarContadoresHud, mostrarHudNaSuperficie } from './visibilidadeHud';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 // A chat message: a custom equipment icon on the left and a short line.
@@ -79,6 +79,7 @@ export class Interface extends Phaser.Scene {
   private entregaPendente?: Phaser.Time.TimerEvent;
   private btFim!: Phaser.GameObjects.Container;
   private textoFim!: Phaser.GameObjects.Text;
+  private iconeFim!: Phaser.GameObjects.Graphics;
   private dicas!: ReturnType<typeof criarDicasRecolhiveis>;
   private readonly preferenciaDicas = new PreferenciaDicas();
   private btMenu!: Phaser.GameObjects.Container;
@@ -138,9 +139,12 @@ export class Interface extends Phaser.Scene {
     // On touch screens this button keeps the desktop web size even when the rest of the HUD shrinks.
     const uFim = dispositivoMovel() ? Math.max(l.u, 1) : l.u;
     const fonteFim = Math.round(17 * uFim);
-    this.btFim = botaoVerde(this, Math.round(fim.x + fim.w / 2), Math.round(fim.y + fim.h / 2), 'END DAY  \u25b6', fonteFim, fim.h, uFim,
+    this.btFim = botaoVerde(this, Math.round(fim.x + fim.w / 2), Math.round(fim.y + fim.h / 2), 'END DAY', fonteFim, fim.h, uFim,
       () => this.terminarDia(), { largura: fim.w, altura: fim.h, pulsar: false, pararPropagacao: true, animarHover: true });
     this.textoFim = this.btFim.getData('texto');
+    // Draw the arrow as artwork, not an emoji glyph, so it is white on every device.
+    this.iconeFim = this.add.graphics();
+    this.textoFim.parentContainer.add(this.iconeFim);
     this.cortina = this.add.rectangle(0, 0, W, H, 0x05070f).setOrigin(0).setDepth(10_000_000).setAlpha(0);
     this.dicas = criarDicasRecolhiveis(this, l.dicasPainel, l.dicasAba, l.dicasFechadasX, l.u, l.dicasCompactas,
       this.preferenciaDicas.inicial(l.dicasCompactas), (recolhido) => this.preferenciaDicas.definir(recolhido));
@@ -510,13 +514,12 @@ export class Interface extends Phaser.Scene {
     // Oxygen and crew health (100 - dose) warn by color: green above 70, yellow 30 to 70, red below 30.
     const alerta = (v: number) => v > 70 ? 0x4ade80 : v >= 30 ? 0xfde047 : 0xef4444;
     const cores = [alerta(e.oxigenio), alerta(100 - e.dose), undefined];
-    this.recursos.forEach((r, i) => { r.caixa.setVisible(sessao.fase !== 'inicio'); r.atualizar(valores[i], cores[i]); });
+    this.recursos.forEach((r, i) => r.atualizar(valores[i], cores[i]));
     const d = sessao.entregas;
     // On Mars the last counter is the heating (the dome is built through construction, not powered).
     const contadores = [sessao.noHabitat, sessao.carregando, d.oxigenio, d.blindagem, marte ? d.aquecimento : d.meta];
     this.atualizarVisibilidadeContadores();
     this.capsula.atualizar(contadores);
-    this.objetivo.setVisible(sessao.fase === 'dia' || (sessao.fase === 'inicio' && !!sessao.rover?.dirigindo));
     // One short order at a time: where to go, what to do there.
     const origem = sessao.mundo === 'lua' ? 'Battery Bank' : marte ? 'Lander' : 'Power Room';
     let objetivo = sessao.noHabitat ? `Get today's batteries at the ${origem}`
@@ -552,15 +555,32 @@ export class Interface extends Phaser.Scene {
     }
     this.textos.tarefa.setScale(Math.min(1, alturaDisponivel / this.textos.tarefa.height));
 
-    this.textoFim.setText(sessao.fase === 'inicio' ? '◀  MENU' : 'END DAY  ▶');
+    const menu=sessao.fase === 'inicio';
+    this.textoFim.setText(menu ? 'MENU' : 'END DAY');
+    if(dispositivoMovel() && this.scale.width > this.scale.height){
+      // The translated label may be wider than English; keep the arrow inside the pill.
+      let tamanho=Math.round(17*Math.max(this.layout.u,1));
+      this.textoFim.setFontSize(tamanho);
+      while(this.textoFim.width>this.layout.fimDia.w-32 && tamanho>10)this.textoFim.setFontSize(--tamanho);
+    }
+    const tamanhoIcone=8*(dispositivoMovel()?Math.max(this.layout.u,1):this.layout.u);
+    const distancia=(this.textoFim.width+tamanhoIcone+8)/2;
+    this.textoFim.setX(menu?6:-6);
+    const x=menu?-distancia:distancia;
+    this.iconeFim.clear().fillStyle(0xffffff).fillTriangle(
+      x+(menu?tamanhoIcone/2:-tamanhoIcone/2),-tamanhoIcone/2,
+      x+(menu?tamanhoIcone/2:-tamanhoIcone/2),tamanhoIcone/2,
+      x+(menu?-tamanhoIcone/2:tamanhoIcone/2),0,
+    );
     this.btFim.setVisible(sessao.fase === 'dia' || sessao.fase === 'inicio');
   }
 
   private atualizarVisibilidadeContadores() {
-    this.capsula.caixa.setVisible(mostrarContadoresHud(
-      dispositivoMovel() && this.scale.width > this.scale.height,
-      sessao.mundo, sessao.fase, sessao.vista, sessao.voo, sessao.transicao,
-    ));
+    const movel=dispositivoMovel() && this.scale.width > this.scale.height;
+    const visivel=mostrarHudNaSuperficie(movel,sessao.mundo,sessao.vista,sessao.voo,sessao.transicao);
+    this.capsula.caixa.setVisible(mostrarContadoresHud(movel,sessao.mundo,sessao.fase,sessao.vista,sessao.voo,sessao.transicao));
+    this.recursos.forEach(r=>r.caixa.setVisible(visivel && sessao.fase !== 'inicio'));
+    this.objetivo.setVisible(visivel && (sessao.fase === 'dia' || (sessao.fase === 'inicio' && !!sessao.rover?.dirigindo)));
   }
 
   // Notices: the dark pill of the task screens, above the bottom bar. Green good news, yellow careful.

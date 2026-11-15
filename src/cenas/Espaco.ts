@@ -7,6 +7,7 @@
 //   - the Earth, Sun and planets at their real positions for that date (engine/astro.ts).
 // Driven by sessao.u (one zoom scale, see sessao.ts) and sessao.data. See ARCHITECTURE.md.
 import Phaser from 'phaser';
+import { dispositivoMovel } from '../mobile';
 import { movimentoReduzido, configuracoesAbertas, video } from '../video';
 import constelacoes from '../dados/constelacoes.json';
 import { VOO as voo, CHAVE_VOO, LEVE } from './qualidade';
@@ -160,7 +161,18 @@ export class Espaco extends Phaser.Scene {
 
     // Only rewrite the caption when it changes: every rewrite redraws the text and uploads it.
     this.legendaNova = '';
-    const legendaPost = () => { if (this.legenda.text !== this.legendaNova) this.legenda.setText(this.legendaNova); };
+    const legendaPost = () => {
+      if (this.legenda.text !== this.legendaNova) this.legenda.setText(this.legendaNova);
+      // Lift the marker and its label just enough to clear the planet caption on phones.
+      if (this.legendaNova && dispositivoMovel()) {
+        const limite = this.legenda.y - this.legenda.height - this.pino.y - 8;
+        const deslocamento = Math.min(0, limite);
+        gp.setY(deslocamento);
+        this.pinoTexto.setY(Math.min(-30 + deslocamento, limite - this.pinoTexto.height));
+      } else {
+        gp.setY(0);this.pinoTexto.setY(-30);
+      }
+    };
     this.events.on('postupdate', legendaPost);
     this.events.once('shutdown', () => this.events.off('postupdate', legendaPost));
 
