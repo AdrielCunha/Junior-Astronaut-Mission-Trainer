@@ -28,7 +28,7 @@ const CREDITOS: [string, [string, string][]][] = [
   ['THE TEAM · STAR LEAGUE', [
     ['', 'Adriel dos Santos Cunha (@adrielcunha)'],
     ['', 'Andrea da Paixão Ayala (@andreapayala)'],
-    ['', 'Felipe Sabino Cota (@felipescola)'],
+    ['', 'Felipe Sabino Cota (@felipescota)'],
     ['', 'Juliana Elen Silva Oliveira (@jeso)'],
     ['', 'Matheus Coelho (@matheus-fsc)'],
     ['', 'Maria Paula Moreira Rocha (@mariapaulaa)']
