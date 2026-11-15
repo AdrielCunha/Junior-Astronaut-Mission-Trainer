@@ -9,7 +9,7 @@ import terrenoNave from '../dados/terreno_nave.json';
 import naveProps from '../dados/nave_props.json';
 import { sessao, type Mundo } from './sessao';
 
-const OUTRAS = ['Base', 'Viagem', 'MarteVista', 'Radar', 'Tarefa', 'TerrenoMarte', 'NaveTarefa'];
+const OUTRAS = ['Base', 'Viagem', 'MarteVista', 'Radar', 'Tarefa', 'TerrenoMarte', 'NaveTarefa', 'CuriosidadeRover'];
 
 // Pictures each world needs that the loading screen did not load.
 const IMAGENS: Partial<Record<Mundo, [string, string][]>> = {

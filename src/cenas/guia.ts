@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import { movimentoReduzido } from '../video';
 import { paraTela } from '../engine/iso';
 import { dadosTerreno, sessao } from './sessao';
-import { CONTORNO, criarPilula, criarTecla, letra } from '../tarefas/estilo';
+import { CONTORNO, criarPilula, criarTecla, criarIconeJogo, letra } from '../tarefas/estilo';
 import { descrever, passoAtual, marcarTutorialVisto, type Descricao } from './tutorial';
 import type { Construcao } from '../engine/construcao';
 import type { calcularLayoutHud } from './layoutHud';
@@ -158,12 +158,13 @@ export class AvisoEvento {
     const W = cena.scale.width, pad = px(14);
     const nome = sessao.grade.lista.find((m) => m.id === ev.construcaoId)?.tipo.nome ?? '';
     const tecla = criarTecla(cena, 0, 0, 'E', u);
-    const texto = cena.add.text(0, 0, `⚠ Fix the ${nome}`, letra(px(15), '#fed7aa')).setOrigin(0, 0.5);
-    const w = Math.round(pad + tecla.width + px(8) + texto.width + pad), h = px(40);
+    const texto = cena.add.text(0, 0, `Fix the ${nome}`, letra(px(15), '#fed7aa')).setOrigin(0, 0.5);
+    const w = Math.round(pad + px(30) + tecla.width + px(8) + texto.width + pad), h = px(40);
     const caixa = criarPilula(cena, (W - w) / 2, l.capsula.y + l.capsula.h + px(10), w, h, u, CONTORNO, 0xfb923c).setDepth(40);
-    tecla.setPosition(pad, h / 2);
-    texto.setPosition(pad + tecla.width + px(8), h / 2);
-    caixa.add([tecla, texto]);
+    const icone = criarIconeJogo(cena,pad+px(12),h/2,'warning',px(27));
+    tecla.setPosition(pad+px(30), h / 2);
+    texto.setPosition(pad + px(30) + tecla.width + px(8), h / 2);
+    caixa.add([icone, tecla, texto]);
     this.pilula = caixa;
     if (!movimentoReduzido()) {
       caixa.setScale(0.7).setAlpha(0);

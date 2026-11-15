@@ -34,6 +34,7 @@ test**. Scenes only read input, call the engine and draw.
 | `src/engine/iso.ts` | Map coordinates ↔ screen pixels (and back, onto the ground under the cursor). |
 | `src/engine/terreno.ts` | Real heights and slopes of the map. |
 | `src/engine/fisica.ts` | Lunar gravity, jumping, falling, collision with modules, slope limits. |
+| `src/engine/rover.ts` | Ground vehicle movement, collision and slope limits, parking, and safe disembarking. |
 | `src/engine/construcao.ts` | Module types, the occupancy grid, where things fit (free, flat), the default base layout. |
 | `src/engine/suprimentos.ts` | Equipment unlocked during the chapter (by day) and the cargo lander's braking burn. |
 | `src/engine/astro.ts` | Sun, planets and Moon positions for a date (NASA JPL orbital elements). |
@@ -42,6 +43,12 @@ test**. Scenes only read input, call the engine and draw.
 | `src/cenas/Espaco.ts` | Sky, constellation tracing, Moon view, solar system. |
 | `src/cenas/Superficie.ts` | The map, modules (Blender pictures), the commander, cargo; the ground camera. |
 | `src/cenas/Interface.ts` | HUD bars, build bar, zoom buttons, morning / night / end panels. |
+| `src/cenas/tempestadeSolar.ts` | Extreme Moon storm countdown, protection states, and impact damage. |
+| `src/cenas/desenharRover.ts` | Apollo LRV rendering, seated legs, and foreground layers around the original astronaut sprite. |
+| `src/cenas/CuriosidadeRover.ts` | First-boarding fact card; pauses the world and storm while reading. |
+| `src/cenas/ambiente.ts` | Astronaut footprints, rover tire tracks, and surface dust for each world. |
+| `src/dados/roverApollo.ts` | Short English Apollo LRV facts and their source. |
+| `public/icons/lunar-v6/` | User-selected `lunar_icons_v6` pack: eight PNG textures plus their original SVG sources and preview. Mapped in `src/dados/icones.ts`; the backpack represents carried batteries. |
 | `src/cenas/desenho.ts` | Code-drawn extras: foundations on slopes, the commander's shadow and batteries, cargo. |
 | `src/cenas/globo.ts` | Globe math for the Moon view (spin on a date, base pin, Sun over the base). |
 | `src/cenas/luaShader.ts` | The Moon drawn live by the GPU (toon shading, relief, outline). |

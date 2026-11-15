@@ -15,6 +15,9 @@ import { VOO as voo } from './qualidade';
 import { CAPITULOS } from '../capitulos';
 import { inicioDoCapitulo, bateriasDoDia, nenhuma, type Alocacao, type Efeito, type Estado } from '../regras';
 
+import { TempestadeSolar } from './tempestadeSolar';
+import type { Rover } from '../engine/rover';
+
 // The world the 3D scenes show: the Moon (chapter 1) or Mars (chapter 3, same engine).
 // The ship (chapter 2) is a world too: its deck, on the same engine.
 export type Mundo = 'lua' | 'marte' | 'nave';
@@ -82,6 +85,12 @@ class Sessao {
   grade = new Grade(this.terreno);
   readonly sinais = new Phaser.Events.EventEmitter();
 
+  readonly tempestade = new TempestadeSolar();
+  rover: Rover | null = null;
+  diaCargaRover: number | null = null;
+  get roverCarregado() { return this.fase === 'inicio' || this.diaCargaRover === this.estado.dia; }
+  curiosidadeRoverVista = false;
+  nivelTeste: number | null = null;
   fase: Fase = 'inicio';
   estado: Estado = inicioDoCapitulo(CAPITULOS[0].config);
   entregas: Alocacao = nenhuma();
@@ -157,6 +166,11 @@ class Sessao {
   reiniciar() {
     this.grade = new Grade(this.terreno);
     this.fase = 'inicio';
+    this.tempestade.iniciar(0);
+    this.rover = null;
+    this.diaCargaRover = null;
+    this.curiosidadeRoverVista = false;
+    this.nivelTeste = null;
     this.estado = inicioDoCapitulo(this.C);
     this.entregas = nenhuma();
     this.carregando = 0;
@@ -311,7 +325,8 @@ class Sessao {
 
   get dia() {
     const dias = this.cap.dados.dias;
-    return dias[Math.min(this.estado.dia, dias.length) - 1];
+    const dia = dias[Math.min(this.estado.dia, dias.length) - 1];
+    return this.nivelTeste === null ? dia : { ...dia, nivel: this.nivelTeste };
   }
 
   // Noon of the current chapter day, as a timestamp: drives the Sun, Moon and planets.
@@ -320,6 +335,8 @@ class Sessao {
   }
 
   novoDia() {
+    this.nivelTeste = null;
+    this.tempestade.iniciar(this.mundo === 'lua' ? this.dia.nivel : 0);
     this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = bateriasDoDia(this.estado, this.C);

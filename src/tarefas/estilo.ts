@@ -3,6 +3,7 @@
 import type Phaser from 'phaser';
 import { fonte } from '../cenas/sessao';
 import { movimentoReduzido } from '../video';
+import { chaveIcone, resolverIcone, type IconeJogo } from '../dados/icones';
 import { tocarSfx } from '../sfx';
 
 export const CONTORNO = 0x1e293b;
@@ -121,12 +122,12 @@ export function criarBarra(cena: Phaser.Scene, cx: number, cy: number, largura: 
 
 
 // Floating HUD pieces are decorative: only buttons opt into input.
-export function criarPilula(cena: Phaser.Scene, x: number, y: number, w: number, h: number, u: number, cor = CONTORNO, borda = 0xffffff, raio?: number) {
+export function criarPilula(cena: Phaser.Scene, x: number, y: number, w: number, h: number, u: number, cor = CONTORNO, borda = 0xffffff, raio?: number, opacidade = 1) {
   x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
   const canto = raio ?? h / 2;
   const g = cena.add.graphics()
-    .fillStyle(0x0b1a4a, 0.7).fillRoundedRect(Math.round(2 * u), Math.round(4 * u), w, h, Math.round(canto))
-    .fillStyle(cor).fillRoundedRect(0, 0, w, h, canto)
+    .fillStyle(0x0b1a4a, 0.7 * opacidade).fillRoundedRect(Math.round(2 * u), Math.round(4 * u), w, h, Math.round(canto))
+    .fillStyle(cor, opacidade).fillRoundedRect(0, 0, w, h, canto)
     .lineStyle(3 * u, borda).strokeRoundedRect(0, 0, w, h, canto);
   return cena.add.container(x, y, [g]).setSize(w, h);
 }
@@ -140,7 +141,7 @@ export function criarSelo(cena: Phaser.Scene, x: number, y: number, w: number, h
 
 export function criarChip(cena: Phaser.Scene, x: number, y: number, w: number, u: number, icone: string, rotulo: string, cor: number) {
   const caixa = criarPilula(cena, x, y, w, 48 * u, u);
-  const simbolo = cena.add.text(17 * u, 24 * u, icone, letra(21 * u)).setOrigin(0.5);
+  const simbolo = criarIconeJogo(cena, 17 * u, 24 * u, icone, 25 * u);
   const label = cena.add.text(34 * u, 12 * u, rotulo, letra(14 * u, '#bfdbfe')).setOrigin(0, 0.5);
   const numero = cena.add.text(34 * u, 32 * u, '0', letra(23 * u, '#' + cor.toString(16).padStart(6, '0'), { stroke: '#0b1a4a', strokeThickness: 3 * u })).setOrigin(0, 0.5);
   const escala = Math.min(1, (w - 40 * u) / label.width);
@@ -194,21 +195,17 @@ export function criarTituloHud(cena: Phaser.Scene, b: Caixa, u: number) {
   return { caixa, data, atualizar };
 }
 
-// High-contrast vector trefoil, independent of the operating system's emoji font.
-export function criarIconeRadiacao(cena: Phaser.Scene, x: number, y: number, tamanho: number) {
-  const r = Math.round(tamanho / 2);
-  const g = cena.add.graphics().setPosition(Math.round(x), Math.round(y));
-  g.fillStyle(0xfde047).fillCircle(0, 0, r).lineStyle(Math.max(1, Math.round(tamanho * 0.07)), 0x0b1a4a).strokeCircle(0, 0, r);
-  g.fillStyle(0x0b1a4a);
-  for (let i = 0; i < 3; i++) {
-    const a = -Math.PI * 2 / 3 + i * Math.PI * 2 / 3;
-    g.slice(0, 0, r * 0.78, a, a + Math.PI / 3, false).fillPath();
-  }
-  g.fillStyle(0xfde047).fillCircle(0, 0, r * 0.36).fillStyle(0x0b1a4a).fillCircle(0, 0, r * 0.19);
-  return g;
+// Places one of the custom Lunar Odyssey icons at a fixed on-screen size.
+export function criarIconeJogo(cena: Phaser.Scene, x: number, y: number, id: string, tamanho: number) {
+  const t = Math.max(1, Math.round(tamanho));
+  return cena.add.image(Math.round(x), Math.round(y), chaveIcone(resolverIcone(id))).setDisplaySize(t, t);
 }
 
-export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: string, rotulo: string, cor: number) {
+export function criarIconeRadiacao(cena: Phaser.Scene, x: number, y: number, tamanho: number) {
+  return criarIconeJogo(cena, x, y, 'radiation', tamanho);
+}
+
+export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: IconeJogo, rotulo: string, cor: number) {
   // Enlarge every inner measurement together, capped by the available column and row.
   const ampliacao = Math.max(1, Math.min(1.2, b.w / (220 * u), b.h / (44 * u)));
   const unidade = u * ampliacao;
@@ -221,10 +218,7 @@ export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: s
   const fim = inicio + largura - pad;
   const cabecalhoY = Math.round(b.h / 2 - px(10)), seloW = px(36), seloH = px(19);
   const centroIconeX = inicio + pad + Math.round(iconeW / 2), centroIconeY = Math.round(b.h / 2);
-  const simbolo = icone === '\u2622'
-    ? criarIconeRadiacao(cena, centroIconeX, centroIconeY, px(21))
-    : cena.add.text(centroIconeX, centroIconeY, icone, letra(px(18))).setOrigin(0.5, 0.5);
-  if ('width' in simbolo) simbolo.setScale(Math.min(1, iconeW / simbolo.width));
+  const simbolo = criarIconeJogo(cena, centroIconeX, centroIconeY, icone, px(26));
   const label = cena.add.text(coluna, cabecalhoY, rotulo, letra(px(14.5), '#ffffff', { stroke: '#0b1a4a', strokeThickness: px(2) })).setOrigin(0, 0.5);
   const selo = criarSelo(cena, fim - seloW, cabecalhoY - Math.round(seloH / 2), seloW, seloH, unidade, cor);
   selo.texto.setFontSize(px(11));
@@ -260,7 +254,7 @@ export function criarBotaoPilula(cena: Phaser.Scene, b: Caixa, u: number, titulo
 export function criarCapsulaRecursos(cena: Phaser.Scene, b: Caixa, u: number, rotulos?: { nomes: string[]; icones: string[] }) {
   const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u);
   const nomes = rotulos?.nomes ?? ['Batteries at the Battery Bank', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Parts: batteries delivered to the rocket workshop today'];
-  const icones = rotulos?.icones ?? ['\u{1f50b}', '\u270b', '\u2764\ufe0f', '\u{1f6e1}', '\u{1f527}'];
+  const icones = rotulos?.icones ?? ['energy', 'backpack', 'heart', 'shield', 'wrench'];
   const cores = ['#fde047', '#fde047', '#4ade80', '#fde047', '#60a5fa'];
   const numeros: Phaser.GameObjects.Text[] = [];
   const divisores = cena.add.graphics().lineStyle(Math.max(1, Math.round(u)), 0x7dd3fc, 0.5);
@@ -272,8 +266,8 @@ export function criarCapsulaRecursos(cena: Phaser.Scene, b: Caixa, u: number, ro
   for (let i = 0; i < 5; i++) {
     const x = Math.round(i * b.w / 5), centro = Math.round(b.h / 2);
     if (i) divisores.lineBetween(x, Math.round(8 * u), x, b.h - Math.round(8 * u));
-    const simbolo = cena.add.text(x + Math.round(9 * u), centro, icones[i], letra(Math.round(16 * u))).setOrigin(0, 0.5);
-    const numero = cena.add.text(x + Math.round(30 * u), centro, '0', letra(Math.round(19 * u), cores[i])).setOrigin(0, 0.5);
+    const simbolo = criarIconeJogo(cena, x + Math.round(18 * u), centro, icones[i], Math.round(23 * u));
+    const numero = cena.add.text(x + Math.round(33 * u), centro, '0', letra(Math.round(19 * u), cores[i])).setOrigin(0, 0.5);
     numeros.push(numero);
     caixa.add([simbolo, numero]);
   }

@@ -20,6 +20,16 @@ The solar storms in the game are storms that really happened. Their dates and st
 
 Each chapter is a series of days. Each day: read the morning report, send batteries to the rooms, see what happened overnight. The crew's radiation dose carries from one chapter to the next. The real trip to Mars takes about 7 months; the game shortens it to 5 days.
 
+## Moon map gameplay updates
+
+- The first day guides players through collecting batteries at the Battery Bank, powering Life Support, and working on the rocket.
+- Extreme solar storms give the player 45 seconds to power the shield. Three batteries provide full protection; partial protection reduces the impact. The countdown continues during room tasks and pauses in menus and the rover fact card.
+- A driveable rover inspired by the Apollo LRV is available on the Moon. Click it or press **E** nearby to board or exit; use **WASD**, arrow keys, or ground clicks to drive.
+- During missions, boarding an empty rover installs **one carried battery**, providing power for that day. Exploration mode provides power freely. The rover stays on the Moon.
+- The driver uses the selected astronaut skin. Wheel tracks and lunar dust follow the rover, and its first boarding shows a short Apollo LRV fact card in English.
+- The selected `lunar_icons_v6` pack supplies the HUD, reports and notices: oxygen, energy, radiation, rocket, shield, health, tools and backpack. The backpack indicates carried batteries. PNG textures and original SVG sources live in `public/icons/lunar-v6/`.
+- Optional developer resource controls are available on the development server or with `?dev`.
+
 ## NASA data
 
 The data is downloaded once and stored in the game as archived data. The game does not show it as live.
@@ -55,7 +65,7 @@ npm install
 npm run dev     # play at http://localhost:5173
 npm test        # game rules + engine (physics, building, map projection, planet positions)
 npm test        # game balance, checked against the real May 2024 storm in all three chapters
-``'
+```
 
 How the game is built (engine, scenes, zoom, art pipeline in Blender): see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -64,4 +74,4 @@ pinch to zoom; zoom out past the ground to fly to the whole Moon and on to the p
 
 ## Use of AI tools
 
-The team used Claude (Anthropic) to explore the NASA APIs, to draft project documents including this README, and to write code. Files with AI-generated code say so in a comment at the top of the file.
+The team used Claude (Anthropic) to explore the NASA APIs, to draft project documents including this README, and to write code. Codex (OpenAI) helped implement and integrate the Moon rover, storm alerts, HUD updates, and documentation. Files may include additional AI attribution in their header comments.
