@@ -66,9 +66,15 @@ export function criarPainelCenas(jogo: Phaser.Game) {
     parar(...CENAS_DO_JOGO);
     sm.start('Base', { capitulo: indice, dose: 10, pontos: indice === 2 ? [200, 200] : [200] });
   };
+  // Chapter 3 is the 3D Mars (irParaMarte.ts), loaded from whatever scene is running.
+  const marte3D = () => {
+    const ativa = sm.getScenes(true)[0];
+    if (!ativa) { avisar('No running scene to load from.'); return; }
+    iniciarMarte3D(ativa, 10, [200, 200]);
+  };
   const chegada = (pularParaPouso: boolean) => {
     sm.getScenes(true).forEach((s) => { if (s.scene.key === 'Radar') sm.stop('Radar'); });
-    sm.run('Viagem', { etapa: 'chegada', aoTerminar: () => capitulo(2) });
+    sm.run('Viagem', { etapa: 'chegada', aoTerminar: marte3D });
     if (pularParaPouso) depois(60, () => { (sm.getScene('Viagem') as unknown as { t: number }).t = 0.995; });
   };
 
@@ -96,20 +102,16 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   botao('Skip to the landing', () => chegada(true));
   titulo('Chapters');
   botao('Chapter 2: the ship', () => capitulo(1));
-  botao('Chapter 3: Mars 3D (playable)', () => {
-    const ativa = sm.getScenes(true)[0];
-    if (!ativa) { avisar('No running scene to load from.'); return; }
-    iniciarMarte3D(ativa, 10, [200, 200]);
-  });
-  botao('Chapter 3: old 2D prototype (Base)', () => capitulo(2));
-  botao('Mars base, zoom out to space', () => {
-    capitulo(2);
-    depois(400, () => {
-      sm.pause('Base');
-      sm.run('MarteVista', { data: Date.parse('2024-05-18T12:00:00Z'), aoVoltar: () => sm.resume('Base') });
+  botao('Chapter 3: Mars (3D, playable)', marte3D);
+  botao('Mars, zoom out to space', () => {
+    marte3D();
+    // Once the Mars scenes are up, close the morning report and zoom out (Interface opens MarteVista).
+    depois(1500, () => {
+      (sm.getScene('Interface') as unknown as { fecharPainel?: () => void }).fecharPainel?.();
+      sessao.emitir('zoomMarte');
     });
   });
-  titulo('Mars terrain (plan, phase 2)');
+  titulo('Mars map');
   botao('Mars map preview (Jezero)', () => {
     if (!sm.getScene('TerrenoMarte')) sm.add('TerrenoMarte', TerrenoMarte, false);
     const pausadas = sm.getScenes(true).map((s) => s.scene.key).filter((k) => k !== 'TerrenoMarte');
