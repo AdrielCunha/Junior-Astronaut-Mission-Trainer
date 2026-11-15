@@ -53,7 +53,8 @@ await js(`(async () => {
   const g = superficie.game; g.loop.sleep();
   window.__T = performance.now();
   window.__passo = (ms) => { window.__T += ms; g.step(window.__T, ms); };
-  const ui = superficie.scene.get('Interface'); ui.acaoPrincipal && ui.acaoPrincipal();
+  const r = superficie.scene.get('Radar'); if (r && r.scene.isActive()) r.scene.stop();   // leave the title screen
+  const ui = superficie.scene.get('Interface'); ui.fecharPainel && ui.fecharPainel();
   if ('${destino}' === 'chao') { sessao.vista = 'lua'; sessao.alvo = sessao.u = sessao.uGlobo; } else sessao.alvo = sessao.u = 2.0;
   if (${process.env.DEMO ? 'true' : 'false'}) {   // DEMO=1: build a base first, to see the colony during the flight
     const { TIPOS } = await import('/src/engine/construcao.ts');
