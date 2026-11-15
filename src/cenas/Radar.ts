@@ -166,7 +166,7 @@ export class Radar extends Phaser.Scene {
       this.botao(cx, proximaLinha, bw, bh, 'NEW GAME', 0x2563eb, (movel ? 17 : 20) * u, () => this.confirmarNovoJogo(d.aoNovoJogo!, d.aoComecar)).setData('acao', 'new-game');
       proximaLinha += bh + gap;
     }
-    this.botao(cx, proximaLinha, bw, bh, 'EXPLORE A BASE', 0x2563eb, (movel ? 17 : 20) * u, () => this.escolherBase(explorar));
+    this.botao(cx, proximaLinha, bw, bh, 'EXPLORE THE BASE', 0x2563eb, (movel ? 17 : 20) * u, () => this.escolherBase(explorar));
     const y3 = proximaLinha + bh + gap, tercoW = (bw - 2 * gap) / 3, fonteAjuda = (movel ? 13 : 17) * u;
     this.botao(cx - (tercoW + gap), y3, tercoW, bh, 'HOW TO PLAY', 0x475569, fonteAjuda, () => this.comoJogar());
     this.botao(cx, y3, tercoW, bh, 'WIKI', 0x0ea5e9, fonteAjuda, () => this.wiki()).setData('acao', 'wiki');
@@ -377,7 +377,13 @@ export class Radar extends Phaser.Scene {
       if (texto.includes('+')) simbolo.lineBetween(0, -6 * u, 0, 6 * u);
       conteudo.push(simbolo);
     } else {
-      conteudo.push(this.add.text(0, 0, texto, letra(tamanho, '#ffffff', { stroke: '#1e293b', strokeThickness: 4 * u })).setOrigin(0.5));
+      const seta = /\s+▶$/.test(texto);
+      const rotulo = this.add.text(seta?-6*u:0, 0, seta?texto.replace(/\s+▶$/, ''):texto, letra(tamanho, '#ffffff', { stroke: '#1e293b', strokeThickness: 4 * u })).setOrigin(0.5);
+      conteudo.push(rotulo);
+      if(seta){
+        const lado=14*u,centro=(rotulo.width+lado+8*u)/2;
+        conteudo.push(this.add.graphics().fillStyle(0xffffff).fillTriangle(centro-lado/2,-lado/2,centro-lado/2,lado/2,centro+lado/2,0));
+      }
     }
     const c = this.add.container(x, y, conteudo).setSize(w, h).setInteractive({ useHandCursor: true });
     c.on('pointerover', () => { if (!dispositivoMovel()) c.setScale(1.06); tocarSfx('suave'); }).on('pointerout', () => c.setScale(1)).on('pointerdown', () => { if (!this.travado) { if (!texto.startsWith('LAUNCH')) tocarSfx('clique'); acao(); } });
@@ -532,7 +538,7 @@ export class Radar extends Phaser.Scene {
   private escolherBase(explorarBase: (mundo: Mundo) => void) {
     const u = this.u, liberadas = basesLiberadas();
     const bases: [string, Mundo, boolean][] = ([['MOON BASE', 'lua'], ['SPACESHIP', 'nave'], ['MARS BASE', 'marte']] as const).map(([n, m]) => [n, m, liberadas.includes(m)]);
-    this.janela('EXPLORE A BASE', 660, 480, (tela, fechar) => {
+    this.janela('EXPLORE THE BASE', 660, 480, (tela, fechar) => {
       const gap = 18 * u, w = (tela.w - 44 * u - 2 * gap) / 3, h = tela.h - 44 * u;
       bases.forEach(([nome, qual, aberta], i) => {
         const x = tela.x + 22 * u + i * (w + gap), y = tela.y + 22 * u, cx = x + w / 2;
@@ -542,7 +548,7 @@ export class Radar extends Phaser.Scene {
         if (qual === 'nave') icone.setAngle(-30);
         this.add.text(cx, y + h * 0.62, nome, letra(17 * u)).setOrigin(0.5);
         if (aberta) {
-          botaoVerde(this, cx, y + h * 0.82, 'GO!  ▶', 18 * u, 44 * u, u, () => { tocarSfx('ligar'); fechar(); explorarBase(qual); });
+          botaoVerde(this, cx, y + h * 0.82, 'GO!  ▶', 18 * u, 44 * u, u, () => { tocarSfx('ligar'); fechar(); explorarBase(qual); }, { setaBranca: true });
         } else {
           this.add.text(cx, y + h * 0.82, 'LOCKED\nreach it in the mission', letra(14 * u, '#fde047', { align: 'center' })).setOrigin(0.5);
           icone.setAlpha(0.45);
