@@ -46,6 +46,8 @@ export const U_CHAO = Math.log(ZOOM_MAX / ZOOM_MIN);
 export const U_INICIAL = Math.log(ZOOM_MAX / 1.1);
 export const RAIO_LUA = 1737.4;             // km
 const AU = 149597870.7;
+// How far the elastic zoom goes past the solar system view, in log units: out to Neptune.
+export const ELASTICO_MAX = 3.2;
 export const sDeU = (u: number) => S_MAX * Math.exp(-u);
 export const DURACAO_FILME = 4.6;           // s for the film part, ground <-> Moon
 // Timing of the flight (its frames are spaced evenly in log distance, so a constant rate looks
@@ -284,7 +286,17 @@ class Sessao {
     return v.sentido > 0 ? v.t : 1 - v.t;           // the easing is on the whole flight (passo)
   }
   // Farthest view: out to Mars's orbit, the next chapter's destination (the rest is for later).
-  get uSistema() { return uDeS((0.46 * Math.min(this.tela.w, this.tela.h)) / (1.75 * AU)); }
+  // The view stops at Mars, so it fills the screen: Mars's whole orbit (out to 1.67 AU) fits the
+  // width and, squashed by the tilt (0.6), the height.
+  get uSistema() { return uDeS(Math.min((0.45 * this.tela.w) / 1.7, (0.36 * this.tela.h) / (1.7 * 0.6)) / AU); }
+  // Elastic zoom past the solar system view (like scrolling past the end of a list on a phone):
+  // pulling out shows the outer planets, harder and harder; let go and it springs back.
+  // puxo = how hard it was pulled (log zoom units); elastico = how far out the view really is.
+  puxo = 0;
+  private ultimoPuxo = 0;
+  // The view glides to where the pull asks (no jump per wheel notch): elastico is that glide.
+  elastico = 0;
+  private get alvoElastico() { return ELASTICO_MAX * (1 - Math.exp(-this.puxo / ELASTICO_MAX)); }
   // 0..1 ground, 1..2 flying to the globe, 2..3 out to the planets (for fades and labels).
   get nivel() {
     const u = this.u, g = this.uGlobo;
@@ -306,6 +318,12 @@ class Sessao {
       if (this.empurrao > 0.35) this.voar('lua');
       return;
     }
+    if (this.vista === 'sistema' && this.mundo === 'lua' && (d > 0 || this.puxo > 0)) {
+      this.puxo = Math.max(0, this.puxo + d * 2);
+      this.ultimoPuxo = performance.now();
+      this.empurrao = 0;
+      return;
+    }
     this.empurrao += d;
     if (this.empurrao > 0.3) this.voar('sistema');
     else if (this.empurrao < -0.3) this.voar(this.vista === 'sistema' ? 'lua' : 'chao');
@@ -322,7 +340,7 @@ class Sessao {
       return;
     }
     if (configuracoesAbertas || this.transicao) return;
-    this.empurrao = 0;
+    this.empurrao = 0; this.puxo = 0; this.elastico = 0;
     if (destino === this.vista) return;
     this.ancora = null;
     if (movimentoReduzido()) {
@@ -416,7 +434,14 @@ class Sessao {
       this.u += (this.alvo - this.u) * (1 - Math.exp(-dt * 10));
       if (Math.abs(this.alvo - this.u) < 1e-4) this.u = this.alvo;
     } else {
-      this.u = this.vista === 'lua' ? this.uGlobo : this.uSistema;   // follow screen size
+      // Let go (no pull for a moment): spring back to the solar system view, gently.
+      if (this.puxo > 0 && performance.now() - this.ultimoPuxo > 250) {
+        this.puxo *= Math.exp(-dt * 2.5);
+        if (this.puxo < 0.01) this.puxo = 0;
+      }
+      this.elastico += (this.alvoElastico - this.elastico) * (1 - Math.exp(-dt * 5));
+      if (Math.abs(this.elastico) < 1e-4) this.elastico = 0;
+      this.u = this.vista === 'lua' ? this.uGlobo : this.uSistema + this.elastico;   // follow screen size
     }
     this.empurrao *= Math.exp(-dt * 3);                                // a slow nudge does not fly
   }

@@ -14,9 +14,11 @@ import rotacoesModulos from '../dados/rotacoesModulos.json';
 import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 import dadosViagem from '../dados/viagem.json';
+import planetas3d from '../dados/planetas3d.json';
 import { SKINS, chaveSkin } from '../dados/skins';
 import constelacoes from '../dados/constelacoes.json';
 import { ICONES, chaveIcone } from '../dados/icones';
+import { soltarTeclasAoPerderFoco } from '../foco';
 
 const FATOS = [
   'The ground in this game is real: NASA\'s LRO spacecraft measured it with a laser.',
@@ -158,6 +160,16 @@ export class Carregar extends Phaser.Scene {
     dadosViagem.nave.direcoes.forEach((n, k) => this.load.image(`nave_d${k}`, n.arquivo));
     this.load.image('planeta_marte', 'lua/planetas/marte.png');   // live Mars in the solar system view
     this.load.image('ceu', 'lua/sky.jpg');
+    // The real sky behind the solar system view, the ship and Mars from space (make_ceu.py), the
+    // planets as Blender models lit from 16 sides (make_planetas_3d.py) and the Sun (make_sun.py).
+    this.load.image('ceu_sistema', 'lua/sky_sistema.jpg');
+    // The small sheets (rotation x light direction) for the solar system view; the big ones load
+    // when a body is opened full screen (Astro).
+    for (const [nome, p] of Object.entries(planetas3d)) {
+      if (nome === 'nota') continue;
+      const q = (p as { pequeno: { arquivo: string; quadro: number } }).pequeno;
+      this.load.spritesheet(`pl3d_${nome}`, q.arquivo, { frameWidth: q.quadro, frameHeight: q.quadro });
+    }
     constelacoes.forEach((c, k) => this.load.image(`const${k}`, c.arquivo));
     for (const [id, arquivo] of Object.entries(ICONES)) this.load.image(chaveIcone(id as keyof typeof ICONES), arquivo);
 
@@ -177,6 +189,7 @@ export class Carregar extends Phaser.Scene {
   }
 
   create() {
+    soltarTeclasAoPerderFoco(this.game);   // keys held when the window loses focus are let go
     sessao.restaurarPartida();
     carregarImagensMundo(this,sessao.mundo,()=>this.iniciarCenas());
   }
