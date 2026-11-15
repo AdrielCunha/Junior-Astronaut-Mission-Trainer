@@ -45,7 +45,7 @@ import { dirigirRover, estacionarRover, desembarcar, pontoLivre, RAIO_ROVER } fr
 import { deveQuebrar } from '../paralama-tarefa';
 import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto, alvoDaSeta, pista, moverExpedicao, type Expedicao, type TipoExpedicao } from '../engine/expedicao';
 import { criarExploracao, sortearTipo, AVISOS, type Contexto } from '../engine/exploracao';
-import { ESTACOES, estacaoDisponivel, textoEstacao } from '../engine/estacoes';
+import { ESTACOES, estacaoDisponivel, textoEstacao, estacaoDoModulo, chaveModulo, type Estacao } from '../engine/estacoes';
 import { desenharRover, esconderRover, LINHA_QUADRIL_SENTADO, type PecasRover } from './desenharRover';
 
 const P = dadosTerreno.imagem;
@@ -179,6 +179,7 @@ export class Superficie extends Phaser.Scene {
   private nomesNoMapa: Phaser.GameObjects.Text[] = [];
   private decoVisuais: { d: DecoColocada; img: Phaser.GameObjects.Image }[] = [];
   private marcasEstacao: { d: DecoColocada; c: Phaser.GameObjects.Container }[] = [];   // "!" over ship stations
+  private marcasEquip = new Map<number, Phaser.GameObjects.Container>();   // "!" over equipment stations, by module id
   private dica?: Phaser.GameObjects.Text;                // shared prop tooltip
   private decoSobre: DecoColocada | null = null;         // prop under the cursor
   private decoFixa: DecoColocada | null = null;          // prop just tapped (touch): tooltip stays a few seconds
@@ -716,7 +717,7 @@ export class Superficie extends Phaser.Scene {
 
   // Things you can use: where the batteries are, the rooms, and the module that needs fixing today.
   private usavel(c: Construcao) {
-    return c.tipo.id === origemBaterias(sessao.mundo) || !!c.tipo.sala || sessao.evento?.construcaoId === c.id;
+    return c.tipo.id === origemBaterias(sessao.mundo) || !!c.tipo.sala || sessao.evento?.construcaoId === c.id || !!estacaoDoModulo(c.tipo.id);
   }
 
   private usarPerto() {
@@ -743,9 +744,19 @@ export class Superficie extends Phaser.Scene {
 
   // The station's task, once a day. Closing it early leaves the station for later.
   private usarEstacao(d: DecoColocada) {
-    if (sessao.emTarefa || sessao.rover?.dirigindo) return;
     const e = ESTACOES[d.id];
-    if (!e) return;
+    if (e) this.abrirEstacao(d.id, d.nome, e);
+  }
+
+  // Equipment that landed by cargo lander (the Greenhouse, the Ice Drill...): its own task once a day.
+  private usarEquipamento(c: Construcao) {
+    const e = estacaoDoModulo(c.tipo.id);
+    if (e) this.abrirEstacao(chaveModulo(c.tipo.id), this.nomeDe(c), e);
+  }
+
+  private abrirEstacao(id: string, nome: string, e: Estacao) {
+    if (sessao.emTarefa || sessao.rover?.dirigindo) return;
+    const d = { id, nome };
     if (sessao.fase !== 'dia') { sessao.emitir('mensagem', sessao.fase === 'inicio' ? '🚀 Press MENU, then LAUNCH MISSION!' : '🌙 Night time. Wait for morning!'); return; }
     if (!estacaoDisponivel(d.id, sessao.estacoesHoje, sessao.fase)) { sessao.emitir('mensagem', `✅ ${d.nome}: done for today. Come back tomorrow!`, '#86efac'); return; }
     sessao.emTarefa = true;
@@ -755,7 +766,13 @@ export class Superficie extends Phaser.Scene {
       feito = true;
       sessao.emTarefa = false;
       sessao.estacoesHoje.add(d.id);
-      sessao.emitir('mensagem', `✅ ${d.nome}: ${e.acao.toLowerCase()} done!`, '#86efac');
+      const ganhoOxigenio = Math.min(e.recompensaOxigenio ?? 0, 100 - sessao.estado.oxigenio);
+      if (ganhoOxigenio > 0) {
+        sessao.estado = { ...sessao.estado, oxigenio: sessao.estado.oxigenio + ganhoOxigenio };
+        sessao.emitir('estado');
+      }
+      const premio = ganhoOxigenio > 0 ? ` +${ganhoOxigenio} oxygen.` : '';
+      sessao.emitir('mensagem', `✅ ${d.nome}: ${e.acao.toLowerCase()} done!${premio}`, '#86efac');
     } });
     this.scene.bringToTop(e.cena);
   }
@@ -763,6 +780,22 @@ export class Superficie extends Phaser.Scene {
   // The "!" over the stations still to do today (bobbing), hidden when done or at night.
   private atualizarEstacoes() {
     const k = movimentoReduzido() ? 0 : Math.sin(this.time.now / 220) * 3;
+    for (const c of sessao.grade.lista) {
+      if (!estacaoDoModulo(c.tipo.id)) continue;
+      let m = this.marcasEquip.get(c.id);
+      if (!m) {
+        const topo = paraTela(P, c.gx + c.tipo.w / 2, c.gy + c.tipo.h / 2, c.z + c.tipo.altura + 1.1);
+        m = this.add.container(topo.x, topo.y, [
+          this.add.circle(0, 0, 13, 0xfde047).setStrokeStyle(3, 0x1e293b),
+          this.add.text(0, 0, '!', letra(17, '#1e293b')).setOrigin(0.5),
+        ]).setDepth(1e6).setData('y0', topo.y);
+        this.mapa.add(m);
+        this.marcasEquip.set(c.id, m);
+      }
+      const ver = this.mapa.visible && !sessao.evento && estacaoDisponivel(chaveModulo(c.tipo.id), sessao.estacoesHoje, sessao.fase);
+      m.setVisible(ver);
+      if (ver) m.setY((m.getData('y0') as number) + k);
+    }
     for (const m of this.marcasEstacao) {
       const ver = this.mapa.visible && estacaoDisponivel(m.d.id, sessao.estacoesHoje, sessao.fase);
       m.c.setVisible(ver);
@@ -774,6 +807,7 @@ export class Superficie extends Phaser.Scene {
     if (sessao.rover?.dirigindo) return;
     if (sessao.emTarefa) return;
     if (sessao.evento?.construcaoId === c.id && sessao.fase === 'dia') { this.consertar(); return; }
+    if (estacaoDoModulo(c.tipo.id)) { this.usarEquipamento(c); return; }
     if (!c.tipo.sala && c.tipo.id !== origemBaterias(sessao.mundo)) {
       sessao.emitir('mensagem', `💡 ${c.tipo.nome}: ${c.tipo.papel}`);
       return;
@@ -1802,7 +1836,7 @@ export class Superficie extends Phaser.Scene {
   // Surface props (old rover, probe, beacon...): placed once on free flat ground, solid, each with its name.
   private montarDeco() {
     const g = sessao.grade, c0 = Math.floor(g.n / 2);
-    this.decoVisuais = []; this.marcasEstacao = []; this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
+    this.decoVisuais = []; this.marcasEstacao = []; this.marcasEquip = new Map(); this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
     if (!g.deco.length) {
       // Each world has its own props and facts (Mars: DECORACAO_MARTE).
       const lista = sessao.mundo === 'nave' ? DECO_NAVE : sessao.mundo === 'marte' ? DECORACAO_MARTE : DECORACAO;
