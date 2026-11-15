@@ -118,6 +118,14 @@ export function criarPainelCenas(jogo: Phaser.Game) {
       sessao.voar('lua');
     });
   });
+  botao('Win the game: party + zoom out to the planets', () => {
+    const vencer = () => (sm.getScene('Interface') as unknown as { devVencerJogo(): boolean }).devVencerJogo();
+    if (sessao.mundo === 'marte' && ativa('Interface')) { vencer(); return; }
+    const c = cenaRodando();
+    if (!c) { avisar('No running scene to load from.'); return; }
+    iniciarMarte3D(c, 10, [200, 200], false);
+    depois(1500, vencer);
+  });
   titulo('Mars map');
   botao('Mars map preview (Jezero)', () => {
     if (!sm.getScene('TerrenoMarte')) sm.add('TerrenoMarte', TerrenoMarte, false);
