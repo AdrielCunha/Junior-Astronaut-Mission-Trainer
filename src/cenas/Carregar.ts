@@ -134,8 +134,13 @@ export class Carregar extends Phaser.Scene {
     // The real sky behind the solar system view, the ship and Mars from space (make_ceu.py), the
     // planets as Blender models lit from 16 sides (make_planetas_3d.py) and the Sun (make_sun.py).
     this.load.image('ceu_sistema', 'lua/sky_sistema.jpg');
-    for (const [nome, p] of Object.entries(planetas3d)) if (nome !== 'nota') this.load.spritesheet(`pl3d_${nome}`, (p as { arquivo: string }).arquivo, { frameWidth: 192, frameHeight: 192 });
-    if (!this.textures.exists('planeta_sol')) this.load.image('planeta_sol', 'lua/planetas/sol.png');
+    // The small sheets (rotation x light direction) for the solar system view; the big ones load
+    // when a body is opened full screen (Astro).
+    for (const [nome, p] of Object.entries(planetas3d)) {
+      if (nome === 'nota') continue;
+      const q = (p as { pequeno: { arquivo: string; quadro: number } }).pequeno;
+      this.load.spritesheet(`pl3d_${nome}`, q.arquivo, { frameWidth: q.quadro, frameHeight: q.quadro });
+    }
     constelacoes.forEach((c, k) => this.load.image(`const${k}`, c.arquivo));
     for (const [id, arquivo] of Object.entries(ICONES)) this.load.image(chaveIcone(id as keyof typeof ICONES), arquivo);
 

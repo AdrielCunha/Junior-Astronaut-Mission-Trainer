@@ -1,27 +1,92 @@
 {
- "nota": "Frame k is lit by a Sun at angle k * 360 / direcoes, counterclockwise from screen right (y up). raio = the planet disc radius in px within a frame.",
+ "sol": {
+  "pequeno": {
+   "arquivo": "lua/planetas/3d/sol_p.png",
+   "quadro": 96,
+   "giros": 16,
+   "direcoes": 1,
+   "raio": 38.4
+  },
+  "grande": {
+   "arquivo": "lua/planetas/3d/sol_g.png",
+   "quadro": 384,
+   "quadros": 48,
+   "raio": 153.6
+  }
+ },
  "mercurio": {
-  "arquivo": "lua/planetas/3d/mercurio.png",
-  "quadro": 192,
-  "direcoes": 16,
-  "raio": 76.8
+  "pequeno": {
+   "arquivo": "lua/planetas/3d/mercurio_p.png",
+   "quadro": 96,
+   "giros": 16,
+   "direcoes": 16,
+   "raio": 38.4
+  },
+  "grande": {
+   "arquivo": "lua/planetas/3d/mercurio_g.png",
+   "quadro": 384,
+   "quadros": 48,
+   "raio": 153.6
+  }
  },
  "venus": {
-  "arquivo": "lua/planetas/3d/venus.png",
-  "quadro": 192,
-  "direcoes": 16,
-  "raio": 76.8
+  "pequeno": {
+   "arquivo": "lua/planetas/3d/venus_p.png",
+   "quadro": 96,
+   "giros": 16,
+   "direcoes": 16,
+   "raio": 38.4
+  },
+  "grande": {
+   "arquivo": "lua/planetas/3d/venus_g.png",
+   "quadro": 384,
+   "quadros": 48,
+   "raio": 153.6
+  }
  },
  "terra": {
-  "arquivo": "lua/planetas/3d/terra.png",
-  "quadro": 192,
-  "direcoes": 16,
-  "raio": 76.8
+  "pequeno": {
+   "arquivo": "lua/planetas/3d/terra_p.png",
+   "quadro": 96,
+   "giros": 16,
+   "direcoes": 16,
+   "raio": 38.4
+  },
+  "grande": {
+   "arquivo": "lua/planetas/3d/terra_g.png",
+   "quadro": 384,
+   "quadros": 48,
+   "raio": 153.6
+  }
+ },
+ "lua": {
+  "pequeno": {
+   "arquivo": "lua/planetas/3d/lua_p.png",
+   "quadro": 96,
+   "giros": 16,
+   "direcoes": 16,
+   "raio": 38.4
+  },
+  "grande": {
+   "arquivo": "lua/planetas/3d/lua_g.png",
+   "quadro": 384,
+   "quadros": 48,
+   "raio": 153.6
+  }
  },
  "marte": {
-  "arquivo": "lua/planetas/3d/marte.png",
-  "quadro": 192,
-  "direcoes": 16,
-  "raio": 76.8
+  "pequeno": {
+   "arquivo": "lua/planetas/3d/marte_p.png",
+   "quadro": 96,
+   "giros": 16,
+   "direcoes": 16,
+   "raio": 38.4
+  },
+  "grande": {
+   "arquivo": "lua/planetas/3d/marte_g.png",
+   "quadro": 384,
+   "quadros": 48,
+   "raio": 153.6
+  }
  }
 }
