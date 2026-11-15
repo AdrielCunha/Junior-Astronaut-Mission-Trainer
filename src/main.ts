@@ -34,6 +34,10 @@ import { EquilibrarValvulasTarefa } from './cenas/EquilibrarValvulasTarefa';
 import { TaparTempestadeTarefa } from './cenas/TaparTempestadeTarefa';
 import { FecharEscotilhasTarefa } from './cenas/FecharEscotilhasTarefa';
 import { PaineisSolaresTarefa } from './cenas/PaineisSolaresTarefa';
+import { SeguirSolTarefa } from './cenas/SeguirSolTarefa';
+import { ForaDaSombraTarefa } from './cenas/ForaDaSombraTarefa';
+import { LimparJanelaTarefa } from './cenas/LimparJanelaTarefa';
+import { BateriaRoverTarefa } from './cenas/BateriaRoverTarefa';
 import { BANCO } from './tarefas';
 import { sessao } from './cenas/sessao';
 import { iniciarMundo3D } from './cenas/irParaMarte';
@@ -372,6 +376,10 @@ const createDebugHarness = () => {
     ['TaparTempestadeTarefa', 'Block the storm', 'TaparTempestadeTarefa'],
     ['FecharEscotilhasTarefa', 'Close the hatches', 'FecharEscotilhasTarefa'],
     ['PaineisSolaresTarefa', 'Charge the solar panels', 'PaineisSolaresTarefa'],
+    ['SeguirSolTarefa', 'Follow the Sun', 'SeguirSolTarefa'],
+    ['ForaDaSombraTarefa', 'Out of the shadow', 'ForaDaSombraTarefa'],
+    ['LimparJanelaTarefa', 'Clean the window', 'LimparJanelaTarefa'],
+    ['BateriaRoverTarefa', 'Swap the rover battery', 'BateriaRoverTarefa'],
   ];
   outrasTasks.forEach(([key, label, cena]) => taskButtons.push({
     key, label,
@@ -490,9 +498,9 @@ const jogo = new Phaser.Game({
   // title screen flow added on main.
   scene: classico
     ? [Carregar, Chegada, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo, CuriosidadeRover]
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo, CuriosidadeRover]
     : [Carregar, Chegada, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo, CuriosidadeRover],
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, SeguirSolTarefa, ForaDaSombraTarefa, LimparJanelaTarefa, BateriaRoverTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo, CuriosidadeRover],
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;

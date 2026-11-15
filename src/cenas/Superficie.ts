@@ -49,7 +49,10 @@ const P = dadosTerreno.imagem;
 // sample tubes on the crater floor for a future mission to bring back.
 const TOM_MARTE = 0xffdcc4;
 
-const ENERGIA = ['PaineisSolaresTarefa', 'DesviarEnergiaTarefa'];   // energy tasks: played when picking up the day's batteries
+// Energy tasks, played when picking up the day's batteries. The long-shadow one only makes sense on the Moon.
+const ENERGIA = ['PaineisSolaresTarefa', 'DesviarEnergiaTarefa', 'SeguirSolTarefa'];
+const ENERGIA_LUA = [...ENERGIA, 'ForaDaSombraTarefa'];
+let ultimaEnergia = '';
 const BONUS_CONSERTO = 1;     // batteries the crew gives for fixing an event
 const ALCANCE = 1.3;          // tiles from a module's edge to use it
 const ESCALA_MARCADOR = 0.62; // Compact destination marker; keep the source emblem crisp.
@@ -633,7 +636,8 @@ export class Superficie extends Phaser.Scene {
       // Batteries come from the Sun: the first pickup of the day charges them with an energy task.
       if (!sessao.energiaHoje) {
         sessao.energiaHoje = true;
-        const cena = ENERGIA[Math.floor(Math.random() * ENERGIA.length)];
+        const lista = (sessao.mundo === 'lua' ? ENERGIA_LUA : ENERGIA).filter((c) => c !== ultimaEnergia);
+        const cena = ultimaEnergia = lista[Math.floor(Math.random() * lista.length)];
         sessao.emTarefa = true;
         let feito = false;
         const uma = () => { if (feito) return; feito = true; sessao.emTarefa = false; pegar(); };
@@ -647,7 +651,7 @@ export class Superficie extends Phaser.Scene {
       if (!sessao.carregando) { sessao.emitir('mensagem', `✋ No batteries! Get some at the ${sessao.mundo === 'lua' ? 'Battery Bank' : 'Lander'}.`); return; }
       // The first battery a room gets each day comes with a task from the bank (../tarefas).
       const sala = c.tipo.sala;
-      const escolha = sessao.tarefasHoje.has(sala) ? undefined : escolher(sala, sessao.ultimaTarefa[sala]);
+      const escolha = sessao.tarefasHoje.has(sala) ? undefined : escolher(sala, sessao.ultimaTarefa[sala], Math.random, sessao.mundo);
       sessao.tarefasHoje.add(sala);
       if (escolha) {
         sessao.ultimaTarefa[sala] = escolha.id;
@@ -737,20 +741,24 @@ export class Superficie extends Phaser.Scene {
     sessao.abastecendoRover=true;
     this.rota=[];this.alvoRover=false;this.alvoUsar=null;this.recolherBandeira();
     this.corpo.vx=this.corpo.vy=0;this.input.keyboard?.resetKeys();
-    const inicio=paraTela(P,this.corpo.x,this.corpo.y,this.corpo.z+0.8);
-    const fim=paraTela(P,r.corpo.x+0.56*Math.cos(r.angulo),r.corpo.y+0.56*Math.sin(r.angulo),r.corpo.z+0.51);
-    const bateria=criarIconeJogo(this,inicio.x,inicio.y,'energy',24).setDepth(1_000_003);
-    const aviso=rotuloMapa(this,fim.x,fim.y-27,'Installing battery...',12,'#fde047').setDepth(1_000_003);
-    this.mapa.add([bateria,aviso]);tocarSfx('bateria');
-    this.tweens.add({targets:bateria,x:fim.x,y:fim.y,displayWidth:10,displayHeight:10,
-      duration:movimentoReduzido()?350:1100,ease:'Sine.easeInOut',onComplete:()=>{
-        bateria.destroy();aviso.destroy();sessao.abastecendoRover=false;
-        if(sessao.rover!==r || sessao.fase!=='dia' || sessao.estado.dia!==dia || sessao.carregando<1)return;
-        sessao.carregando--;sessao.diaCargaRover=dia;
-        tocarSfx('ligar');this.aplicarZoom();this.alternarRover();
-        sessao.emitir('mensagem','🚙 Rover charged for today!','#86efac');
-        sessao.posicaoAstronauta=this.corpo;sessao.salvar();
-      }});
+    // The battery goes in through a hands-on task (BateriaRoverTarefa). Closing it (X / Esc) keeps the battery.
+    let feito=false;
+    const terminar=(instalou:boolean)=>{
+      if(feito)return;feito=true;
+      sessao.abastecendoRover=false;sessao.emTarefa=false;
+      if(!instalou){sessao.emitir('mensagem','🔋 Battery not installed. Press E at the rover to try again.','#fde68a');return;}
+      if(sessao.rover!==r || sessao.fase!=='dia' || sessao.estado.dia!==dia || sessao.carregando<1)return;
+      sessao.carregando--;sessao.diaCargaRover=dia;
+      tocarSfx('ligar');this.aplicarZoom();
+      // A frame later, once this scene's input is back on (update), the commander climbs in.
+      this.time.delayedCall(60,()=>this.alternarRover());
+      sessao.emitir('mensagem','🚙 Rover charged for today!','#86efac');
+      sessao.posicaoAstronauta=this.corpo;sessao.salvar();
+    };
+    sessao.emTarefa=true;
+    this.scene.get('BateriaRoverTarefa').events.once('shutdown',()=>this.time.delayedCall(0,()=>terminar(false)));
+    this.scene.launch('BateriaRoverTarefa',{aoConcluir:()=>terminar(true)});
+    this.scene.bringToTop('BateriaRoverTarefa');
   }
 
   private animarMontagem() {

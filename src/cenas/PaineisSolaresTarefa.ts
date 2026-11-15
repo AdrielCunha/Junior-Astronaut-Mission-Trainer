@@ -17,6 +17,62 @@ const PIVO_Y = 232;                                  // where the panel arms sta
 const PLACA_W = 120, PLACA_H = 44, PLACA_Y = -30;    // the plate, centred 30px above its pivot
 const COLUNAS = 6, LINHAS = 4, RAIO_ESCOVA = 17;
 const XS = [100, 300, 500];
+export const PAINEL = { JANELA_W, JANELA_H, PIVO_Y, PLACA_W, PLACA_H, PLACA_Y, QUADRO_W, QUADRO_H, FOLGA };
+
+// Sky, solar plate and Sun textures; shared with the other solar panel tasks (SeguirSolTarefa, ForaDaSombraTarefa).
+export function texturasPaineis(cena: Phaser.Scene) {
+  // Sky and moon ground.
+  canvas(cena, 'paineis_fundo_v1', JANELA_W, JANELA_H, (c) => {
+    c.save(); c.beginPath(); c.roundRect(0, 0, JANELA_W, JANELA_H, 18); c.clip();
+    const g = c.createLinearGradient(0, 0, 0, JANELA_H);
+    g.addColorStop(0, '#0b1230'); g.addColorStop(1, '#1e2a5a');
+    c.fillStyle = g; c.fillRect(0, 0, JANELA_W, JANELA_H);
+    c.fillStyle = '#ffffff';
+    for (let i = 0; i < 40; i++) { const x = (i * 97) % JANELA_W, y = (i * 53) % 190; c.globalAlpha = 0.3 + (i % 4) * 0.15; c.fillRect(x, y, 2, 2); }
+    c.globalAlpha = 1;
+    c.fillStyle = '#9ca3af'; c.fillRect(0, 240, JANELA_W, JANELA_H - 240);
+    c.fillStyle = '#6b7280'; c.fillRect(0, 240, JANELA_W, 5);
+    c.fillStyle = '#7b8190';
+    for (const [x, y, r] of [[60, 275, 18], [250, 290, 12], [420, 270, 20], [550, 292, 10]]) { c.beginPath(); c.ellipse(x, y, r, r / 3, 0, 0, Math.PI * 2); c.fill(); }
+    c.restore();
+    c.lineWidth = 5; c.strokeStyle = '#1e293b'; c.beginPath(); c.roundRect(2.5, 2.5, JANELA_W - 5, JANELA_H - 5, 16); c.stroke();
+  });
+  // The solar plate: white frame, blue cells.
+  canvas(cena, 'paineis_placa_v2', PLACA_W + 12, PLACA_H + 12, (c) => {
+    c.translate(6, 6);
+    // Frame: metallic gradient with a dark outline.
+    const fr = c.createLinearGradient(0, 0, 0, PLACA_H);
+    fr.addColorStop(0, '#f8fafc'); fr.addColorStop(1, '#94a3b8');
+    c.fillStyle = fr; c.beginPath(); c.roundRect(0, 0, PLACA_W, PLACA_H, 7); c.fill();
+    c.lineWidth = 4; c.strokeStyle = '#1e293b'; c.stroke();
+    // Dark backing behind the cells.
+    c.fillStyle = '#0f172a'; c.beginPath(); c.roundRect(4, 4, PLACA_W - 8, PLACA_H - 8, 4); c.fill();
+    const cw = (PLACA_W - 10) / COLUNAS, ch = (PLACA_H - 10) / LINHAS;
+    for (let i = 0; i < COLUNAS; i++) for (let j = 0; j < LINHAS; j++) {
+      const x = 5 + i * cw + 1, y = 5 + j * ch + 1, w = cw - 2, h = ch - 2;
+      const g = c.createLinearGradient(x, y, x + w, y + h);
+      g.addColorStop(0, '#60a5fa'); g.addColorStop(0.5, '#2563eb'); g.addColorStop(1, '#1e3a8a');
+      c.fillStyle = g; c.beginPath(); c.roundRect(x, y, w, h, 1.5); c.fill();
+      // Thin silver busbars, like real silicon cells.
+      c.fillStyle = 'rgba(226,232,240,0.55)';
+      c.fillRect(x + w * 0.33, y, 0.8, h); c.fillRect(x + w * 0.66, y, 0.8, h);
+    }
+    // Diagonal glare across the glass.
+    c.save(); c.beginPath(); c.roundRect(4, 4, PLACA_W - 8, PLACA_H - 8, 4); c.clip();
+    const br = c.createLinearGradient(0, 0, PLACA_W, PLACA_H);
+    br.addColorStop(0, 'rgba(255,255,255,0.35)'); br.addColorStop(0.35, 'rgba(255,255,255,0.08)'); br.addColorStop(0.36, 'rgba(255,255,255,0)'); br.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = br; c.fillRect(0, 0, PLACA_W, PLACA_H);
+    c.restore();
+    // Frame highlight.
+    c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,255,255,0.8)'; c.beginPath(); c.roundRect(2, 2, PLACA_W - 4, PLACA_H - 4, 5); c.stroke();
+  });
+  canvas(cena, 'paineis_sol_v1', 120, 120, (c) => {
+    c.lineCap = 'round'; c.strokeStyle = '#fde047'; c.lineWidth = 6;
+    for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; c.beginPath(); c.moveTo(60 + Math.cos(a) * 34, 60 + Math.sin(a) * 34); c.lineTo(60 + Math.cos(a) * 52, 60 + Math.sin(a) * 52); c.stroke(); }
+    c.fillStyle = '#facc15'; c.beginPath(); c.arc(60, 60, 28, 0, Math.PI * 2); c.fill();
+    c.lineWidth = 5; c.strokeStyle = '#1e293b'; c.stroke();
+  });
+}
 
 export class PaineisSolaresTarefa extends Phaser.Scene {
   private aoConcluir?: () => void;
@@ -25,63 +81,9 @@ export class PaineisSolaresTarefa extends Phaser.Scene {
 
   init(dados?: { aoConcluir?: () => void }) { this.aoConcluir = dados?.aoConcluir; }
 
-  private criarTexturas() {
-    // Sky and moon ground.
-    canvas(this, 'paineis_fundo_v1', JANELA_W, JANELA_H, (c) => {
-      c.save(); c.beginPath(); c.roundRect(0, 0, JANELA_W, JANELA_H, 18); c.clip();
-      const g = c.createLinearGradient(0, 0, 0, JANELA_H);
-      g.addColorStop(0, '#0b1230'); g.addColorStop(1, '#1e2a5a');
-      c.fillStyle = g; c.fillRect(0, 0, JANELA_W, JANELA_H);
-      c.fillStyle = '#ffffff';
-      for (let i = 0; i < 40; i++) { const x = (i * 97) % JANELA_W, y = (i * 53) % 190; c.globalAlpha = 0.3 + (i % 4) * 0.15; c.fillRect(x, y, 2, 2); }
-      c.globalAlpha = 1;
-      c.fillStyle = '#9ca3af'; c.fillRect(0, 240, JANELA_W, JANELA_H - 240);
-      c.fillStyle = '#6b7280'; c.fillRect(0, 240, JANELA_W, 5);
-      c.fillStyle = '#7b8190';
-      for (const [x, y, r] of [[60, 275, 18], [250, 290, 12], [420, 270, 20], [550, 292, 10]]) { c.beginPath(); c.ellipse(x, y, r, r / 3, 0, 0, Math.PI * 2); c.fill(); }
-      c.restore();
-      c.lineWidth = 5; c.strokeStyle = '#1e293b'; c.beginPath(); c.roundRect(2.5, 2.5, JANELA_W - 5, JANELA_H - 5, 16); c.stroke();
-    });
-    // The solar plate: white frame, blue cells.
-    canvas(this, 'paineis_placa_v2', PLACA_W + 12, PLACA_H + 12, (c) => {
-      c.translate(6, 6);
-      // Frame: metallic gradient with a dark outline.
-      const fr = c.createLinearGradient(0, 0, 0, PLACA_H);
-      fr.addColorStop(0, '#f8fafc'); fr.addColorStop(1, '#94a3b8');
-      c.fillStyle = fr; c.beginPath(); c.roundRect(0, 0, PLACA_W, PLACA_H, 7); c.fill();
-      c.lineWidth = 4; c.strokeStyle = '#1e293b'; c.stroke();
-      // Dark backing behind the cells.
-      c.fillStyle = '#0f172a'; c.beginPath(); c.roundRect(4, 4, PLACA_W - 8, PLACA_H - 8, 4); c.fill();
-      const cw = (PLACA_W - 10) / COLUNAS, ch = (PLACA_H - 10) / LINHAS;
-      for (let i = 0; i < COLUNAS; i++) for (let j = 0; j < LINHAS; j++) {
-        const x = 5 + i * cw + 1, y = 5 + j * ch + 1, w = cw - 2, h = ch - 2;
-        const g = c.createLinearGradient(x, y, x + w, y + h);
-        g.addColorStop(0, '#60a5fa'); g.addColorStop(0.5, '#2563eb'); g.addColorStop(1, '#1e3a8a');
-        c.fillStyle = g; c.beginPath(); c.roundRect(x, y, w, h, 1.5); c.fill();
-        // Thin silver busbars, like real silicon cells.
-        c.fillStyle = 'rgba(226,232,240,0.55)';
-        c.fillRect(x + w * 0.33, y, 0.8, h); c.fillRect(x + w * 0.66, y, 0.8, h);
-      }
-      // Diagonal glare across the glass.
-      c.save(); c.beginPath(); c.roundRect(4, 4, PLACA_W - 8, PLACA_H - 8, 4); c.clip();
-      const br = c.createLinearGradient(0, 0, PLACA_W, PLACA_H);
-      br.addColorStop(0, 'rgba(255,255,255,0.35)'); br.addColorStop(0.35, 'rgba(255,255,255,0.08)'); br.addColorStop(0.36, 'rgba(255,255,255,0)'); br.addColorStop(1, 'rgba(255,255,255,0)');
-      c.fillStyle = br; c.fillRect(0, 0, PLACA_W, PLACA_H);
-      c.restore();
-      // Frame highlight.
-      c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,255,255,0.8)'; c.beginPath(); c.roundRect(2, 2, PLACA_W - 4, PLACA_H - 4, 5); c.stroke();
-    });
-    canvas(this, 'paineis_sol_v1', 120, 120, (c) => {
-      c.lineCap = 'round'; c.strokeStyle = '#fde047'; c.lineWidth = 6;
-      for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; c.beginPath(); c.moveTo(60 + Math.cos(a) * 34, 60 + Math.sin(a) * 34); c.lineTo(60 + Math.cos(a) * 52, 60 + Math.sin(a) * 52); c.stroke(); }
-      c.fillStyle = '#facc15'; c.beginPath(); c.arc(60, 60, 28, 0, Math.PI * 2); c.fill();
-      c.lineWidth = 5; c.strokeStyle = '#1e293b'; c.stroke();
-    });
-  }
-
   create() {
     let estado: EstadoPaineis = criarPaineis(Math.floor(Math.random() * 100000));
-    this.criarTexturas();
+    texturasPaineis(this);
     const { raiz, s } = abrirPainel(this, QUADRO_W + 60, QUADRO_H + 80);
     moldura(this, raiz, QUADRO_W, QUADRO_H);
     faixaTitulo(this, raiz, QUADRO_H, 'Charge the panels');

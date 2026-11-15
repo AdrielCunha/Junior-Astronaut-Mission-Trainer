@@ -117,3 +117,21 @@ export function rajada(scene: Phaser.Scene, pai: Phaser.GameObjects.Container, x
     });
   }
 }
+
+// The win moment shared by the newer tasks: a white flash, confetti, a green banner with the title and the
+// real fact, then the panel closes and calls aoFim. `pai` is the task's play area, (w, h) its size.
+export function vitoria(scene: Phaser.Scene, pai: Phaser.GameObjects.Container, w: number, h: number, titulo: string, fato: string, aoFim?: () => void) {
+  const brilho = scene.add.rectangle(0, 0, w, h, 0xffffff, 0.5).setOrigin(0);
+  pai.add(brilho);
+  scene.tweens.add({ targets: brilho, alpha: 0, duration: 900 });
+  rajada(scene, pai, w / 2, h / 2, [0xfde047, 0x86efac, 0x7dd3fc, 0xf9a8d4], 26, 190);
+  const bw = Math.min(560, w - 30);
+  const faixa = scene.add.graphics()
+    .fillStyle(0x16a34a, 1).fillRoundedRect(-bw / 2, -62, bw, 124, 40)
+    .lineStyle(5, CONTORNO, 1).strokeRoundedRect(-bw / 2, -62, bw, 124, 40);
+  const nota = texto(scene, 0, 28, fato, 15, '#dcfce7', 0x14532d).setWordWrapWidth(bw - 50).setAlign('center');
+  const bloco = scene.add.container(w / 2, h / 2, [faixa, texto(scene, 0, -20, titulo, 36, '#ffffff', 0x14532d), nota]).setScale(0).setDepth(40);
+  pai.add(bloco);
+  scene.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
+  scene.time.delayedCall(3200, () => { scene.scene.stop(); aoFim?.(); });
+}
