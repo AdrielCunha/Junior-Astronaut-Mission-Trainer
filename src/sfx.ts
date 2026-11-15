@@ -2,7 +2,7 @@
 // Sound effects, synthesized with the Web Audio API (no files to load). They follow the same mute
 // switch as the music (audio.ts) and stay quiet until the browser allows sound (first click or key).
 
-export type NomeSfx = 'clique' | 'ok' | 'erro' | 'aviso' | 'sucesso' | 'fechar'
+export type NomeSfx = 'alarme' | 'clique' | 'ok' | 'erro' | 'aviso' | 'sucesso' | 'fechar'
   | 'pegar' | 'soltar' | 'encaixe' | 'girar' | 'ligar' | 'bip' | 'whoosh' | 'zap' | 'bolha' | 'tic' | 'suave';
 
 const VOLUME = 0.55;
@@ -33,8 +33,10 @@ function nota(c: AudioContext, freq: number, inicio: number, dur: number, tipo: 
   o.type = tipo;
   o.frequency.setValueAtTime(freq, t);
   if (ate) o.frequency.exponentialRampToValueAtTime(ate, t + dur);
+  // An exponential ramp cannot target 0 (nor a denormal), so keep the peak just above zero.
+  const pico = Math.max(0.0001, VOLUME * volume * vol);
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(VOLUME * volume * vol, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(pico, t + 0.012);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(c.destination);
   o.start(t);
@@ -42,6 +44,31 @@ function nota(c: AudioContext, freq: number, inicio: number, dur: number, tipo: 
 }
 
 const SONS: Record<NomeSfx, (c: AudioContext) => void> = {
+  // A classic warning klaxon: crisp two-tone beeps alternating high/low, like an emergency siren.
+  alarme: (c) => {
+    const t = c.currentTime, vol = Math.max(0.0001, VOLUME * volume * 0.42);
+    const filtro = c.createBiquadFilter();
+    filtro.type = 'lowpass'; filtro.frequency.value = 2600; filtro.Q.value = 1.1;
+    filtro.connect(c.destination);
+    const tons = [760, 540, 760, 540, 760, 540];
+    const dur = 0.16, passo = 0.2, ultimo = tons.length - 1;
+    tons.forEach((freq, i) => {
+      const osc = c.createOscillator(), ganho = c.createGain();
+      const ini = t + i * passo;
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, ini);
+      ganho.gain.setValueAtTime(0.0001, ini);
+      ganho.gain.exponentialRampToValueAtTime(vol, ini + 0.015);
+      ganho.gain.setValueAtTime(vol, ini + dur - 0.03);
+      ganho.gain.exponentialRampToValueAtTime(0.0001, ini + dur);
+      osc.connect(ganho).connect(filtro);
+      osc.start(ini); osc.stop(ini + dur + 0.02);
+      osc.onended = () => {
+        osc.disconnect(); ganho.disconnect();
+        if (i === ultimo) filtro.disconnect();
+      };
+    });
+  },
   clique: (c) => nota(c, 520, 0, 0.07, 'triangle', 0.7),
   ok: (c) => { nota(c, 660, 0, 0.12, 'sine'); nota(c, 880, 0.08, 0.16, 'sine'); },
   erro: (c) => { nota(c, 200, 0, 0.22, 'sawtooth', 0.6, 120); },
@@ -74,7 +101,7 @@ if (typeof window !== 'undefined') {
 
 /** Plays a sound effect. Silent when muted; the same sound is not repeated within 90 ms. */
 export function tocarSfx(nome: NomeSfx) {
-  if (mudo) return;
+  if (mudo || volume <= 0) return;
   const agora = performance.now();
   if (agora - (ultimo[nome] ?? -1e9) < 90) return;
   ultimo[nome] = agora;

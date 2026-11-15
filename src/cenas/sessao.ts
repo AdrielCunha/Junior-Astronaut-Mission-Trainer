@@ -12,6 +12,9 @@ import { VOO as voo } from './qualidade';
 import { CAPITULOS } from '../capitulos';
 import { inicioDoCapitulo, bateriasDoDia, nenhuma, type Alocacao, type Efeito, type Estado } from '../regras';
 
+import { TempestadeSolar } from './tempestadeSolar';
+import type { Rover } from '../engine/rover';
+
 const C = CAPITULOS[0].config;
 
 export type Fase = 'inicio' | 'manha' | 'dia' | 'noite' | 'fim';
@@ -70,6 +73,12 @@ class Sessao {
   grade = new Grade(this.terreno);
   readonly sinais = new Phaser.Events.EventEmitter();
 
+  readonly tempestade = new TempestadeSolar();
+  rover: Rover | null = null;
+  diaCargaRover: number | null = null;
+  get roverCarregado() { return this.fase === 'inicio' || this.diaCargaRover === this.estado.dia; }
+  curiosidadeRoverVista = false;
+  nivelTeste: number | null = null;
   fase: Fase = 'inicio';
   estado: Estado = inicioDoCapitulo(C);
   entregas: Alocacao = nenhuma();
@@ -98,6 +107,11 @@ class Sessao {
   reiniciar() {
     this.grade = new Grade(this.terreno);
     this.fase = 'inicio';
+    this.tempestade.iniciar(0);
+    this.rover = null;
+    this.diaCargaRover = null;
+    this.curiosidadeRoverVista = false;
+    this.nivelTeste = null;
     this.estado = inicioDoCapitulo(C);
     this.entregas = nenhuma();
     this.carregando = 0;
@@ -239,7 +253,8 @@ class Sessao {
   }
 
   get dia() {
-    return lua.dias[Math.min(this.estado.dia, lua.dias.length) - 1];
+    const dia = lua.dias[Math.min(this.estado.dia, lua.dias.length) - 1];
+    return this.nivelTeste === null ? dia : { ...dia, nivel: this.nivelTeste };
   }
 
   // Noon of the current chapter day, as a timestamp: drives the Sun, Moon and planets.
@@ -248,6 +263,8 @@ class Sessao {
   }
 
   novoDia() {
+    this.nivelTeste = null;
+    this.tempestade.iniciar(this.dia.nivel);
     this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = bateriasDoDia(this.estado, C);

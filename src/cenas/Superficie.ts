@@ -21,12 +21,15 @@ import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte } from './sessao';
 import { fundacao, sombraECarga } from './desenho';
 import { VOO as voo } from './qualidade';
 import { sortear } from '../tarefas';
+import { criarIconeJogo } from '../tarefas/estilo';
 import type { DadosTarefa } from './Tarefa';
 import modelos from '../dados/modulos.json';
 import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 import { chaveSkin } from '../dados/skins';
 import { DECORACAO, comoTipo } from '../dados/decoracao';
+import { dirigirRover, estacionarRover, desembarcar, pontoLivre } from '../engine/rover';
+import { desenharRover, LINHA_QUADRIL_SENTADO } from './desenharRover';
 
 const P = dadosTerreno.imagem;
 const ALCANCE = 1.3;          // tiles from a module's edge to use it
@@ -44,6 +47,11 @@ type Pouso = {
 };
 
 export class Superficie extends Phaser.Scene {
+  private setaEmergencia!: Phaser.GameObjects.Container;
+  private ponteiroEmergencia!: Phaser.GameObjects.Container;
+  private contornoEmergencia!: Phaser.GameObjects.Graphics;
+  private larguraPlacaEmergencia = 0;
+  private alturaPlacaEmergencia = 0;
   private tempoEfeitos = 0;
   private ambiente!: Ambiente;
   private readonly controlesObservados = new Set<'movimento' | 'pulo'>();
@@ -69,6 +77,10 @@ export class Superficie extends Phaser.Scene {
   private terreno!: Phaser.GameObjects.Image;
   private inicioVoo: { x: number; y: number } | null = null;
   private pouso: Pouso | null = null;
+  private gRover!: Phaser.GameObjects.Graphics;
+  private gRoverFrente!: Phaser.GameObjects.Graphics;
+  private dicaRover!: Phaser.GameObjects.Text;
+  private alvoRover = false;
 
   constructor() {
     super({ key: 'Superficie' });   // started by Carregar
@@ -88,6 +100,36 @@ export class Superficie extends Phaser.Scene {
     this.pouso = null;
     this.tempoEfeitos = 0;
     this.mapa = this.add.layer().setDepth(0);
+    // A warning sign (badge + big arrow). The whole sign bounces and the red outline blinks.
+    const rotuloEmergencia = this.add.text(0, 0, 'RADIATION SHIELD', {
+      fontFamily: 'Fredoka, sans-serif', fontSize: '19px', fontStyle: 'bold',
+      color: '#ffd93b', stroke: '#14243e', strokeThickness: 4, align: 'center',
+    }).setOrigin(0, 0.5);
+    const tamanhoIcone = 26, gapIcone = 9, padX = 15, padY = 8;
+    const larguraPlaca = padX * 2 + tamanhoIcone + gapIcone + rotuloEmergencia.width;
+    const alturaPlaca = Math.max(rotuloEmergencia.height, tamanhoIcone) + padY * 2;
+    this.larguraPlacaEmergencia = larguraPlaca;
+    this.alturaPlacaEmergencia = alturaPlaca;
+    const cyPlaca = -Math.round(alturaPlaca / 2);
+    const placa = this.add.graphics()
+      .fillStyle(0x14243e, 0.98).fillRoundedRect(-larguraPlaca / 2, -alturaPlaca, larguraPlaca, alturaPlaca, Math.round(alturaPlaca / 2))
+      .lineStyle(3, 0xffd93b, 1).strokeRoundedRect(-larguraPlaca / 2, -alturaPlaca, larguraPlaca, alturaPlaca, Math.round(alturaPlaca / 2));
+    const iconeEmergencia = criarIconeJogo(this, -larguraPlaca / 2 + padX + tamanhoIcone / 2, cyPlaca, 'radiation', tamanhoIcone);
+    rotuloEmergencia.setPosition(-larguraPlaca / 2 + padX + tamanhoIcone + gapIcone, cyPlaca);
+    const pontosSeta = [{ x: -9, y: 0 }, { x: 9, y: 0 }, { x: 9, y: 17 },
+      { x: 22, y: 17 }, { x: 0, y: 40 }, { x: -22, y: 17 }, { x: -9, y: 17 }];
+    const sombraSeta = this.add.graphics().fillStyle(0x0b1a4a, 0.3)
+      .fillPoints(pontosSeta.map((p) => ({ x: p.x + 2, y: p.y + 3 })), true);
+    // Soft red halo behind the arrow (it pulses like a warning light instead of a hard red outline).
+    this.contornoEmergencia = this.add.graphics().lineStyle(9, 0xff2020, 1)
+      .strokePoints(pontosSeta, true).setScale(1.05).setAlpha(0.35);
+    const miolo = this.add.graphics().fillStyle(0xffd93b).fillPoints(pontosSeta, true);
+    const realce = this.add.graphics().fillStyle(0xfff4b0, 0.95).fillTriangle(-7, 4, 7, 4, 0, 30);
+    const bordaSeta = this.add.graphics().lineStyle(4, 0x14243e, 1).strokePoints(pontosSeta, true);
+    this.ponteiroEmergencia = this.add.container(0, 12, [this.contornoEmergencia, sombraSeta, miolo, realce, bordaSeta]);
+    this.setaEmergencia = this.add.container(0, 0, [placa, iconeEmergencia, rotuloEmergencia, this.ponteiroEmergencia])
+      .setDepth(2_000_000).setVisible(false);
+    this.mapa.add(this.setaEmergencia);
     this.terreno = this.add.image(0, 0, 'terreno').setOrigin(0).setDepth(-1e6);
     this.mapa.add(this.terreno);
     this.gCaminhos = this.add.graphics().setDepth(-900_000);
@@ -117,6 +159,21 @@ export class Superficie extends Phaser.Scene {
     for (const c of sessao.grade.lista) this.desenharModulo(c);
     this.montarDeco();
     this.desenharCaminhos();
+    this.rota = []; this.alvoUsar = null; this.alvoRover = false;
+    sessao.rover ??= estacionarRover(sessao.terreno, sessao.grade.caixas(), sx + 1, sy + 1);
+    if (sessao.rover?.dirigindo) this.corpo = sessao.rover.corpo;
+    this.gRover = this.add.graphics();
+    this.gRoverFrente = this.add.graphics();
+    this.dicaRover = this.add.text(0, 0, '', fonte(13, '#ffffff', {
+      backgroundColor: '#14243e', padding: { x: 9, y: 6 }, align: 'center',
+    })).setOrigin(0.5, 1).setDepth(1_000_001).setInteractive({ useHandCursor: true });
+    this.dicaRover.on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      if (!this.podeUsarRover()) return;
+      if (sessao.rover?.dirigindo || this.pertoRover()) this.alternarRover();
+      else this.caminharAoRover();
+    });
+    this.mapa.add([this.gRover, this.gRoverFrente, this.dicaRover]);
 
     const pe = paraTela(P, this.corpo.x, this.corpo.y, this.corpo.z);
     this.cameras.main.centerOn(pe.x, pe.y);
@@ -124,7 +181,7 @@ export class Superficie extends Phaser.Scene {
     // ---- input: keys walk; drag pans; a tap walks there, or to a room and uses it ----
     const kb = this.input.keyboard!;
     this.teclas = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,E') as Record<string, Phaser.Input.Keyboard.Key>;
-    kb.on('keydown-E', () => this.usarPerto());
+    kb.on('keydown-E', (ev: KeyboardEvent) => { if (!ev.repeat) this.usarPerto(); });
     this.arrastando = false;
     this.apertouNoMapa = false;
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
@@ -198,10 +255,21 @@ export class Superficie extends Phaser.Scene {
 
   // ---------- input ----------
   private clicar(ptr: Phaser.Input.Pointer) {
+    if (!this.podeUsarRover()) return;
+    const r = sessao.rover;
+    if (r) {
+      const p = paraTela(P, r.corpo.x, r.corpo.y, r.corpo.z);
+      if (Math.abs(ptr.worldX - p.x) < 42 && Math.abs(ptr.worldY - (p.y - 15)) < 32) {
+        if (r.dirigindo || this.pertoRover()) this.alternarRover();
+        else this.caminharAoRover();
+        return;
+      }
+    }
+    this.alvoRover = false;
     const q = paraChao(P, sessao.terreno, ptr.worldX, ptr.worldY);
     if (!q) return;
     this.seguir = true;
-    const c = sessao.grade.em(q.gx, q.gy);
+    const c = r?.dirigindo ? undefined : sessao.grade.em(q.gx, q.gy);
     // If clicking a module we are already standing next to, use it immediately.
     if (c && this.perto(c)) {
       this.rota = [];
@@ -355,7 +423,10 @@ export class Superficie extends Phaser.Scene {
     if (t.A.isDown || t.LEFT.isDown) sx -= 1;
     if (t.D.isDown || t.RIGHT.isDown) sx += 1;
     let dx = sx + sy, dy = sy - sx;
-    if (sx || sy) { this.rota = []; this.alvoUsar = null; this.seguir = true; this.recolherBandeira(); }
+    if (sx || sy) { this.rota = []; this.alvoUsar = null; this.alvoRover = false; this.seguir = true; this.recolherBandeira(); }
+    else if (this.alvoRover && this.pertoRover()) {
+      this.alternarRover();
+    }
     else if (this.rota.length) {
       // Follow the A* waypoint list: steer toward the first remaining waypoint, pop it
       // when close enough, and repeat until the route is done.
@@ -396,11 +467,14 @@ export class Superficie extends Phaser.Scene {
   }
 
   private usarPerto() {
+    if (!this.podeUsarRover()) return;
+    if (sessao.rover?.dirigindo || this.pertoRover()) { this.alternarRover(); return; }
     const c = sessao.grade.lista.find((m) => this.perto(m) && (m.tipo.id === 'habitat' || m.tipo.sala));
     if (c) this.usar(c);
   }
 
   private usar(c: Construcao) {
+    if (sessao.rover?.dirigindo) return;
     if (sessao.emTarefa) return;
     if (!c.tipo.sala && c.tipo.id !== 'habitat') {
       sessao.emitir('mensagem', `${c.tipo.nome}: ${c.tipo.papel}`);
@@ -432,6 +506,65 @@ export class Superficie extends Phaser.Scene {
       return;
     }
     sessao.emitir('estado');
+  }
+
+  private podeUsarRover() {
+    return this.input.enabled && !sessao.emTarefa && !configuracoesAbertas && !sessao.transicao && !sessao.voo
+      && sessao.vista === 'chao' && (sessao.fase === 'inicio' || sessao.fase === 'dia');
+  }
+
+  private pertoRover() {
+    const r = sessao.rover;
+    return !!r && this.corpo.noChao && Math.hypot(this.corpo.x - r.corpo.x, this.corpo.y - r.corpo.y) <= 2
+      && Math.abs(this.corpo.z - r.corpo.z) < 0.4;
+  }
+
+  private caminharAoRover() {
+    const r = sessao.rover;
+    if (!r) return;
+    const caixas = sessao.grade.caixas();
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      const gx = r.corpo.x + Math.cos(a) * 1.4, gy = r.corpo.y + Math.sin(a) * 1.4;
+      if (!pontoLivre(sessao.terreno, caixas, gx, gy, this.corpo.raio)) continue;
+      const caminho = encontrarCaminho(sessao.terreno, caixas, this.corpo.raio, this.corpo.x, this.corpo.y, gx, gy);
+      if (!caminho?.length) continue;
+      this.rota = caminho; this.alvoUsar = null; this.alvoRover = true; this.seguir = true;
+      this.plantarBandeira(gx, gy);
+      return;
+    }
+    sessao.emitir('mensagem', 'Walk closer to the rover and press E to drive.', '#fde68a');
+  }
+
+  private alternarRover() {
+    const r = sessao.rover;
+    if (!r || !this.podeUsarRover()) return;
+    let abasteceu = false;
+    if (r.dirigindo) {
+      const astronauta = desembarcar(r, sessao.terreno, sessao.grade.caixas());
+      if (!astronauta) { sessao.emitir('mensagem', 'No room to get out. Move the rover to an open spot.', '#fde68a'); return; }
+      this.corpo = astronauta;
+    } else {
+      if (!this.pertoRover()) return;
+      if (!sessao.roverCarregado) {
+        this.rota = []; this.alvoRover = false; this.alvoUsar = null; this.recolherBandeira();
+        if (sessao.carregando < 1) {
+          sessao.emitir('mensagem', 'Rover battery empty. Bring 1 battery from the Habitat, then press E or click the rover to install it. One battery lasts all day.', '#fde68a');
+          return;
+        }
+        sessao.carregando--;
+        sessao.diaCargaRover = sessao.estado.dia;
+        abasteceu = true;
+      }
+      r.dirigindo = true;
+      this.corpo = r.corpo;
+      this.corpo.vx = this.corpo.vy = 0;
+    }
+    this.rota = []; this.alvoUsar = null; this.alvoRover = false;
+    this.recolherBandeira(); this.seguir = true;
+    sessao.emitir('mensagem', r.dirigindo ? `${abasteceu ? '1 battery installed: charged for today! ' : ''}Rover: WASD / arrows to drive, E or click the rover to get out. Click the ground to drive there.` : 'Back on foot! Press E near the rover to drive again.', '#93c5fd');
+    sessao.emitir('estado');
+    if (r.dirigindo && !sessao.curiosidadeRoverVista) this.scene.launch('CuriosidadeRover');
   }
 
   private entregar(c: Construcao) {
@@ -527,13 +660,53 @@ export class Superficie extends Phaser.Scene {
   update(_t: number, dtMs: number) {
     const dt = Math.min(0.05, dtMs / 1000);
     this.aplicarZoom();
+    const escudo = sessao.grade.lista.find(c => c.tipo.id === 'blindagem');
+    const emergencia = sessao.fase === 'dia' && sessao.tempestade.status === 'alerta';
+    const mostrarSeta = emergencia && !!escudo && sessao.vista === 'chao';
+    this.setaEmergencia.setVisible(mostrarSeta);
+    if (mostrarSeta && escudo) {
+      // Anchor on the shield module even if its picture is not on screen yet.
+      const imagem = this.desenhos.get(escudo.id)?.img;
+      const topo = imagem
+        ? imagem.getTopCenter()
+        : paraTela(P, escudo.gx + escudo.tipo.w / 2, escudo.gy + escudo.tipo.h / 2, escudo.z + escudo.tipo.altura);
+      const cam = this.cameras.main;
+      // Keep the sign on screen and clear of the fixed HUD strip at the top.
+      let baseX = topo.x, baseY = topo.y;
+      const paraTelaX = (wx: number) => (wx - cam.scrollX - cam.width / 2) * cam.zoom + cam.x + cam.width / 2;
+      const paraTelaY = (wy: number) => (wy - cam.scrollY - cam.height / 2) * cam.zoom + cam.y + cam.height / 2;
+      const paraMundoX = (sx: number) => (sx - cam.x - cam.width / 2) / cam.zoom + cam.scrollX + cam.width / 2;
+      const paraMundoY = (sy: number) => (sy - cam.y - cam.height / 2) / cam.zoom + cam.scrollY + cam.height / 2;
+      const meiaPlaca = (this.larguraPlacaEmergencia / 2) * cam.zoom;
+      const topoPlaca = 90 + this.alturaPlacaEmergencia * cam.zoom;
+      const telaX = paraTelaX(baseX), telaY = paraTelaY(baseY);
+      if (telaY < topoPlaca) baseY = paraMundoY(topoPlaca);
+      if (telaX - meiaPlaca < 12) baseX = paraMundoX(12 + meiaPlaca);
+      else if (telaX + meiaPlaca > this.scale.width - 12) baseX = paraMundoX(this.scale.width - 12 - meiaPlaca);
+      const reduz = movimentoReduzido();
+      // Bounce the whole sign (badge and arrow) so both clearly call for attention.
+      const onda = Math.sin(_t * Math.PI * 2 / 720);
+      const amplitude = reduz ? 5 : 18;
+      this.setaEmergencia.setPosition(Math.round(baseX), Math.round(baseY + onda * amplitude));
+      this.ponteiroEmergencia.setY(Math.round(12 + (onda + 1) * (reduz ? 0 : 3)));
+      this.ponteiroEmergencia.setScale(1 + (reduz ? 0 : 0.08) * (0.5 + 0.5 * onda));
+      // The red halo pulses smoothly, like a warning light (steady in comfort mode).
+      const pulso = 0.5 + 0.5 * Math.sin(_t * Math.PI * 2 / 520);
+      this.contornoEmergencia.setAlpha(reduz ? 0.3 : 0.16 + 0.3 * pulso);
+    }
     this.sombraBandeira.setVisible(this.bandeira.visible).setAlpha(this.bandeira.alpha);
     if(configuracoesAbertas || sessao.transicao) {this.input.keyboard?.resetKeys();return;}
     const caixas = sessao.grade.caixas();
-    const e = this.input.enabled ? this.entrada() : null;
+    const e = this.input.enabled && (sessao.fase === 'dia' || sessao.fase === 'inicio') ? this.entrada() : null;
     const antesNoChao = this.corpo.noChao;
     const antesX = this.corpo.x, antesY = this.corpo.y;
-    const { bloqueado } = passo(this.corpo, e, sessao.terreno, caixas, dt);
+    if (sessao.rover?.dirigindo && !sessao.roverCarregado) {
+      this.corpo.vx = this.corpo.vy = 0;
+      this.rota = []; this.alvoUsar = null; this.recolherBandeira();
+    }
+    const { bloqueado } = sessao.rover?.dirigindo
+      ? dirigirRover(sessao.rover, sessao.roverCarregado ? e : null, sessao.terreno, caixas, dt)
+      : passo(this.corpo, e, sessao.terreno, caixas, dt);
     // Observe successful controls for the tutorial, without changing movement or physics.
     if (e && (e.dx || e.dy) && Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY) > 0.001 && !this.controlesObservados.has('movimento')) {
       this.controlesObservados.add('movimento'); sessao.emitir('controleUsado', 'movimento');
@@ -561,9 +734,22 @@ export class Superficie extends Phaser.Scene {
     if (Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3 && this.corpo.noChao) this.passada += dt * 12;
     this.animarPouso(dt);
     this.desenharComandante();
+    if (sessao.rover) {
+      const r = sessao.rover;
+      desenharRover(this.gRover, P, r, _t, this.gRoverFrente);
+      const p = paraTela(P, r.corpo.x, r.corpo.y, r.corpo.z + 1.25);
+      const carregado = sessao.roverCarregado;
+      const acao = r.dirigindo
+        ? carregado ? 'E / click: Exit  |  WASD / arrows: Drive' : 'E / click: Exit to pick up a battery'
+        : this.pertoRover()
+          ? carregado ? 'E / click: Drive Apollo LRV' : sessao.carregando ? 'E / click: Install 1 battery & drive' : 'Bring 1 battery from the Habitat'
+          : 'APOLLO LRV · Click to approach';
+      this.dicaRover.setPosition(p.x, p.y).setVisible(this.podeUsarRover())
+        .setText(`Battery: ${carregado ? 'charged' : 'empty'}\n${acao}`);
+    }
     sessao.parado = Math.hypot(this.corpo.vx, this.corpo.vy) < 0.05 && this.corpo.noChao;
     this.atualizarOclusao(dt);
-    if(this.mapa.visible) this.ambiente.update(dt,this.corpo,sessao.grade.lista);
+    if(this.mapa.visible) this.ambiente.update(dt,this.corpo,sessao.grade.lista,sessao.rover);
     this.animarModulos(dt);
 
     // Camera follows the commander on the ground.
@@ -723,6 +909,24 @@ export class Superficie extends Phaser.Scene {
   }
 
   private desenharComandante() {
+    const dirigindo = sessao.rover?.dirigindo ?? false;
+    this.comandante.setVisible(true);
+    this.gAstronauta.setVisible(!dirigindo);
+    const textura = chaveSkin(video.skin);
+    if (this.comandante.texture.key !== textura) this.comandante.setTexture(textura);
+    if (dirigindo) {
+      const r = sessao.rover!;
+      this.direcao = ((Math.round(-r.angulo/(Math.PI/4))%8)+8)%8;
+      const assento = paraTela(P,
+        r.corpo.x-0.21*Math.cos(r.angulo)+0.19*Math.sin(r.angulo),
+        r.corpo.y-0.21*Math.sin(r.angulo)-0.19*Math.cos(r.angulo),r.corpo.z+0.47);
+      this.comandante.setFrame(this.direcao*sprite.colunas)
+        .setCrop(0,0,sprite.frame,LINHA_QUADRIL_SENTADO)
+        .setPosition(assento.x,assento.y+(sprite.pe[1]-LINHA_QUADRIL_SENTADO)*sprite.escala)
+        .setDepth(profundidade(r.corpo.x+0.7,r.corpo.y+0.7)+0.1);
+      return;
+    }
+    this.comandante.setCrop();
     const k = this.corpo;
     const escala = Math.abs(P.ez[1]) / 36;
     const pe = paraTela(P, k.x, k.y, k.z);
@@ -732,8 +936,6 @@ export class Superficie extends Phaser.Scene {
     const v = Math.hypot(k.vx, k.vy);
     if (v > 0.3) this.direcao = (Math.round(Math.atan2(-k.vy, k.vx) / (Math.PI / 4)) + 8) % 8;
     const col = v > 0.3 && k.noChao ? 1 + (Math.floor(this.passada) % sprite.andar) : k.noChao ? 0 : 3;
-    const textura = chaveSkin(video.skin);                    // chosen in Video & comfort
-    if (this.comandante.texture.key !== textura) this.comandante.setTexture(textura);
     this.comandante.setPosition(pe.x, pe.y).setFrame(this.direcao * sprite.colunas + col);
     const d = profundidade(k.x + 0.3, k.y + 0.3);
     g.setDepth(d - 1); this.comandante.setDepth(d);

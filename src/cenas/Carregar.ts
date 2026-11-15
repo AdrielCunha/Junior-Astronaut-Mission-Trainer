@@ -13,6 +13,7 @@ import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 import { SKINS, chaveSkin } from '../dados/skins';
 import constelacoes from '../dados/constelacoes.json';
+import { ICONES, chaveIcone } from '../dados/icones';
 
 const FATOS = [
   'The ground in this game is real: NASA\'s LRO spacecraft measured it with a laser.',
@@ -124,6 +125,7 @@ export class Carregar extends Phaser.Scene {
     for (const sk of SKINS) this.load.spritesheet(chaveSkin(sk.id), sk.arquivo, { frameWidth: sprite.frame, frameHeight: sprite.frame });
     this.load.image('ceu', 'lua/sky.jpg');
     constelacoes.forEach((c, k) => this.load.image(`const${k}`, c.arquivo));
+    for (const [id, arquivo] of Object.entries(ICONES)) this.load.image(chaveIcone(id as keyof typeof ICONES), arquivo);
 
     const criarPreview = () => {
       if (this.luaPreview || !this.textures.exists('luaAlbedo') || !this.textures.exists('luaAltura')) return;

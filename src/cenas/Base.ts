@@ -148,6 +148,19 @@ export class Base extends Phaser.Scene {
     this.fase = 'inicio';
   }
 
+  // Temporary opt-in developer menu adapters; normal chapter flow is unchanged.
+  devValores() { return { ...this.estado }; }
+  devAplicar(valores: Pick<Estado, 'oxigenio' | 'dose' | 'meta'>) {
+    this.estado = { ...this.estado, ...valores };
+    this.mostrarFase();
+  }
+  devResultado(finalCapitulo: boolean) {
+    if (finalCapitulo) this.estado = { ...this.estado, dia: this.cap.config.dias + 1 };
+    this.res = resultado(this.estado, this.cap.config);
+    if (this.res) { this.fase = 'fim'; this.mostrarFase(); }
+    return this.res;
+  }
+
   private get cap() {
     return CAPITULOS[this.capIdx];
   }

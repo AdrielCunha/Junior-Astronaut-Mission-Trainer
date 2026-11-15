@@ -5,12 +5,16 @@
 // the task draws in, and the instruction pill at the bottom.
 import Phaser from 'phaser';
 import type { Tarefa } from '../tarefas';
-import { CORES_FESTA, botaoFechar, letra, moldura, pilulaEscura } from '../tarefas/estilo';
+import { CORES_FESTA, botaoFechar, criarIconeJogo, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { tocarSfx } from '../sfx';
+import { sessao } from './sessao';
 
 export type DadosTarefa = { tarefa: Tarefa; aoTerminar: () => void };
 
 export class CenaTarefa extends Phaser.Scene {
+  private avisoSolar?: Phaser.GameObjects.Container;
+  private textoSolar?: Phaser.GameObjects.Text;
+
   constructor() {
     super({ key: 'Tarefa' });
   }
@@ -21,6 +25,21 @@ export class CenaTarefa extends Phaser.Scene {
 
     // Blocks clicks to the map and the HUD underneath.
     this.add.rectangle(0, 0, W, H, 0x020617, 0.55).setOrigin(0).setInteractive();
+
+    // The storm deadline keeps running under the task, so show it here too.
+    this.avisoSolar = undefined;
+    this.textoSolar = undefined;
+    if (sessao.tempestade.status === 'alerta') {
+      const pw = Math.min(W - 40 * u, 270 * u), ph = 40 * u, cy = 18 * u + ph / 2;
+      const fundo = this.add.graphics()
+        .fillStyle(0x0b1a4a, 0.96).fillRoundedRect(W / 2 - pw / 2, 18 * u, pw, ph, ph / 2)
+        .lineStyle(3 * u, 0xffd93b, 1).strokeRoundedRect(W / 2 - pw / 2, 18 * u, pw, ph, ph / 2);
+      const icone = criarIconeJogo(this, W / 2 - pw / 2 + 22 * u, cy, 'radiation', 26 * u);
+      this.textoSolar = this.add.text(W / 2 + 12 * u, cy, '', letra(15 * u, '#ffd93b', {
+        fontStyle: 'bold', stroke: '#0b1a4a', strokeThickness: 3 * u,
+      })).setOrigin(0.5);
+      this.avisoSolar = this.add.container(0, 0, [fundo, icone, this.textoSolar]).setDepth(8);
+    }
 
     const largura = Math.min(W - 40 * u, 660 * u), altura = Math.min(H - 40 * u, 480 * u);
     const x0 = (W - largura) / 2, y0 = (H - altura) / 2 + 8 * u;
@@ -79,5 +98,13 @@ export class CenaTarefa extends Phaser.Scene {
     const redimensionar = () => this.scene.restart(d);
     this.scale.on('resize', redimensionar);
     this.events.once('shutdown', () => { this.scale.off('resize', redimensionar); this.input.setDefaultCursor('default'); });
+  }
+
+  update() {
+    if (!this.avisoSolar || !this.textoSolar) return;
+    const t = sessao.tempestade;
+    const ativo = t.status === 'alerta' || t.status === 'atingida';
+    this.avisoSolar.setVisible(ativo);
+    if (ativo) this.textoSolar.setText(`SOLAR STORM!  ${Math.ceil(t.restante / 1000)}s`);
   }
 }

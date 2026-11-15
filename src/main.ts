@@ -10,6 +10,7 @@ import { Base } from './cenas/Base';
 import { CenaTarefa } from './cenas/Tarefa';
 import { Radar } from './cenas/Radar';
 import { MenuJogo } from './cenas/MenuJogo';
+import { CuriosidadeRover } from './cenas/CuriosidadeRover';
 import { Carregar } from './cenas/Carregar';
 import { iniciarAudio } from './audio';
 import { NaveTarefa } from './cenas/NaveTarefa';
@@ -32,6 +33,7 @@ import { FecharEscotilhasTarefa } from './cenas/FecharEscotilhasTarefa';
 import { PaineisSolaresTarefa } from './cenas/PaineisSolaresTarefa';
 import { BANCO } from './tarefas';
 import { sessao } from './cenas/sessao';
+import { instalarMenuDev } from './menuDev';
 
 // Carregar (loading screen) loads the assets, then starts three scenes that run together, bottom to top: Espaco (stars, Moon, planets), Superficie (the map,
 // the commander, the modules) and Interface (bars and panels). See ARCHITECTURE.md.
@@ -471,12 +473,13 @@ const jogo = new Phaser.Game({
   // title screen flow added on main.
   scene: classico
     ? [Carregar, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, MenuJogo]
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, MenuJogo, CuriosidadeRover]
     : [Carregar, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, MenuJogo],
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, MenuJogo, CuriosidadeRover],
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;
+if (import.meta.env.DEV || new URLSearchParams(location.search).has('dev')) instalarMenuDev(jogo);
 
 // The classic prototype has no music control, so it stays silent.
 if (!classico) iniciarAudio();
