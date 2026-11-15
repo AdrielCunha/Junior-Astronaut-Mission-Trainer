@@ -2,6 +2,8 @@
 // Code-drawn bits that go with the Blender pictures on the map: foundations, the commander's
 // shadow and batteries, falling cargo. Flat colors and a dark outline, like the renders.
 import Phaser from 'phaser';
+import paletaLua from '../dados/paleta_lua.json';
+const CORES_FUNDACAO = paletaLua.fundacao.map(h=>Number.parseInt(h.slice(1),16));
 import { paraTela, type Projecao } from '../engine/iso';
 import type { Construcao } from '../engine/construcao';
 import { COR } from './sessao';
@@ -32,13 +34,13 @@ export function fundacao(g: G, p: Projecao, c: Construcao, altura: (x: number, y
   const q = (a: number, b: number, height: number) => paraTela(p, a, b, height);
   for (let i = 0; i < w; i++) {
     const a = x+i, b = a+1;
-    poli(g, [q(a,y+h,altura(a,y+h)-0.015),q(b,y+h,altura(b,y+h)-0.015),q(b,y+h,z),q(a,y+h,z)], 0x8f8571, false);
+    poli(g, [q(a,y+h,altura(a,y+h)-0.015),q(b,y+h,altura(b,y+h)-0.015),q(b,y+h,z),q(a,y+h,z)], CORES_FUNDACAO[0], false);
   }
   for (let j = 0; j < h; j++) {
     const a=y+j,b=a+1;
-    poli(g, [q(x+w,a,altura(x+w,a)-0.015),q(x+w,b,altura(x+w,b)-0.015),q(x+w,b,z),q(x+w,a,z)], 0x706655, false);
+    poli(g, [q(x+w,a,altura(x+w,a)-0.015),q(x+w,b,altura(x+w,b)-0.015),q(x+w,b,z),q(x+w,a,z)], CORES_FUNDACAO[1], false);
   }
-  poli(g,[q(x,y,z),q(x+w,y,z),q(x+w,y+h,z),q(x,y+h,z)],0xaaa18c,false);
+  poli(g,[q(x,y,z),q(x+w,y,z),q(x+w,y+h,z),q(x,y+h,z)],CORES_FUNDACAO[2],false);
 }
 
 // What goes with the commander sprite (tools/lua3d/make_astronaut.py): the shadow on the ground,

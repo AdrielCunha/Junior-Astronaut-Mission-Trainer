@@ -8,12 +8,13 @@
 import json, os
 import numpy as np
 from PIL import Image
+from estilo_lua import PALETA
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 OUT = os.path.join(ROOT, 'public', 'lua')
 # make_moon.py's albedo bands: linear luminance thresholds -> sRGB colors.
-ALBEDO = [(0.00, '#5a5248'), (0.15, '#7a7060'), (0.22, '#9c917b'), (0.30, '#bdb196'), (0.40, '#dcd1b4')]
+ALBEDO = PALETA['albedoLua']
 
 
 def main():

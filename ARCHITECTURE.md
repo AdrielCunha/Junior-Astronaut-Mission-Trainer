@@ -334,3 +334,19 @@ explicit benchmark build to expose them to `tools/dev/medir_missao.mjs`. The scr
 Chrome profiles, CDP CPU throttling and real requestAnimationFrame timestamps, verifies that
 walking moves the character and waits for each destination view before measuring it. See
 `PERFORMANCE.md` for the recorded environment, raw JSON and reproduction commands.
+
+
+## Approved cartoon lunar palette
+
+`src/dados/paleta_lua.json` is the shared source of the approved cool lunar colors. The terrain,
+regional flight patches, global Moon albedo, live Moon shader and module foundation materials
+read the same palette. `tools/lua3d/estilo_lua.py` also builds the illustrated crater outlines,
+shared by the playable ground render and the fine polar patch in the zoom flight. Georeferencing,
+physics heights and camera framing remain the same.
+
+Rebuild the ground, Moon maps and modules using their normal generators. Rebuild both flight
+sets with `make_flight.py -- --frames 120 --w 1280 --h 720 --nome voo` and
+`make_flight.py -- --frames 80 --w 640 --h 360 --nome voo_leve`. The optional
+`--destino /path/to/staging` writes flight images and metadata under that root, so a complete set
+can be checked before replacing the live assets. NASA source imagery and DEM windows are cached
+locally; sky and constellation imagery are unaffected by the surface palette.

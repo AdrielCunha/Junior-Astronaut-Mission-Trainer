@@ -5,6 +5,8 @@
 // angle. Camera, Sun and bands match tools/lua3d/make_moon.py, so it matches the Blender renders.
 import Phaser from 'phaser';
 import tex from '../dados/lua_tex.json';
+import paleta from '../dados/paleta_lua.json';
+const rgbGLSL = (hex: string) => `vec3(${[1,3,5].map(i=>(parseInt(hex.slice(i,i+2),16)/255).toFixed(6)).join(',')})`;
 import { VISTA } from './globo';
 
 const FRAG = `
@@ -31,7 +33,7 @@ void main() {
   float px = 2.0 * uEscala / resolution.x;          // one pixel, in Moon radii
   float r = length(p);
   float linha = 0.022;                              // outline width (make_moon.py)
-  vec3 contorno = vec3(0.090, 0.075, 0.059);
+  vec3 contorno = ${rgbGLSL(paleta.contorno)};
   if (r > 1.0 + linha) { gl_FragColor = vec4(0.0); return; }
   if (r > 1.0) {
     float a = clamp((1.0 + linha - r) / px, 0.0, 1.0);
@@ -62,8 +64,8 @@ void main() {
 
   // Hard light bands (EEVEE sun strength 4 on a white diffuse: 4 cos / pi), same colors.
   float l = 4.0 / PI * max(dot(n2, uSol), 0.0);
-  vec3 banda = l < 0.05 ? vec3(0.227, 0.208, 0.314) : l < 0.25 ? vec3(0.604, 0.561, 0.612)
-             : l < 0.60 ? vec3(0.949, 0.925, 0.902) : vec3(1.0, 0.980, 0.941);
+  vec3 banda = l < 0.05 ? ${rgbGLSL(paleta.luzLua[0][1] as string)} : l < 0.25 ? ${rgbGLSL(paleta.luzLua[1][1] as string)}
+             : l < 0.60 ? ${rgbGLSL(paleta.luzLua[2][1] as string)} : ${rgbGLSL(paleta.luzLua[3][1] as string)};
   vec3 cor = srgb(lin(alb) * lin(banda));
   // Thin dark rim inside the outline, antialiased.
   float k = clamp((1.0 - r) / px, 0.0, 1.0);

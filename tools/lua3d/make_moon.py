@@ -23,6 +23,8 @@
 # and src/dados/moon_view.json: frame layout + camera vectors, so the game can pin the surface.
 import bpy, bmesh, sys, os, math, json, argparse
 import numpy as np
+sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
+from estilo_lua import PALETA
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -44,10 +46,10 @@ RELIEF = 0.035          # height exaggeration, fraction of the radius (real rang
 OUTLINE_W = 0.022       # outline thickness, fraction of the radius
 # Albedo bands, dark maria -> bright highlands. Stops are linear luminance of the LROC map
 # (measured: p10 = 0.14, p50 = 0.34, p90 = 0.44).
-ALBEDO = [(0.00, '#5a5248'), (0.15, '#7a7060'), (0.22, '#9c917b'), (0.30, '#bdb196'), (0.40, '#dcd1b4')]
+ALBEDO = PALETA['albedoLua']
 # Light bands, multiplied over the albedo: night side, terminator, lit, sun-facing.
-LIGHT = [(0.00, '#3a3550'), (0.05, '#9a8f9c'), (0.25, '#f2ece6'), (0.60, '#fffaf0')]
-OUTLINE = '#17130f'
+LIGHT = PALETA['luzLua']
+OUTLINE = PALETA['contorno']
 
 # Astronomy (all angles in degrees).
 OBLIQUITY = 23.439       # Earth's axial tilt: rotates equatorial star coordinates to ecliptic

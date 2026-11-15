@@ -9,6 +9,9 @@
 // Graphics. Shapes are drawn once into textures and shown as images; only the windows, which are
 // open for a moment, keep live Graphics.
 import Phaser from 'phaser';
+import paletaLua from '../dados/paleta_lua.json';
+const LUA_COR=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
+const LUA_CRATERA=Number.parseInt(paletaLua.rocha.slice(1),16);
 import { abrirVideo, movimentoReduzido, configuracoesAbertas } from '../video';
 import { sessao } from './sessao';
 import { CONTORNO, botaoFechar, botaoVerde, letra, moldura, pilulaEscura } from '../tarefas/estilo';
@@ -218,8 +221,8 @@ export class Radar extends Phaser.Scene {
       g.fillStyle(0x60a5fa, 0.18).fillCircle(0, 0, 30 * s).fillStyle(0x3b82f6).fillCircle(0, 0, 20 * s).lineStyle(4 * u, CONTORNO).strokeCircle(0, 0, 20 * s);
       g.fillStyle(0x4ade80).fillCircle(-7 * s, -5 * s, 7 * s).fillCircle(8 * s, 7 * s, 5 * s).fillStyle(0xffffff, 0.6).fillCircle(-8 * s, -11 * s, 3 * s);
     } else if (qual === 'lua') {
-      g.fillStyle(0xd1d5db).fillCircle(0, 0, 26 * s).lineStyle(4 * u, CONTORNO).strokeCircle(0, 0, 26 * s);
-      g.fillStyle(0x9ca3af).fillCircle(-9 * s, 7 * s, 7 * s).fillCircle(10 * s, -4 * s, 5 * s);
+      g.fillStyle(LUA_COR).fillCircle(0, 0, 26 * s).lineStyle(4 * u, CONTORNO).strokeCircle(0, 0, 26 * s);
+      g.fillStyle(LUA_CRATERA).fillCircle(-9 * s, 7 * s, 7 * s).fillCircle(10 * s, -4 * s, 5 * s);
       g.fillStyle(0xf8fafc).beginPath().arc(0, -23 * s, 10 * s, Math.PI, 0).closePath().fillPath()
         .lineStyle(2.5 * u, CONTORNO).beginPath().arc(0, -23 * s, 10 * s, Math.PI, 0).closePath().strokePath();
     } else if (qual === 'marte') {
