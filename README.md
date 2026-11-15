@@ -20,6 +20,15 @@ The solar storms in the game are storms that really happened. Their dates and st
 
 Each chapter is a series of days. Each day: read the morning report, send batteries to the rooms, see what happened overnight. The crew's radiation dose carries from one chapter to the next. The real trip to Mars takes about 7 months; the game shortens it to 5 days.
 
+## Moon map gameplay updates
+
+- The first day guides players through collecting batteries at the Battery Bank, powering Life Support, and working on the rocket.
+- Extreme solar storms give the player 45 seconds to power the shield. Three batteries provide full protection; partial protection reduces the impact. The countdown continues during room tasks and pauses in menus and the rover fact card.
+- A driveable rover inspired by the Apollo LRV is available on the Moon. Click it or press **E** nearby to board or exit; use **WASD**, arrow keys, or ground clicks to drive.
+- During missions, boarding an empty rover installs **one carried battery**, providing power for that day. Exploration mode provides power freely. The rover stays on the Moon.
+- The driver uses the selected astronaut skin. Wheel tracks and lunar dust follow the rover, and its first boarding shows a short Apollo LRV fact card in English.
+- Updated HUD icons and optional developer controls accompany these changes. Resource controls are available on the development server or with `?dev`.
+
 ## NASA data
 
 The data is downloaded once and stored in the game as archived data. The game does not show it as live.
@@ -34,6 +43,8 @@ The data is downloaded once and stored in the game as archived data. The game do
 | [NASA SVS CGI Moon Kit](https://svs.gsfc.nasa.gov/4720) (LRO LROC color + LOLA) | The whole Moon |
 | [NASA SVS Deep Star Maps 2020](https://svs.gsfc.nasa.gov/4851) (with ESA/Gaia/DPAC) | The star sky and constellation figures, in their real directions |
 | [NASA JPL approximate planet positions](https://ssd.jpl.nasa.gov/planets/approx_pos.html) | Where the Sun, Earth and planets are on each chapter day |
+| [NASA 3D Resources, Mars](https://science.nasa.gov/3d-resources/mars/) (Viking images processed at USGS) | The Mars globe during the trip |
+| [NASA Goddard Blue Marble](https://commons.wikimedia.org/wiki/File:Whole_world_-_land_and_oceans_12000.jpg) (public domain) | The Earth during the trip |
 | [DONKI](https://ccmc.gsfc.nasa.gov/tools/DONKI/) space weather database | Solar flares, coronal mass ejections, particle events and ENLIL model runs that become the morning warnings |
 | [OSDR RadLab](https://visualization.osdr.nasa.gov/radlab/gui/data-api/) radiation dosimetry database | Measured radiation dose that sets each day's storm level: LRO/CRaTER in lunar orbit, BioSentinel in deep space, Curiosity/MSL-RAD on the surface of Mars |
 | [Curiosity REMS weather](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json) | Real night temperatures on Mars, which set how much heating each night needs |
@@ -53,7 +64,7 @@ npm install
 npm run dev     # play at http://localhost:5173
 npm test        # game rules + engine (physics, building, map projection, planet positions)
 npm test        # game balance, checked against the real May 2024 storm in all three chapters
-``'
+```
 
 How the game is built (engine, scenes, zoom, art pipeline in Blender): see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -62,4 +73,4 @@ pinch to zoom; zoom out past the ground to fly to the whole Moon and on to the p
 
 ## Use of AI tools
 
-The team used Claude (Anthropic) to explore the NASA APIs, to draft project documents including this README, and to write code. Files with AI-generated code say so in a comment at the top of the file.
+The team used Claude (Anthropic) to explore the NASA APIs, to draft project documents including this README, and to write code. Codex (OpenAI) helped implement and integrate the Moon rover, storm alerts, HUD updates, and documentation. Files may include additional AI attribution in their header comments.

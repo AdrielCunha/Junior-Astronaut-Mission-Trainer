@@ -3,6 +3,7 @@
 # style as the Moon, and writes the exact tile -> pixel mapping next to the heights.
 #
 #   blender -b -P tools/lua3d/render_terrain.py        (headless, ~20 s)
+#   blender -b -P tools/lua3d/render_terrain.py -- --corpo marte   (Mars: terreno_marte.json -> public/marte/)
 #   python3 tools/lua3d/bl.py --run tools/lua3d/render_terrain.py   (live, scene "Terreno")
 #
 # In:  src/dados/terreno.json (alturas)
@@ -14,9 +15,18 @@ from mathutils import Vector
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0,HERE)
 from estilo_lua import PALETA, contornos_crateras
+argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+CORPO = argv[argv.index('--corpo') + 1] if '--corpo' in argv else 'lua'
+if CORPO != 'lua':
+    import comum
+    comum.usar_corpo(CORPO)          # swaps PALETA in place, before the colors below are read
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
-JSON = os.path.join(ROOT, 'src', 'dados', 'terreno.json')
-PNG = os.path.join(ROOT, 'public', 'lua', 'terrain.png')
+JSON = os.path.join(ROOT, 'src', 'dados', 'terreno.json' if CORPO == 'lua' else f'terreno_{CORPO}.json')
+PASTA = 'lua' if CORPO == 'lua' else CORPO
+PNG = os.path.join(ROOT, 'public', PASTA, 'terrain.png')
+# Craters: the Moon's ground is covered in them; Jezero's floor is an old lake bed, younger and
+# smoother, with fewer and smaller ones.
+CRATERAS = {'lua': (24, 1.15, 2.5), 'marte': (9, 0.8, 1.7)}[CORPO]
 LIVE = not bpy.app.background
 
 T = 30                      # pixels per tile step: gx moves (T, T/2) on screen, the classic 2:1
@@ -68,11 +78,11 @@ def height(x, y):
 centers = []
 for attempt in range(500):
     x, y = rng.uniform(5, N-5), rng.uniform(5, N-5)
-    radius = rng.uniform(1.15, 2.5)
+    radius = rng.uniform(CRATERAS[1], CRATERAS[2])
     if math.hypot(x-N/2,y-N/2)<13 or any(math.hypot(x-a,y-b)<radius+r+1 for a,b,r,d in centers): continue
     if abs(height(x+radius,y)-height(x-radius,y))>0.65: continue
     centers.append((x,y,radius,radius*rng.uniform(0.23,0.32)))
-    if len(centers)>=24: break
+    if len(centers)>=CRATERAS[0]: break
 
 def relief(x,y):
     z=height(x,y)
@@ -274,7 +284,7 @@ if not LIVE or globals().get('EXPORTAR_TERRENO', False):
                        'x1':max(v.x for v in points),'y1':max(-v.y for v in points),
                        'topo':max(v.z for v in points)})
     data['relevo']={'crateras':[{'x':x,'y':y,'raio':radius,'profundidade':depth} for x,y,radius,depth in centers], 'pedras':stones}
-    data['imagem'] = {'arquivo': 'lua/terrain.png', 'w': W, 'h': Hh, 'origem': r(o), 'ex': r(ex), 'ey': r(ey), 'ez': r(ez)}
+    data['imagem'] = {'arquivo': f'{PASTA}/terrain.png', 'w': W, 'h': Hh, 'origem': r(o), 'ex': r(ex), 'ey': r(ey), 'ez': r(ez)}
     with open(JSON, 'w') as f:
         json.dump(data, f, separators=(',', ':'))
     print('DONE', W, Hh, data['imagem'])

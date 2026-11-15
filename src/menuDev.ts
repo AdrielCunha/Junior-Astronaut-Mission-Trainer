@@ -4,6 +4,8 @@ import type { Interface } from './cenas/Interface';
 import type { Base } from './cenas/Base';
 import { CAPITULOS } from './capitulos';
 import { sessao } from './cenas/sessao';
+import { iniciarNave3D, iniciarMarte3D } from './cenas/irParaMarte';
+import { PRAZO_TEMPESTADE_MS } from './cenas/tempestadeSolar';
 
 export function instalarMenuDev(jogo: Phaser.Game) {
   const estilo = document.createElement('style');
@@ -22,7 +24,7 @@ export function instalarMenuDev(jogo: Phaser.Game) {
   const dialog = document.createElement('dialog'); dialog.id = 'mission-dev';
   dialog.setAttribute('aria-labelledby', 'mission-dev-title');
   dialog.innerHTML = `<button type="button" class="dev-close" aria-label="Close developer menu">?</button><h2 id="mission-dev-title">DEV TOOLS</h2><p>Temporary test controls ? changes affect the current mission.<br>F2 opens / closes this menu. The game waits while it is open.</p>
-    <div id="dev-values"></div><div class="dev-actions"><button type="button" class="dev-green" data-action="apply">Apply values</button><button type="button" data-action="check">Check mission result</button><button type="button" data-action="finish">Test end of chapter</button><button type="button" class="dev-red" data-action="storm">Trigger solar storm ? 30s</button></div>
+    <div id="dev-values"></div><div class="dev-actions"><button type="button" class="dev-green" data-action="apply">Apply values</button><button type="button" data-action="check">Check mission result</button><button type="button" data-action="finish">Test end of chapter</button><button type="button" class="dev-red" data-action="storm">Trigger solar storm · ${PRAZO_TEMPESTADE_MS / 1000}s</button></div>
     <hr><label for="dev-chapter">Jump to chapter (starts a fresh chapter)</label><select id="dev-chapter">${CAPITULOS.map((c, i) => `<option value="${i}">${c.numero}. ${c.titulo}</option>`).join('')}</select><button type="button" data-action="chapter">Open chapter</button><output aria-live="polite"></output>`;
   document.body.append(abrir, dialog);
   const campos = dialog.querySelector<HTMLElement>('#dev-values')!;
@@ -87,16 +89,17 @@ export function instalarMenuDev(jogo: Phaser.Game) {
     if (acao === 'chapter') {
       const indice = Number(dialog.querySelector<HTMLSelectElement>('#dev-chapter')!.value);
       fechar();
-      for (const key of ['MenuJogo', 'Radar', 'Tarefa', 'Interface', 'Superficie', 'Espaco', 'Base']) jogo.scene.stop(key);
       if (indice === 0) {
-        sessao.reiniciar();
-        jogo.scene.start('Espaco'); jogo.scene.start('Superficie'); jogo.scene.start('Interface');
-      } else jogo.scene.start('Base', { capitulo: indice, dose: 0, pontos: [] });
+        location.reload();
+      } else {
+        const cena = jogo.scene.getScenes(true)[0];
+        if (cena) (indice === 1 ? iniciarNave3D : iniciarMarte3D)(cena, 0, []);
+      }
       return;
     }
     if (!disponivel()) return;
     if (acao === 'storm') {
-      if (jogo.scene.isPaused('Base')) { status('The 30-second shield emergency is available in chapter 1 (Moon).'); return; }
+      if (sessao.mundo !== 'lua' || jogo.scene.isPaused('Base')) { status(`The ${PRAZO_TEMPESTADE_MS / 1000}-second shield emergency is available in chapter 1 (Moon).`); return; }
       (alvo() as Interface).devTempestade(); fechar(); return;
     }
     if (!aplicar()) return;

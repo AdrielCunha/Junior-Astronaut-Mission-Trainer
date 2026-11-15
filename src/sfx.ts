@@ -3,7 +3,8 @@
 // switch as the music (audio.ts) and stay quiet until the browser allows sound (first click or key).
 
 export type NomeSfx = 'alarme' | 'clique' | 'ok' | 'erro' | 'aviso' | 'sucesso' | 'fechar'
-  | 'pegar' | 'soltar' | 'encaixe' | 'girar' | 'ligar' | 'bip' | 'whoosh' | 'zap' | 'bolha' | 'tic' | 'suave';
+  | 'pegar' | 'soltar' | 'encaixe' | 'girar' | 'ligar' | 'bip' | 'whoosh' | 'zap' | 'bolha' | 'tic' | 'suave'
+  | 'pouso' | 'fumaca';
 
 const VOLUME = 0.55;
 const CHAVE_MUDO = 'lunar-odyssey-efeitos-mudos';
@@ -41,6 +42,29 @@ function nota(c: AudioContext, freq: number, inicio: number, dur: number, tipo: 
   o.connect(g).connect(c.destination);
   o.start(t);
   o.stop(t + dur + 0.02);
+}
+
+// White noise through a filter: rumbles, thuds and puffs. The filter sweeps from 'de' to 'ate' Hz.
+function ruido(c: AudioContext, inicio: number, dur: number, vol: number, de: number, ate: number, ataque = 0.02, tipo: BiquadFilterType = 'lowpass') {
+  const n = Math.ceil(c.sampleRate * dur);
+  const buf = c.createBuffer(1, n, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  const f = c.createBiquadFilter();
+  f.type = tipo;
+  const t = c.currentTime + inicio;
+  f.frequency.setValueAtTime(de, t);
+  f.frequency.exponentialRampToValueAtTime(ate, t + dur);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(VOLUME * volume * vol, t + ataque);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(c.destination);
+  src.start(t);
+  src.stop(t + dur + 0.02);
+  return g;
 }
 
 const SONS: Record<NomeSfx, (c: AudioContext) => void> = {
@@ -86,7 +110,40 @@ const SONS: Record<NomeSfx, (c: AudioContext) => void> = {
   bolha: (c) => nota(c, 400, 0, 0.1, 'sine', 0.7, 900),
   tic: (c) => nota(c, 1400, 0, 0.02, 'square', 0.2),
   suave: (c) => nota(c, 640, 0, 0.09, 'sine', 0.22, 760),            // gentle hover
+  pouso: (c) => { ruido(c, 0, 0.5, 1.1, 900, 60, 0.005); nota(c, 90, 0, 0.35, 'sine', 0.9, 45); },   // touchdown thud
+  fumaca: (c) => { ruido(c, 0, 1.1, 0.7, 2400, 300, 0.06, 'bandpass'); nota(c, 300, 0.02, 0.4, 'sine', 0.25, 120); }, // puff of smoke
 };
+
+/**
+ * Rocket engine: a low rumble of 'dur' seconds that builds up for 'ataque' s. 'forte' scales the
+ * volume. Returns a function that fades it out early (e.g. when the scene is skipped).
+ */
+export function tocarMotor(dur: number, forte = 1, ataque = 0.6): () => void {
+  if (mudo) return () => {};
+  const c = contexto();
+  if (!c) return () => {};
+  const g = ruido(c, 0, dur, 0.9 * forte, 500, 140, ataque);
+  const tom = c.createOscillator();
+  const gt = c.createGain();
+  const t = c.currentTime;
+  tom.type = 'sawtooth';
+  tom.frequency.setValueAtTime(55, t);
+  tom.frequency.linearRampToValueAtTime(42, t + dur);
+  gt.gain.setValueAtTime(0.0001, t);
+  gt.gain.exponentialRampToValueAtTime(VOLUME * volume * 0.12 * forte, t + ataque);
+  gt.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  tom.connect(gt).connect(c.destination);
+  tom.start(t);
+  tom.stop(t + dur + 0.02);
+  return () => {
+    const agora = c.currentTime;
+    for (const ganho of [g.gain, gt.gain]) {
+      ganho.cancelScheduledValues(agora);
+      ganho.setValueAtTime(Math.max(0.0001, ganho.value), agora);
+      ganho.exponentialRampToValueAtTime(0.0001, agora + 0.3);
+    }
+  };
+}
 
 // Browsers keep sound locked until the first click or key. Unlock it on that first gesture, so even the very first hover afterwards has sound.
 function destravar() {

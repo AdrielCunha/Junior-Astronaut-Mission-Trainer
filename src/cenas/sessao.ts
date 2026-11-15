@@ -3,9 +3,12 @@
 // event bus they talk through. One game = one Sessao. See ARCHITECTURE.md.
 import Phaser from 'phaser';
 import { movimentoReduzido, configuracoesAbertas } from '../video';
-import lua from '../dados/lua.json';
 import terrenoJson from '../dados/terreno.json';
+import terrenoMarteJson from '../dados/terreno_marte.json';
+import terrenoNaveJson from '../dados/terreno_nave.json';
+import { definirGravidade, G_LUA, G_MARTE, G_TERRA } from '../engine/fisica';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
+import { haEventoHoje, esperaDoEvento, esperaDoAlarme, alarmeDoDia, type EventoDef } from '../engine/eventos';
 import { Grade, TIPOS, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
 import { VOO as voo } from './qualidade';
@@ -15,7 +18,11 @@ import { inicioDoCapitulo, bateriasDoDia, nenhuma, type Alocacao, type Efeito, t
 import { TempestadeSolar } from './tempestadeSolar';
 import type { Rover } from '../engine/rover';
 
-const C = CAPITULOS[0].config;
+// The world the 3D scenes show: the Moon (chapter 1) or Mars (chapter 3, same engine).
+// The ship (chapter 2) is a world too: its deck, on the same engine.
+export type Mundo = 'lua' | 'marte' | 'nave';
+// A pristine copy of the Moon's terrain, to come back to it after Mars (usarMundo).
+const TERRENO_LUA = JSON.parse(JSON.stringify(terrenoJson));
 
 export type Fase = 'inicio' | 'manha' | 'dia' | 'noite' | 'fim';
 
@@ -65,11 +72,16 @@ export type Eventos = {
   suprimento: [TipoId];               // a cargo lander is bringing this today
   desbloqueado: [Construcao];         // it landed and is part of the base
   pulo: [];
+  zoomMarte: [];                      // on Mars, zooming out past the ground opens MarteVista
   controleUsado: ['movimento' | 'pulo'];
+  pousoFoguete: [() => void];        // after the launch film: the rocket lands on the pad, then calls back
 };
 
 class Sessao {
-  readonly terreno = new Terreno(dadosTerreno);
+  mundo: Mundo = 'lua';
+  capIdx = 0;                         // CAPITULOS index: 0 the Moon, 1 the ship, 2 Mars
+  pontos: number[] = [];              // score of each finished chapter
+  terreno = new Terreno(dadosTerreno);
   grade = new Grade(this.terreno);
   readonly sinais = new Phaser.Events.EventEmitter();
 
@@ -80,12 +92,19 @@ class Sessao {
   curiosidadeRoverVista = false;
   nivelTeste: number | null = null;
   fase: Fase = 'inicio';
-  estado: Estado = inicioDoCapitulo(C);
+  estado: Estado = inicioDoCapitulo(CAPITULOS[0].config);
   entregas: Alocacao = nenhuma();
   carregando = 0;           // batteries in the commander's hands
-  noHabitat = 0;            // batteries still waiting at the habitat today
+  noHabitat = 0;            // daily batteries waiting at the Moon bank or Mars lander (legacy field name)
   tarefasHoje = new Set<Efeito>();                    // rooms that already had their task today
   ultimaTarefa: Partial<Record<Efeito, string>> = {}; // so the bank does not repeat itself
+  // Random event of the day (engine/eventos.ts): a module needs fixing with one task.
+  evento: { def: EventoDef; construcaoId: number } | null = null;
+  eventoEm: number | null = null;   // seconds of play until today's event happens (null: none today)
+  alarmeHoje: EventoDef | null = null;   // today's real NASA event, if the Sun did something
+  energiaHoje = false;      // the energy task of picking up the batteries was already played today
+  ultimoEvento?: string;
+  diasCalmos = 0;
   emTarefa = false;         // a task overlay is open: the map and zoom wait
   parado = true;            // the commander is standing still (Espaco uploads flight frames then)
   transicao: { t: number; destino: Vista; mudou: boolean } | null = null;
@@ -103,6 +122,46 @@ class Sessao {
   private empurrao = 0;     // wheel / pinch pushing past the edge of a view
   private pendente: Vista | null = null;   // next flight once the current one lands
   pulou = false;
+  // Leaving for Mars after liftoff, played on the zoom itself (Espaco draws it): 'filme' the
+  // zoom out from the base to the Moon, 'saida' the ship climbs straight off the Moon toward Mars
+  // (no stop in orbit), 'zoom' out to the planets, 'cruzeiro' the crossing. The player only watches.
+  partida: { fase: 'filme' | 'saida' | 'zoom' | 'cruzeiro'; t: number; fim: () => void; acabou: boolean } | null = null;
+
+  // Starts the departure; `fim` runs when the ship reaches Mars's orbit on the map.
+  partir(fim: () => void) {
+    this.partida = { fase: 'filme', t: 0, fim, acabou: false };
+    this.emitir('mensagem', 'Liftoff! Next stop: Mars.', '#fde68a');
+    if (this.vista === 'lua') this.partida.fase = 'saida';
+    else this.voar('lua');
+  }
+
+  get cap() { return CAPITULOS[this.capIdx]; }
+  get C() { return this.cap.config; }
+
+  // Switches the terrain, the base layout and gravity to another world. The terrain data is
+  // changed IN PLACE: scenes keep references to dadosTerreno and its projection (Superficie's P).
+  usarMundo(m: Mundo) {
+    this.mundo = m;
+    const fonte = m === 'marte' ? terrenoMarteJson : m === 'nave' ? terrenoNaveJson : TERRENO_LUA;
+    const d = dadosTerreno as unknown as Record<string, unknown>;
+    const img = dadosTerreno.imagem;
+    for (const k of Object.keys(d)) if (k !== 'imagem') delete d[k];
+    Object.assign(d, JSON.parse(JSON.stringify(fonte)), { imagem: img });
+    Object.assign(img, JSON.parse(JSON.stringify(fonte.imagem)));
+    this.terreno = new Terreno(dadosTerreno);
+    // On the ship there is no gravity in deep space: magnetic boots hold the crew to the metal
+    // deck, so walking feels like on Earth and a jump barely leaves the floor.
+    definirGravidade(m === 'marte' ? G_MARTE : m === 'nave' ? G_TERRA : G_LUA);
+    this.reiniciar();
+  }
+
+  // Starts a chapter on the current world, keeping the crew's radiation dose and the scores.
+  comecarCapitulo(idx: number, dose = 0, pontos: number[] = []) {
+    this.capIdx = idx;
+    this.pontos = [...pontos];
+    this.reiniciar();
+    this.estado = inicioDoCapitulo(this.C, dose);
+  }
 
   reiniciar() {
     this.grade = new Grade(this.terreno);
@@ -112,12 +171,13 @@ class Sessao {
     this.diaCargaRover = null;
     this.curiosidadeRoverVista = false;
     this.nivelTeste = null;
-    this.estado = inicioDoCapitulo(C);
+    this.estado = inicioDoCapitulo(this.C);
     this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = 0;
     this.tarefasHoje.clear();
     this.ultimaTarefa = {};
+    this.evento = null; this.eventoEm = null; this.alarmeHoje = null; this.energiaHoje = false; this.ultimoEvento = undefined; this.diasCalmos = 0;
     this.emTarefa = false;
     this.vista = 'chao';
     this.u = this.alvo = U_INICIAL;
@@ -126,6 +186,7 @@ class Sessao {
     this.transicao = null;
     this.pendente = null;
     this.pulou = false;
+    this.partida = null;
   }
 
   // Where each view sits on the zoom scale (depends on the screen size).
@@ -156,7 +217,7 @@ class Sessao {
 
   // Wheel / pinch: d e-folds (positive = out) around a screen point.
   zoom(d: number, ancora: { x: number; y: number } | null = null) {
-    if (this.voo || this.transicao || this.emTarefa || configuracoesAbertas) return;
+    if (this.partida || this.voo || this.transicao || this.emTarefa || configuracoesAbertas) return;
     if (this.vista === 'chao') {
       const borda = Math.max(U_CHAO, this.uFilme);
       const novo = this.alvo + d;
@@ -173,6 +234,14 @@ class Sessao {
 
   // Plays the whole flight to another view; input waits until it lands.
   voar(destino: Vista) {
+    // Mars has no globe or film in Espaco: its zoom out is MarteVista (the Mars film, live globe
+    // and solar system), opened by Interface.
+    if (this.mundo === 'marte' && destino !== 'chao') { this.empurrao = 0; this.emitir('zoomMarte'); return; }
+    if (this.mundo === 'nave' && destino !== 'chao') {
+      this.empurrao = 0;
+      this.emitir('mensagem', 'You are inside the ship, on the way to Mars. Look out of the portholes: only stars, for months.', '#93c5fd');
+      return;
+    }
     if (configuracoesAbertas || this.transicao) return;
     this.empurrao = 0;
     if (destino === this.vista) return;
@@ -201,7 +270,7 @@ class Sessao {
   }
 
   irPara(u: number) {
-    if (configuracoesAbertas || this.transicao) return;
+    if (this.partida || configuracoesAbertas || this.transicao) return;
     if (this.vista !== 'chao') { this.voar('chao'); return; }
     this.alvo = u;
     this.ancora = null;
@@ -237,6 +306,8 @@ class Sessao {
       if (v.tipo === 'filme' && v.fase === 'prep') { v.fase = 'filme'; v.t = 0; v.dur = DURACAO_FILME; return; }
       this.vista = v.destino;
       this.u = this.alvo = v.tipo === 'zoom' ? v.para : v.destino === 'lua' ? this.uGlobo : this.uFilme;
+      // Back on the ground the film leaves the camera at its widest; glide in to the usual view.
+      if (this.vista === 'chao') this.alvo = U_INICIAL;
       this.voo = null;
       const proximo = this.pendente;
       this.pendente = null;
@@ -253,7 +324,8 @@ class Sessao {
   }
 
   get dia() {
-    const dia = lua.dias[Math.min(this.estado.dia, lua.dias.length) - 1];
+    const dias = this.cap.dados.dias;
+    const dia = dias[Math.min(this.estado.dia, dias.length) - 1];
     return this.nivelTeste === null ? dia : { ...dia, nivel: this.nivelTeste };
   }
 
@@ -264,11 +336,20 @@ class Sessao {
 
   novoDia() {
     this.nivelTeste = null;
-    this.tempestade.iniciar(this.dia.nivel);
+    this.tempestade.iniciar(this.mundo === 'lua' ? this.dia.nivel : 0);
     this.entregas = nenhuma();
     this.carregando = 0;
-    this.noHabitat = bateriasDoDia(this.estado, C);
+    this.noHabitat = bateriasDoDia(this.estado, this.C);
     this.tarefasHoje.clear();
+    // Maybe something breaks today; it happens a little while after the morning.
+    this.evento = null;
+    this.energiaHoje = false;
+    // Events and alarms are the Moon's (real May 2024 space weather, the lunar base modules).
+    const lua = this.mundo === 'lua';
+    this.alarmeHoje = lua ? alarmeDoDia(this.estado.dia) ?? null : null;
+    const hoje = lua && (!!this.alarmeHoje || haEventoHoje(this.estado.dia, this.diasCalmos));
+    this.eventoEm = this.alarmeHoje ? esperaDoAlarme() : hoje ? esperaDoEvento() : null;
+    if (!hoje) this.diasCalmos++;
   }
 
   emitir<K extends keyof Eventos>(nome: K, ...args: Eventos[K]) {
@@ -294,7 +375,7 @@ export const COR = {
 };
 
 export const fonte = (tamanho: number, cor = COR.texto, extra: Phaser.Types.GameObjects.Text.TextStyle = {}): Phaser.Types.GameObjects.Text.TextStyle => ({
-  fontFamily: 'system-ui, "Segoe UI", sans-serif',
+  fontFamily: '"Fredoka", system-ui, "Segoe UI", sans-serif',   // the rounded font of the title screen and tasks
   fontSize: `${Math.round(tamanho)}px`,
   color: cor,
   resolution: window.devicePixelRatio || 1,

@@ -69,7 +69,7 @@ export const CAPITULOS: Capitulo[] = [
     ],
     introducao: [
       `Build a rocket to fly to Mars. Launch is on day ${LUA.dias}.`,
-      `Every morning you get ${LUA.bateriasPorDia} batteries. Pick them up at the Habitat, then carry them to the rooms. Click a building or press E nearby.`,
+      `Every morning you get ${LUA.bateriasPorDia} batteries. Pick them up at the Battery Bank, then carry them to the rooms. Click a building or press E nearby.`,
     ],
     vitoria: ['Launch! The rocket is on its way to Mars.', 'Your crew made it through a real solar storm and launched on time.'],
     metaIncompleta: 'Launch day came and the rocket was not finished. The launch window closed.',

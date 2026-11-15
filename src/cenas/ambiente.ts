@@ -2,9 +2,8 @@
 // Grounded footprints and ballistic lunar dust. Building illumination is rendered in Blender.
 import Phaser from 'phaser';
 import paletaLua from '../dados/paleta_lua.json';
-const COR_IMPRESSAO=Number.parseInt(paletaLua.sombraSolo.slice(1),16);
-const COR_POEIRA=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
-const COR_SULCO=Number.parseInt(String(paletaLua.solo[0][1]).slice(1),16);
+import paletaMarte from '../dados/paleta_marte.json';
+const cor=(h: string)=>Number.parseInt(h.slice(1),16);
 import { paraTela, type Projecao } from '../engine/iso';
 import type { Corpo } from '../engine/fisica';
 import type { Rover } from '../engine/rover';
@@ -33,7 +32,27 @@ export class Ambiente {
   private ultimaAtualizacaoPegadas = 0;
   private ultimoRastro: {x: number; y: number; angulo: number} | null = null;
 
-  constructor(private cena: Phaser.Scene, private mapa: Phaser.GameObjects.Layer, private p: Projecao, private terreno: Terreno) {
+  // Mars: rust-colored prints and dust, shorter steps, and dust that hangs in the thin air and
+  // drifts with the wind instead of falling straight back as on the airless Moon.
+  private readonly corImpressao: number;
+  private readonly corPoeira: number;
+  private readonly corSulco: number;
+  private readonly passoTiles: number;
+  private readonly gPoeiraTiles: number;
+  private readonly vidaPoeira: number;
+  private readonly vento: number;
+
+  private readonly metal: boolean;              // the ship's deck: no prints, no dust
+
+  constructor(private cena: Phaser.Scene, private mapa: Phaser.GameObjects.Layer, private p: Projecao, private terreno: Terreno, mundo: 'lua' | 'marte' | 'nave' = 'lua') {
+    const marte = mundo === 'marte';
+    this.metal = mundo === 'nave';
+    const pal = marte ? paletaMarte : paletaLua;
+    this.corImpressao = cor(pal.sombraSolo); this.corPoeira = cor(String(pal.solo[2][1])); this.corSulco = cor(String(pal.solo[0][1]));
+    this.passoTiles = marte ? 0.26 : 0.32;
+    this.gPoeiraTiles = marte ? 0.12 : 0.23;     // tiles/s2 for the grains: the air holds Mars dust up
+    this.vidaPoeira = marte ? 1.3 : 0.55;
+    this.vento = marte ? 0.12 : 0;
     this.gPegadas=cena.add.graphics().setDepth(-800_000);
     this.gPoeira=cena.add.graphics().setDepth(-600_000);
     mapa.add([this.gPegadas,this.gPoeira]);
@@ -64,11 +83,11 @@ export class Ambiente {
     if(!video.efeitos || reduzido) {this.graos=[];return;}
     this.graos=this.graos.filter(gr=>{
       gr.t+=elapsed;
-      const z=gr.z+gr.vz*gr.t-0.23*gr.t*gr.t;
-      const x=gr.x+gr.vx*gr.t,y=gr.y+gr.vy*gr.t;
-      if(gr.t>0.55 || z<this.terreno.altura(x,y))return false;
+      const z=Math.max(gr.z+gr.vz*gr.t-this.gPoeiraTiles*gr.t*gr.t, this.vento ? this.terreno.altura(gr.x,gr.y)+0.01 : -Infinity);
+      const x=gr.x+gr.vx*gr.t+this.vento*gr.t,y=gr.y+gr.vy*gr.t-this.vento*0.5*gr.t;
+      if(gr.t>this.vidaPoeira || z<this.terreno.altura(x,y))return false;
       const pos=paraTela(this.p,x,y,z);
-      this.gPoeira.fillStyle(COR_POEIRA,0.55*(1-gr.t/0.55)).fillCircle(pos.x,pos.y,0.9);
+      this.gPoeira.fillStyle(this.corPoeira,0.55*(1-gr.t/this.vidaPoeira)).fillCircle(pos.x,pos.y,this.vento ? 1.2 : 0.9);
       return true;
     });
   }
@@ -122,10 +141,10 @@ export class Ambiente {
     const soil=k.noChao && Math.abs(k.z-this.terreno.altura(k.x,k.y))<0.08 &&
       !construcoes.some(c=>k.x>=c.gx && k.x<=c.gx+c.tipo.w && k.y>=c.gy && k.y<=c.gy+c.tipo.h);
     if(!soil || dist>1 || dist<0.0001) {this.distancia=0;return;}
-    if(!video.pegadas)return;
+    if(!video.pegadas || this.metal)return;
     this.distancia+=dist;
-    if(this.distancia<0.32)return;
-    this.distancia%=0.32;
+    if(this.distancia<this.passoTiles)return;
+    this.distancia%=this.passoTiles;
     this.lado*=-1;
     const ux=dx/dist,uy=dy/dist;
     const x=k.x-uy*0.10*this.lado,y=k.y+ux*0.10*this.lado;
@@ -158,13 +177,13 @@ export class Ambiente {
   private desenharMarca(g: Phaser.GameObjects.Graphics, m: Marca, alpha: number) {
     const o=m.contorno;
     if (m.pneu) {
-      g.fillStyle(COR_IMPRESSAO,0.30*alpha).fillPoints(o,true);
-      g.lineStyle(0.7,COR_POEIRA,0.40*alpha).lineBetween(o[0].x,o[0].y,o[3].x,o[3].y);
-      for (const [a,b] of m.riscos) g.lineStyle(0.85,COR_SULCO,0.65*alpha).lineBetween(a.x,a.y,b.x,b.y);
+      g.fillStyle(this.corImpressao,0.30*alpha).fillPoints(o,true);
+      g.lineStyle(0.7,this.corPoeira,0.40*alpha).lineBetween(o[0].x,o[0].y,o[3].x,o[3].y);
+      for (const [a,b] of m.riscos) g.lineStyle(0.85,this.corSulco,0.65*alpha).lineBetween(a.x,a.y,b.x,b.y);
       return;
     }
-    g.fillStyle(COR_IMPRESSAO,0.40*alpha).fillPoints(o,true);
-    g.lineStyle(0.8,COR_POEIRA,0.5*alpha).lineBetween(o[4].x,o[4].y,o[5].x,o[5].y);
-    for(const [a,b] of m.riscos) g.lineStyle(0.7,COR_SULCO,0.65*alpha).lineBetween(a.x,a.y,b.x,b.y);
+    g.fillStyle(this.corImpressao,0.40*alpha).fillPoints(o,true);
+    g.lineStyle(0.8,this.corPoeira,0.5*alpha).lineBetween(o[4].x,o[4].y,o[5].x,o[5].y);
+    for(const [a,b] of m.riscos) g.lineStyle(0.7,this.corSulco,0.65*alpha).lineBetween(a.x,a.y,b.x,b.y);
   }
 }

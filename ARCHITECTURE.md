@@ -34,6 +34,7 @@ test**. Scenes only read input, call the engine and draw.
 | `src/engine/iso.ts` | Map coordinates ↔ screen pixels (and back, onto the ground under the cursor). |
 | `src/engine/terreno.ts` | Real heights and slopes of the map. |
 | `src/engine/fisica.ts` | Lunar gravity, jumping, falling, collision with modules, slope limits. |
+| `src/engine/rover.ts` | Ground vehicle movement, collision and slope limits, parking, and safe disembarking. |
 | `src/engine/construcao.ts` | Module types, the occupancy grid, where things fit (free, flat), the default base layout. |
 | `src/engine/suprimentos.ts` | Equipment unlocked during the chapter (by day) and the cargo lander's braking burn. |
 | `src/engine/astro.ts` | Sun, planets and Moon positions for a date (NASA JPL orbital elements). |
@@ -42,6 +43,12 @@ test**. Scenes only read input, call the engine and draw.
 | `src/cenas/Espaco.ts` | Sky, constellation tracing, Moon view, solar system. |
 | `src/cenas/Superficie.ts` | The map, modules (Blender pictures), the commander, cargo; the ground camera. |
 | `src/cenas/Interface.ts` | HUD bars, build bar, zoom buttons, morning / night / end panels. |
+| `src/cenas/tempestadeSolar.ts` | Extreme Moon storm countdown, protection states, and impact damage. |
+| `src/cenas/desenharRover.ts` | Apollo LRV rendering, seated legs, and foreground layers around the original astronaut sprite. |
+| `src/cenas/CuriosidadeRover.ts` | First-boarding fact card; pauses the world and storm while reading. |
+| `src/cenas/ambiente.ts` | Astronaut footprints, rover tire tracks, and surface dust for each world. |
+| `src/dados/roverApollo.ts` | Short English Apollo LRV facts and their source. |
+| `public/icons/` | HUD resource and warning images, mapped in `src/dados/icones.ts`. |
 | `src/cenas/desenho.ts` | Code-drawn extras: foundations on slopes, the commander's shadow and batteries, cargo. |
 | `src/cenas/globo.ts` | Globe math for the Moon view (spin on a date, base pin, Sun over the base). |
 | `src/cenas/luaShader.ts` | The Moon drawn live by the GPU (toon shading, relief, outline). |
@@ -354,3 +361,91 @@ sets with `make_flight.py -- --frames 120 --w 1280 --h 720 --nome voo` and
 `--destino /path/to/staging` writes flight images and metadata under that root, so a complete set
 can be checked before replacing the live assets. NASA source imagery and DEM windows are cached
 locally; sky and constellation imagery are unaffected by the surface palette.
+
+
+## The trip to Mars (between chapters)
+
+`Viagem` (src/cenas/Viagem.ts) is a short animation scene drawn on top of everything:
+
+1. **Liftoff**, end of chapter 1, "Board the ship": `Superficie.decolar` swaps the pad picture for an
+   empty pad and flies the rocket (`public/lua/viagem/foguete.png`) on its engine against lunar
+   gravity (acceleration grows as propellant burns), with dust and a flickering flame; the camera
+   follows. Then `sessao.partir` plays the departure on the game's own zoom out (Espaco draws it;
+   wheel and zoom buttons wait): the film from the base to the Moon with the rocket climbing off
+   the base, then the ship climbs straight off the Moon with its engine on (no stop in orbit: the
+   Moon has no air and weak gravity, so one burn is enough), the zoom goes out to the planets, and
+   the crew continues in chapter 2 (Base prototype).
+2. **Cruise**, the last part of the departure: in the solar system view the date runs along a real
+   Hohmann transfer (`transferencia.ts`): half an ellipse around the Sun, perihelion at Earth and
+   aphelion at Mars, the path that uses the least fuel. Its launch window is found from the same
+   orbital elements as the rest of the game (October 5, 2024, 276 days, arriving July 8, 2025),
+   since the chapters' May 2024 is not one. The path is spaced in time with Kepler's equation, so
+   the ship (`nave_d<k>.png`, 16 headings) keeps its real speed, faster near the Sun. The view
+   keeps the departure day's turn so it does not spin, and constellations wait. `Viagem` keeps a
+   `'partida'` mode with the same cruise as a standalone scene, no longer used by the game.
+3. **Arrival**, chapter 2 "Next chapter" (`'chegada'`): the ship finishes the arc, the wide view fades,
+   Mars grows into a live globe and the ship swings around it and brakes, engine first.
+4. **Landing**, right after the arrival: the camera dives toward Jezero crater (18.4° N, 77.6° E,
+   where Perseverance landed) until the ground of Mars fills the screen, then the descent is seen
+   from the side over the Mars landscape: entry with a glowing heat shield, parachute (the shield
+   drops), rockets for the last part (the backshell and chute fly off), dust, touchdown. Each step
+   says why: Mars has thin air, the Moon has none. Then chapter 3 starts.
+
+**Mars terrain, the Moon's pipeline (plan in docs/plano-marte.md).** `comum.usar_corpo('marte')`
+switches the shared Blender helpers to Mars (radius 3396.19 km, equirectangular grids, Mars
+palette `paleta_marte.json`) and adds readers for the USGS CTX DTM of Jezero (20 m) and the MOLA
+MEGDR tiles (463 m, 3.7 km, read by HTTP range); every source is placed through lat/lon with one
+radius, and CTX and MOLA agree to a few meters. `make_terrain_marte.py` cuts the 64 x 64 map
+(80 m tiles on true ground) near Perseverance's landing site into `terreno_marte.json`, and
+`render_terrain.py -- --corpo marte` draws `public/marte/terrain.png`. `make_flight_marte.py`
+renders the zoom out (map, 18 km of CTX, 64 km and 800 km of MOLA, MOLA globe) into
+`public/marte/voo` and `voo_leve`; its last frame uses the live globe's own map and light bands and
+MarteVista's tilted view, so `MarteVista` plays the film for z 0..1 and swaps to the live globe
+without a jump. The map is not playable yet (Superficie still assumes the Moon); the DEV panel
+shows it ("Mars map preview"), and zooming out of that preview runs the film.
+
+**Chapter 2 on the 3D engine: the ship.** After leaving the Moon, chapter 2 runs on the same
+engine on the ship's deck (`sessao.usarMundo('nave')`, `irParaMarte.ts`). `make_nave.py` loads the
+team's module helpers from `make_modules.py` (same toon material, outline and map camera, nothing
+of theirs rendered) and renders: the hull as one smooth oval shell (tapered nose with the
+windshield, rounded tail with the engines, solar wings), in two pictures with the same framing,
+cut away (`nave/terrain.png`: roof and near side removed above a continuous metal deck with a
+central corridor) and closed (`nave/terrain_teto.png`, faded in by Superficie as you zoom out);
+`terreno_nave.json` makes the deck flat and the hull a wall. The rooms are the chapter's: the
+Battery Bank is the Power Room (where batteries charge, `estacaoSolar.ts`), the team's air
+recycler and water-wall shelter, and an engine room (`nave_motores`); the props are bunks, galley,
+treadmill, Veggie plant rack, cargo bags, water tanks, medical kit and cockpit. Magnetic boots:
+walking feels like Earth. At the end of the chapter the ship arrives and lands (Viagem), then
+chapter 3.
+
+**Chapter 3 on the 3D engine.** After chapter 2 (Base prototype) the ship arrives and lands
+(Viagem), then `irParaMarte.ts` switches the world and restarts Espaco, Superficie and Interface
+on Mars: `sessao.usarMundo('marte')` swaps the terrain (in place: scenes hold references to
+`dadosTerreno` and its projection), the base layout (`BASE_MARTE`: the lander plays the Habitat,
+four construction sites) and gravity (`fisica.definirGravidade`, 3.71 m/s2); `sessao.comecarCapitulo(2)`
+runs chapter 3's rules (`regras.ts` with `obras`: batteries build a room first, then power it).
+Superficie shows unfinished rooms as ghosts with their build count; Interface adds the night cold
+and heating; Espaco shows only the Mars sky, and zooming out past the ground opens MarteVista
+(`sessao.voar` emits `zoomMarte`). The Moon path is unchanged.
+
+**Mars in chapter 3.** `marte.ts` holds the landing site, Mars facts and the toon landscape
+(butterscotch sky in flat bands, a small Sun with a pale halo, the crater rim, rocks), drawn behind
+the chapter 3 base by `Base.desenharCeu` and during the landing. `MarteVista` is the zoom out from
+the Mars base (mouse wheel or "Mars from space"; Base pauses under it): the live globe with the base
+pin on Jezero and Phobos and Deimos on their real periods, then the inner solar system on the
+chapter date with Mars where it is and the radio delay to Earth. The Mars map has longitude 0 in the
+middle (checked against Syrtis Major, dark, and Hellas, bright); `giroOlhando` and `pontoNoPlaneta`
+in `planetaShader.ts` turn a place toward the camera and find it on screen. The solar system view
+of chapter 1 (`Espaco`) also draws Mars live with this shader.
+
+With reduced motion, liftoff is skipped and the scene runs three times faster.
+
+**Planets drawn live.** `planetaShader.ts` is the Moon shader without relief, for any planet map:
+toon light bands and outline from `paleta_lua.json`, the Sun direction given on screen, and an
+optional haze on the lit edge (Earth blue, Mars dust). Maps: `make_planet_textures.py` reduces each
+NASA map to a few flat colors (Mars saturation pushed toward rust; the Viking mosaic is pale).
+
+**Models.** `make_ship.py` renders the transfer ship (habitat with window band and mission
+stripe, docking nose, truss, two propellant tanks, engine, solar wings, radiators) from the tilted
+solar-system camera, and the rocket alone from the map's camera. `make_sun.py` renders the Sun
+(granulation bands, darker limb, soft rays). All use the shared palette through `comum.py`.
