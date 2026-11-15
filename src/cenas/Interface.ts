@@ -206,7 +206,7 @@ export class Interface extends Phaser.Scene {
         this.ultimoDia = undefined;
         this.scene.get('Espaco').scene.restart();
         this.scene.get('Superficie').scene.restart();
-        this.irPara('manha');
+        // The title screen now plays the countdown and the flight, then calls aoComecar (the first morning).
       },
       aoComecar: () => { if (sessao.fase === 'inicio') this.irPara('manha'); else retomar(); },
       aoExplorar: retomar,
