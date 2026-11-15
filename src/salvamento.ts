@@ -7,16 +7,16 @@ import type { Fase, Mundo, RelatorioDia } from './cenas/sessao';
 
 const CHAVE = 'lunar-odyssey-save-v1';
 export type DadosPartida = {
-  versao: 1; salvoEm: number; mundo: Mundo; capIdx: number; fase: Fase;
+  versao: 1; salvoEm: number; layout?: string; mundo: Mundo; capIdx: number; fase: Fase;
   estado: Estado; entregas: Alocacao; pontos: number[]; carregando: number; noHabitat: number;
   tarefasHoje: Efeito[]; ultimaTarefa: Partial<Record<Efeito,string>>; energiaHoje: boolean;
-  curiosidadeRoverVista: boolean; diaCargaRover: number | null; rover: Rover | null; astronauta: Corpo | null;
+  curiosidadeRoverVista: boolean; curiosidadeRoverMarteVista?: boolean; diaCargaRover: number | null; rover: Rover | null; astronauta: Corpo | null;
   modulos: {id: number; tipo: TipoId; gx: number; gy: number; rotacao?: number}[]; decoracao: DecoColocada[];
   tempestade: {restante: number; status: 'inativa' | 'alerta' | 'protegida' | 'atingida'};
   danoTempestade: number; bateriasTempestade: number;
   desfechoPendente: {tipo: 'protegida' | 'atingida'; baterias: number} | null;
   ultimoDia: RelatorioDia | null; evento: {id: string; construcaoId: number} | null;
-  eventoEm: number | null; ultimoEvento?: string; diasCalmos: number; pulou: boolean;
+  eventoEm: number | null; ultimoEvento?: string; diasCalmos: number; tempoCalmo?: number; pulou: boolean;
 };
 const objeto = (v: unknown): v is Record<string,unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const numero = (v: unknown, min = 0, max = 100) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
@@ -47,7 +47,7 @@ function valido(v: unknown): v is DadosPartida {
   if (v.fase==='noite' && (!objeto(v.ultimoDia) || !objeto(v.ultimoDia.antes) || !objeto(v.ultimoDia.entregas) || typeof v.ultimoDia.fato!=='string')) return false;
   return numero(v.danoTempestade) && numero(v.bateriasTempestade,0,100)
     && (v.diaCargaRover===null || numero(v.diaCargaRover,1,9))
-    && (v.eventoEm===null || numero(v.eventoEm,0,3600)) && numero(v.diasCalmos,0,100);
+    && (v.eventoEm===null || numero(v.eventoEm,0,3600)) && numero(v.diasCalmos,0,100) && (v.tempoCalmo===undefined || numero(v.tempoCalmo,0,1e6));
 }
 export function lerPartida(): DadosPartida | null {
   try { const v: unknown = JSON.parse(localStorage.getItem(CHAVE) ?? 'null'); return valido(v) ? v : null; }

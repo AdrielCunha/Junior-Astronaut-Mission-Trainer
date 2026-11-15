@@ -16,7 +16,7 @@ const POS: Record<string, { x: number; y: number; nome: string }> = {
   tubulacao: { x: 0, y: -100, nome: '2  Piping' },
   gerador: { x: 235, y: -100, nome: '3  Generator' },
 };
-const INSTRUCAO = 'Switch them on in number order: start with the pump.';
+const INSTRUCAO = 'Switch on in order: 1, 2, 3...';
 
 type Icone = (c: CanvasRenderingContext2D, lig: boolean) => void;
 
@@ -208,7 +208,7 @@ export class ReatorTarefa extends Phaser.Scene {
       const bloco = this.add.container(0, 0, [
         faixa,
         texto(this, 0, -22, 'Reactor on!', 38, '#ffffff', 0x1e293b),
-        texto(this, 0, 26, 'On the Moon, night lasts about 14 days, so power has to be stored.', 14, '#dcfce7', 0x1e293b),
+        texto(this, 0, 26, 'A Moon night lasts 14 days. Save power!', 14, '#dcfce7', 0x1e293b),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
       this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });

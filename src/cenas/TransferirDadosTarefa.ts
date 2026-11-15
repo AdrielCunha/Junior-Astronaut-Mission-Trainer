@@ -12,7 +12,7 @@ import { tocarSfx } from '../sfx';
 const QUADRO_W = 704;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
 const FOLGA = (QUADRO_H - 456) / 2;   // the frame is taller than the layout was drawn for: centre the content
-const INSTRUCAO = 'Drag to aim the antenna at Earth and hold the signal.';
+const INSTRUCAO = 'Aim the antenna at Earth and hold.';
 const CORES = [['#fdba74', '#f97316', '#c2410c'], ['#93c5fd', '#3b82f6', '#1d4ed8'], ['#f9a8d4', '#ec4899', '#be185d'], ['#bef264', '#84cc16', '#4d7c0f']];
 const LETRAS = ['A', 'B', 'C', 'D'];
 const ANG_MIN = -1.5, ANG_MAX = 0.25;
@@ -212,7 +212,7 @@ export class TransferirDadosTarefa extends Phaser.Scene {
       const bloco = this.add.container(estado.largura / 2, estado.altura / 2 - 20, [
         faixa,
         texto(this, 0, -16, 'Data sent!', 38, '#ffffff', 0x14532d),
-        texto(this, 0, 28, 'Radio waves carry messages from the ship to Earth.', 15, '#dcfce7', 0x14532d),
+        texto(this, 0, 28, 'Radio waves carry our messages to Earth!', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
       this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 1100, ease: 'Back.easeOut' });

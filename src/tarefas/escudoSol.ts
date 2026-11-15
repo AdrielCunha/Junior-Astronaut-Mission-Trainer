@@ -23,8 +23,8 @@ export const escudoSol: Tarefa = {
   id: 'escudo-sol',
   sala: 'blindagem',
   titulo: 'Radiation Shield · Storm Guard',
-  instrucao: 'A solar storm is coming! Turn the shield to face the Sun.',
-  fato: 'In a solar storm the Sun throws out fast particles. Astronauts shelter behind thick walls or water tanks, which block most of them.',
+  instrucao: 'Storm! Turn the shield to face the Sun.',
+  fato: 'Thick walls and water block most storm particles!',
 
   montar(cena, { x, y, w, h, u }, feito) {
     const alturaBarra = 34 * u;
