@@ -4,7 +4,6 @@
 import Phaser from 'phaser';
 import { abrirVideo, configuracoesAbertas, movimentoReduzido } from '../video';
 import { alternarEfeitos, efeitosEstaoMudos } from '../sfx';
-import lua from '../dados/lua.json';
 import { CAPITULOS } from '../capitulos';
 import { calcularLayoutHud } from './layoutHud';
 import { PreferenciaDicas } from './dicasControles';
@@ -18,7 +17,8 @@ import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndica
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 const NIVEIS = ['CALM', 'RISING', 'HIGH', 'EXTREME'];
 const CORES_NIVEL = ['#4ade80', '#facc15', '#fb923c', '#f87171'];
-const C = CAPITULOS[0].config;
+// The rules of the chapter being played (the Moon, or Mars on the same engine).
+const C_ = () => sessao.C;
 
 export class Interface extends Phaser.Scene {
   private u = 1;
@@ -122,6 +122,7 @@ export class Interface extends Phaser.Scene {
     sessao.ouvir(this, 'mensagem', (s, cor) => this.mensagem(s, cor));
     sessao.ouvir(this, 'desbloqueado', () => this.atualizar());
     sessao.ouvir(this, 'estado', () => this.atualizar());
+    sessao.ouvir(this, 'zoomMarte', () => this.zoomMarte());
 
     this.atualizar();
     this.mostrarFase();
@@ -150,7 +151,9 @@ export class Interface extends Phaser.Scene {
     const pad = px(8);
     this.tituloHud = criarTituloHud(this, l.titulo, u);
     this.textos.dia = this.tituloHud.data;
-    const descricoes: [string, string, number][] = [['\u{1f4a8}', 'Oxygen', 0x4ade80], ['\u2622', 'Radiation', 0xfde047], ['\u{1f680}', 'Rocket', 0x60a5fa]];
+    const marte = sessao.mundo === 'marte';
+    const descricoes: [string, string, number][] = [['\u{1f4a8}', 'Oxygen', 0x4ade80], ['\u2622', 'Radiation', 0xfde047],
+      [marte ? '\u{1f3d7}' : '\u{1f680}', sessao.cap.nomeMeta, 0x60a5fa]];
     this.recursos = l.recursos.map((r, i) => criarIndicador(this, r, u, ...descricoes[i]));
     this.musica = criarBotaoMusica(this, l.musica, u, estaMudo(), () => this.atualizarSom(alternarMudo()));
     this.btSom = this.musica.caixa.setDepth(10);
@@ -160,7 +163,10 @@ export class Interface extends Phaser.Scene {
     const video = criarBotaoPilula(this, l.video, u, 'Video & comfort', () => abrirVideo());
     this.btVideo = video.caixa.setDepth(10);
     video.texto.setFontSize(px(12));
-    this.capsula = criarCapsulaRecursos(this, l.capsula, u);
+    this.capsula = criarCapsulaRecursos(this, l.capsula, u, marte ? {
+      nomes: ['Batteries at the lander', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Heating: batteries delivered today'],
+      icones: ['\u{1f50b}', '\u270b', '\u2764\ufe0f', '\u{1f6e1}', '\u{1f525}'],
+    } : undefined);
     const o = l.objetivo;
     this.objetivo = criarPilula(this, o.x, o.y, o.w, o.h, u, 0xffd93b);
     const estrela = this.add.text(pad, Math.round(o.h / 2), '\u2605', letra(px(18), '#0b1a4a')).setOrigin(0, 0.5);
@@ -180,19 +186,21 @@ export class Interface extends Phaser.Scene {
   // ---------- HUD ----------
   private atualizar() {
     const e = sessao.estado;
+    const marte = sessao.mundo === 'marte';
     this.textos.dia.setText(sessao.fase === 'inicio'
-      ? `Exploring \u00b7 Shackleton rim`
-      : `Day ${Math.min(e.dia, C.dias)} of ${C.dias} \u00b7 ${dataBonita(sessao.data)}`);
+      ? `Exploring \u00b7 ${marte ? 'Jezero crater' : 'Shackleton rim'}`
+      : `${marte ? 'Mars \u00b7 ' : ''}Day ${Math.min(e.dia, C_().dias)} of ${C_().dias} \u00b7 ${dataBonita(sessao.data)}`);
     this.tituloHud.atualizar(this.textos.dia.text);
     const valores = [e.oxigenio, e.dose, e.meta];
     this.recursos.forEach((r, i) => { r.caixa.setVisible(sessao.fase !== 'inicio'); r.atualizar(valores[i]); });
     const d = sessao.entregas;
-    const contadores = [sessao.noHabitat, sessao.carregando, d.oxigenio, d.blindagem, d.meta];
+    // On Mars the last counter is the heating (the dome is built through construction, not powered).
+    const contadores = [sessao.noHabitat, sessao.carregando, d.oxigenio, d.blindagem, marte ? d.aquecimento : d.meta];
     this.capsula.caixa.setVisible(sessao.fase === 'dia');
     this.capsula.atualizar(contadores);
     this.objetivo.setVisible(sessao.fase === 'dia');
     this.textos.tarefa.setText(sessao.noHabitat
-      ? "Walk to the Habitat to pick up today's batteries."
+      ? `Walk to the ${marte ? 'Lander' : 'Habitat'} to pick up today's batteries.`
       : sessao.carregando ? 'Click a room (or press E next to it) to give it a battery.' : 'All batteries used. Press "End day".');
 
     this.textos.tarefa.setScale(1);
@@ -227,15 +235,17 @@ export class Interface extends Phaser.Scene {
     if (sessao.fase === 'inicio') { this.mostrarFase(); return; }
     if (sessao.fase !== 'dia') return;
     const antes = sessao.estado;
-    sessao.estado = fimDoDia(antes, sessao.entregas, { nivel: sessao.dia.nivel }, C);
-    this.ultimoDia = { antes, entregas: { ...sessao.entregas }, nivel: sessao.dia.nivel, fato: sessao.dia.fato };
+    // The day that just ended: read it before fimDoDia moves the state on to the next one.
+    const dia = sessao.dia;
+    sessao.estado = fimDoDia(antes, sessao.entregas, { nivel: dia.nivel, frio: dia.frio }, C_());
+    this.ultimoDia = { antes, entregas: { ...sessao.entregas }, nivel: dia.nivel, fato: dia.fato, frio: dia.frio ?? 0 };
     sessao.carregando = 0;
     sessao.noHabitat = 0;
     sessao.emitir('estado');
     this.irPara('noite');
   }
 
-  private ultimoDia?: { antes: Estado; entregas: typeof sessao.entregas; nivel: number; fato: string };
+  private ultimoDia?: { antes: Estado; entregas: typeof sessao.entregas; nivel: number; fato: string; frio: number };
 
   private mostrarFase() {
     this.fecharPainel();
@@ -250,14 +260,19 @@ export class Interface extends Phaser.Scene {
       this.scene.launch('Radar', dados);
     } else if (f === 'manha') {
       const d = sessao.dia;
-      const n = bateriasDoDia(sessao.estado, C);
+      const n = bateriasDoDia(sessao.estado, C_());
       const enf = naEnfermaria(sessao.estado);
-      const sup = suprimentoDoDia(sessao.estado.dia);
-      this.abrirPainel(`Day ${sessao.estado.dia} · ${dataBonita(sessao.data)}`, [
+      const marte = sessao.mundo === 'marte';
+      const sup = marte ? undefined : suprimentoDoDia(sessao.estado.dia);
+      const intro = marte && sessao.estado.dia === 1 ? sessao.cap.introducao.map((t) => ({ texto: t, cor: '#fde68a' })) : [];
+      const frio = marte && d.frio ? [{ texto: `Tonight: ${d.minima ?? ''} °C. Heating needs ${d.frio} batteries, or the cold machines lose ${d.frio * 10} oxygen.`, cor: '#93c5fd', negrito: true }] : [];
+      this.abrirPainel(`${marte ? 'Mars · ' : ''}Day ${sessao.estado.dia} · ${dataBonita(sessao.data)}`, [
+        ...intro,
         { texto: 'Mission Control', cor: '#93c5fd', negrito: true },
         d.aviso,
         { texto: `Radiation today: ${NIVEIS[d.nivel]}${d.nivel ? ` · the shield needs ${d.nivel} batteries` : ''}`, cor: CORES_NIVEL[d.nivel], negrito: true },
         { texto: `Batteries today: ${n}${enf ? ` (${enf} astronaut${enf > 1 ? 's' : ''} in the infirmary)` : ''}`, cor: '#86efac', negrito: true },
+        ...frio,
         ...(sup ? [{ texto: `Supply drop: ${sup.aviso}`, cor: '#fde68a', negrito: true }] : []),
       ], [{ texto: 'Go!', acao: () => {
         sessao.novoDia(); this.irPara('dia');
@@ -268,26 +283,50 @@ export class Interface extends Phaser.Scene {
       const e = sessao.estado;
       const delta = (a: number, b: number) => `${b - a >= 0 ? '+' : ''}${Math.round(b - a)}`;
       const desprotegido = Math.max(0, u.nivel - u.entregas.blindagem);
-      const r = resultado(e, C);
+      const r = resultado(e, C_());
       this.abrirPainel('Night report', [
-        `Oxygen ${Math.round(e.oxigenio)}% (${delta(u.antes.oxigenio, e.oxigenio)}): ${u.entregas.oxigenio} batteries made oxygen, the crew breathed ${C.oxigenioPorNoite}.`,
+        `Oxygen ${Math.round(e.oxigenio)}% (${delta(u.antes.oxigenio, e.oxigenio)}): ${u.entregas.oxigenio} batteries made oxygen, the crew breathed ${C_().oxigenioPorNoite}.`,
         `Radiation dose ${Math.round(e.dose)}% (${delta(u.antes.dose, e.dose)})${desprotegido ? `: the shield was ${desprotegido} batteries short of the storm.` : ': the shield held.'}`,
-        `Rocket ${Math.round(e.meta)}% (${delta(u.antes.meta, e.meta)}).`,
+        ...(u.frio ? [`Heating: ${u.entregas.aquecimento} of ${u.frio} batteries${u.entregas.aquecimento < u.frio ? `: the cold cost ${(u.frio - u.entregas.aquecimento) * 10} oxygen.` : ': the machines stayed warm.'}`] : []),
+        `${sessao.cap.nomeMeta} ${Math.round(e.meta)}% (${delta(u.antes.meta, e.meta)}).`,
         { texto: u.fato, cor: '#86efac' },
       ], [{ texto: r ? 'See the result' : 'Next morning', acao: () => this.irPara(r ? 'fim' : 'manha'), principal: true }]);
     } else if (f === 'fim') {
       const e = sessao.estado;
-      const r = resultado(e, C);
-      const titulo = r === 'vitoria' ? 'Launch! To Mars!' : r === 'sem-oxigenio' ? 'Out of oxygen' : r === 'radiacao' ? 'Too much radiation' : 'The rocket was not ready';
+      const r = resultado(e, C_());
+      const marte = sessao.mundo === 'marte';
+      const titulo = r === 'vitoria' ? (marte ? 'Mission complete!' : 'Launch! To Mars!') : r === 'sem-oxigenio' ? 'Out of oxygen' : r === 'radiacao' ? 'Too much radiation'
+        : marte ? 'The base was not finished' : 'The rocket was not ready';
+      if (marte) {
+        const total = [...sessao.pontos, pontuacao(e)].reduce((a, b) => a + (b ?? 0), 0);
+        this.abrirPainel(titulo, [
+          r === 'vitoria' ? sessao.cap.vitoria[0] : sessao.cap.metaIncompleta,
+          ...(r === 'vitoria' ? [sessao.cap.vitoria[1]] : []),
+          `Chapter score: ${pontuacao(e)}  (oxygen ${Math.round(e.oxigenio)} + health ${Math.round(100 - e.dose)} + base ${Math.round(e.meta)})`,
+          ...(r === 'vitoria' ? [{ texto: `Total score: ${total} of ${300 * CAPITULOS.length}`, cor: '#f8fafc', negrito: true }] : []),
+          ...sessao.cap.licoes.map((l) => `• ${l}`),
+          { texto: `Real data: ${sessao.cap.dados.nota}`, cor: '#94a3b8', tamanho: 12 },
+        ], [{ texto: 'Play again from the Moon', acao: () => location.reload(), principal: true }]);
+        return;
+      }
       const jogarDeNovo = { texto: r === 'vitoria' ? 'Play chapter 1 again' : 'Play again', acao: () => { sessao.reiniciar(); this.scene.get('Superficie').scene.restart(); this.irPara('inicio'); } };
       this.abrirPainel(titulo, [
         `Score: ${pontuacao(e)}  (oxygen ${Math.round(e.oxigenio)} + health ${Math.round(100 - e.dose)} + rocket ${Math.round(e.meta)})`,
         'Every battery was a choice. On a real mission, power for one system is power taken from another.',
-        { texto: `Real data: ${lua.nota}`, cor: '#94a3b8', tamanho: 12 },
+        { texto: `Real data: ${sessao.cap.dados.nota}`, cor: '#94a3b8', tamanho: 12 },
       ], r === 'vitoria'
-        ? [jogarDeNovo, { texto: 'Board the ship  ▶', acao: () => this.iniciarPrototipo(e), principal: true }]
+        ? [jogarDeNovo, { texto: 'Board the ship  ▶', acao: () => this.embarcar(e), principal: true }]
         : [{ ...jogarDeNovo, principal: true }]);
     }
+  }
+
+  // The rocket lifts off the pad (Superficie), meets the Mars ship in lunar orbit and the ship
+  // crosses to Mars on the zoom out (sessao.partir, drawn by Espaco), then the
+  // crew continues in chapter 2.
+  private embarcar(e: Estado) {
+    this.fecharPainel();
+    const sup = this.scene.get('Superficie') as unknown as { decolar(fim: () => void): void };
+    sup.decolar(() => sessao.partir(() => this.iniciarPrototipo(e)));
   }
 
   // Chapters 2 and 3 live in the Base prototype, which has its own art (spacecraft, Mars) and
@@ -298,6 +337,15 @@ export class Interface extends Phaser.Scene {
     this.scene.stop('Tarefa');
     this.scene.start('Base', { capitulo: 1, dose: e.dose, pontos: [pontuacao(e)] });
     this.scene.stop();
+  }
+
+  // Mars: zooming out past the ground opens MarteVista (the Mars film, live globe with its
+  // moons, the solar system). The map waits under it, like during a task.
+  private zoomMarte() {
+    if (sessao.emTarefa || this.scene.isActive('MarteVista')) return;
+    sessao.emTarefa = true;
+    this.scene.launch('MarteVista', { data: sessao.data, aoVoltar: () => { sessao.emTarefa = false; sessao.irPara(sessao.u); } });
+    this.scene.bringToTop('MarteVista');
   }
 
   private fecharPainel() {

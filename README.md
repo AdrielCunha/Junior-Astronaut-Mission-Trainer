@@ -34,6 +34,8 @@ The data is downloaded once and stored in the game as archived data. The game do
 | [NASA SVS CGI Moon Kit](https://svs.gsfc.nasa.gov/4720) (LRO LROC color + LOLA) | The whole Moon |
 | [NASA SVS Deep Star Maps 2020](https://svs.gsfc.nasa.gov/4851) (with ESA/Gaia/DPAC) | The star sky and constellation figures, in their real directions |
 | [NASA JPL approximate planet positions](https://ssd.jpl.nasa.gov/planets/approx_pos.html) | Where the Sun, Earth and planets are on each chapter day |
+| [NASA 3D Resources, Mars](https://science.nasa.gov/3d-resources/mars/) (Viking images processed at USGS) | The Mars globe during the trip |
+| [NASA Goddard Blue Marble](https://commons.wikimedia.org/wiki/File:Whole_world_-_land_and_oceans_12000.jpg) (public domain) | The Earth during the trip |
 | [DONKI](https://ccmc.gsfc.nasa.gov/tools/DONKI/) space weather database | Solar flares, coronal mass ejections, particle events and ENLIL model runs that become the morning warnings |
 | [OSDR RadLab](https://visualization.osdr.nasa.gov/radlab/gui/data-api/) radiation dosimetry database | Measured radiation dose that sets each day's storm level: LRO/CRaTER in lunar orbit, BioSentinel in deep space, Curiosity/MSL-RAD on the surface of Mars |
 | [Curiosity REMS weather](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json) | Real night temperatures on Mars, which set how much heating each night needs |
