@@ -23,13 +23,26 @@ test('a flag on a blocked spot moves to the nearest free one', () => {
 
 test('flags count in order, only when driving, and the run ends after the last', () => {
   let e = criarCorridaEntrega({ x: 0, y: 0 }, { x: 24, y: 0, nome: 'Workshop' }, tudoLivre)!;
-  assert.equal(e.pontos.length, BANDEIRAS_CORRIDA);
+  assert.ok(e.pontos.length >= BANDEIRAS_CORRIDA[0] && e.pontos.length <= BANDEIRAS_CORRIDA[1]);
   assert.equal(avancar(e, e.pontos[1].x, e.pontos[1].y, true).passou, false);   // not before the first
   const aPe = avancar(e, e.pontos[0].x, e.pontos[0].y, false);
   assert.ok(!aPe.passou && aPe.aPe);
   for (const p of e.pontos) { const r = avancar(e, p.x, p.y, true); assert.ok(r.passou); e = r.e; }
   assert.ok(terminada(e));
   assert.equal(avancar(e, 0, 0, true).passou, false);
+});
+
+test('runs change: the flag count and the zig-zag vary with the luck', () => {
+  const contagens = new Set<number>(), lados = new Set<number>();
+  for (let i = 0; i < 20; i++) {
+    const v = [i / 20, (i * 0.37) % 1, (i * 0.61) % 1];
+    let k = 0;
+    const e = criarCorridaEntrega({ x: 0, y: 0 }, { x: 30, y: 0, nome: 'X' }, tudoLivre, () => v[k++ % 3])!;
+    contagens.add(e.pontos.length);
+    lados.add(Math.sign(e.pontos[0].y));
+  }
+  assert.ok(contagens.size >= 2);
+  assert.deepEqual([...lados].sort(), [-1, 1]);
 });
 
 test('no run when there is no room for flags; the farthest module is picked', () => {
@@ -65,8 +78,8 @@ test('the lost sample has no arrow until it is picked up, then the way back has 
 
 test('beacons light up in any order, after staying a moment at each', () => {
   let e = criarExploracao('balizas', ctx(), fixa(0.3))!;
-  assert.equal(e.pontos.length, 3);
-  const ordem = [2, 0, 1];
+  assert.ok(e.pontos.length === 3 || e.pontos.length === 4);
+  const ordem = e.pontos.map((_p, i) => e.pontos.length - 1 - i);
   for (const i of ordem) {
     const p = e.pontos[i];
     let r = avancar(e, p.x, p.y, false, 0.8);
@@ -95,10 +108,29 @@ test('the ice spot is a far crater and opens the scanner on arrival', () => {
 
 test('Mars tubes are picked up in order', () => {
   let e = criarExploracao('tubos', ctx(), fixa(0.4))!;
-  assert.equal(e.pontos.length, 3);
+  assert.ok(e.pontos.length === 3 || e.pontos.length === 4);
   assert.equal(avancar(e, e.pontos[2].x, e.pontos[2].y, false).passou, false);
   for (const p of [...e.pontos]) e = avancar(e, p.x, p.y, false).e;
   assert.ok(terminada(e));
+});
+
+test('spots go far out on the map, away from the buildings and from each other', () => {
+  const evitar = [{ x: 32, y: 32 }, { x: 36, y: 30 }, { x: 28, y: 35 }];
+  for (let i = 0; i < 30; i++) {
+    const sorte = (() => { let k = i * 7 + 1; return () => ((k = (k * 9301 + 49297) % 233280) / 233280); })();
+    for (const tipo of ['balizas', 'tubos'] as const) {
+      const e = criarExploracao(tipo, ctx({ evitar }), sorte);
+      assert.ok(e, tipo);
+      for (const p of e!.pontos) {
+        assert.ok(Math.hypot(p.x - 32, p.y - 32) >= 10, `${tipo} too close to the base`);
+        assert.ok(evitar.every((m) => Math.hypot(m.x - p.x, m.y - p.y) >= 6));
+      }
+      const n = e!.pontos.length;
+      for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) assert.ok(Math.hypot(e!.pontos[a].x - e!.pontos[b].x, e!.pontos[a].y - e!.pontos[b].y) >= 12);
+    }
+    const amostra = criarExploracao('amostra', ctx({ evitar }), sorte)!;
+    assert.ok(Math.hypot(amostra.pontos[0].x - 32, amostra.pontos[0].y - 32) >= 12);
+  }
 });
 
 test('spots stay inside the map and nothing is made when there is no free ground', () => {
@@ -111,8 +143,9 @@ test('spots stay inside the map and nothing is made when there is no free ground
 
 test('events come from day 2, by world, and never the same kind twice in a row', () => {
   assert.equal(haExploracaoHoje(1, 'lua', () => 0), false);
-  assert.equal(haExploracaoHoje(2, 'lua', () => 0.59), true);
-  assert.equal(haExploracaoHoje(2, 'lua', () => 0.61), false);
+  assert.equal(haExploracaoHoje(2, 'lua', () => 0.74), true);
+  assert.equal(haExploracaoHoje(2, 'lua', () => 0.76), false);
+  assert.ok(esperaDaExploracao(() => 0.999) <= 8);   // as soon as the day starts
   assert.equal(haExploracaoHoje(5, 'nave', () => 0), false);
   assert.ok(TIPOS_POR_MUNDO.lua.includes(sortearTipo('lua', undefined, () => 0)!));
   for (let i = 0; i < 30; i++) assert.notEqual(sortearTipo('lua', 'balizas', () => i / 30), 'balizas');

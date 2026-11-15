@@ -24,7 +24,7 @@ export type Expedicao = {
 };
 
 export const RAIO_BANDEIRA = 1.6;
-export const BANDEIRAS_CORRIDA = 4;
+export const BANDEIRAS_CORRIDA = [4, 6];   // flags of a run: a random count in this range
 
 export const terminada = (e: Expedicao) => e.atual >= e.pontos.length;
 // The next spot of an ordered expedition.
@@ -106,8 +106,12 @@ export function maisLonge<T extends { x: number; y: number }>(inicio: Ponto, alv
   return melhor;
 }
 
-export function criarCorridaEntrega(inicio: Ponto, destino: Ponto & { nome: string }, livre: (x: number, y: number) => boolean): Expedicao | null {
-  const pontos = tracarRota(inicio, destino, BANDEIRAS_CORRIDA, livre);
+// The number of flags and how much the route zig-zags change every time, so no two runs look the same.
+export function criarCorridaEntrega(inicio: Ponto, destino: Ponto & { nome: string }, livre: (x: number, y: number) => boolean, sorte: () => number = Math.random): Expedicao | null {
+  const [min, max] = BANDEIRAS_CORRIDA;
+  const n = min + Math.floor(sorte() * (max - min + 1));
+  const desvio = (2.5 + sorte() * 3.5) * (sorte() < 0.5 ? -1 : 1);
+  const pontos = tracarRota(inicio, destino, n, livre, desvio);
   if (pontos.length < 2) return null;
   return {
     id: 'corrida', tipo: 'corrida', titulo: 'Delivery run', destino: destino.nome, pontos, atual: 0, feitos: pontos.map(() => false),

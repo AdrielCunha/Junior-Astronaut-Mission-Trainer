@@ -744,8 +744,9 @@ export class Superficie extends Phaser.Scene {
   }
 
   // ---------- expeditions (engine/expedicao.ts, engine/exploracao.ts) ----------
-  // Once a day, getting into the charged rover starts a delivery run: drive through the flags to the module
-  // farthest away. Nothing is won or lost; it is a reason to explore the map.
+  // Once a day, getting into the charged rover starts a delivery run: drive through the flags out to one of
+  // the far props of the map (the old lander, the seismometer...). Nothing is won or lost; it is a reason to
+  // explore the map.
   private iniciarCorrida() {
     const r = sessao.rover;
     if (!r?.dirigindo || sessao.mundo !== 'lua' || sessao.fase !== 'dia' || !sessao.roverCarregado || sessao.corridaHoje || sessao.expedicao) return;
@@ -753,9 +754,13 @@ export class Superficie extends Phaser.Scene {
     const caixas = sessao.grade.caixas();
     const livre = (x: number, y: number) => pontoLivre(sessao.terreno, caixas, x, y, RAIO_ROVER + 0.2);
     const inicio = { x: r.corpo.x, y: r.corpo.y };
-    const alvos = sessao.grade.lista.filter((c) => c.tipo.sala || c.tipo.id === 'plataforma')
+    // The props far from the rover (the farthest few, one at random); the base modules if there are none.
+    const longe = sessao.grade.deco.map((d) => ({ x: d.gx + d.w / 2, y: d.gy + d.h / 2, nome: d.nome }))
+      .filter((d) => Math.hypot(d.x - inicio.x, d.y - inicio.y) >= 16)
+      .sort((a, b) => Math.hypot(b.x - inicio.x, b.y - inicio.y) - Math.hypot(a.x - inicio.x, a.y - inicio.y)).slice(0, 4);
+    const modulos = sessao.grade.lista.filter((c) => c.tipo.sala || c.tipo.id === 'plataforma')
       .map((c) => ({ x: c.gx + c.tipo.w / 2, y: c.gy + c.tipo.h / 2, nome: c.tipo.nome }));
-    const destino = maisLonge(inicio, alvos);
+    const destino = longe.length ? longe[Math.floor(Math.random() * longe.length)] : maisLonge(inicio, modulos);
     const fim = destino && pontoLivrePerto(destino.x, destino.y, livre, 6);
     const exp = destino && fim ? criarCorridaEntrega(inicio, { ...fim, nome: destino.nome }, livre) : null;
     if (!exp) return;
@@ -797,7 +802,8 @@ export class Superficie extends Phaser.Scene {
     const casa = lista.find((c) => c.tipo.id === 'habitat') ?? lista[0];
     const cx = casa ? casa.gx + casa.tipo.w / 2 : centro.x, cy = casa ? casa.gy + casa.tipo.h + 1 : centro.y;
     const porta = pontoLivrePerto(cx, cy, livre, 6) ?? { x: cx, y: cy };
-    return { centro, n, livre, crateras: [...sessao.terreno.crateras], casa: { ...porta, nome: casa?.tipo.nome ?? 'base' } };
+    const evitar = lista.map((c) => ({ x: c.gx + c.tipo.w / 2, y: c.gy + c.tipo.h / 2 }));
+    return { centro, n, livre, crateras: [...sessao.terreno.crateras], casa: { ...porta, nome: casa?.tipo.nome ?? 'base' }, evitar };
   }
 
   private passarExpedicao(dt: number) {
