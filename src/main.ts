@@ -420,7 +420,7 @@ const createDebugHarness = () => {
 
   // The debug panel lists only the tasks already redone (new look, own logic and tests).
   const tasksRefeitas = new Set([
-    'nave-capitulo-1', 'filtrar-o2', 'oxigenio-faixa', ...outrasTasks.map(([key]) => key),
+    'nave-capitulo-1', 'filtrar-o2', 'oxigenio-faixa', ...outrasTasks.map(([key]) => key), ...exploracoes.map(([tipo]) => `explorar-${tipo}`),
     'ligar-reator', 'parar-reator', 'desviar-energia', 'consertar-fiacao', 'ajustar-potencia',
     'estabilizar-direcao', ...BANCO.map((t) => `banco-${t.id}`), 'mapear-a-rota', 'transferir-dados', 'consertar-comunicacoes', 'arrumar-iluminacao',
   ]);
