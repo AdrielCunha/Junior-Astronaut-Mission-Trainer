@@ -581,7 +581,7 @@ export class Espaco extends Phaser.Scene {
       const sol = solSobreBase(giro);
       this.definirLegenda(
         `The Moon · ${dataBonita(t)} · ${nomeDaFase(lua(t).fase)} seen from Earth\n` +
-        `Sun over your base: ${sol >= 0 ? sol.toFixed(1) + '° above' : (-sol).toFixed(1) + '° below'} the horizon. At the pole it only skims the horizon.`);
+        `At the pole, the Sun stays low: ${sol >= 0 ? sol.toFixed(1) + '° above' : (-sol).toFixed(1) + '° below'} the horizon.`);
       return;
     }
 
@@ -698,9 +698,9 @@ export class Espaco extends Phaser.Scene {
       const motor = s < 0.06 || s > 0.94;                 // the engine only fires to leave and to arrive
       this.desenharNave(a.x, a.y, rumo, 0.26, motor ? 1 : 0, 15);
       const dia = Math.round(s * DIAS_REAIS);
-      this.definirLegenda(`${dataBonita(t)} · day ${dia} of ${Math.round(DIAS_REAIS)} · a Hohmann transfer: half an ellipse around the Sun, the path that uses the least fuel\n` +
-        (motor ? 'Engine on, only to leave and to arrive. In between the ship coasts: faster near the Sun, slower farther out.'
-          : 'Windows to Mars open every 26 months, when Mars is 44° ahead of Earth. The game skips ahead to the real one of October 2024.'));
+      this.definirLegenda(`${dataBonita(t)} · day ${dia} of ${Math.round(DIAS_REAIS)} · the path that saves the most fuel\n` +
+        (motor ? 'Engine on! It only fires to leave and to arrive.'
+          : 'The way to Mars opens only every 26 months!'));
     }
   }
 
@@ -834,7 +834,7 @@ export class Espaco extends Phaser.Scene {
     const rumo = Math.atan2(-r0.dy, r0.dx);
     this.desenharNave(x, y, rumo, Phaser.Math.Clamp(R / 1300, 0.06, 0.24), 1.3, 15);
     if (P.fase !== 'saida') return;
-    this.definirLegenda('Straight to Mars, no stop in orbit: the Moon has no air and weak gravity, so one burn is enough to leave.\n' +
-      'Escaping the Moon takes 2.4 km/s. Escaping Earth takes 11.2 km/s. That is one reason to build a base on the Moon.');
+    this.definirLegenda('Straight to Mars! Weak Moon gravity makes leaving easy.\n' +
+      'Leaving the Moon takes 2.4 km/s. Leaving Earth takes 11.2 km/s!');
   }
 }

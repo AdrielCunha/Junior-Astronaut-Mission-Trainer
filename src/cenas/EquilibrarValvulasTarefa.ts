@@ -12,7 +12,7 @@ import { tocarSfx } from '../sfx';
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
 const FOLGA = (QUADRO_H - 500) / 2;   // the frame is taller than the layout was drawn for: centre the content
-const INSTRUCAO = 'Turn the wheels until both needles stay in the green.';
+const INSTRUCAO = 'Turn the wheels: both needles in the green!';
 const RAIO_MOSTRADOR = 80;
 const RAIO_RODA = 56;
 const COLUNAS: Record<Valvula, { x: number; nome: string; cor: number }> = {
@@ -186,7 +186,7 @@ export class EquilibrarValvulasTarefa extends Phaser.Scene {
         estavaNoVerde.set(v, dentro);
       }
       if (!avisou && estavaNoVerde.get('o2') !== estavaNoVerde.get('co2')) {
-        avisou = true; msg('Careful: the air from one valve affects the other.', '#fde68a');
+        avisou = true; msg('Careful: one valve moves the other!', '#fde68a');
       }
     };
     for (const q of tipos) {
@@ -206,7 +206,7 @@ export class EquilibrarValvulasTarefa extends Phaser.Scene {
       const bloco = this.add.container(0, -10, [
         faixa,
         texto(this, 0, -16, 'Stable air!', 38, '#ffffff', 0x14532d),
-        texto(this, 0, 28, 'Earth air is about 21% oxygen. The ship mimics that balance.', 15, '#dcfce7', 0x14532d),
+        texto(this, 0, 28, 'Earth air is about 21% oxygen!', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       raiz.add(bloco);
       this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });

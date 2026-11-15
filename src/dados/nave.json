@@ -35,9 +35,9 @@
       ],
       "doseMedia": 175.1,
       "dosePico": 652.7,
-      "curto": "No magnetic field out here, and a CME is coming!",
+      "curto": "No magnetic shield out here. A CME is coming!",
       "aviso": "Launch success! The ship is in deep space now, far from Earth's magnetic field. At 09:12 UTC the Sun threw a CME at 1,456 km/s, and at 12:44 UTC fast particles were detected.",
-      "fato": "Earth's magnetic field protects astronauts on the International Space Station. On the way to Mars there is no such shield."
+      "fato": "Near Earth, a magnetic shield protects astronauts. On the way to Mars, there is none."
     },
     {
       "data": "2024-05-14",
@@ -50,7 +50,7 @@
       "dosePico": 598.1,
       "curto": "Huge X8.7 flare on the Sun!",
       "aviso": "Huge flash! At 16:51 UTC the Sun fired an X8.7 flare, the strongest of the whole month.",
-      "fato": "BioSentinel is a small NASA spacecraft that carried yeast cells into deep space to study how radiation affects living things."
+      "fato": "NASA's BioSentinel took tiny yeast cells to deep space to study radiation."
     },
     {
       "data": "2024-05-15",
@@ -63,7 +63,7 @@
       "dosePico": 113.2,
       "curto": "Two more X flares today.",
       "aviso": "Two more X flares (X3.4 at 08:37 UTC and X2.9 at 14:38 UTC).",
-      "fato": "Light and X-rays from a flare arrive in minutes. The fast particles can arrive minutes or hours later."
+      "fato": "Flare light arrives in minutes. The fast particles come later."
     },
     {
       "data": "2024-05-16",
@@ -74,9 +74,9 @@
       ],
       "doseMedia": 20.5,
       "dosePico": 58.2,
-      "curto": "Solar clouds pass by. Keep the engines going!",
+      "curto": "Solar clouds pass by. Keep the engines on!",
       "aviso": "More clouds of solar material are passing by. The engines need power to reach Mars on time!",
-      "fato": "Water and plastic are good radiation shields because they have lots of hydrogen. Future ships may put water tanks around the crew."
+      "fato": "Water is a great radiation shield. Ships may wrap the crew in water tanks!"
     },
     {
       "data": "2024-05-17",
@@ -89,7 +89,7 @@
       "dosePico": 44.3,
       "curto": "Mars is close! Arrive tonight.",
       "aviso": "Mars is close! Tonight the ship must reach Mars.",
-      "fato": "A real trip from Earth to Mars takes about 7 months. In this game it is shortened to 5 days."
+      "fato": "A real trip to Mars takes about 7 months. Here it takes 5 days!"
     }
   ]
 }

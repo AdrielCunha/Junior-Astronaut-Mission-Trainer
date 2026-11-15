@@ -24,3 +24,6 @@ Thumbs.db
 tools/lua3d/nasa/*.exr
 tools/lua3d/.cache/
 __pycache__/
+
+# Blender backup copies
+*.blend1

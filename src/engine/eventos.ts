@@ -20,43 +20,43 @@ export const DOSE_ALARME = 5;
 
 export const EVENTOS: EventoDef[] = [
   { id: 'radio', modulo: 'antena', cena: 'ComunicacoesTarefa', peso: 3,
-    aviso: '📡 Radio static! Mission Control cannot hear us. Go to the Comms Antenna and tune the radio.',
-    fato: 'Radio waves travel at the speed of light, so a message takes about 1.3 seconds to reach Earth.' },
+    aviso: '📡 Radio static! Fix the Comms Antenna.',
+    fato: 'Radio is as fast as light: 1.3 seconds to Earth!' },
   { id: 'dados', modulo: 'antena', cena: 'TransferirDadosTarefa', peso: 2,
-    aviso: '📡 Earth is waiting for the science data! Aim the Comms Antenna at Earth to send it.',
-    fato: 'The antenna must point right at Earth. The Moon always shows the same face to us, so Earth hardly moves in the sky.' },
+    aviso: '📡 Send our data to Earth! Go to the Comms Antenna.',
+    fato: 'From the Moon, Earth hardly moves in the sky!' },
   { id: 'fiacao', modulo: 'eclusa', cena: 'FiacaoTarefa', peso: 2,
-    aviso: '💡 A lamp went dark at the Airlock! Follow its wire and find the damage.',
-    fato: 'Engineers test a wire stretch by stretch to find a fault, just like you did.' },
+    aviso: '🔧 A lamp went dark! Fix the Airlock wires.',
+    fato: 'Engineers find faults step by step, just like you!' },
   // Equipment that arrives by cargo lander.
   { id: 'estufa', modulo: 'estufa', cena: 'EquilibrarValvulasTarefa', peso: 2,
-    aviso: '🌱 The Greenhouse air is out of balance! Turn the valves until O₂ and CO₂ are in the green.',
-    fato: 'Plants breathe in CO₂ and give back oxygen, but they need the right mix of gases to grow.' },
+    aviso: '🌱 The Greenhouse air is wrong! Fix the valves.',
+    fato: 'Plants breathe in CO₂ and give back oxygen!' },
   { id: 'furadeira', modulo: 'perfuratriz', cena: 'ColapsoReatorTarefa', peso: 2,
-    aviso: '🔥 The Ice Drill is overheating! Cool the hot spots before it breaks.',
-    fato: 'Drilling makes heat. With no air on the Moon, machines can only lose heat by radiating it away.' },
+    aviso: '🔥 The Ice Drill is too hot! Cool it down.',
+    fato: 'No air on the Moon means no wind to cool machines!' },
   { id: 'rover', modulo: 'rover', cena: 'MapearRotaTarefa', peso: 2,
-    aviso: '🚙 The Rover lost its way! Map the route by joining the stars in order.',
-    fato: 'Explorers have always used the stars to find their way. On the Moon there is no GPS yet!' },
+    aviso: '🚙 The Rover is lost! Map a route with the stars.',
+    fato: 'There is no GPS on the Moon yet. Stars help!' },
 ];
 
 // Scripted by the real sky: the day the Sun really did it, the alarm goes off (one per day, always).
 const ALARMES: Record<string, Omit<EventoDef, 'id' | 'peso'>> = {
   flare: { modulo: 'blindagem', cena: 'FecharEscotilhasTarefa', alarme: true, efeito: 'radiacao',
-    aviso: '☢ RADIATION ALARM! {nasa} Run to the Radiation Shield and close the hatches!',
-    fato: 'A flare is a flash of X-rays. It reaches the Moon in about 8 minutes, so there is no time to waste.' },
+    aviso: '☢ RADIATION ALARM! {nasa} Run to the Radiation Shield!',
+    fato: 'A flare reaches the Moon in just 8 minutes!' },
   cme: { modulo: 'blindagem', cena: 'TaparTempestadeTarefa', alarme: true, efeito: 'radiacao',
-    aviso: '☢ RADIATION ALARM! {nasa} Go to the Radiation Shield and block the storm with water bags!',
-    fato: 'Water is a good radiation shield. Astronauts on the Space Station use water bags the same way in a storm.' },
+    aviso: '☢ RADIATION ALARM! {nasa} Run to the Radiation Shield!',
+    fato: 'Water is a great radiation shield!' },
   particulas: { modulo: 'blindagem', cena: 'FecharEscotilhasTarefa', alarme: true, efeito: 'radiacao',
-    aviso: '☢ RADIATION ALARM! {nasa} Run to the Radiation Shield and close the hatches!',
-    fato: 'Solar particles are very fast protons. Thin walls do not stop them, so a base needs shielding.' },
+    aviso: '☢ RADIATION ALARM! {nasa} Run to the Radiation Shield!',
+    fato: 'Solar particles are super fast. Thin walls cannot stop them!' },
   geomagnetica: { modulo: 'antena', cena: 'ComunicacoesTarefa',
-    aviso: '📡 {nasa} The storm is jamming the radio! Go to the Comms Antenna and tune it.',
-    fato: 'Solar storms disturb radio. On Earth this one even made auroras far from the poles.' },
+    aviso: '📡 {nasa} The radio is jammed! Fix the Comms Antenna.',
+    fato: 'This storm even made auroras on Earth!' },
   gigante: { modulo: 'blindagem', cena: 'TaparTempestadeTarefa', alarme: true, efeito: 'radiacao',
-    aviso: '☢ RADIATION ALARM! {nasa} Block the storm at the Radiation Shield!',
-    fato: 'The Moon has no thick air and no magnetic field, so a flare this big hits the base directly.' },
+    aviso: '☢ RADIATION ALARM! {nasa} Run to the Radiation Shield!',
+    fato: 'With no air, big flares hit the Moon directly!' },
 };
 // Chapter day (May 5-12, 2024) -> the real event of that day.
 const DIA_DO_ALARME: Record<number, keyof typeof ALARMES> = { 2: 'flare', 4: 'cme', 5: 'particulas', 6: 'geomagnetica', 7: 'gigante' };
@@ -78,6 +78,19 @@ export function chanceDoDia(dia: number, diasCalmos: number) {
 
 export const haEventoHoje = (dia: number, diasCalmos: number, sorte: () => number = Math.random) =>
   sorte() < chanceDoDia(dia, diasCalmos);
+
+// Lingering on the same day: with no event waiting or open, the longer the day goes on the more likely
+// something breaks. Checked every DEMORA_PASSO seconds of play; the chance of each check grows from 0
+// (DEMORA_MIN seconds calm) to certain (DEMORA_MAX), so a long day always ends up with something to fix.
+export const DEMORA_MIN = 60, DEMORA_MAX = 240, DEMORA_PASSO = 10;
+
+export function chanceDaDemora(dia: number, segundosCalmos: number) {
+  if (dia < PRIMEIRO_DIA_COM_EVENTO || segundosCalmos < DEMORA_MIN) return 0;
+  return Math.min(1, (segundosCalmos - DEMORA_MIN) / (DEMORA_MAX - DEMORA_MIN));
+}
+
+export const eventoPorDemora = (dia: number, segundosCalmos: number, sorte: () => number = Math.random) =>
+  sorte() < chanceDaDemora(dia, segundosCalmos);
 
 export const esperaDoEvento = (sorte: () => number = Math.random) => ESPERA_MIN + sorte() * (ESPERA_MAX - ESPERA_MIN);
 export const esperaDoAlarme = (sorte: () => number = Math.random) => 8 + sorte() * 7;   // alarms come sooner

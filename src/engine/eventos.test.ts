@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alarmeDoDia, EVENTOS, chanceDoDia, haEventoHoje, esperaDoEvento, sortearEvento, ESPERA_MIN, ESPERA_MAX } from './eventos.ts';
+import { alarmeDoDia, EVENTOS, chanceDoDia, chanceDaDemora, eventoPorDemora, DEMORA_MIN, DEMORA_MAX, haEventoHoje, esperaDoEvento, sortearEvento, ESPERA_MIN, ESPERA_MAX } from './eventos.ts';
 
 test('there are no events on day 1, and the chance grows after calm days up to certain', () => {
   assert.equal(chanceDoDia(1, 0), 0);
@@ -54,4 +54,13 @@ test('radiation alarms follow the real NASA days and send you to the Radiation S
 
 test('energy tasks come with the batteries, not as random events', () => {
   assert.ok(!EVENTOS.some((e) => e.cena === 'PaineisSolaresTarefa' || e.cena === 'DesviarEnergiaTarefa'));
+});
+
+test('staying long on the same day makes an event more and more likely, up to certain', () => {
+  assert.equal(chanceDaDemora(1, 1000), 0);              // day 1 is for learning
+  assert.equal(chanceDaDemora(3, DEMORA_MIN - 1), 0);    // a short calm is fine
+  assert.ok(chanceDaDemora(3, DEMORA_MIN + 60) > chanceDaDemora(3, DEMORA_MIN + 10));
+  assert.equal(chanceDaDemora(3, DEMORA_MAX), 1);
+  assert.equal(eventoPorDemora(3, DEMORA_MAX, () => 0.999), true);
+  assert.equal(eventoPorDemora(3, DEMORA_MIN, () => 0), false);
 });

@@ -9,8 +9,11 @@ import terrenoNaveJson from '../dados/terreno_nave.json';
 import { definirGravidade, G_LUA, G_MARTE, G_TERRA, type Corpo } from '../engine/fisica';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { EVENTOS, haEventoHoje, esperaDoEvento, esperaDoAlarme, alarmeDoDia, type EventoDef } from '../engine/eventos';
+import type { Expedicao } from '../engine/expedicao';
+import { haExploracaoHoje, esperaDaExploracao } from '../engine/exploracao';
 import { lerPartida, gravarPartida } from '../salvamento';
-import { Grade, TIPOS, type Construcao, type TipoId } from '../engine/construcao';
+import { LAYOUT, LAYOUT_VERSAO } from '../dados/layout';
+import { Grade, TIPOS, ROTACAO_LAYOUT, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
 import { VOO as voo, usarFilme } from './qualidade';
 import { CAPITULOS } from '../capitulos';
@@ -108,15 +111,15 @@ class Sessao {
 
   salvar() {
     if (!this.grade.lista.length || this.partida || this.abastecendoRover) return false;
-    return gravarPartida({versao:1,salvoEm:Date.now(),mundo:this.mundo,capIdx:this.capIdx,fase:this.fase,
+    return gravarPartida({versao:1,salvoEm:Date.now(),layout:LAYOUT_VERSAO,mundo:this.mundo,capIdx:this.capIdx,fase:this.fase,
       estado:this.estado,entregas:this.entregas,pontos:this.pontos,carregando:this.carregando,noHabitat:this.noHabitat,
       tarefasHoje:[...this.tarefasHoje],ultimaTarefa:this.ultimaTarefa,energiaHoje:this.energiaHoje,
-      curiosidadeRoverVista:this.curiosidadeRoverVista,diaCargaRover:this.diaCargaRover,rover:this.rover,astronauta:this.posicaoAstronauta,
+      curiosidadeRoverVista:this.curiosidadeRoverVista,curiosidadeRoverMarteVista:this.curiosidadeRoverMarteVista,diaCargaRover:this.diaCargaRover,rover:this.rover,astronauta:this.posicaoAstronauta,
       modulos:this.grade.lista.map(c=>({id:c.id,tipo:c.tipo.id,gx:c.gx,gy:c.gy,rotacao:c.rotacao??0})),decoracao:this.grade.deco,
       tempestade:{restante:this.tempestade.restante,status:this.tempestade.status},danoTempestade:this.danoTempestade,
       bateriasTempestade:this.bateriasTempestade,desfechoPendente:this.desfechoPendente,ultimoDia:this.ultimoDia,
       evento:this.evento ? {id:this.evento.def.id,construcaoId:this.evento.construcaoId}:null,
-      eventoEm:this.eventoEm,ultimoEvento:this.ultimoEvento,diasCalmos:this.diasCalmos,pulou:this.pulou});
+      eventoEm:this.eventoEm,ultimoEvento:this.ultimoEvento,diasCalmos:this.diasCalmos,tempoCalmo:this.tempoCalmo,pulou:this.pulou});
   }
 
   atualizarSalvamento(dt: number) {
@@ -131,12 +134,25 @@ class Sessao {
     if (!d) return false;
     try {
       this.capIdx=d.capIdx; this.usarMundo(d.mundo);
-      this.grade.restaurar(d.modulos,d.decoracao);
+      // A save from before the current layout: each module moves to the layout's spot for its type
+      // (ids and progress stay), and the props are placed again from the layout (empty list).
+      const plano = d.layout === LAYOUT_VERSAO ? null : LAYOUT[d.mundo]?.modulos;
+      if (plano?.length) {
+        const usados = new Set<number>();
+        const modulos = d.modulos.map(m => {
+          const k = plano.findIndex(([id], i) => id === m.tipo && !usados.has(i));
+          if (k < 0) return m;
+          usados.add(k);
+          const [, gx, gy, rot] = plano[k];
+          return { id: m.id, tipo: m.tipo, gx, gy, ...(rot ? { rotacao: ROTACAO_LAYOUT } : {}) };
+        });
+        this.grade.restaurar(modulos,[],true);
+      } else this.grade.restaurar(d.modulos,d.decoracao);
       this.estado=d.estado; this.entregas=d.entregas; this.pontos=d.pontos;
       this.fase=d.fase; this.carregando=d.carregando; this.noHabitat=d.noHabitat;
       this.tarefasHoje=new Set(d.tarefasHoje); this.ultimaTarefa=d.ultimaTarefa; this.energiaHoje=d.energiaHoje;
-      this.curiosidadeRoverVista=d.curiosidadeRoverVista; this.diaCargaRover=d.diaCargaRover;
-      this.rover=d.mundo==='lua'?d.rover:null; this.posicaoAstronauta=d.astronauta;
+      this.curiosidadeRoverVista=d.curiosidadeRoverVista; this.curiosidadeRoverMarteVista=!!d.curiosidadeRoverMarteVista; this.diaCargaRover=d.diaCargaRover;
+      this.rover=d.mundo!=='nave'?d.rover:null; this.posicaoAstronauta=d.astronauta;
       for (const k of [this.posicaoAstronauta,this.rover?.corpo]) if (k) {k.vx=0;k.vy=0;k.vz=0;}
       this.tempestade.restante=d.tempestade.restante; this.tempestade.status=d.tempestade.status;
       this.danoTempestade=d.danoTempestade; this.bateriasTempestade=d.bateriasTempestade;
@@ -144,7 +160,7 @@ class Sessao {
       this.alarmeHoje=d.mundo==='lua'?alarmeDoDia(d.estado.dia)??null:null;
       const def=d.evento ? EVENTOS.find(e=>e.id===d.evento!.id) ?? (this.alarmeHoje?.id===d.evento.id?this.alarmeHoje:null) : null;
       this.evento=def && d.evento && this.grade.lista.some(c=>c.id===d.evento!.construcaoId) ? {def,construcaoId:d.evento.construcaoId}:null;
-      this.eventoEm=d.eventoEm; this.ultimoEvento=d.ultimoEvento; this.diasCalmos=d.diasCalmos; this.pulou=d.pulou;
+      this.eventoEm=d.eventoEm; this.ultimoEvento=d.ultimoEvento; this.diasCalmos=d.diasCalmos; this.tempoCalmo=d.tempoCalmo??0; this.pulou=d.pulou;
       this.partidaRestaurada=true;
       return true;
     } catch {
@@ -163,6 +179,7 @@ class Sessao {
   diaCargaRover: number | null = null;
   get roverCarregado() { return this.fase === 'inicio' || this.diaCargaRover === this.estado.dia; }
   curiosidadeRoverVista = false;
+  curiosidadeRoverMarteVista = false;   // the Mars joke panel about the Apollo rover was shown
   nivelTeste: number | null = null;
   fase: Fase = 'inicio';
   estado: Estado = inicioDoCapitulo(CAPITULOS[0].config);
@@ -176,8 +193,19 @@ class Sessao {
   eventoEm: number | null = null;   // seconds of play until today's event happens (null: none today)
   alarmeHoje: EventoDef | null = null;   // today's real NASA event, if the Sun did something
   energiaHoje = false;      // the energy task of picking up the batteries was already played today
+  odometroRover = 0;        // tiles driven today (paralama-tarefa.ts: the fender breaks after a while)
+  paralamaHoje = false;     // the fender already broke (and was fixed) today
+  expedicao: Expedicao | null = null;   // flags to drive or walk through (engine/expedicao.ts)
+  corridaHoje = false;      // the rover delivery run was already offered today
+  estacoesHoje = new Set<string>();   // ship stations already used today (engine/estacoes.ts)
+  exploracaoEm: number | null = null;   // seconds of play until today's exploration event (null: none today)
+  ultimaExploracao?: string;
+  pistaExpedicao: { nivel: number; texto: string } | null = null;   // hot/cold hint, set by Superficie every frame
+  alvoExpedicao: { x: number; y: number } | null = null;            // where the HUD arrow points
+  progressoExpedicao = 0;                                           // 0..1 while staying at a spot
   ultimoEvento?: string;
   diasCalmos = 0;
+  tempoCalmo = 0;           // seconds of play today with no event waiting or open (engine/eventos.ts chanceDaDemora)
   emTarefa = false;         // a task overlay is open: the map and zoom wait
   parado = true;            // the commander is standing still (Espaco uploads flight frames then)
   transicao: { t: number; destino: Vista; mudou: boolean } | null = null;
@@ -209,7 +237,7 @@ class Sessao {
   // Starts the departure; `fim` runs when the ship reaches Mars's orbit on the map.
   partir(fim: () => void) {
     this.partida = { fase: 'filme', t: 0, fim, acabou: false };
-    this.emitir('mensagem', 'Liftoff! Next stop: Mars.', '#fde68a');
+    this.emitir('mensagem', '🚀 Liftoff! Next stop: Mars!', '#fde68a');
     if (this.vista === 'lua') this.partida.fase = 'saida';
     else this.voar('lua');
   }
@@ -252,15 +280,16 @@ class Sessao {
     this.tempestade.iniciar(0);
     this.rover = null;
     this.diaCargaRover = null;
-    this.curiosidadeRoverVista = false;
+    this.curiosidadeRoverVista = false; this.curiosidadeRoverMarteVista = false;
     this.nivelTeste = null;
     this.estado = inicioDoCapitulo(this.C);
     this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = 0;
-    this.tarefasHoje.clear();
+    this.tarefasHoje.clear(); this.estacoesHoje.clear();
     this.ultimaTarefa = {};
-    this.evento = null; this.eventoEm = null; this.alarmeHoje = null; this.energiaHoje = false; this.ultimoEvento = undefined; this.diasCalmos = 0;
+    this.evento = null; this.eventoEm = null; this.alarmeHoje = null; this.energiaHoje = false; this.ultimoEvento = undefined; this.diasCalmos = 0; this.tempoCalmo = 0;
+    this.odometroRover = 0; this.paralamaHoje = false; this.expedicao = null; this.corridaHoje = false; this.exploracaoEm = null;
     this.emTarefa = false;
     this.vista = 'chao';
     this.u = this.alvo = U_INICIAL;
@@ -341,7 +370,7 @@ class Sessao {
     // the solar system, all in Espaco.
     if (this.mundo === 'nave' && destino !== 'chao') {
       this.empurrao = 0;
-      this.emitir('mensagem', 'You are inside the ship, on the way to Mars. Look out of the portholes: only stars, for months.', '#93c5fd');
+      this.emitir('mensagem', '🚀 On the ship to Mars! Look out: only stars.', '#93c5fd');
       return;
     }
     if (configuracoesAbertas || this.transicao) return;
@@ -468,12 +497,15 @@ class Sessao {
     this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = bateriasDoDia(this.estado, this.C);
-    this.tarefasHoje.clear();
+    this.tarefasHoje.clear(); this.estacoesHoje.clear();
     // Maybe something breaks today; it happens a little while after the morning.
     this.evento = null;
+    this.tempoCalmo = 0;
     this.energiaHoje = false;
+    this.odometroRover = 0; this.paralamaHoje = false; this.expedicao = null; this.corridaHoje = false;
     // Events and alarms are the Moon's (real May 2024 space weather, the lunar base modules).
     const lua = this.mundo === 'lua';
+    this.exploracaoEm = haExploracaoHoje(this.estado.dia, this.mundo) ? esperaDaExploracao() : null;
     this.alarmeHoje = lua ? alarmeDoDia(this.estado.dia) ?? null : null;
     const hoje = lua && (!!this.alarmeHoje || haEventoHoje(this.estado.dia, this.diasCalmos));
     this.eventoEm = this.alarmeHoje ? esperaDoAlarme() : hoje ? esperaDoEvento() : null;

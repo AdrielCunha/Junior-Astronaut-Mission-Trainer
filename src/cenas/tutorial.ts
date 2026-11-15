@@ -3,11 +3,15 @@
 // mission state. ?tutorial in the address plays it again.
 export const CHAVE_TUTORIAL = 'lunar-odyssey-tutorial-visto';
 
-export type Passo = 'mover' | 'pular' | 'habitat' | 'salas' | 'fim' | 'pronto';
-export type AlvoGuia = 'habitat' | 'salas' | 'fim' | null;
+// Day 1 on the Moon: walk, jump, pick up the batteries at the Battery Bank (charged by an energy task),
+// power Life Support and the Rocket Workshop (each room's first battery comes with a task), share the
+// rest, end the day. The same order as the objective row (Interface.ts, 1/4 to 4/4).
+export type Passo = 'mover' | 'pular' | 'banco' | 'suporte' | 'oficina' | 'resto' | 'fim' | 'pronto';
+export type AlvoGuia = 'banco' | 'suporte' | 'oficina' | 'salas' | 'fim' | null;
 export type ContextoGuia = {
   moveu: boolean; pulou: boolean;
-  noHabitat: number; carregando: number; entregas: number;   // batteries waiting / in hand / given today
+  noHabitat: number; carregando: number;   // batteries waiting at the Battery Bank / in hand
+  oxigenio: number; meta: number;          // batteries given today to Life Support / the Rocket Workshop
   fase: string;
 };
 export type Descricao = { teclas: string[]; texto: string; alvo: AlvoGuia };
@@ -17,21 +21,22 @@ export function passoAtual(c: ContextoGuia): Passo {
   if (c.fase !== 'dia') return 'pronto';
   if (!c.moveu) return 'mover';
   if (!c.pulou) return 'pular';
-  if (c.entregas === 0 && c.noHabitat > 0) return 'habitat';
-  if (c.entregas === 0) return 'salas';
+  if (c.noHabitat > 0) return 'banco';
+  if (c.carregando > 0 && !c.oxigenio) return 'suporte';
+  if (c.carregando > 0 && !c.meta) return 'oficina';
+  if (c.carregando > 0) return 'resto';
   return 'fim';
 }
 
-export function descrever(passo: Passo, c: ContextoGuia): Descricao | null {
+export function descrever(passo: Passo, _c?: ContextoGuia): Descricao | null {
   switch (passo) {
-    case 'mover': return { teclas: ['W', 'A', 'S', 'D'], texto: 'Walk around, or click the ground', alvo: null };
-    case 'pular': return { teclas: ['SPACE'], texto: 'Jump! Gravity is weak on the Moon', alvo: null };
-    case 'habitat': return { teclas: ['E'], texto: 'Go to the Habitat and pick up the batteries', alvo: 'habitat' };
-    case 'salas': return { teclas: ['E'], texto: 'Take them to a room and give it a battery', alvo: 'salas' };
-    case 'fim':
-      return c.carregando > 0 || c.noHabitat > 0
-        ? { teclas: ['E'], texto: 'Share all the batteries between the rooms', alvo: 'salas' }
-        : { teclas: ['ENTER'], texto: 'All used! End the day', alvo: 'fim' };
+    case 'mover': return { teclas: ['W', 'A', 'S', 'D'], texto: 'Walk! Or click the ground', alvo: null };
+    case 'pular': return { teclas: ['SPACE'], texto: 'Jump! Moon gravity is weak', alvo: null };
+    case 'banco': return { teclas: ['E'], texto: 'Get batteries at the Battery Bank', alvo: 'banco' };
+    case 'suporte': return { teclas: ['E'], texto: 'Give 1 battery to Life Support', alvo: 'suporte' };
+    case 'oficina': return { teclas: ['E'], texto: 'Now 1 to the Rocket Workshop', alvo: 'oficina' };
+    case 'resto': return { teclas: ['E'], texto: 'Give the rest to any room', alvo: 'salas' };
+    case 'fim': return { teclas: ['ENTER'], texto: 'All used! End the day', alvo: 'fim' };
     default: return null;
   }
 }
