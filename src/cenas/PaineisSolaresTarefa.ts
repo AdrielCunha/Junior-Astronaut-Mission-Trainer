@@ -222,7 +222,7 @@ export class PaineisSolaresTarefa extends Phaser.Scene {
       redesenhar();
       if (!eraLimpar) {
         tocarSfx('ok');
-        msg('All clean! Turn each panel toward the Sun.', '#86efac');
+        msg('Clean! Now turn each panel to the Sun.', '#86efac');
         escova.setVisible(false);
       }
     };

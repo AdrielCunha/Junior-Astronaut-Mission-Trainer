@@ -298,9 +298,9 @@ export class MarteVista extends Phaser.Scene {
     const dist = Math.hypot(pm.x - pe.x, pm.y - pe.y);
     const minutos = (dist * LUZ_SEGUNDOS_AU) / 60;
     this.legenda.setText(z < 1.2
-      ? `Mars · your base in ${JEZERO.nome} (${JEZERO.lat.toFixed(1)}° N, ${JEZERO.lon.toFixed(1)}° E), where NASA's Perseverance rover landed in 2021\n` +
-        `Mars is about half as wide as Earth. A day there, a sol, lasts ${Math.floor(DIA_MARTE_MS / 3600000)} h ${Math.round((DIA_MARTE_MS % 3600000) / 60000)} min. Phobos and Deimos are its two small moons.`
-      : `${dataBonita(t)} · real positions from NASA JPL orbital elements · planet sizes enlarged, distances true\n` +
-        `Earth is ${(dist * 149.6).toFixed(0)} million km away today. A radio message takes ${minutos.toFixed(0)} minutes each way, so Mission Control cannot steer you live.`);
+      ? `Your base: ${JEZERO.nome}, where NASA's Perseverance landed in 2021\n` +
+        `Mars is half as wide as Earth. A day (a sol) lasts ${Math.floor(DIA_MARTE_MS / 3600000)} h ${Math.round((DIA_MARTE_MS % 3600000) / 60000)} min.`
+      : `${dataBonita(t)} · real planet positions from NASA JPL\n` +
+        `Earth is ${(dist * 149.6).toFixed(0)} million km away. A message takes ${minutos.toFixed(0)} minutes to get there!`);
   }
 }

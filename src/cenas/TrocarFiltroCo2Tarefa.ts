@@ -85,7 +85,7 @@ export class TrocarFiltroCo2Tarefa extends Phaser.Scene {
     const { raiz, s } = abrirPainel(this, QUADRO_W + 60, QUADRO_H + 80);
     moldura(this, raiz, QUADRO_W, QUADRO_H);
     faixaTitulo(this, raiz, QUADRO_H, 'Maintenance - CO₂ Filter');
-    const msg = barraStatus(this, raiz, QUADRO_H, 'Press both yellow latches to release the filter.');
+    const msg = barraStatus(this, raiz, QUADRO_H, 'Press both yellow latches.');
     botaoFechar(this, raiz, QUADRO_W, QUADRO_H);
 
     const { encaixe, lixo, prateleira } = estado;
@@ -222,8 +222,8 @@ export class TrocarFiltroCo2Tarefa extends Phaser.Scene {
       const bloco = this.add.container(0, encaixe.y, [
         faixa,
         texto(this, 0, -26, 'Filter replaced!', 38, '#ffffff', 0x14532d),
-        texto(this, 0, 12, 'On Apollo 13, the crew improvised a CO₂ filter', 15, '#dcfce7', 0x14532d),
-        texto(this, 0, 34, 'with what they had onboard to keep breathing.', 15, '#dcfce7', 0x14532d),
+        texto(this, 0, 12, 'Apollo 13 astronauts built a CO₂ filter', 15, '#dcfce7', 0x14532d),
+        texto(this, 0, 34, 'from spare parts to keep breathing!', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       raiz.add(bloco);
       this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });

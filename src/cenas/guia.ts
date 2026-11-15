@@ -1,10 +1,11 @@
 // Draws the guide of tutorial.ts on the HUD layer: a small pill with the keys to press, and a bobbing
-// arrow over the Habitat / rooms / END DAY button (at the screen edge, pointing the way, when the
+// arrow over the Battery Bank / rooms / END DAY button (at the screen edge, pointing the way, when the
 // target is out of view). Nothing here changes mission state.
 import Phaser from 'phaser';
 import { movimentoReduzido } from '../video';
 import { paraTela } from '../engine/iso';
 import { dadosTerreno, sessao } from './sessao';
+import { origemBaterias } from '../engine/estacaoSolar';
 import { CONTORNO, criarPilula, criarTecla, criarIconeJogo, letra } from '../tarefas/estilo';
 import { descrever, passoAtual, marcarTutorialVisto, type Descricao } from './tutorial';
 import type { Construcao } from '../engine/construcao';
@@ -32,7 +33,7 @@ export class Guia {
     const ctx = {
       moveu: this.usou('movimento'), pulou: this.usou('pulo'),
       noHabitat: sessao.noHabitat, carregando: sessao.carregando,
-      entregas: Object.values(sessao.entregas).reduce((a, b) => a + b, 0), fase: sessao.fase,
+      oxigenio: sessao.entregas.oxigenio, meta: sessao.entregas.meta, fase: sessao.fase,
     };
     const passo = passoAtual(ctx);
     if (passo === 'pronto') { this.terminar(); return; }
@@ -85,7 +86,11 @@ export class Guia {
     const { cena, layout: l } = this;
     if (d.alvo === 'fim') return [{ x: l.fimDia.x + l.fimDia.w / 2, y: l.fimDia.y - Math.round(8 * l.u), fora: false, ang: Math.PI / 2 }];
     if (!d.alvo) return [];
-    return sessao.grade.lista.filter((c) => d.alvo === 'habitat' ? c.tipo.id === 'habitat' : !!c.tipo.sala).map((c) => pontoDoModulo(cena, l, c));
+    const quais = (c: Construcao) => d.alvo === 'banco' ? c.tipo.id === origemBaterias(sessao.mundo)
+      : d.alvo === 'suporte' ? c.tipo.sala === 'oxigenio'
+      : d.alvo === 'oficina' ? c.tipo.sala === 'meta'
+      : !!c.tipo.sala;
+    return sessao.grade.lista.filter(quais).map((c) => pontoDoModulo(cena, l, c));
   }
 
   private seta(x: number, y: number, fora: boolean, ang: number) {

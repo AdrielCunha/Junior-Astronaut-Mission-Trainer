@@ -81,9 +81,8 @@ export function botaoVerde(cena: Phaser.Scene, x: number, y: number, texto: stri
   const cor = opcoes.cor ?? 0x22c55e, corHover = opcoes.corHover ?? (opcoes.cor === undefined ? 0x4ade80 : 0x64748b);
   const t = cena.add.text(0, 0, texto, letra(tamanho)).setOrigin(0.5);
   const bw = opcoes.largura ?? t.width + 2.2 * tamanho, bh = opcoes.altura ?? Math.min(alturaMax, t.height + 0.9 * tamanho);
-  const g = cena.add.graphics()
-    .fillStyle(cor).fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2)
-    .lineStyle(4 * u, 0xffffff).strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
+  // Same look as the title screen's buttons (shine, white rim, dark outline), centred on (0, 0).
+  const g = desenharBotao(cena.add.graphics(), bw, bh, u, cor).setPosition(-bw / 2, -bh / 2);
   const c = cena.add.container(x, y, [g, t]).setSize(bw, bh).setData('texto', t).setInteractive({ useHandCursor: true })
     .on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => { if (opcoes.pararPropagacao) ev.stopPropagation(); acao(); });
   if (opcoes.animarHover) {
@@ -94,8 +93,7 @@ export function botaoVerde(cena: Phaser.Scene, x: number, y: number, texto: stri
     c.add(visual);
     const animar = (ativo: boolean) => {
       cena.tweens.killTweensOf([visual, brilho]);
-      g.clear().fillStyle(ativo ? corHover : cor).fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2)
-        .lineStyle(4 * u, 0xffffff).strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
+      desenharBotao(g, bw, bh, u, ativo ? corHover : cor);
       cena.tweens.add({ targets: visual, scale: ativo && !movimentoReduzido() ? 1.04 : 1, y: ativo && !movimentoReduzido() ? -Math.round(2 * u) : 0,
         duration: movimentoReduzido() ? 0 : ativo ? 180 : 140, ease: 'Sine.easeOut' });
       cena.tweens.add({ targets: brilho, alpha: ativo ? 1 : 0, duration: 160 });
@@ -126,10 +124,43 @@ export function criarPilula(cena: Phaser.Scene, x: number, y: number, w: number,
   x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
   const canto = raio ?? h / 2;
   const g = cena.add.graphics()
-    .fillStyle(0x0b1a4a, 0.7 * opacidade).fillRoundedRect(Math.round(2 * u), Math.round(4 * u), w, h, Math.round(canto))
+    .fillStyle(0x000000, 0.3 * opacidade).fillRoundedRect(Math.round(2 * u), Math.round(4 * u), w, h, Math.round(canto))
     .fillStyle(cor, opacidade).fillRoundedRect(0, 0, w, h, canto)
-    .lineStyle(3 * u, borda).strokeRoundedRect(0, 0, w, h, canto);
+    .lineStyle(3 * u, borda).strokeRoundedRect(0, 0, w, h, canto)
+    .lineStyle(Math.max(1, 1.5 * u), CONTORNO, opacidade).strokeRoundedRect(-2.5 * u, -2.5 * u, w + 5 * u, h + 5 * u, canto + 2.5 * u);
   return cena.add.container(x, y, [g]).setSize(w, h);
+}
+
+// The title screen's button (Radar.botao): solid colour, a soft shine on the upper half, white rim
+// and a thin dark outline, over a drop shadow. Drawn in the box (0, 0, w, h).
+export const COR_BOTAO = 0x2563eb, COR_BOTAO_HOVER = 0x3b82f6;
+export function desenharBotao(g: Phaser.GameObjects.Graphics, w: number, h: number, u: number, cor = COR_BOTAO) {
+  const r = Math.min(w, h) / 2, aro = Math.max(2, Math.round((h < 44 * u ? 3 : 4) * u));
+  return g.clear()
+    .fillStyle(0x000000, 0.3).fillRoundedRect(Math.round(2 * u), Math.round(4 * u), w, h, r)
+    .fillStyle(cor).fillRoundedRect(0, 0, w, h, r)
+    .fillStyle(0xffffff, 0.18).fillRoundedRect(Math.round(w * 0.16), Math.round(h * 0.12), Math.round(w * 0.68), Math.round(h * 0.34), Math.round(h * 0.17))
+    .lineStyle(aro, 0xffffff).strokeRoundedRect(0, 0, w, h, r)
+    .lineStyle(Math.max(1, 1.5 * u), CONTORNO).strokeRoundedRect(-aro / 2 - u, -aro / 2 - u, w + aro + 2 * u, h + aro + 2 * u, r + aro / 2 + u);
+}
+
+// Dark rounded label behind a text that floats over the map (prop and rover tooltips).
+// Redraw it whenever the text changes, moves or is scaled; it follows the text's visibility.
+export function fundoRotulo(g: Phaser.GameObjects.Graphics, t: Phaser.GameObjects.Text) {
+  const s = t.scaleX, w = t.width * s, h = t.height * s;
+  const x = t.x - w * t.originX, y = t.y - h * t.originY, r = Math.min(h / 2, 16 * s);
+  g.clear().setDepth(t.depth - 0.001).setVisible(t.visible).setAlpha(t.alpha);
+  if (!t.visible || !t.text) return g;
+  return g.fillStyle(0x000000, 0.3).fillRoundedRect(x + 2 * s, y + 4 * s, w, h, r)
+    .fillStyle(CONTORNO, 0.96).fillRoundedRect(x, y, w, h, r)
+    .lineStyle(2.5 * s, 0xffffff).strokeRoundedRect(x, y, w, h, r);
+}
+
+// A short label over the map (e.g. "Installing battery..."): text on a dark pill, bottom-centre at (x, y).
+export function rotuloMapa(cena: Phaser.Scene, x: number, y: number, s: string, tamanho: number, cor = '#ffffff') {
+  const t = cena.add.text(0, 0, s, letra(tamanho, cor, { padding: { x: 10, y: 5 }, align: 'center' })).setOrigin(0.5, 1);
+  const g = fundoRotulo(cena.add.graphics(), t);
+  return cena.add.container(x, y, [g, t]);
 }
 
 export function criarSelo(cena: Phaser.Scene, x: number, y: number, w: number, h: number, u: number, cor = 0x2563eb) {
@@ -151,28 +182,28 @@ export function criarChip(cena: Phaser.Scene, x: number, y: number, w: number, u
 }
 
 export const COR_FAIXA_HUD = 0x0b1630;
-const OPACIDADE_FAIXA_HUD = 0.9;
+const OPACIDADE_FAIXA_HUD = 0.35;
 
+// Only a soft shade at the top keeps the floating HUD pieces readable over a bright map.
 export function criarFaixaHud(cena: Phaser.Scene, b: Caixa, u: number) {
-  return cena.add.graphics().fillStyle(COR_FAIXA_HUD, OPACIDADE_FAIXA_HUD).fillRect(b.x, b.y, b.w, b.h)
-    .lineStyle(Math.max(1, Math.round(u)), 0x7dd3fc, 0.45).lineBetween(b.x, b.y + b.h, b.x + b.w, b.y + b.h);
+  const g = cena.add.graphics(), faixas = 12;
+  for (let k = 0; k < faixas; k++) {
+    const a = Math.round(b.y + (k * b.h) / faixas), z = Math.round(b.y + ((k + 1) * b.h) / faixas);
+    g.fillStyle(COR_FAIXA_HUD, OPACIDADE_FAIXA_HUD * (1 - (k + 0.5) / faixas)).fillRect(b.x, a, b.w, z - a);
+  }
+  return g.setData('u', u);
 }
 
 export function criarTituloHud(cena: Phaser.Scene, b: Caixa, u: number) {
   const px = (n: number) => Math.round(n * u);
-  const raio = Math.round(b.h / 2);
-  const fundo = cena.add.graphics()
-    .lineStyle(px(10), 0x7dd3fc, 0.06).strokeRoundedRect(0, 0, b.w, b.h, raio)
-    .lineStyle(px(7), 0x7dd3fc, 0.1).strokeRoundedRect(0, 0, b.w, b.h, raio)
-    .fillStyle(CONTORNO).fillRoundedRect(0, 0, b.w, b.h, raio)
-    .lineStyle(px(4), 0x7dd3fc).strokeRoundedRect(0, 0, b.w, b.h, raio);
+  const fundo = desenharBotao(cena.add.graphics(), b.w, b.h, u);
   const caixa = cena.add.container(b.x, b.y, [fundo]).setSize(b.w, b.h);
   const estilo = { stroke: '#1e293b', strokeThickness: px(6) };
   // The main text is measured without a shadow. Only its duplicate receives the offset.
   const sombra = cena.add.text(0, 0, 'LUNAR ODYSSEY', letra(px(32.5), '#07102d', { ...estilo, stroke: '#07102d' })).setOrigin(0.5, 0.5);
   const logo = cena.add.text(0, 0, 'LUNAR ODYSSEY', letra(px(32.5), '#fde047', estilo)).setOrigin(0.5, 0.5);
   const fundoData = cena.add.graphics();
-  const data = cena.add.text(0, 0, '', letra(px(13), '#dbeafe', { fontStyle: '700' })).setOrigin(0.5, 0.5);
+  const data = cena.add.text(0, 0, '', letra(px(13), '#ffffff', { fontStyle: '700' })).setOrigin(0.5, 0.5);
   const pilula = cena.add.container(0, 0, [fundoData, data]);
   caixa.add([sombra, logo, pilula]);
   const atualizar = (texto: string) => {
@@ -189,8 +220,7 @@ export function criarTituloHud(cena: Phaser.Scene, b: Caixa, u: number) {
     logo.setPosition(centroX, Math.round(topo + logo.displayHeight / 2));
     sombra.setPosition(centroX, logo.y + px(4));
     pilula.setPosition(centroX, Math.round(topo + logo.displayHeight + gap + alturaData / 2)).setSize(larguraData, alturaData);
-    fundoData.clear().fillStyle(0x0b1a4a).fillRoundedRect(-Math.round(larguraData / 2), -Math.round(alturaData / 2), larguraData, alturaData, Math.round(alturaData / 2))
-      .lineStyle(Math.max(1, px(1)), 0x7dd3fc, 0.7).strokeRoundedRect(-Math.round(larguraData / 2), -Math.round(alturaData / 2), larguraData, alturaData, Math.round(alturaData / 2));
+    fundoData.clear().fillStyle(CONTORNO, 0.95).fillRoundedRect(-Math.round(larguraData / 2), -Math.round(alturaData / 2), larguraData, alturaData, Math.round(alturaData / 2));
   };
   return { caixa, data, atualizar };
 }
@@ -211,41 +241,46 @@ export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: I
   const unidade = u * ampliacao;
   const px = (n: number) => Math.round(n * unidade);
   const caixa = cena.add.container(b.x, b.y).setSize(b.w, b.h);
-  // Equal outer columns retain their width; their inner content stays compact and centered.
-  const largura = Math.min(px(240), b.w - px(16));
-  const inicio = Math.round((b.w - largura) / 2), pad = px(8);
-  const iconeW = px(24), gap = px(8), coluna = inicio + pad + iconeW + gap;
-  const fim = inicio + largura - pad;
-  const cabecalhoY = Math.round(b.h / 2 - px(10)), seloW = px(36), seloH = px(19);
-  const centroIconeX = inicio + pad + Math.round(iconeW / 2), centroIconeY = Math.round(b.h / 2);
-  const simbolo = criarIconeJogo(cena, centroIconeX, centroIconeY, icone, px(26));
-  const label = cena.add.text(coluna, cabecalhoY, rotulo, letra(px(14.5), '#ffffff', { stroke: '#0b1a4a', strokeThickness: px(2) })).setOrigin(0, 0.5);
+  // Equal outer columns retain their width; the panel is centred in its column and everything
+  // inside keeps the same margin from the panel's rounded border.
+  const largura = Math.min(px(250), b.w - px(8));
+  const inicio = Math.round((b.w - largura) / 2), alto = b.h, raio = px(16);
+  const margem = px(14), iconeW = px(26), gap = px(10);
+  const coluna = inicio + margem + iconeW + gap, fim = inicio + largura - margem;
+  const cabecalhoY = Math.round(alto * 0.34), seloW = px(40), seloH = px(18);
+  const fundo = criarPilula(cena, inicio, 0, largura, alto, unidade, CONTORNO, 0xffffff, raio);
+  const simbolo = criarIconeJogo(cena, inicio + margem + Math.round(iconeW / 2), Math.round(alto / 2), icone, iconeW);
+  const label = cena.add.text(coluna, cabecalhoY, rotulo, letra(px(14.5), '#ffffff', { stroke: '#1e293b', strokeThickness: px(4) })).setOrigin(0, 0.5);
   const selo = criarSelo(cena, fim - seloW, cabecalhoY - Math.round(seloH / 2), seloW, seloH, unidade, cor);
   selo.texto.setFontSize(px(11));
-  label.setScale(Math.min(1, (fim - seloW - px(5) - coluna) / label.width));
-  const trilhoY = Math.round(b.h / 2 + px(10)), trilhoH = px(14), trilhoW = fim - coluna;
+  label.setScale(Math.min(1, (fim - seloW - px(6) - coluna) / label.width));
+  const trilhoH = px(12), trilhoY = Math.round(alto * 0.7), trilhoW = fim - coluna;
   const trilho = cena.add.graphics().fillStyle(0x0b1a4a).fillRoundedRect(coluna, trilhoY - trilhoH / 2, trilhoW, trilhoH, trilhoH / 2)
     .lineStyle(px(2), 0xffffff).strokeRoundedRect(coluna, trilhoY - trilhoH / 2, trilhoW, trilhoH, trilhoH / 2);
   const preenchimento = cena.add.graphics();
-  caixa.add([simbolo, label, selo.caixa, trilho, preenchimento]);
+  caixa.add([fundo, simbolo, label, selo.caixa, trilho, preenchimento]);
   return { caixa, atualizar: (valor: number) => {
     const fracao = Math.max(0, Math.min(100, valor)) / 100;
-    const borda = px(2), alto = trilhoH - 2 * borda, util = trilhoW - 2 * borda;
-    const largura = fracao > 0 ? Math.min(util, Math.max(alto, Math.round(util * fracao))) : 0;
+    const borda = px(2), a = trilhoH - 2 * borda, util = trilhoW - 2 * borda;
+    const cheio = fracao > 0 ? Math.min(util, Math.max(a, Math.round(util * fracao))) : 0;
     preenchimento.clear();
-    if (largura) preenchimento.fillStyle(cor).fillRoundedRect(coluna + borda, trilhoY - alto / 2, largura, alto, alto / 2);
+    if (cheio) preenchimento.fillStyle(cor).fillRoundedRect(coluna + borda, trilhoY - a / 2, cheio, a, a / 2)
+      .fillStyle(0xffffff, 0.3).fillRoundedRect(coluna + borda + a / 3, trilhoY - a / 2 + 1, Math.max(0, cheio - a * 2 / 3), a * 0.3, a * 0.15);
     selo.texto.setText(`${Math.round(valor)}%`);
   } };
 }
 
-export function criarBotaoPilula(cena: Phaser.Scene, b: Caixa, u: number, titulo: string, acao: () => void) {
-  const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u);
-  const texto = cena.add.text(Math.round(b.w / 2), Math.round(b.h / 2), titulo, letra(Math.round(16 * u), '#ffffff', { stroke: '#0b1a4a', strokeThickness: Math.round(2 * u) })).setOrigin(0.5);
+export function criarBotaoPilula(cena: Phaser.Scene, b: Caixa, u: number, titulo: string, acao: () => void, cor = COR_BOTAO) {
+  const fundo = desenharBotao(cena.add.graphics(), Math.round(b.w), Math.round(b.h), u, cor);
+  const caixa = cena.add.container(Math.round(b.x), Math.round(b.y), [fundo]).setSize(Math.round(b.w), Math.round(b.h));
+  const texto = cena.add.text(Math.round(b.w / 2), Math.round(b.h / 2), titulo, letra(Math.round(16 * u), '#ffffff', { stroke: '#1e293b', strokeThickness: Math.round(4 * u) })).setOrigin(0.5);
   caixa.add(texto);
   // Container hit areas are centered on its local origin; use explicit top-left geometry.
   const area = cena.add.zone(0, 0, b.w, b.h).setOrigin(0).setInteractive({ useHandCursor: true });
   area.on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => { ev.stopPropagation(); acao(); });
-  area.on('pointerover', () => texto.setColor('#FFD93B')).on('pointerout', () => texto.setColor('#ffffff'));
+  const hover = cor === COR_BOTAO ? COR_BOTAO_HOVER : cor;
+  area.on('pointerover', () => { texto.setColor('#FFD93B'); desenharBotao(fundo, Math.round(b.w), Math.round(b.h), u, hover); })
+    .on('pointerout', () => { texto.setColor('#ffffff'); desenharBotao(fundo, Math.round(b.w), Math.round(b.h), u, cor); });
   caixa.add(area);
   return { caixa, texto };
 }
@@ -257,7 +292,7 @@ export function criarCapsulaRecursos(cena: Phaser.Scene, b: Caixa, u: number, ro
   const icones = rotulos?.icones ?? ['energy', 'backpack', 'heart', 'shield', 'wrench'];
   const cores = ['#fde047', '#fde047', '#4ade80', '#fde047', '#60a5fa'];
   const numeros: Phaser.GameObjects.Text[] = [];
-  const divisores = cena.add.graphics().lineStyle(Math.max(1, Math.round(u)), 0x7dd3fc, 0.5);
+  const divisores = cena.add.graphics().lineStyle(Math.max(1, Math.round(u)), 0xffffff, 0.3);
   caixa.add(divisores);
   const tooltip = cena.add.container(0, 0).setDepth(30).setVisible(false);
   const fundo = cena.add.graphics();
@@ -294,8 +329,9 @@ export function criarTecla(cena: Phaser.Scene, x: number, cy: number, tecla: str
   const px = (n: number) => Math.round(n * u);
   const texto = cena.add.text(px(6), 0, tecla, letra(px(12), '#0b1a4a')).setOrigin(0, 0.5);
   const w = Math.round(texto.width) + px(12), h = px(22);
-  const g = cena.add.graphics().fillStyle(0xdbeafe).fillRoundedRect(0, -Math.round(h / 2), w, h, px(5))
-    .lineStyle(Math.max(1, px(1)), 0x7dd3fc).strokeRoundedRect(0, -Math.round(h / 2), w, h, px(5));
+  const g = cena.add.graphics().fillStyle(0x94a3b8).fillRoundedRect(0, -Math.round(h / 2) + px(2), w, h, px(5))
+    .fillStyle(0xffffff).fillRoundedRect(0, -Math.round(h / 2), w, h - px(1), px(5))
+    .lineStyle(Math.max(1, px(1.5)), CONTORNO).strokeRoundedRect(0, -Math.round(h / 2), w, h + px(2), px(5));
   return cena.add.container(Math.round(x), Math.round(cy), [g, texto]).setSize(w, h);
 }
 
@@ -303,7 +339,7 @@ export function criarPilulaDicas(cena: Phaser.Scene, b: Caixa, u: number, vertic
   const px = (n: number) => Math.round(n * u);
   const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u, CONTORNO, 0xffffff, vertical ? px(16) : undefined);
   const grupos = [['WASD', 'Walk'], ['Space', 'Jump'], ['E', 'Use room'], ['Scroll', 'Zoom']];
-  const g = cena.add.graphics().lineStyle(Math.max(1, px(1)), 0x7dd3fc, 0.45);
+  const g = cena.add.graphics().lineStyle(Math.max(1, px(1)), 0xffffff, 0.3);
   caixa.add(g);
   const pad = px(12), util = (vertical ? b.h : b.w - reservaDireita) - 2 * pad;
   grupos.forEach(([tecla, descricao], i) => {
@@ -431,8 +467,10 @@ export function criarDicasRecolhiveis(cena: Phaser.Scene, b: Caixa, abaB: Caixa,
     fundo.clear();
     const soIcone = estado && !animando;
     // Expanded: just the arrow inside the panel, with no independent border or background.
-    if (soIcone) fundo.fillStyle(hover ? 0x334155 : CONTORNO).fillRoundedRect(0, 0, abaB.w, abaB.h, px(8))
-      .lineStyle(Math.max(1, px(2)), 0xffffff).strokeRoundedRect(0, 0, abaB.w, abaB.h, px(8));
+    if (soIcone) fundo.fillStyle(0x000000, 0.3).fillRoundedRect(px(2), px(4), abaB.w, abaB.h, px(8))
+      .fillStyle(hover ? COR_BOTAO_HOVER : COR_BOTAO).fillRoundedRect(0, 0, abaB.w, abaB.h, px(8))
+      .lineStyle(Math.max(1, px(2.5)), 0xffffff).strokeRoundedRect(0, 0, abaB.w, abaB.h, px(8))
+      .lineStyle(Math.max(1, px(1.5)), CONTORNO).strokeRoundedRect(-px(2), -px(2), abaB.w + px(4), abaB.h + px(4), px(10));
     const sentido = estado ? 1 : -1;
     seta.clear().lineStyle(Math.max(2, px(2.5)), hover ? 0xfde047 : 0xffffff)
       .beginPath().moveTo(-sentido * px(3), -px(5)).lineTo(sentido * px(3), 0).lineTo(-sentido * px(3), px(5)).strokePath();

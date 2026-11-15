@@ -24,18 +24,18 @@ export type Tipo = {
 
 export const TIPOS: Record<TipoId, Tipo> = {
   habitat:    { id: 'habitat', nome: 'Habitat', w: 3, h: 3, altura: 1.4, cor: 0x94a3b8, unico: true,
-                papel: 'Where the crew lives. Collect solar-charged batteries at the Battery Bank.' },
+                papel: 'Where the crew lives and sleeps.' },
   suporte:    { id: 'suporte', nome: 'Life Support', w: 3, h: 2, altura: 1.4, cor: 0x3b82f6, sala: 'oxigenio', unico: true,
-                papel: 'Makes oxygen. Each battery gives oxygen for the night.' },
+                papel: 'Makes oxygen. More batteries, more air!' },
   blindagem:  { id: 'blindagem', nome: 'Radiation Shield', w: 2, h: 2, altura: 1.6, cor: 0xeab308, sala: 'blindagem', unico: true,
-                papel: 'A shelter with walls of water. Batteries pump the water up before a storm: water stops radiation.' },
+                papel: 'Water walls stop storm radiation.' },
   oficina:    { id: 'oficina', nome: 'Rocket Workshop', w: 3, h: 3, altura: 2.0, cor: 0xf97316, sala: 'meta', unico: true,
                 papel: 'Builds the rocket to Mars.' },
   // Only the narrow foundation occupies the ground; the tilted panel overhangs its supports.
   // It stands on short piles, so it accepts the 12-15 degree bank behind the Habitat where the
   // pressurised modules cannot go.
   painel:     { id: 'painel', nome: 'Solar Panel', w: 2, h: 1, altura: 1.4, inclinacaoMax: 15, cor: 0x1e3a8a, unico: false,
-                papel: 'Catches sunlight and charges the batteries at the nearby Battery Bank.' },
+                papel: 'Turns sunlight into power for the batteries.' },
   plataforma: { id: 'plataforma', nome: 'Launch Pad', w: 3, h: 3, altura: 0.25, cor: 0x64748b, unico: true,
                 papel: 'Where the rocket will lift off.' },
   // Equipment that arrives by cargo lander during the chapter (engine/suprimentos.ts).
@@ -44,25 +44,25 @@ export const TIPOS: Record<TipoId, Tipo> = {
   estufa:     { id: 'estufa', nome: 'Greenhouse', w: 3, h: 2, altura: 0.9, cor: 0x22c55e, unico: true,
                 papel: 'Plants that turn the crew\'s breath back into oxygen.' },
   perfuratriz: { id: 'perfuratriz', nome: 'Ice Drill', w: 2, h: 2, altura: 1.9, cor: 0xf59e0b, unico: true,
-                papel: 'Digs for frozen water in the dark craters.' },
+                papel: 'Digs for ice in dark craters.' },
   rover:      { id: 'rover', nome: 'Rover', w: 2, h: 1, altura: 0.6, cor: 0xcbd5e1, unico: true,
-                papel: 'Carries astronauts far from the base.' },
+                papel: 'Drives astronauts far from the base.' },
   // Real lunar-base structures (ISRU, life support, power, construction, science).
   usina:      { id: 'usina', nome: 'Oxygen Plant', w: 3, h: 2, altura: 1.8, cor: 0xe2e8f0, unico: true,
-                papel: 'Splits oxygen out of lunar dust (regolith) with electricity. This is how NASA plans to make air on the Moon.' },
+                papel: 'Makes oxygen out of Moon dust!' },
   reciclador: { id: 'reciclador', nome: 'Water & Air Recycler', w: 2, h: 2, altura: 1.5, cor: 0x38bdf8, unico: true,
-                papel: "Cleans the crew's water and removes CO2 from the air, so nothing is wasted." },
+                papel: 'Cleans water and air. Nothing is wasted!' },
   eclusa:     { id: 'eclusa', nome: 'Airlock', w: 2, h: 1, altura: 1.0, cor: 0xf97316, unico: true,
-                papel: "A double door that lets astronauts go outside without losing the base's air." },
+                papel: 'A double door: go out, keep the air in.' },
   bateria:    { id: 'bateria', nome: 'Battery Bank', w: 2, h: 5, altura: 1.4, cor: 0xfacc15, unico: true,
-                papel: 'Five removable batteries store solar power. Pick up today\'s charged batteries here.' },
+                papel: 'Stores sunlight. Get your batteries here!' },
   impressora: { id: 'impressora', nome: 'Regolith 3D Printer', w: 3, h: 2, altura: 1.8, cor: 0xe7d3b0, unico: true,
-                papel: 'Builds walls and landing pads by melting lunar dust, so we ship less from Earth.' },
+                papel: 'Prints walls out of Moon dust!' },
   radiotelescopio: { id: 'radiotelescopio', nome: 'Radio Telescope', w: 3, h: 3, altura: 2.2, cor: 0xcbd5e1, unico: true,
-                papel: "Listens to the universe. The Moon's far side is shielded from Earth's radio noise." },
+                papel: 'Listens to the stars, far from Earth noise.' },
   // Mars (chapter 3): built from batteries first (regras.ts, obras), then powered.
   aquecedor:  { id: 'aquecedor', nome: 'Heating', w: 3, h: 3, altura: 2.0, cor: 0xef4444, sala: 'aquecimento', unico: true,
-                papel: 'Keeps the machines warm on cold Mars nights.' },
+                papel: 'Keeps machines warm on cold nights.' },
   cupula:     { id: 'cupula', nome: 'Habitat Dome', w: 3, h: 3, altura: 1.4, cor: 0xf97316, sala: 'meta', unico: true,
                 papel: "The crew's new home on Mars." },
 };

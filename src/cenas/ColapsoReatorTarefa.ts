@@ -12,7 +12,7 @@ const FOLGA = (QUADRO_H - 500) / 2;   // the frame is taller than the layout was
 const JW = 680, JH = 376, JX = -JW / 2, JY = -QUADRO_H / 2 + 36 + FOLGA;
 const NX = 50, NY = 6, NR = 148;      // the reactor core: centre and radius inside the window
 const TX = -285, T_TOPO = -140, T_ALTURA = 280;   // the thermometer
-const INSTRUCAO = 'Tap the hot spots to cool the reactor!';
+const INSTRUCAO = 'Tap the hot spots to cool it!';
 
 const mistura = (a: number, b: number, k: number) => {
   const c = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(a), Phaser.Display.Color.ValueToColor(b), 100, Math.round(k * 100));

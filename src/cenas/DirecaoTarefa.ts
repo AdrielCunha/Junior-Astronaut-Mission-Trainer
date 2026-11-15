@@ -169,7 +169,7 @@ export class DirecaoTarefa extends Phaser.Scene {
       const bloco = this.add.container(JAN_W / 2, JAN_H / 2, [
         faixa,
         texto(this, 0, -16, 'Right heading!', 38, '#ffffff', 0x14532d),
-        texto(this, 0, 28, 'A compass does not work on the Moon: it has no magnetic field.', 14, '#dcfce7', 0x14532d),
+        texto(this, 0, 28, 'A compass does not work on the Moon!', 14, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
       this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });

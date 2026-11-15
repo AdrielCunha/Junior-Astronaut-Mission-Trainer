@@ -2,8 +2,9 @@
 export const ROVER_APOLLO = {
   titulo: 'The car that drove on the Moon',
   paragrafos: [
-    'The Apollo LRV carried astronauts across the Moon on Apollo 15, 16 and 17, in 1971 and 1972.',
-    'It arrived folded up on the lunar module! Its four wheels were made of metal mesh, each with its own electric motor.',
+    'Apollo astronauts drove it on the Moon in 1971 and 1972.',
+    'It came folded up, like a camping chair!',
+    'Each wheel was made of wire mesh and had its own motor.',
     'All three rovers are still on the Moon today!',
   ],
   fonte: 'NASA · Apollo Lunar Roving Vehicle',

@@ -114,7 +114,7 @@ class Sessao {
       tempestade:{restante:this.tempestade.restante,status:this.tempestade.status},danoTempestade:this.danoTempestade,
       bateriasTempestade:this.bateriasTempestade,desfechoPendente:this.desfechoPendente,ultimoDia:this.ultimoDia,
       evento:this.evento ? {id:this.evento.def.id,construcaoId:this.evento.construcaoId}:null,
-      eventoEm:this.eventoEm,ultimoEvento:this.ultimoEvento,diasCalmos:this.diasCalmos,pulou:this.pulou});
+      eventoEm:this.eventoEm,ultimoEvento:this.ultimoEvento,diasCalmos:this.diasCalmos,tempoCalmo:this.tempoCalmo,pulou:this.pulou});
   }
 
   atualizarSalvamento(dt: number) {
@@ -155,7 +155,7 @@ class Sessao {
       this.alarmeHoje=d.mundo==='lua'?alarmeDoDia(d.estado.dia)??null:null;
       const def=d.evento ? EVENTOS.find(e=>e.id===d.evento!.id) ?? (this.alarmeHoje?.id===d.evento.id?this.alarmeHoje:null) : null;
       this.evento=def && d.evento && this.grade.lista.some(c=>c.id===d.evento!.construcaoId) ? {def,construcaoId:d.evento.construcaoId}:null;
-      this.eventoEm=d.eventoEm; this.ultimoEvento=d.ultimoEvento; this.diasCalmos=d.diasCalmos; this.pulou=d.pulou;
+      this.eventoEm=d.eventoEm; this.ultimoEvento=d.ultimoEvento; this.diasCalmos=d.diasCalmos; this.tempoCalmo=d.tempoCalmo??0; this.pulou=d.pulou;
       this.partidaRestaurada=true;
       return true;
     } catch {
@@ -189,6 +189,7 @@ class Sessao {
   energiaHoje = false;      // the energy task of picking up the batteries was already played today
   ultimoEvento?: string;
   diasCalmos = 0;
+  tempoCalmo = 0;           // seconds of play today with no event waiting or open (engine/eventos.ts chanceDaDemora)
   emTarefa = false;         // a task overlay is open: the map and zoom wait
   parado = true;            // the commander is standing still (Espaco uploads flight frames then)
   transicao: { t: number; destino: Vista; mudou: boolean } | null = null;
@@ -220,7 +221,7 @@ class Sessao {
   // Starts the departure; `fim` runs when the ship reaches Mars's orbit on the map.
   partir(fim: () => void) {
     this.partida = { fase: 'filme', t: 0, fim, acabou: false };
-    this.emitir('mensagem', 'Liftoff! Next stop: Mars.', '#fde68a');
+    this.emitir('mensagem', '🚀 Liftoff! Next stop: Mars!', '#fde68a');
     if (this.vista === 'lua') this.partida.fase = 'saida';
     else this.voar('lua');
   }
@@ -269,7 +270,7 @@ class Sessao {
     this.noHabitat = 0;
     this.tarefasHoje.clear();
     this.ultimaTarefa = {};
-    this.evento = null; this.eventoEm = null; this.alarmeHoje = null; this.energiaHoje = false; this.ultimoEvento = undefined; this.diasCalmos = 0;
+    this.evento = null; this.eventoEm = null; this.alarmeHoje = null; this.energiaHoje = false; this.ultimoEvento = undefined; this.diasCalmos = 0; this.tempoCalmo = 0;
     this.emTarefa = false;
     this.vista = 'chao';
     this.u = this.alvo = U_INICIAL;
@@ -331,7 +332,7 @@ class Sessao {
     if (this.mundo === 'marte' && destino !== 'chao') { this.empurrao = 0; this.emitir('zoomMarte'); return; }
     if (this.mundo === 'nave' && destino !== 'chao') {
       this.empurrao = 0;
-      this.emitir('mensagem', 'You are inside the ship, on the way to Mars. Look out of the portholes: only stars, for months.', '#93c5fd');
+      this.emitir('mensagem', '🚀 On the ship to Mars! Look out: only stars.', '#93c5fd');
       return;
     }
     if (configuracoesAbertas || this.transicao) return;
@@ -454,6 +455,7 @@ class Sessao {
     this.tarefasHoje.clear();
     // Maybe something breaks today; it happens a little while after the morning.
     this.evento = null;
+    this.tempoCalmo = 0;
     this.energiaHoje = false;
     // Events and alarms are the Moon's (real May 2024 space weather, the lunar base modules).
     const lua = this.mundo === 'lua';

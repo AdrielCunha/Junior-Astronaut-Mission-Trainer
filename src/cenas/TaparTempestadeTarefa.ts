@@ -9,7 +9,7 @@ import { tocarSfx } from '../sfx';
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
 const FOLGA = (QUADRO_H - 500) / 2;   // the frame is taller than the layout was drawn for: centre the content
-const INSTRUCAO = 'Drag the water bags to the wall where the storm is coming from.';
+const INSTRUCAO = 'Drag the water bags to the storm side.';
 const BASE_Y = -45;          // vertical centre of the base module
 const PASSO = 62;            // distance between slots
 const BASE_LARG = 200;

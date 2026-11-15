@@ -199,9 +199,9 @@ export class Viagem extends Phaser.Scene {
 
     // Words: where we are, the date, and what is real.
     this.titulo.setText(this.d.etapa === 'partida' ? 'Off to Mars!' : t < 0.55 ? 'Almost there...' : t < 0.92 ? 'Braking into orbit around Mars' : 'Welcome to Mars');
-    this.legenda.setText(`${dataBonita(dia)} · day ${Math.round(s * DIAS_REAIS)} of a real ${Math.round(DIAS_REAIS)}-day trip (the game shortens it to 5 days)\n` +
-      (zoom > 0 ? 'No air to slow down in space: the ship turns around and fires its engine against its motion.'
-        : 'The ship coasts most of the way: its engine only fires to leave and to arrive.'));
+    this.legenda.setText(`${dataBonita(dia)} · day ${Math.round(s * DIAS_REAIS)} of a real ${Math.round(DIAS_REAIS)}-day trip\n` +
+      (zoom > 0 ? 'No air to brake in space: the engine fires backward!'
+        : 'The ship glides most of the way. The engine fires only to leave and arrive.'));
 
     if (t >= 1 && this.d.etapa === 'chegada') { this.pouso = 0; return; }
     if (t >= 1 && !this.terminou) {
@@ -246,7 +246,7 @@ export class Viagem extends Phaser.Scene {
       this.g.fillStyle(0xf97316).fillCircle(bx, by - 18, 6).fillTriangle(bx - 4, by - 14, bx + 4, by - 14, bx, by);
       this.g.lineStyle(2, CONTORNO).strokeCircle(bx, by - 18, 6);
       this.titulo.setText('Heading down to Jezero crater');
-      this.legenda.setText(`The lander leaves the ship in orbit and aims for ${JEZERO.nome}, an old lake bed where NASA's Perseverance rover landed in 2021.`);
+      this.legenda.setText(`The lander aims for ${JEZERO.nome}, an old lake bed. NASA's Perseverance landed there in 2021!`);
       return;
     }
 
@@ -327,10 +327,10 @@ export class Viagem extends Phaser.Scene {
     const fase = q < 0.3 ? 0 : q < 0.6 ? 1 : q < 0.93 ? 2 : 3;
     this.titulo.setText(['Entry: through the air of Mars', 'Parachute out!', 'Rockets for the last part', 'Touchdown! Welcome to Jezero crater'][fase]);
     this.legenda.setText([
-      'Mars has air, thin (about 1% of Earth\'s). Rushing through it at 20,000 km/h heats the shield to about 1,300 °C and does most of the braking.',
-      'A parachute is useless on the Moon, where there is no air. On Mars it slows the lander from about 1,500 km/h to about 300 km/h.',
-      'The air is too thin to land on a parachute alone, so the last part is rocket power, just like on the Moon.',
-      'Seven minutes from the top of the air to the ground. A radio signal from Earth takes longer than that to arrive, so the lander does it all by itself.',
+      'Rushing through thin Mars air heats the shield to 1,300 °C!',
+      'Mars has a little air, so a parachute helps. On the Moon it would not!',
+      'The air is too thin for a parachute alone. Rockets do the rest!',
+      'Earth is too far to help live. The lander lands all by itself!',
     ][fase]);
 
     if (p >= 1 && !this.terminou) {
