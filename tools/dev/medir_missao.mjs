@@ -1,7 +1,10 @@
+// Generated with AI assistance. See README, "Use of AI tools".
 // Repeatable production-game measurement through Chrome DevTools Protocol.
 // Build with VITE_MEDIR=1, serve the output, then:
 // node tools/dev/medir_missao.mjs URL CPU WIDTHxHEIGHT OUTPUT.json [full|reduced]
 // CHROME_SOFTWARE=1 forces SwiftShader for an explicitly software-rendered stress test.
+// In full motion the first two samples ("early ...") run right after the game opens, while the
+// flight film is still downloading: that is when the player first walks around the base.
 import { spawn } from 'node:child_process';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -60,9 +63,8 @@ try {
  report.firstContentfulPaintMs=await js("performance.getEntriesByName('first-contentful-paint')[0]?.startTime??null");
  report.renderer=await js(`(()=>{const canvas=document.querySelector('canvas');const g=canvas.getContext('webgl2')||canvas.getContext('webgl');const ext=g?.getExtension('WEBGL_debug_renderer_info');return ext?g.getParameter(ext.UNMASKED_RENDERER_WEBGL):'unavailable';})()`);
  await js("(()=>{const ui=superficie.scene.get('Interface');ui.scene.stop('Radar');ui.fecharPainel();return true;})()");
- if(motion!=='reduced')await until('sessao.filmePronto',45000);
- await sleep(3000);
- report.warmup='all flight downloads completed, then 3 seconds idle';
+ const walk=`(()=>{const k=superficie.corpo;const start={gx:k.x,gy:k.y};const end={gx:k.x,gy:k.y+6};superficie.rota=[end,start,end,start];return true;})()`;
+ const flightFrames="Object.keys(superficie.textures.list).filter(k=>/^voo\\d+$/.test(k)).length";
  const sample=async(name,ms,action)=>{
   if(action)await js(action);
   const initial=await js('({vista:sessao.vista,flight:!!sessao.voo,transition:!!sessao.transicao})');
@@ -74,8 +76,18 @@ try {
   const result={name,initial,finalView:raw.vista,frames:frames.length,meanMs:mean,p95Ms:frames[Math.min(frames.length-1,Math.floor(frames.length*0.95))],fps:1000/mean,over50msPercent:100*frames.filter(f=>f>50).length/frames.length,longTasks:raw.longTasks.length,longTaskMs:raw.longTasks.reduce((a,b)=>a+b.duration,0),heapBytes:raw.heap,distanceTiles:raw.distance,footprints:raw.footprints,elapsedMs:raw.elapsed};
   report.stages.push(result);console.log(JSON.stringify(result));
  };
+ if(motion!=='reduced'){
+  report.early={filmReadyAtStart:await js('sessao.filmePronto'),flightTexturesAtStart:await js(flightFrames)};
+  await sample('early surface idle',3000);
+  await sample('early surface walking',4000,walk);
+  await js('superficie.rota=[];superficie.corpo.vx=superficie.corpo.vy=0;');
+  report.early.flightTexturesAtEnd=await js(flightFrames);
+ }
+ if(motion!=='reduced')await until('sessao.filmePronto',45000);
+ await sleep(3000);
+ report.warmup='all flight downloads completed, then 3 seconds idle';
  await sample('surface idle',3000);
- await sample('surface walking',4000,`(()=>{const k=superficie.corpo;const start={gx:k.x,gy:k.y};const end={gx:k.x,gy:k.y+6};superficie.rota=[end,start,end,start];return true;})()`);
+ await sample('surface walking',4000,walk);
  if(report.stages.at(-1).distanceTiles<1)throw Error('Walking scenario did not actually move');
  await js('superficie.rota=[];superficie.corpo.vx=superficie.corpo.vy=0;');
  if(motion!=='reduced')await until('sessao.filmePronto',45000);

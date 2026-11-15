@@ -1,3 +1,4 @@
+// Generated with AI assistance. See README, "Use of AI tools".
 // Video preferences shared by scenes; storage is optional in private browsing.
 export type Video = { qualidade: 'auto' | 'leve' | 'alta'; movimento: 'sistema' | 'reduzido' | 'completo'; efeitos: boolean; pegadas: boolean };
 const KEY = 'lunar-odyssey-video';

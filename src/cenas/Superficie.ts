@@ -540,6 +540,7 @@ export class Superficie extends Phaser.Scene {
     if (Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3 && this.corpo.noChao) this.passada += dt * 12;
     this.animarPouso(dt);
     this.desenharComandante();
+    sessao.parado = Math.hypot(this.corpo.vx, this.corpo.vy) < 0.05 && this.corpo.noChao;
     this.atualizarOclusao(dt);
     if(this.mapa.visible) this.ambiente.update(dt,this.corpo,sessao.grade.lista);
     this.animarModulos(dt);
@@ -667,7 +668,8 @@ export class Superficie extends Phaser.Scene {
       const behind = k.x < c.gx + c.tipo.w && k.y < c.gy + c.tipo.h && k.z < c.z + c.tipo.altura - 0.1;
       const normal = profundidade(c.gx + c.tipo.w, c.gy + c.tipo.h);
       const order = overlaps ? (behind ? Math.max(normal, depth + 0.5) : Math.min(normal, depth - 0.5)) : normal;
-      d.img.setDepth(order); d.g.setDepth(order - 0.1);
+      // setDepth re-sorts the layer: only when the order really changes.
+      if (d.img.depth !== order) { d.img.setDepth(order); d.g.setDepth(order - 0.1); }
       const alpha = overlaps && behind ? 0.38 : 1;
       const next = Phaser.Math.Linear(d.img.alpha, alpha, 1 - Math.exp(-dt * 12));
       d.img.setAlpha(next); d.g.setAlpha(next);

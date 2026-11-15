@@ -1,3 +1,4 @@
+// Generated with AI assistance. See README, "Use of AI tools".
 // Grounded footprints and ballistic lunar dust. Building illumination is rendered in Blender.
 import Phaser from 'phaser';
 import { paraTela, type Projecao } from '../engine/iso';
@@ -7,7 +8,9 @@ import type { Construcao } from '../engine/construcao';
 import { movimentoReduzido, video } from '../video';
 import { LEVE } from './qualidade';
 
-type Marca = { x: number; y: number; dx: number; dy: number; nascimento: number };
+type P2 = { x: number; y: number };
+// A footprint keeps its screen shape, computed once when it is made (the ground does not move).
+type Marca = { nascimento: number; contorno: P2[]; riscos: [P2, P2][] };
 const VIDA_PEGADA = 60;
 const FADE_PEGADA = 20;
 type Grao = { x: number; y: number; z: number; vx: number; vy: number; vz: number; t: number };
@@ -36,7 +39,8 @@ export class Ambiente {
     this.passos(corpo,construcoes,leve,reduzido);
     // Age continues even while standing still or looking at space; no count-based eviction.
     const agora=this.cena.time.now/1000;
-    if(this.marcas.length && agora-this.ultimaAtualizacaoPegadas>=0.2) this.redesenharPegadas();
+    // Full redraw (for the fade) once a second; a new step is only appended in between.
+    if(this.marcas.length && agora-this.ultimaAtualizacaoPegadas>=1) this.redesenharPegadas();
     if (this.pegadasVisiveis !== video.pegadas) {
       this.pegadasVisiveis=video.pegadas;
       this.gPegadas.setVisible(video.pegadas);
@@ -72,8 +76,15 @@ export class Ambiente {
     this.lado*=-1;
     const ux=dx/dist,uy=dy/dist;
     const x=k.x-uy*0.10*this.lado,y=k.y+ux*0.10*this.lado;
-    this.marcas.push({x,y,dx:ux,dy:uy,nascimento:this.cena.time.now/1000});
-    this.redesenharPegadas();
+    const q=(forward:number,side:number)=>{
+      const px=x+ux*forward-uy*side,py=y+uy*forward+ux*side;
+      return paraTela(this.p,px,py,this.terreno.altura(px,py)+0.006);
+    };
+    const marca: Marca={nascimento:this.cena.time.now/1000,
+      contorno:[q(-0.095,-0.045),q(0.08,-0.045),q(0.115,-0.025),q(0.115,0.025),q(0.08,0.045),q(-0.095,0.045)],
+      riscos:[-0.055,0,0.055].map(f=>[q(f,-0.03),q(f,0.03)] as [P2,P2])};
+    this.marcas.push(marca);
+    this.desenharMarca(this.gPegadas,marca,1);
     if(video.efeitos && !reduzido) {
       for(let i=0;i<(leve?2:4);i++) this.graos.push({x,y,z:this.terreno.altura(x,y)+0.01,vx:-ux*0.10+(Math.random()-0.5)*0.12,vy:-uy*0.10+(Math.random()-0.5)*0.12,vz:0.10+Math.random()*0.10,t:0});
       if(this.graos.length>40)this.graos.splice(0,this.graos.length-40);
@@ -87,18 +98,14 @@ export class Ambiente {
     this.marcas=this.marcas.filter(m=>agora-m.nascimento<VIDA_PEGADA);
     for(const m of this.marcas) {
       const t=Phaser.Math.Clamp((agora-m.nascimento-(VIDA_PEGADA-FADE_PEGADA))/FADE_PEGADA,0,1);
-      const alpha=1-t*t*(3-2*t);
-      const q=(forward:number,side:number)=>{
-        const x=m.x+m.dx*forward-m.dy*side,y=m.y+m.dy*forward+m.dx*side;
-        return paraTela(this.p,x,y,this.terreno.altura(x,y)+0.006);
-      };
-      const outline=[q(-0.095,-0.045),q(0.08,-0.045),q(0.115,-0.025),q(0.115,0.025),q(0.08,0.045),q(-0.095,0.045)];
-      g.fillStyle(0x554c41,0.40*alpha).fillPoints(outline,true);
-      g.lineStyle(0.8,0xd2c2a4,0.5*alpha).lineBetween(outline[4].x,outline[4].y,outline[5].x,outline[5].y);
-      for(const forward of [-0.055,0,0.055]) {
-        const a=q(forward,-0.03),b=q(forward,0.03);
-        g.lineStyle(0.7,0xb7a58a,0.65*alpha).lineBetween(a.x,a.y,b.x,b.y);
-      }
+      this.desenharMarca(g,m,1-t*t*(3-2*t));
     }
+  }
+
+  private desenharMarca(g: Phaser.GameObjects.Graphics, m: Marca, alpha: number) {
+    const o=m.contorno;
+    g.fillStyle(0x554c41,0.40*alpha).fillPoints(o,true);
+    g.lineStyle(0.8,0xd2c2a4,0.5*alpha).lineBetween(o[4].x,o[4].y,o[5].x,o[5].y);
+    for(const [a,b] of m.riscos) g.lineStyle(0.7,0xb7a58a,0.65*alpha).lineBetween(a.x,a.y,b.x,b.y);
   }
 }

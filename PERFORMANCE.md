@@ -116,3 +116,121 @@ Raw records:
 3. [Candidate desktop](performance/2026-11-14/candidate-desktop.json)
 4. [Candidate mobile](performance/2026-11-14/candidate-mobile.json)
 5. [Candidate reduced motion](performance/2026-11-14/candidate-reduced.json)
+
+
+## Follow-up: the first minute, while the flight film downloads
+
+Measured on November 14, 2026, evening, same machine, browser and renderer as above (Chrome
+150, Intel RPL-P iGPU through ANGLE, hardware rendering). Baseline: `65405d9` (PR #5).
+Candidate: this branch. Both are production builds with `VITE_MEDIR=1`.
+
+### What the first report did not sample
+
+The method above waits until every flight frame has downloaded, then 3 more seconds, before
+the first sample. A player reported that the start is the laggiest part, and that is exactly the
+window it skipped. `medir_missao.mjs` now takes two extra samples in full motion, right after
+the title menu closes and while the film is still downloading: `early surface idle` and
+`early surface walking`. Everything after them is unchanged, so the other stages stay comparable.
+
+### Cause
+
+A CPU profile of that window (Chrome, `tools/dev/medir_desempenho.mjs` with `PERFIL=dir`,
+summarized by `tools/dev/resumir_cpuprofile.py`) put about 70% of the main thread in
+`texImage2D`, called from `filme.ts`: each frame was handed to Phaser as an `<img>` as soon as it
+arrived, and the browser premultiplied and converted it on the main thread while uploading it,
+close to 100 ms per HD frame with the CPU slowed 4x. Firefox's console warning about
+"Alpha-premult and y-flip" points at the same path.
+
+### Change
+
+1. `filme.ts` decodes frames with `createImageBitmap(..., { premultiplyAlpha: 'premultiply' })`,
+   off the main thread, and keeps them in memory instead of making textures right away.
+2. `Espaco` sends them to the GPU one at a time on the ground: every 150 ms while the commander
+   stands still, every 700 ms while walking. During a flight, the frame shown and the two on
+   each side are sent just in time if still missing.
+3. Smaller per-frame savings: footprints keep their screen shape from when they are made and a
+   new step is appended instead of redrawing all of them (full redraw once a second for the fade,
+   lifetime unchanged); `Grade.caixas()` is kept until the base changes; module depth is only set
+   when it changes; the caption date reuses one `Intl.DateTimeFormat`.
+
+### Summary
+
+| Profile | Ready, s | Early idle FPS | Early walking FPS | Early frames over 50 ms | First flight FPS | First flight long tasks |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Baseline HD, CPU 4x | 9.77 | 11.1 | 14.7 | 52.5% | 48.8 | 1 |
+| Candidate HD, CPU 4x | 5.55 | 50.0 | 52.3 | 0.9% | 45.2 | 18 |
+| Baseline desktop | 2.97 | 46.1 | 53.8 | 0.7% | 60.0 | 0 |
+| Candidate desktop | 2.69 | 54.7 | 60.0 | 0.0% | 59.5 | 0 |
+| Baseline mobile | 3.41 | 59.0 | 60.0 | 0.0% | 60.0 | 0 |
+| Candidate mobile | 3.70 | 60.0 | 60.0 | 0.0% | 60.0 | 0 |
+
+### All sampled stages
+
+| Profile | Stage | FPS | p95, ms | Frames over 50 ms | Long tasks | Long-task total, ms |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Baseline HD, CPU 4x | early surface idle | 11.1 | 183.3 | 51.4% | 0 | 0 |
+| Baseline HD, CPU 4x | early surface walking | 14.7 | 166.7 | 52.5% | 0 | 0 |
+| Baseline HD, CPU 4x | surface idle | 59.7 | 16.7 | 0.0% | 0 | 0 |
+| Baseline HD, CPU 4x | surface walking | 59.5 | 16.8 | 0.0% | 0 | 0 |
+| Baseline HD, CPU 4x | surface to Moon | 48.8 | 33.4 | 0.5% | 1 | 68 |
+| Baseline HD, CPU 4x | Moon idle | 59.1 | 16.8 | 0.0% | 0 | 0 |
+| Baseline HD, CPU 4x | Moon to planets | 50.4 | 33.4 | 1.4% | 1 | 110 |
+| Baseline HD, CPU 4x | solar system idle | 60.0 | 16.8 | 0.0% | 0 | 0 |
+| Candidate HD, CPU 4x | early surface idle | 50.0 | 33.4 | 0.7% | 1 | 50 |
+| Candidate HD, CPU 4x | early surface walking | 52.3 | 33.4 | 0.9% | 0 | 0 |
+| Candidate HD, CPU 4x | surface idle | 56.4 | 33.3 | 0.0% | 0 | 0 |
+| Candidate HD, CPU 4x | surface walking | 59.0 | 16.8 | 0.0% | 0 | 0 |
+| Candidate HD, CPU 4x | surface to Moon | 45.2 | 66.7 | 8.0% | 18 | 1250 |
+| Candidate HD, CPU 4x | Moon idle | 60.0 | 16.8 | 0.0% | 0 | 0 |
+| Candidate HD, CPU 4x | Moon to planets | 59.6 | 16.7 | 0.0% | 0 | 0 |
+| Candidate HD, CPU 4x | solar system idle | 60.0 | 16.8 | 0.0% | 0 | 0 |
+| Baseline desktop | early surface idle | 46.1 | 33.4 | 0.7% | 0 | 0 |
+| Baseline desktop | early surface walking | 53.8 | 33.3 | 0.0% | 0 | 0 |
+| Baseline desktop | surface idle | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Baseline desktop | surface walking | 60.0 | 16.8 | 0.0% | 0 | 0 |
+| Baseline desktop | surface to Moon | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Baseline desktop | Moon idle | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Baseline desktop | Moon to planets | 60.0 | 16.8 | 0.0% | 0 | 0 |
+| Baseline desktop | solar system idle | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Candidate desktop | early surface idle | 54.7 | 33.3 | 0.0% | 0 | 0 |
+| Candidate desktop | early surface walking | 60.0 | 16.8 | 0.0% | 0 | 0 |
+| Candidate desktop | surface idle | 59.0 | 16.8 | 0.0% | 0 | 0 |
+| Candidate desktop | surface walking | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Candidate desktop | surface to Moon | 59.5 | 16.7 | 0.0% | 0 | 0 |
+| Candidate desktop | Moon idle | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Candidate desktop | Moon to planets | 59.6 | 16.8 | 0.0% | 0 | 0 |
+| Candidate desktop | solar system idle | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Baseline mobile | early surface idle | 59.0 | 16.8 | 0.0% | 0 | 0 |
+| Baseline mobile | early surface walking | 60.0 | 16.8 | 0.0% | 0 | 0 |
+| Baseline mobile | surface idle | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Baseline mobile | surface walking | 60.0 | 16.8 | 0.0% | 0 | 0 |
+| Baseline mobile | surface to Moon | 60.0 | 16.8 | 0.0% | 0 | 0 |
+| Baseline mobile | Moon idle | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Baseline mobile | Moon to planets | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Baseline mobile | solar system idle | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Candidate mobile | early surface idle | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Candidate mobile | early surface walking | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Candidate mobile | surface idle | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Candidate mobile | surface walking | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Candidate mobile | surface to Moon | 60.0 | 16.8 | 0.0% | 0 | 0 |
+| Candidate mobile | Moon idle | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Candidate mobile | Moon to planets | 60.0 | 16.7 | 0.0% | 0 | 0 |
+| Candidate mobile | solar system idle | 60.0 | 16.8 | 0.0% | 0 | 0 |
+
+### Interpretation and limits
+
+The early window is where the change matters: with HD frames and the CPU slowed 4x, the baseline
+spent about half its frames over 50 ms while the film downloaded; the candidate stays near 50 FPS.
+With the light mobile frames (640 x 360) the baseline was already smooth on this GPU, and the
+candidate matches it.
+
+The cost moved, it did not vanish. If the player flies a few seconds after the game opens, frames
+not yet uploaded go up during the first flight: in the HD CPU 4x run the first flight had 18 long
+tasks against 1 in the baseline (45 against 49 FPS). Players normally stand on the ground longer
+before flying (intro, morning report, walking), and frames keep going up meanwhile.
+
+One run per profile, as above. During the HD CPU 4x runs another Blender render was using the
+NVIDIA GPU and some CPU; Chrome rendered on the Intel GPU, and baseline and candidate ran back to
+back under the same load. Startup times vary with OS caches and machine activity.
+
+Raw records: [`performance/2026-11-14-carregador/`](performance/2026-11-14-carregador/).
