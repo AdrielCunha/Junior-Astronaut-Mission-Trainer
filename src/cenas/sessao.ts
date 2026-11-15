@@ -273,6 +273,8 @@ class Sessao {
       if (v.tipo === 'filme' && v.fase === 'prep') { v.fase = 'filme'; v.t = 0; v.dur = DURACAO_FILME; return; }
       this.vista = v.destino;
       this.u = this.alvo = v.tipo === 'zoom' ? v.para : v.destino === 'lua' ? this.uGlobo : this.uFilme;
+      // Back on the ground the film leaves the camera at its widest; glide in to the usual view.
+      if (this.vista === 'chao') this.alvo = U_INICIAL;
       this.voo = null;
       const proximo = this.pendente;
       this.pendente = null;

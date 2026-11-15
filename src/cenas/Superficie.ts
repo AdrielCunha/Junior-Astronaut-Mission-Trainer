@@ -35,6 +35,14 @@ import { chaveSkin } from '../dados/skins';
 import { DECORACAO, comoTipo } from '../dados/decoracao';
 
 const P = dadosTerreno.imagem;
+// Mars: warm light on the props and modules (they are rendered under the Moon's light), and the props that make sense in Jezero crater, with
+// their Mars names. Real: Perseverance's sky crane crashed near its landing site, and it left
+// sample tubes on the crater floor for a future mission to bring back.
+const TOM_MARTE = 0xffdcc4;
+const DECO_MARTE: Record<string, string | null> = {
+  modulo_descida: 'Sky Crane Wreck', amostras: 'Sample Tubes', refletor: null, rover_velho: null, sonda: null,
+  sismografo: 'Seismometer', bandeira: 'Mission Flag',
+};
 const ALCANCE = 1.3;          // tiles from a module's edge to use it
 const ESCALA_MARCADOR = 0.62; // Compact destination marker; keep the source emblem crisp.
 const PROFUNDIDADE_MARCADOR = 900_000; // Above world objects, below room labels and the HUD.
@@ -104,7 +112,7 @@ export class Superficie extends Phaser.Scene {
     this.mapa.add(this.terreno);
     this.gCaminhos = this.add.graphics().setDepth(-900_000);
     this.mapa.add(this.gCaminhos);
-    this.ambiente = new Ambiente(this,this.mapa,P,sessao.terreno);
+    this.ambiente = new Ambiente(this,this.mapa,P,sessao.terreno,marte);
 
     // The crew's base is already there (engine/construcao.ts, BASE_PADRAO). On Mars only the
     // lander and the panels are; the rooms are construction sites (BASE_MARTE).
@@ -199,7 +207,7 @@ export class Superficie extends Phaser.Scene {
       const q = sessao.quadroFilme;
       if (q !== null) {
         cam.setZoom((sDeU(sessao.uFilme) * Math.pow(voo.razao, -q)) / S_MAPA);
-        this.terreno.setAlpha(1 - suave(0, 0.03, q));
+        this.terreno.setAlpha(1 - suave(0.05, 0.1, q));   // gone only once the film covers the screen
       }
       this.mapa.setAlpha(q === null ? 1 : 1 - suave(0.22, 0.32, q));
     } else {
@@ -352,10 +360,16 @@ export class Superficie extends Phaser.Scene {
   }
 
   // Rooms you can use light up under the cursor, like buttons.
+  // The resting tint of a module picture: none on the Moon, Mars's warm light on Mars.
+  private tingir(img?: Phaser.GameObjects.Image) {
+    if (!img) return;
+    if (sessao.mundo === 'marte') img.setTint(TOM_MARTE); else img.clearTint();
+  }
+
   private destacar(c: Construcao | null) {
     const usavel = c && (c.tipo.id === origemBaterias(sessao.mundo) || c.tipo.sala) ? c : null;
     if (usavel === this.sobre) return;
-    if (this.sobre) this.desenhos.get(this.sobre.id)?.img.clearTint();
+    if (this.sobre) this.tingir(this.desenhos.get(this.sobre.id)?.img);
     this.sobre = usavel;
     if (usavel) this.desenhos.get(usavel.id)?.img.setTint(0xfff3c4);
     this.input.setDefaultCursor(usavel ? 'pointer' : 'default');
@@ -636,7 +650,8 @@ export class Superficie extends Phaser.Scene {
           `You rise ${lua.altura.toFixed(1)} m and float ${lua.tempo.toFixed(1)} s. On Earth: ${terra.altura.toFixed(2)} m, ${terra.tempo.toFixed(1)} s.`, '#93c5fd');
       }
     }
-    if (Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3 && this.corpo.noChao) this.passada += dt * 12;
+    // Gait: the Moon's slow bunny hop; on Mars, with more than twice the gravity, quicker steps.
+    if (Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3 && this.corpo.noChao) this.passada += dt * (sessao.mundo === 'marte' ? 18 : 12);
     this.animarPouso(dt);
     this.animarDecolagem(dt);
     this.desenharComandante();
@@ -698,11 +713,14 @@ export class Superficie extends Phaser.Scene {
   // Surface props (old rover, probe, beacon...): placed once on free flat ground, solid, each with its name.
   private montarDeco() {
     const g = sessao.grade, c0 = Math.floor(g.n / 2);
+    const marte = sessao.mundo === 'marte';
     if (!g.deco.length) {
-      // On Mars, leave out what only exists on the Moon (Apollo's laser reflectors).
-      for (const d of DECORACAO.filter((x) => sessao.mundo !== 'marte' || x.id !== 'refletor')) {
+      // On Mars, only the props that fit there, under their Mars names (DECO_MARTE).
+      for (const d of DECORACAO) {
+        const nome = marte && d.id in DECO_MARTE ? DECO_MARTE[d.id] : d.nome;
+        if (!nome) continue;
         const p = g.procurarComEspaco(comoTipo(d), c0 + d.dx, c0 + d.dy);
-        if (p) g.colocarDeco({ id: d.id, nome: d.nome, w: d.w, h: d.h, altura: d.altura }, p.gx, p.gy);
+        if (p) g.colocarDeco({ id: d.id, nome, w: d.w, h: d.h, altura: d.altura }, p.gx, p.gy);
       }
     }
     for (const d of g.deco) {
@@ -711,6 +729,7 @@ export class Superficie extends Phaser.Scene {
       const img = this.add.image(p.x, p.y, `mod_deco_${d.id}`)
         .setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala)
         .setDepth(profundidade(d.gx + d.w, d.gy + d.h));
+      if (sessao.mundo === 'marte') img.setTint(TOM_MARTE);
       const topo = paraTela(P, d.gx + d.w / 2, d.gy + d.h / 2, d.z + d.altura + 0.45);
       const rotulo = this.add.text(topo.x, topo.y, d.nome, fonte(11, '#f8fafc', { fontStyle: 'bold', stroke: '#17130f', strokeThickness: 3 }))
         .setOrigin(0.5, 1).setDepth(1e6);
@@ -733,6 +752,7 @@ export class Superficie extends Phaser.Scene {
     d.g.clear();
     fundacao(d.g, P, c, (x, y) => sessao.terreno.altura(x, y));
     this.posicionar(d.img, c, this.modelo(c));
+    if (this.sobre !== c) this.tingir(d.img);
     // Sort by the module's back corner (where its picture is anchored), not its front corner:
     // using the front corner pushed every module in front of the commander, so the astronaut
     // disappeared under it whenever walking next to a wall.
