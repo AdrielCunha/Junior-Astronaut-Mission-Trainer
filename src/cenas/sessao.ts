@@ -36,9 +36,17 @@ export const U_INICIAL = Math.log(ZOOM_MAX / 1.1);
 export const RAIO_LUA = 1737.4;             // km
 const AU = 149597870.7;
 export const sDeU = (u: number) => S_MAX * Math.exp(-u);
-export const DURACAO_FILME = 3.8;           // s, ground <-> Moon
-// Timing of the flight frames (they are spaced evenly in log distance): ease in and out.
-const suaveFilme = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t);
+export const DURACAO_FILME = 6;             // s, ground <-> Moon (3.8 felt too fast and made some players queasy)
+// Timing of the flight (its frames are spaced evenly in log distance, so a constant rate looks
+// like a steady zoom): a short soft start and stop, and an even speed in between. The old
+// cosine ease reached 1.6 times the average speed in the middle; this one only 1.25 times.
+const RAMPA = 0.2;
+const suaveFilme = (t: number) => {
+  const v = 1 / (1 - RAMPA);                       // top speed
+  if (t < RAMPA) return (v / (2 * RAMPA)) * t * t;
+  if (t > 1 - RAMPA) return 1 - (v / (2 * RAMPA)) * (1 - t) ** 2;
+  return v * (t - RAMPA / 2);
+};
 export const uDeS = (s: number) => Math.log(S_MAX / s);
 // iOS-like motion: cubic-bezier(0.7, 0, 0.2, 1): slow start, quick middle, long soft landing.
 export function curva(t: number) {

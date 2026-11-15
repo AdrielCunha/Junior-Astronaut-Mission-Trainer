@@ -55,6 +55,7 @@ export class MarteVista extends Phaser.Scene {
   private legenda!: Phaser.GameObjects.Text;
   private cobertura!: Phaser.GameObjects.Rectangle;
   private quadro!: Phaser.GameObjects.Image;          // current film frame
+  private quadro2!: Phaser.GameObjects.Image;         // the next one, fading in over it (as on the Moon)
   private ceuMarte!: Phaser.GameObjects.Rectangle;   // the sky of Mars behind the film, darker higher up
 
   constructor() {
@@ -87,10 +88,11 @@ export class MarteVista extends Phaser.Scene {
     this.terraP = criarPlaneta(this, 0, 0, { textura: 'planeta_terra', atmos: 0x93c5fd, atmosForca: 0.55 });
     this.marteP = criarPlaneta(this, 0, 0, { textura: 'planeta_marte', atmos: 0xfdba74, atmosForca: 0.35 });
     this.quadro = this.add.image(W / 2, H / 2, 'mv0');
+    this.quadro2 = this.add.image(W / 2, H / 2, 'mv0').setVisible(false);
     this.frente = this.add.graphics();
     this.legenda = this.add.text(W / 2, H - 16, '', fonte(14, '#e2e8f0', { align: 'center', stroke: '#020617', strokeThickness: 4, wordWrap: { width: W - 260 } }))
       .setOrigin(0.5, 1);
-    this.conteudo.push(this.ceu, this.ceuMarte, veu, this.atras, this.sol, this.terraP, this.marteP, this.quadro, this.frente, this.legenda);
+    this.conteudo.push(this.ceu, this.ceuMarte, veu, this.atras, this.sol, this.terraP, this.marteP, this.quadro, this.quadro2, this.frente, this.legenda);
 
     // Controls, like the zoom buttons on the Moon.
     const botao = (x: number, y: number, s: string, acao: () => void, larga = false) => {
@@ -221,10 +223,15 @@ export class MarteVista extends Phaser.Scene {
       const k = Math.max(Math.max(W / (VOO.w * VOO.margem), H / (VOO.h * VOO.margem)), esc * Math.pow(VOO.razao, -(z - VOO.p[i])));
       const fade = 1 - suave(0.975, 1, z);
       this.quadro.setTexture(`mv${i}`).setScale(k).setPosition(W / 2, H / 2).setAlpha(fade);
+      const n = i + 1, cobre = Math.max(W / (VOO.w * VOO.margem), H / (VOO.h * VOO.margem));
+      const f = n < VOO.quadros && z > VOO.p[i] ? Phaser.Math.Clamp((z - VOO.p[i]) / (VOO.p[n] - VOO.p[i]), 0, 1) : 0;
+      if (f > 0) this.quadro2.setTexture(`mv${n}`).setScale(Math.max(cobre, esc * Math.pow(VOO.razao, -(z - VOO.p[n])))).setPosition(W / 2, H / 2).setAlpha(fade * f);
+      this.quadro2.setData('f', f);
       const fw = VOO.w * VOO.margem, fh = VOO.h * VOO.margem;
       bf = { x: W / 2 + (VOO.base[i][0] - fw / 2) * k, y: H / 2 + (VOO.base[i][1] - fh / 2) * k };
     }
     this.quadro.setVisible(noFilme && this.cobertura.alpha < 1 && !this.saindo);
+    this.quadro2.setVisible(this.quadro.visible && (this.quadro2.getData('f') ?? 0) > 0.01);
     this.marteP.setVisible(!noFilme || z > 0.96);
     // Sky: the butterscotch sky of Mars near the ground, darker with height, then space.
     let c0 = CEU_MARTE[0], c1 = CEU_MARTE[1];
