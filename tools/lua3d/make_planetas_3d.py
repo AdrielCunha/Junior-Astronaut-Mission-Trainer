@@ -4,9 +4,11 @@
 #   small sheet, solar system view: 16 turns x 16 Sun directions, 96 px frames (the game picks the
 #     frame lit from where the Sun is on screen, and steps the turn so the body spins);
 #     the Sun: 16 turns, it is its own light;
-#   big sheet, full screen: one whole turn in 48 frames of 384 px, lit from the front left.
+#   full screen (Astro): the body's surface baked by Cycles into an equirectangular map, 2048 x 1024,
+#     that astroShader.ts wraps on a sphere on the GPU, so it turns smoothly at any size (like the
+#     live Moon). The Sun's map is its surface without the limb darkening, which the shader adds.
 #
-#   prime-run blender -b -P tools/lua3d/make_planetas_3d.py [-- --so terra,sol]
+#   prime-run blender -b -P tools/lua3d/make_planetas_3d.py [-- --so terra,sol] [--so-pequeno | --so-mapas]
 #
 # Maps (tools/lua3d/nasa/):
 #   planetas/mercury.jpg  NASA/JHU APL/Carnegie Institution, MESSENGER global mosaic (PIA15063)
@@ -15,7 +17,7 @@
 #   lroc_color_poles_2k.tif  the Moon, NASA SVS CGI Moon Kit (LRO LROC)
 #   Venus: from space it is only its clouds (pale yellow, faint bands), made here.
 #   The Sun: made here: granulation, darker limb (limb darkening is real), a few sunspots.
-# Out: public/lua/planetas/3d/<name>_p.png, <name>_g.png, src/dados/planetas3d.json
+# Out: public/lua/planetas/3d/<name>_p.png, public/lua/planetas/mapas/<name>.jpg, src/dados/planetas3d.json
 import os, sys, json, math, subprocess, urllib.request
 import bpy
 from mathutils import Vector, Matrix
@@ -28,10 +30,12 @@ OUT = os.path.join(ROOT, 'public', 'lua', 'planetas', '3d')
 MERCURIO = 'https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia15/pia15063/PIA15063.jpg'
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 SO = argv[argv.index('--so') + 1].split(',') if '--so' in argv else None
-SO_PEQUENO = '--so-pequeno' in argv      # only the small sheets (the big ones are kept)
+SO_PEQUENO = '--so-pequeno' in argv      # only the small sheets (the maps are kept)
+SO_MAPAS = '--so-mapas' in argv          # only the maps (the small sheets are kept)
+MAPA = (2048, 1024)
 
-QP, QG = 96, 384                         # frame sizes: small (solar system), big (full screen)
-DIRS, GIROS, GIROS_G = 16, 48, 48
+QP = 96                                  # frame size, solar system view
+DIRS, GIROS = 16, 48
 COLS_P = 32                              # small sheet: 32 frames a row keeps it under 4096 px (old GPUs)
 RAIO = 0.80                              # body radius as a share of half the frame (room for the glow)
 # name: (map, atmosphere color, atmosphere strength, axial tilt deg)
@@ -87,7 +91,7 @@ def material(nome, mapa):
     bs = next(n for n in N if n.type == 'BSDF_PRINCIPLED')
     bs.inputs['Roughness'].default_value = 0.9
     if mapa:
-        tex = N.new('ShaderNodeTexImage'); tex.image = bpy.data.images.load(mapa)
+        tex = N.new('ShaderNodeTexImage'); tex.image = bpy.data.images.load(mapa); tex.name = 'base'
         L.new(tex.outputs['Color'], bs.inputs['Base Color'])
     else:   # Venus's clouds: pale yellow, soft bands stretched along the equator, a little swirl
         tc = N.new('ShaderNodeTexCoord')
@@ -95,7 +99,7 @@ def material(nome, mapa):
         nz = N.new('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 2.2; nz.inputs['Detail'].default_value = 4
         nz.inputs['Distortion'].default_value = 1.2
         L.new(tc.outputs['Object'], esc.inputs['Vector']); L.new(esc.outputs['Vector'], nz.inputs['Vector'])
-        r = N.new('ShaderNodeValToRGB')
+        r = N.new('ShaderNodeValToRGB'); r.name = 'base'
         r.color_ramp.elements[0].color = (0.78, 0.62, 0.36, 1); r.color_ramp.elements[1].color = (0.98, 0.9, 0.7, 1)
         L.new(nz.outputs['Fac'], r.inputs['Fac']); L.new(r.outputs['Color'], bs.inputs['Base Color'])
     return m
@@ -123,7 +127,7 @@ def material_sol():
     sp = N.new('ShaderNodeMapRange'); sp.inputs['From Min'].default_value = 0.28; sp.inputs['From Max'].default_value = 0.33
     L.new(manchas.outputs['Fac'], sp.inputs['Value'])
     # (Mix node, RGBA: inputs 6 and 7 are the colors A and B, output 2 the result.)
-    escuro = N.new('ShaderNodeMix'); escuro.data_type = 'RGBA'; escuro.inputs[6].default_value = (0.35, 0.12, 0.02, 1)
+    escuro = N.new('ShaderNodeMix'); escuro.name = 'base'; escuro.data_type = 'RGBA'; escuro.inputs[6].default_value = (0.35, 0.12, 0.02, 1)
     L.new(sp.outputs['Result'], escuro.inputs['Factor']); L.new(cor.outputs['Color'], escuro.inputs[7])
     # Limb darkening: dimmer and redder toward the edge.
     lw = N.new('ShaderNodeLayerWeight'); lw.inputs['Blend'].default_value = 0.5
@@ -156,6 +160,42 @@ def atmosfera(cor, forca):
     return o
 
 
+def cozinhar(p, destino):
+    """Bakes the body's surface color (no light, no limb) into an equirectangular map: the UV
+    sphere's UVs are longitude and latitude."""
+    m = p.data.materials[0]; N, L = m.node_tree.nodes, m.node_tree.links
+    base = N['base']; cor = base.outputs[2] if base.type == 'MIX' else base.outputs['Color']
+    out = next(n for n in N if n.type == 'OUTPUT_MATERIAL')
+    em = N.new('ShaderNodeEmission'); em.inputs['Strength'].default_value = 1.0
+    L.new(cor, em.inputs['Color']); L.new(em.outputs[0], out.inputs['Surface'])
+    img = bpy.data.images.new('mapa', *MAPA, alpha=False)
+    alvo = N.new('ShaderNodeTexImage'); alvo.image = img; N.active = alvo
+    motor = sc.render.engine
+    sc.render.engine = 'CYCLES'; sc.cycles.samples = 8
+    try:
+        prefs = bpy.context.preferences.addons['cycles'].preferences
+        prefs.compute_device_type = 'OPTIX'; prefs.get_devices()
+        for d in prefs.devices: d.use = True
+        sc.cycles.device = 'GPU'
+    except Exception:
+        sc.cycles.device = 'CPU'
+    for o in sc.objects: o.select_set(o == p)
+    bpy.context.view_layer.objects.active = p
+    bpy.ops.object.bake(type='EMIT', margin=4)
+    # The UV seam (the map's left and right edges) bakes a bright column: rebuild both edge
+    # columns from their neighbors, so the map wraps without a line.
+    import numpy as np
+    w, h = MAPA
+    px = np.empty(w * h * 4, np.float32); img.pixels.foreach_get(px); a = px.reshape(h, w, 4)
+    a[:, 0] = a[:, 1]; a[:, w - 1] = (a[:, w - 2] + a[:, 0]) / 2
+    img.pixels.foreach_set(a.ravel())
+    img.filepath_raw = destino; img.file_format = 'JPEG'
+    sc.render.image_settings.quality = 88
+    img.save()
+    sc.render.engine = motor
+    N.remove(alvo); N.remove(em)
+
+
 def folha(quadros, colunas, q, destino):
     subprocess.run(['magick', 'montage', *quadros, '-tile', f'{colunas}x', '-geometry', f'{q}x{q}+0+0', '-background', 'none', destino], check=True)
     subprocess.run(['magick', destino, '-dither', 'None', '-colors', '255', 'PNG8:' + destino], check=True)
@@ -170,7 +210,8 @@ def render(q, f):
 os.makedirs(OUT, exist_ok=True)
 tmp = os.path.join(HERE, '.cache', 'planetas3d'); os.makedirs(tmp, exist_ok=True)
 JSON = os.path.join(ROOT, 'src', 'dados', 'planetas3d.json')
-saida = json.load(open(JSON)) if SO and os.path.exists(JSON) else {}
+saida = json.load(open(JSON)) if (SO or SO_PEQUENO or SO_MAPAS) and os.path.exists(JSON) else {}
+os.makedirs(os.path.join(OUT, '..', 'mapas'), exist_ok=True)
 for nome, (arq, cor, forca, incl) in CORPOS.items():
     if SO and nome not in SO: continue
     for o in [o for o in sc.objects if o.type == 'MESH']: bpy.data.objects.remove(o)
@@ -190,21 +231,22 @@ for nome, (arq, cor, forca, incl) in CORPOS.items():
     def girar(fr):
         p.matrix_world = eixo @ Matrix.Rotation(math.radians(200) + sentido * 2 * math.pi * fr, 4, 'Z')
 
-    peq = []
-    for j in range(GIROS):
-        girar(j / GIROS)
-        for k in range(1 if eh_sol else DIRS):
-            if not eh_sol: apontar_luz(2 * math.pi * k / DIRS)
-            f = os.path.join(tmp, f'{nome}_p{j:02d}_{k:02d}.png'); render(QP, f); peq.append(f)
-    folha(peq, 8 if eh_sol else COLS_P, QP, os.path.join(OUT, f'{nome}_p.png'))   # frame j * direcoes + k, row by row
-    apontar_luz(math.radians(150))                      # the full-screen view: lit from the front left
-    grd = []
-    for j in range(0 if SO_PEQUENO else GIROS_G):
-        girar(j / GIROS_G)
-        f = os.path.join(tmp, f'{nome}_g{j:02d}.png'); render(QG, f); grd.append(f)
-    if grd: folha(grd, 8, QG, os.path.join(OUT, f'{nome}_g.png'))
-    saida[nome] = {'pequeno': {'arquivo': f'lua/planetas/3d/{nome}_p.png', 'quadro': QP, 'giros': GIROS, 'direcoes': 1 if eh_sol else DIRS, 'raio': round(QP / 2 * RAIO, 1)},
-                   'grande': {'arquivo': f'lua/planetas/3d/{nome}_g.png', 'quadro': QG, 'quadros': GIROS_G, 'raio': round(QG / 2 * RAIO, 1)}}
+    item = saida.get(nome, {})
+    if not SO_MAPAS:
+        peq = []
+        for j in range(GIROS):
+            girar(j / GIROS)
+            for k in range(1 if eh_sol else DIRS):
+                if not eh_sol: apontar_luz(2 * math.pi * k / DIRS)
+                f = os.path.join(tmp, f'{nome}_p{j:02d}_{k:02d}.png'); render(QP, f); peq.append(f)
+        folha(peq, 8 if eh_sol else COLS_P, QP, os.path.join(OUT, f'{nome}_p.png'))   # frame j * direcoes + k, row by row
+        item['pequeno'] = {'arquivo': f'lua/planetas/3d/{nome}_p.png', 'quadro': QP, 'giros': GIROS, 'direcoes': 1 if eh_sol else DIRS, 'raio': round(QP / 2 * RAIO, 1)}
+    if not SO_PEQUENO:
+        p.matrix_world = Matrix.Identity(4)
+        cozinhar(p, os.path.abspath(os.path.join(OUT, '..', 'mapas', f'{nome}.jpg')))
+        item['grande'] = {'mapa': f'lua/planetas/mapas/{nome}.jpg', 'inclinacao': incl, 'sentido': sentido,
+                          'atmos': [round(c, 3) for c in cor] if cor else None, 'atmosForca': forca, 'sol': eh_sol}
+    saida[nome] = item
     print('body', nome, flush=True)
 with open(JSON, 'w') as f:
     json.dump(saida, f, indent=1)

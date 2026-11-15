@@ -8,10 +8,12 @@
    "raio": 38.4
   },
   "grande": {
-   "arquivo": "lua/planetas/3d/sol_g.png",
-   "quadro": 384,
-   "quadros": 48,
-   "raio": 153.6
+   "mapa": "lua/planetas/mapas/sol.jpg",
+   "inclinacao": 7.25,
+   "sentido": 1,
+   "atmos": null,
+   "atmosForca": 0.0,
+   "sol": true
   }
  },
  "mercurio": {
@@ -23,10 +25,12 @@
    "raio": 38.4
   },
   "grande": {
-   "arquivo": "lua/planetas/3d/mercurio_g.png",
-   "quadro": 384,
-   "quadros": 48,
-   "raio": 153.6
+   "mapa": "lua/planetas/mapas/mercurio.jpg",
+   "inclinacao": 0.0,
+   "sentido": 1,
+   "atmos": null,
+   "atmosForca": 0.0,
+   "sol": false
   }
  },
  "venus": {
@@ -38,10 +42,16 @@
    "raio": 38.4
   },
   "grande": {
-   "arquivo": "lua/planetas/3d/venus_g.png",
-   "quadro": 384,
-   "quadros": 48,
-   "raio": 153.6
+   "mapa": "lua/planetas/mapas/venus.jpg",
+   "inclinacao": 177.4,
+   "sentido": -1,
+   "atmos": [
+    1.0,
+    0.86,
+    0.55
+   ],
+   "atmosForca": 0.9,
+   "sol": false
   }
  },
  "terra": {
@@ -53,10 +63,16 @@
    "raio": 38.4
   },
   "grande": {
-   "arquivo": "lua/planetas/3d/terra_g.png",
-   "quadro": 384,
-   "quadros": 48,
-   "raio": 153.6
+   "mapa": "lua/planetas/mapas/terra.jpg",
+   "inclinacao": 23.4,
+   "sentido": 1,
+   "atmos": [
+    0.45,
+    0.7,
+    1.0
+   ],
+   "atmosForca": 0.8,
+   "sol": false
   }
  },
  "lua": {
@@ -68,10 +84,12 @@
    "raio": 38.4
   },
   "grande": {
-   "arquivo": "lua/planetas/3d/lua_g.png",
-   "quadro": 384,
-   "quadros": 48,
-   "raio": 153.6
+   "mapa": "lua/planetas/mapas/lua.jpg",
+   "inclinacao": 6.7,
+   "sentido": 1,
+   "atmos": null,
+   "atmosForca": 0.0,
+   "sol": false
   }
  },
  "marte": {
@@ -83,10 +101,16 @@
    "raio": 38.4
   },
   "grande": {
-   "arquivo": "lua/planetas/3d/marte_g.png",
-   "quadro": 384,
-   "quadros": 48,
-   "raio": 153.6
+   "mapa": "lua/planetas/mapas/marte.jpg",
+   "inclinacao": 25.2,
+   "sentido": 1,
+   "atmos": [
+    1.0,
+    0.62,
+    0.4
+   ],
+   "atmosForca": 0.35,
+   "sol": false
   }
  }
 }

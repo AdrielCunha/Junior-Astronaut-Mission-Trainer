@@ -1,13 +1,14 @@
 // Generated with AI assistance. See README, "Use of AI tools".
 // One body of the solar system up close, full screen: click the Sun, a planet or the Moon in the
 // solar system view (Espaco). The body flies in from where it was on the map and turns on its axis
-// (48 Blender frames, make_planetas_3d.py, each faded into the next) over the real sky, beside its
+// (drawn live on the GPU from its surface map baked in Blender, astroShader.ts) over the real sky, beside its
 // facts (NASA planetary fact sheets) and its size next to Earth's. The arrows go to the next body;
 // Esc, the Close button or a click on the sky closes it, flying the body back to the map.
 import Phaser from 'phaser';
 import planetas3d from '../dados/planetas3d.json';
 import { fonte, sessao } from './sessao';
 import { movimentoReduzido } from '../video';
+import { criarAstro, ESCALA_ASTRO } from './astroShader';
 
 export type DadosAstro = { nome: string; x?: number; y?: number; r?: number };
 
@@ -35,15 +36,17 @@ const FICHAS: Record<string, Ficha> = {
 };
 const ORDEM = ['sol', 'mercurio', 'venus', 'terra', 'lua', 'marte'];
 const css = (c: number) => '#' + c.toString(16).padStart(6, '0');
-type Grande = { arquivo: string; quadro: number; quadros: number; raio: number };
+type Grande = { mapa: string; inclinacao: number; sentido: number; atmos: number[] | null; atmosForca: number; sol: boolean };
+// Seconds per turn on screen (sped up a lot, slow enough to watch the surface go by).
+const GIRO_S: Record<string, number> = { sol: 70, mercurio: 50, venus: 60, terra: 36, lua: 50, marte: 38 };
 const grande = (nome: string) => (planetas3d as unknown as Record<string, { grande: Grande }>)[nome].grande;
 
 export class Astro extends Phaser.Scene {
   private dados: DadosAstro = { nome: 'terra' };
   private antesEmTarefa = false;
   private emTarefaGuardado = false;
-  private corpo?: Phaser.GameObjects.Sprite;
-  private prox?: Phaser.GameObjects.Sprite;
+  private corpo?: ReturnType<typeof criarAstro>;
+  private raio = 1;                                       // the body's radius on screen, full size
   private saindo = false;
 
   constructor() {
@@ -53,14 +56,14 @@ export class Astro extends Phaser.Scene {
   init(d: DadosAstro) {
     this.dados = d;
     this.saindo = false;
-    this.corpo = this.prox = undefined;
+    this.corpo = undefined;
     if (!this.emTarefaGuardado) { this.antesEmTarefa = sessao.emTarefa; this.emTarefaGuardado = true; }
     sessao.emTarefa = true;                                // the map and the zoom wait
   }
 
   preload() {
-    const g = grande(this.dados.nome), chave = `pl3dg_${this.dados.nome}`;
-    if (!this.textures.exists(chave)) this.load.spritesheet(chave, g.arquivo, { frameWidth: g.quadro, frameHeight: g.quadro });
+    const chave = `mapa_${this.dados.nome}`;
+    if (!this.textures.exists(chave)) this.load.image(chave, grande(this.dados.nome).mapa);
   }
 
   create() {
@@ -89,16 +92,14 @@ export class Astro extends Phaser.Scene {
       this.tweens.add({ targets: brilho, alpha: 0.85, duration: 400, delay: t0 * 0.6 });
       if (!movimentoReduzido()) this.tweens.add({ targets: brilho, scale: (raio * 3.3) / 128, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
-    const chave = `pl3dg_${nome}`, escala = raio / info.raio;
-    const corpo = this.add.sprite(cx, cy, chave, 0).setScale(escala);
-    const prox = this.add.sprite(cx, cy, chave, 1).setScale(escala).setAlpha(0);
-    this.corpo = corpo; this.prox = prox;
+    // The body, live on the GPU, turning continuously like the Moon (astroShader.ts).
+    const corpo = criarAstro(this, cx, cy, Math.ceil(raio * 2 * ESCALA_ASTRO), { textura: `mapa_${nome}`, ...info });
+    this.corpo = corpo; this.raio = raio;
+    this.update(this.time.now);
     if (voo) {
       // Fly in from the map: start where, and as big as, it was there.
-      const e0 = (this.dados.r ?? 10) / info.raio;
-      corpo.setPosition(this.dados.x!, this.dados.y!).setScale(e0);
-      prox.setPosition(this.dados.x!, this.dados.y!).setScale(e0);
-      this.tweens.add({ targets: [corpo, prox], x: cx, y: cy, scale: escala, duration: t0, ease: 'Cubic.easeInOut' });
+      corpo.setPosition(this.dados.x!, this.dados.y!).setScale((this.dados.r ?? 10) / raio);
+      this.tweens.add({ targets: corpo, x: cx, y: cy, scale: 1, duration: t0, ease: 'Cubic.easeInOut' });
     }
 
     // ---------- the facts panel ----------
@@ -201,12 +202,10 @@ export class Astro extends Phaser.Scene {
   }
 
   update(time: number) {
-    // The turn: the frame below and the next one over it, faded in by the fraction.
-    if (!this.corpo || !this.prox || movimentoReduzido()) return;
-    const n = grande(this.dados.nome).quadros;
-    const f = ((time / 1000) * (this.dados.nome === 'sol' ? 1.6 : 3)) % n, j = Math.floor(f);
-    this.corpo.setFrame(j);
-    this.prox.setFrame((j + 1) % n).setAlpha((f - j) * this.corpo.alpha);
+    // The turn: continuous, at the body's own pace (Venus backward). Still with reduced motion.
+    if (!this.corpo || movimentoReduzido()) return;
+    const nome = this.dados.nome;
+    this.corpo.setGiro(grande(nome).sentido * (time / 1000) * (2 * Math.PI / (GIRO_S[nome] ?? 40)));
   }
 
   private ir(nome: string) {
@@ -222,11 +221,11 @@ export class Astro extends Phaser.Scene {
     const fim = () => { sessao.emTarefa = this.antesEmTarefa; this.emTarefaGuardado = false; this.scene.stop(); };
     // Fly back to where the body is on the map now (it may be another body than the one clicked).
     const naMapa = (this.scene.get('Espaco') as unknown as { corpos?: Map<string, Phaser.GameObjects.Sprite> }).corpos?.get(this.dados.nome);
-    if (!naMapa?.visible || movimentoReduzido() || !this.corpo || !this.prox) { fim(); return; }
-    const e0 = ((naMapa.displayWidth / 2) * 0.8) / grande(this.dados.nome).raio;
-    this.tweens.add({ targets: [this.corpo, this.prox], x: naMapa.x, y: naMapa.y, scale: e0, duration: 420, ease: 'Cubic.easeInOut' });
+    if (!naMapa?.visible || movimentoReduzido() || !this.corpo) { fim(); return; }
+    const e0 = ((naMapa.displayWidth / 2) * 0.8) / this.raio;
+    this.tweens.add({ targets: this.corpo, x: naMapa.x, y: naMapa.y, scale: e0, duration: 420, ease: 'Cubic.easeInOut' });
     for (const o of this.children.list) {
-      if (o !== this.corpo && o !== this.prox) this.tweens.add({ targets: o, alpha: 0, duration: 380 });
+      if (o !== this.corpo) this.tweens.add({ targets: o, alpha: 0, duration: 380 });
     }
     this.time.delayedCall(430, fim);
   }
