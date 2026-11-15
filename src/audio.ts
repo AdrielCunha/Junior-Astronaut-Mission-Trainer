@@ -10,6 +10,7 @@ const FAIXAS = [
   'lunar-odyssey-theme',
   'Beneath_the_Silver_Tide',
   'Across_the_Crimson_Basin-aero',
+  'Aventura-Espacial-8-Bit',
 ];
 
 let audio: HTMLAudioElement | null = null;
