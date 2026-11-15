@@ -95,7 +95,9 @@ export function instalarControlesMoveis(jogo: import('phaser').Game) {
   const atualizar = () => {
     if (!jogo.scene.scenes.some(cena => cena.scene.key === 'Superficie')) return;
     const superficie = jogo.scene.getScene('Superficie');
+    const interfaceJogo = jogo.scene.isActive('Interface') ? jogo.scene.getScene('Interface') as import('./cenas/Interface').Interface : null;
     const habilitado = superficie?.scene.isActive() && superficie.scene.isVisible() && superficie.input.enabled
+      && !interfaceJogo?.painelAberto()
       && !jogo.scene.isActive('Radar') && !jogo.scene.isActive('MenuJogo') && !jogo.scene.isActive('EditorBase');
     controles.classList.toggle('visivel', !!habilitado);
     if (!habilitado) { limparControleMovel(); zerarJoystick(); }
