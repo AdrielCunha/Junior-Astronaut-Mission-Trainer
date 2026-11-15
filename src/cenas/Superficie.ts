@@ -17,6 +17,7 @@ import { Ambiente } from './ambiente';
 import { configuracoesAbertas, movimentoReduzido, video } from '../video';
 import { paraTela, paraChao, profundidade } from '../engine/iso';
 import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
+import { CicloPassada } from '../engine/passada';
 import { encontrarCaminho, type Ponto } from '../engine/caminho';
 import naveProps from '../dados/nave_props.json';
 import { TIPOS, tipoOrientado, montarBasePadrao, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
@@ -108,7 +109,8 @@ export class Superficie extends Phaser.Scene {
   private alvoUsar: Construcao | null = null;             // module to use when we arrive
   private bloqueadoCont = 0;
   private teclas!: Record<string, Phaser.Input.Keyboard.Key>;
-  private passada = 0;
+  private readonly passada = new CicloPassada(sprite.andar);
+  private quadroPassada = 0;
   private sobre: Construcao | null = null;              // module under the cursor
   private seguir = true;             // camera follows the commander until the player pans
   private arrastando = false;
@@ -310,7 +312,9 @@ export class Superficie extends Phaser.Scene {
     this.suprimentosPendentes=sessao.mundo==='lua' && sessao.fase==='dia'
       ? SUPRIMENTOS.filter(s=>s.dia<=sessao.estado.dia && !sessao.grade.lista.some(c=>c.tipo.id===s.tipo)).map(s=>s.tipo):[];
     this.sons=criarAmbienteSonoro();
-    const silenciar=()=>this.sons.silenciar();
+    this.passada.reiniciar();
+    this.quadroPassada = 0;
+    const silenciar=()=>{this.sons.silenciar();this.passada.reiniciar();};
     const visibilidade=()=>{if(document.hidden)silenciar();};
     this.events.on('pause',silenciar);
     document.addEventListener('visibilitychange',visibilidade);
@@ -1197,7 +1201,7 @@ export class Superficie extends Phaser.Scene {
       this.contornoEmergencia.setAlpha(reduz ? 0.3 : 0.16 + 0.3 * pulso);
     }
     this.sombraBandeira.setVisible(this.bandeira.visible).setAlpha(this.bandeira.alpha);
-    if(configuracoesAbertas || sessao.transicao) {this.input.keyboard?.resetKeys();this.sons.silenciar();return;}
+    if(configuracoesAbertas || sessao.transicao) {this.input.keyboard?.resetKeys();this.sons.silenciar();this.passada.reiniciar();return;}
     const caixas = sessao.grade.caixas();
     const e = this.input.enabled && (sessao.fase === 'dia' || sessao.fase === 'inicio') ? this.entrada() : null;
     const antesNoChao = this.corpo.noChao;
@@ -1206,9 +1210,11 @@ export class Superficie extends Phaser.Scene {
       this.corpo.vx = this.corpo.vy = 0;
       this.rota = []; this.alvoUsar = null; this.recolherBandeira();
     }
-    const { bloqueado } = sessao.rover?.dirigindo
+    const movimento = sessao.rover?.dirigindo
       ? dirigirRover(sessao.rover, sessao.roverCarregado ? e : null, sessao.terreno, caixas, dt)
       : passo(this.corpo, e, sessao.terreno, caixas, dt);
+    const { bloqueado } = movimento;
+    const pousou = 'pousou' in movimento && movimento.pousou === true;
     // Observe successful controls for the tutorial, without changing movement or physics.
     if (e && (e.dx || e.dy) && Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY) > 0.001 && !this.controlesObservados.has('movimento')) {
       this.controlesObservados.add('movimento'); sessao.emitir('controleUsado', 'movimento');
@@ -1240,7 +1246,25 @@ export class Superficie extends Phaser.Scene {
       }
     }
     // Gait: the Moon's slow bunny hop; on Mars, with more than twice the gravity, quicker steps.
-    if (Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3 && this.corpo.noChao) this.passada += dt * (sessao.mundo === 'marte' ? 18 : 12);
+    const caminhando = !sessao.rover?.dirigindo && this.corpo.noChao
+      && Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY) > 0.001
+      && Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3;
+    const passada = this.passada.atualizar(dt, sessao.mundo === 'marte' ? 18 : 12,
+      caminhando, this.corpo.noChao, pousou);
+    this.quadroPassada = passada.coluna;
+    const passosAtivos = this.scene.isVisible() && !document.hidden && this.input.enabled
+      && !sessao.emTarefa && (sessao.fase === 'dia' || sessao.fase === 'inicio');
+    // Play takeoff/landing once at the physics contact, including jumps made without walking.
+    if (passosAtivos && !sessao.rover?.dirigindo) {
+      if (antesNoChao && !this.corpo.noChao && this.corpo.vz > 0) {
+        tocarSfx(sessao.mundo === 'nave' ? 'puloNave' : sessao.mundo === 'marte' ? 'puloMarte' : 'puloLua');
+      } else if (pousou) {
+        tocarSfx(sessao.mundo === 'nave' ? 'aterrissarNave' : sessao.mundo === 'marte' ? 'aterrissarMarte' : 'aterrissarLua');
+      } else if (passada.contato) {
+        // Emit only when the displayed sprite enters a boot-contact frame.
+        tocarSfx(sessao.mundo === 'nave' ? 'passoNave' : sessao.mundo === 'marte' ? 'passoMarte' : 'passoLua');
+      }
+    }
     this.animarPouso(dt);
     this.animarDecolagem(dt);
     this.passarEventos(dt);
@@ -1552,7 +1576,7 @@ export class Superficie extends Phaser.Scene {
     // Sprite: row = facing (8 directions), column 0 = standing, 1.. = Moon hop cycle.
     const v = Math.hypot(k.vx, k.vy);
     if (v > 0.3) this.direcao = (Math.round(Math.atan2(-k.vy, k.vx) / (Math.PI / 4)) + 8) % 8;
-    const col = v > 0.3 && k.noChao ? 1 + (Math.floor(this.passada) % sprite.andar) : k.noChao ? 0 : 3;
+    const col = this.quadroPassada;
     this.comandante.setPosition(pe.x, pe.y).setFrame(this.direcao * sprite.colunas + col);
     const d = profundidade(k.x + 0.3, k.y + 0.3);
     g.setDepth(d - 1); this.comandante.setDepth(d);
