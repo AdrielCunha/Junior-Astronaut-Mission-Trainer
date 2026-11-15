@@ -11,9 +11,20 @@ export const ESTACOES: Record<string, Estacao> = {
   nave_plantas: { cena: 'HortaTarefa', acao: 'Water the garden' },
 };
 
+// Equipment that lands on the Moon by cargo lander (engine/suprimentos.ts): each one is a station too, keyed
+// by `mod_<type>`. Its task is a different one from its fix-it event (engine/eventos.ts), so both feel new.
+export const ESTACOES_MODULO: Record<string, Estacao> = {
+  antena: { cena: 'FiacaoTarefa', acao: 'Check the antenna cables' },
+  estufa: { cena: 'HortaTarefa', acao: 'Water the lettuce' },
+  perfuratriz: { cena: 'ScannerGeloTarefa', acao: 'Find the best spot to drill' },
+  rover: { cena: 'BateriaRoverTarefa', acao: 'Charge the cargo rover' },
+};
+export const chaveModulo = (tipo: string) => `mod_${tipo}`;
+export const estacaoDoModulo = (tipo: string): Estacao | undefined => ESTACOES_MODULO[tipo];
+
 // A station can be used while playing the day, once per day.
 export const estacaoDisponivel = (id: string, feitasHoje: ReadonlySet<string>, fase: string) =>
-  !!ESTACOES[id] && fase === 'dia' && !feitasHoje.has(id);
+  !!(ESTACOES[id] ?? ESTACOES_MODULO[id.replace(/^mod_/, '')]) && fase === 'dia' && !feitasHoje.has(id);
 
 // The extra line under the prop's name and fact.
 export function textoEstacao(id: string, feitasHoje: ReadonlySet<string>, fase: string): string {
