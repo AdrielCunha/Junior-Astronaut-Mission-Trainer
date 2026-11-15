@@ -15,7 +15,7 @@
 # turned toward the camera, light from the front left), so the game can swap the last frame for
 # the live globe without a jump.
 #
-#   prime-run blender -b -P tools/lua3d/make_flight_marte.py -- [--frames 90] [--w 1280] [--h 720] [--so 0,45,89]
+#   prime-run blender -b -P tools/lua3d/make_flight_marte.py -- [--frames 150] [--w 1280] [--h 720] [--so 0,75,149]
 # Out: public/marte/voo/f<NN>.webp (transparent), src/dados/voo_marte.json
 import bpy, bmesh, sys, os, json, math, subprocess
 import numpy as np
@@ -32,7 +32,7 @@ TMP = os.path.join(C.CACHE, 'voo_marte_tmp')
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 import argparse
 ap = argparse.ArgumentParser()
-ap.add_argument('--frames', type=int, default=90)
+ap.add_argument('--frames', type=int, default=150)
 ap.add_argument('--w', type=int, default=1280)
 ap.add_argument('--h', type=int, default=720)
 ap.add_argument('--so', default='', help='render only these frames, e.g. 0,45,89 (preview)')
@@ -60,8 +60,11 @@ sc.render.image_settings.file_format = 'PNG'; sc.render.image_settings.color_mod
 sc.view_settings.view_transform = 'Standard'; sc.view_settings.look = 'None'; sc.render.filter_size = 1.0
 
 
-def malha(nome, verts, faces, mat, uv=False):
+def malha(nome, verts, faces, mat, uv=False, uvs=None):
     me = bpy.data.meshes.new(nome); me.from_pydata(verts, [], faces)
+    if uvs is not None:                      # one (u, v) per vertex
+        vi = np.empty(len(me.loops), np.int32); me.loops.foreach_get('vertex_index', vi)
+        me.uv_layers.new(name='UVMap').data.foreach_set('uv', np.asarray(uvs, np.float32)[vi].ravel())
     bm = bmesh.new(); bm.from_mesh(me)
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -144,11 +147,6 @@ contornos_crateras(bpy, sc, crateras, lambda x, y: ponto_mapa(x, y, .022 * .08))
 sumir_aros(0.0084 * PX_POR_KM_A_1KM / 1.6, 0.0084 * PX_POR_KM_A_1KM / 0.5)
 CENTRO = Vector(ponto_mapa(n / 2, n / 2))
 
-# ---------- CTX 18 km, MOLA 64 km and 800 km, each with a hole where the finer one sits ----------
-a, xa, ya = C.janela('ctx20', 9, 4)                        # 80 m
-v, f = remendo(a, xa, ya, lambda x, y: disco(8.6)(x, y) and not quad(2.45)(x, y), sobe=0.35)
-malha('regiao18', v, f, C.toon(bpy, 'r18', C.albedo_chao(RUIDO, lod=LOD_CHAO)))
-b, xb, yb = C.janela('mola128', 32, 1)                     # 463 m
 
 # ---------- the globe: MOLA 16 px/deg relief + Viking color, hole under the 800 km patch ----------
 mola = os.path.join(C.CACHE, 'marte', 'mola16.npy')
@@ -156,6 +154,14 @@ if not os.path.exists(mola):
     arq = C._baixar(C.DEMS_MARTE['mola16']['url'], os.path.join(C.CACHE, 'marte', 'megt90n000eb.img'))
     np.save(mola, np.fromfile(arq, '>i2').reshape(2880, 5760))
 alt16 = np.roll(np.load(mola).astype(np.float32), 2880, axis=1)   # lon 0 in the middle, like mars.jpg
+# Under the patches the globe sinks 3 km (back to its true height by 480 km out), so its coarse
+# mesh never pokes through their finer ground where the two overlap.
+_la = np.radians(90 - (np.arange(2880) + 0.5) / 16)[:, None]
+_lo = np.radians((np.arange(5760) + 0.5) / 16 - 180)[None, :]
+_cj = math.cos(math.radians(LAT0))
+_d = R * np.arccos(np.clip(np.sin(_la) * math.sin(math.radians(LAT0)) + np.cos(_la) * _cj * np.cos(_lo - math.radians(LON0)), -1, 1))
+_k = np.clip((_d - 400) / 80, 0, 1)
+alt16 -= 3000 * (1 - _k * _k * (3 - 2 * _k))
 NLON, NLAT = 720, 360
 lats = np.radians(np.linspace(-89.9, 89.9, NLAT))
 lons = np.radians(np.linspace(-180, 180, NLON + 1))
@@ -180,7 +186,8 @@ globo.scale = (R, R, R)
 # Relief as a float image in object units (height / R), so the modifier needs no scaling.
 dem = bpy.data.images.new('mola16', 5760, 2880, float_buffer=True, alpha=False)
 px = np.repeat((alt16[::-1] / 1000 / R)[..., None], 4, -1); px[..., 3] = 1
-dem.pixels.foreach_set(px.astype(np.float32).ravel()); dem.colorspace_settings.name = 'Non-Color'
+dem.colorspace_settings.name = 'Non-Color'          # before the pixels: changing it clears them
+dem.pixels.foreach_set(px.astype(np.float32).ravel())
 tex = bpy.data.textures.new('dem', 'IMAGE'); tex.image = dem; tex.extension = 'REPEAT'
 d = globo.modifiers.new('relevo', 'DISPLACE'); d.texture = tex; d.texture_coords = 'UV'; d.direction = 'NORMAL'
 d.mid_level = 0; d.strength = 1
@@ -195,14 +202,6 @@ def albedo_globo(N, L):
     return im.outputs['Color']
 mat_globo = C.toon(bpy, 'globo', albedo_globo, luz=LUZ_GLOBO)
 globo.data.materials.append(mat_globo)
-# The 64 km and 800 km patches wear the globe's colors too: the regolith noise is only on the
-# map and the CTX patch, the NASA color map from the whole crater outward. All opaque (blended
-# patches are not sorted against each other in EEVEE).
-v, f = remendo(b, xb, yb, lambda x, y: disco(31.5)(x, y) and not disco(8.2)(x, y), sobe=0.32)
-malha('regiao64', v, f, mat_globo, uv=True)
-c_, xc, yc = C.janela('mola128', 400, 4)                   # 1.85 km
-v, f = remendo(c_, xc, yc, lambda x, y: disco(398)(x, y) and not disco(29)(x, y), sobe=0.25)
-malha('regiao800', v, f, mat_globo, uv=True)
 
 # ---------- camera path ----------
 def em(x, y):
@@ -219,6 +218,125 @@ def olhar(frente, cima):
 q0 = olhar(-to_cam0, nrm)
 right0 = q0 @ Vector((1, 0, 0))
 sol0 = (to_cam0 * 0.5 - right0 * 1.0 + nrm * 0.45).normalized()   # the map's stylized light
+
+# ---------- CTX 18 km, MOLA 64 km and 800 km, each with a hole where the finer one sits ----------
+# The relief at these scales is gentle (Jezero's rim rises a few degrees over 45 km), so the hard
+# light bands alone left it one flat color. Each patch wears a baked shaded relief instead: the
+# NASA heights, exaggerated, lit from the map's light, a few soft-edged tones (the flat style),
+# tinted by height (Isidis's floor darker, the highlands lighter). It is a texture, so it never
+# swims or crawls as the camera moves (the GPU's mipmaps keep it calm as it shrinks). It
+# multiplies the regolith of the map, so every patch meets the next one in the same colors; the
+# outer ring of the 800 km patch melts into the globe's map, and the CTX patch into the game map.
+from scipy.ndimage import zoom as ampliar, map_coordinates
+
+
+def lin(h):
+    c = np.array([int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)])
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+
+BASE = lin('#c26a3b')                       # the regolith's middle tone (solo at 0.5), as far away
+TONS = [(0.0, lin('#a9552f')), (0.36, BASE), (0.65, lin('#d98a57')), (1.0, lin('#eab07e'))]
+SOMBRA, REALCE = lin('#5a3428'), lin('#f8e2c8')
+ALT = (-4.6, 1.2)                           # km above the areoid: Isidis floor .. Syrtis highlands
+LUZ_CHAO = np.array([sol0.dot(gx), sol0.dot(gyb), sol0.dot(nrm)])
+LUZ_CHAO /= np.linalg.norm(LUZ_CHAO)
+cor_globo = np.asarray(cor.pixels[:], np.float32).reshape(cor.size[1], cor.size[0], 4)[..., :3]
+cor_globo = np.where(cor_globo <= 0.04045, cor_globo / 12.92, ((cor_globo + 0.055) / 1.055) ** 2.4)   # sRGB -> linear
+from scipy.ndimage import gaussian_filter
+cor_globo_suave = np.stack([gaussian_filter(cor_globo[..., i], 5, mode='wrap') for i in range(3)], -1)
+
+
+def suave_np(a, b, x):
+    k = np.clip((x - a) / (b - a), 0, 1)
+    return k * k * (3 - 2 * k)
+
+
+def tons(v, passo=0.22, macio=0.18):
+    """A few flat tones with soft edges (no stair steps when a texel grows to many pixels)."""
+    k = v / passo; b = np.floor(k)
+    return (b + suave_np(0.5 - macio, 0.5 + macio, k - b)) * passo
+
+
+def relevo(nome, a, xs, ys, amplia, exagero, borda_fora=None, miolo=None, luz_toon=None, suaviza=0):
+    """Shaded relief of heights a (km, rows ys falling, cols xs) as a multiply-by image over the
+    regolith (BASE -> the wanted color). borda_fora = (r0, r1) km: blend to the globe's map;
+    miolo = (r0, r1) km, square: blend to plain regolith (the game map)."""
+    A = np.nan_to_num(a, nan=float(np.nanmean(a)))
+    if amplia != 1: A = ampliar(A, amplia, order=3)
+    # Fine relief right under the camera rushes past during the zoom: smoothed (sigma in texels),
+    # small bumps would only sparkle.
+    if suaviza: A = gaussian_filter(A, suaviza)
+    nl, nc = A.shape
+    X = np.linspace(xs[0], xs[-1], nc)[None, :].repeat(nl, 0)
+    Y = np.linspace(ys[0], ys[-1], nl)[:, None].repeat(nc, 1)
+    dx = (xs[-1] - xs[0]) / (nc - 1) * COS0
+    dy = (ys[-1] - ys[0]) / (nl - 1)
+    dn, de = np.gradient(A, dy, dx)                   # dh/dnorth, dh/deast
+    n = np.stack([-de * exagero, -dn * exagero, np.ones_like(A)], -1)
+    luz = (n @ LUZ_CHAO) / np.linalg.norm(n, axis=-1) / LUZ_CHAO[2]   # 1 = flat ground
+    luz = tons(np.clip(luz, 0, 1.5))
+    t = np.clip((A - ALT[0]) / (ALT[1] - ALT[0]), 0, 1)
+    base = np.zeros(A.shape + (3,))
+    for (p0, c0), (p1, c1) in zip(TONS, TONS[1:]):
+        k = np.clip((t - p0) / (p1 - p0), 0, 1)[..., None]
+        base = np.where((t >= p0)[..., None], c0 * (1 - k) + c1 * k, base)
+    leste, norte = (X - x0k) * COS0, Y - y0k
+    dist = np.hypot(leste, norte)
+    lat, lon = Y / R, X / R                           # the globe's map: lon 0 in the middle, top north
+    # Read the globe's map the way the GPU does (bilinear), or its texels show as steps.
+    gi = (0.5 - lat / math.pi) * cor.size[1] - 0.5
+    gj = (0.5 + lon / (2 * math.pi)) * cor.size[0] - 0.5
+    ler = lambda m: np.stack([map_coordinates(m[::-1, :, i], [gi, gj], order=1, mode='grid-wrap') for i in range(3)], -1)
+    # Far from the base the tint turns into the globe's own colors (softened), so the patch and
+    # the globe around it are the same Mars; near the base it stays the regolith's.
+    g = suave_np(8, 150, dist)[..., None]
+    base = base * (1 - g) + ler(cor_globo_suave) * g
+    l = luz[..., None]
+    col = np.where(l <= 1, SOMBRA * (1 - np.clip(l, 0, 1)) + base * np.clip(l, 0, 1),
+                   base * (1 - (l - 1) * 0.6) + REALCE * (l - 1) * 0.6)
+    if borda_fora:
+        k = suave_np(*borda_fora, dist)[..., None]
+        col = col * (1 - k) + ler(cor_globo) * k
+    if miolo:
+        k = suave_np(*miolo, np.maximum(abs(leste), abs(norte)))[..., None]
+        col = BASE * (1 - k) + col * k
+    T = col / BASE
+    img = bpy.data.images.new(nome, nc, nl, float_buffer=True, alpha=False)
+    px = np.concatenate([T, np.ones(T.shape[:2] + (1,))], -1)[::-1]   # Blender's row 0 is the bottom
+    img.colorspace_settings.name = 'Non-Color'          # before the pixels: changing it clears them
+    img.pixels.foreach_set(px.astype(np.float32).ravel())
+    def uv(x, y):
+        u = (x - xs[0]) / (xs[-1] - xs[0]); w = (y - ys[-1]) / (ys[0] - ys[-1])
+        return (0.5 + u * (nc - 1)) / nc, (0.5 + w * (nl - 1)) / nl
+    def albedo(N, L):
+        chao = C.albedo_chao(RUIDO, lod=LOD_CHAO)(N, L)
+        tc = N.new('ShaderNodeTexCoord'); im = N.new('ShaderNodeTexImage'); im.image = img
+        im.extension = 'EXTEND'; im.interpolation = 'Cubic'
+        L.new(tc.outputs['UV'], im.inputs['Vector'])
+        mul = N.new('ShaderNodeMix'); mul.data_type = 'RGBA'; mul.blend_type = 'MULTIPLY'; mul.inputs['Factor'].default_value = 1
+        L.new(chao, mul.inputs[6]); L.new(im.outputs['Color'], mul.inputs[7])
+        return mul.outputs[2]
+    return (C.toon(bpy, nome, albedo, luz=luz_toon) if luz_toon else C.toon(bpy, nome, albedo)), uv
+
+
+def remendo_uv(nome, a, xs, ys, dentro, sobe, mat, uv):
+    v, f = remendo(a, xs, ys, dentro, sobe)
+    uvs = [uv(xs[i], ys[j]) for j in range(len(ys)) for i in range(len(xs))]
+    return malha(nome, v, f, mat, uvs=uvs)
+
+
+a, xa, ya = C.janela('ctx20', 9, 4)                        # 80 m mesh
+at, xat, yat = C.janela('ctx20', 9, 1)                     # 20 m relief
+mat, uv = relevo('r18', at, xat, yat, 1, 2.5, miolo=(2.45, 3.6), suaviza=3)
+remendo_uv('regiao18', a, xa, ya, lambda x, y: disco(8.6)(x, y) and not quad(2.45)(x, y), 0.35, mat, uv)
+b, xb, yb = C.janela('mola128', 32, 1)                     # 463 m
+mat, uv = relevo('r64', b, xb, yb, 6, 5, luz_toon=LUZ_GLOBO, suaviza=3)
+remendo_uv('regiao64', b, xb, yb, lambda x, y: disco(31.5)(x, y) and not disco(8.2)(x, y), 0.32, mat, uv)
+c_, xc, yc = C.janela('mola128', 400, 4)                   # 1.85 km mesh
+ct, xct, yct = C.janela('mola128', 400, 1)                 # 463 m relief
+mat, uv = relevo('r800', ct, xct, yct, 1, 4, borda_fora=(300, 390), luz_toon=LUZ_GLOBO)
+remendo_uv('regiao800', c_, xc, yc, lambda x, y: disco(398)(x, y) and not disco(29)(x, y), 0.25, mat, uv)
 
 # The last frame = MarteVista's live globe: tilted view (planetaShader VISTA_INCLINADA) with the
 # planet turned by giroOlhando(JEZERO.lon) - 12 deg. The shader reads the map at m = R(-giro) n,
