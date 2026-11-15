@@ -63,7 +63,7 @@ export class Viagem extends Phaser.Scene {
     this.load.image('planeta_terra', 'lua/planetas/terra.png');
     this.load.image('planeta_marte', 'lua/planetas/marte.png');
     this.load.image('planeta_sol', 'lua/planetas/sol.png');
-    this.load.image('ceu', 'lua/sky.jpg');
+    this.load.image('ceu_sistema', 'lua/sky_sistema.jpg');   // the real sky seen looking down on the planets (make_ceu.py)
   }
 
   // Ecliptic AU -> screen px (Sun at the center, tilted like the solar system view).
@@ -75,7 +75,7 @@ export class Viagem extends Phaser.Scene {
 
   create() {
     const W = this.scale.width, H = this.scale.height;
-    const ceu = this.add.image(W / 2, H / 2, 'ceu');
+    const ceu = this.add.image(W / 2, H / 2, 'ceu_sistema');
     ceu.setScale(Math.max(W / ceu.width, H / ceu.height));
     this.add.rectangle(0, 0, W, H, 0x020617, 0.35).setOrigin(0);
 

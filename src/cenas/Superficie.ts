@@ -19,7 +19,7 @@ import { paraTela, paraChao, profundidade } from '../engine/iso';
 import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
 import { encontrarCaminho, type Ponto } from '../engine/caminho';
 import naveProps from '../dados/nave_props.json';
-import { TIPOS, montarBasePadrao, montarLayout, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
+import { TIPOS, tipoOrientado, montarBasePadrao, montarLayout, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
 import { entregar as entregarRegra, custo, pronto } from '../regras';
 import { empuxoDePouso, suprimentoDoDia, SUPRIMENTOS } from '../engine/suprimentos';
 import { sortearEvento, eventoPorDemora, DOSE_ALARME, DEMORA_PASSO } from '../engine/eventos';
@@ -30,6 +30,7 @@ import { escolher } from '../tarefas';
 import { criarIconeJogo, fundoRotulo, letra, rotuloMapa } from '../tarefas/estilo';
 import type { DadosTarefa } from './Tarefa';
 import modelos from '../dados/modulos.json';
+import rotacoesModulos from '../dados/rotacoesModulos.json';
 import { origemBaterias, modeloBancoBaterias } from '../engine/estacaoSolar';
 import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
@@ -66,7 +67,8 @@ type Modelo = keyof typeof modelos;
 // Every module picture: the team's (modulos.json) and the ship's (nave_props.json, make_nave.py).
 // `pegada` is the footprint a picture was drawn for, when it differs from the module's own.
 type Quadro = { w: number; h: number; ancora: number[]; escala: number; pegada?: number[] };
-const QUADROS = { ...modelos, ...naveProps } as unknown as Record<string, Quadro>;
+const QUADROS = { ...modelos, ...naveProps, ...rotacoesModulos } as unknown as Record<string, Quadro>;
+export type ObjetoEditor = Construcao & {deco?: DecoColocada};
 const PEGADA_MODELO: Record<string, [number, number]> = { pouso: [2, 2], reciclador: [2, 2] };
 // Ship props (chapter 2): each one has a fixed spot in a zone that makes sense (offsets in tiles from
 // the grid center, 12; the deck is gx 3..20, gy 6..17; gy 6 is the far wall with the portholes, gy 17
@@ -168,6 +170,7 @@ export class Superficie extends Phaser.Scene {
   // The ship (chapter 2): the closed ship, roof on, over everything when zoomed out; the
   // cutaway deck when close. Names on the map fade out under the roof.
   private teto: Phaser.GameObjects.Image | null = null;
+  private plumas: Phaser.GameObjects.Graphics | null = null;   // the ship's Hall thrusters, firing
   private nomesNoMapa: Phaser.GameObjects.Text[] = [];
   private decoVisuais: { d: DecoColocada; img: Phaser.GameObjects.Image }[] = [];
   private marcasEstacao: { d: DecoColocada; c: Phaser.GameObjects.Container }[] = [];   // "!" over ship stations
@@ -178,6 +181,31 @@ export class Superficie extends Phaser.Scene {
 
   constructor() {
     super({ key: 'Superficie' });   // started by Carregar
+  }
+
+  // The ship's solar electric propulsion: Hall thrusters fire for months on end with a faint
+  // blue glow (ionized xenon). Each plume points back along -gx from its exit (make_nave.py
+  // 'propulsores'): a bright core and a wide soft glow that fade with distance, gently pulsing.
+  private desenharPlumas() {
+    const g = this.plumas;
+    if (!g) return;
+    g.clear();
+    const lista = (dadosTerreno as unknown as { propulsores?: { x: number; y: number; z: number; r: number }[] }).propulsores ?? [];
+    const t = this.time.now / 1000;
+    const mexe = !movimentoReduzido() && video.efeitos;
+    const px = Math.hypot(P.ex[0], P.ex[1]);           // screen px per tile step, about 33
+    lista.forEach((m, i) => {
+      const pulso = mexe ? 0.85 + 0.15 * Math.sin(t * 9 + i * 1.7) + 0.05 * Math.sin(t * 23 + i) : 1;
+      for (let k = 14; k >= 0; k--) {
+        const d = k * 0.55;                                  // tiles back from the exit
+        const p = paraTela(P, m.x - d, m.y, m.z);
+        const f = 1 - k / 15;
+        const r = m.r * px * (1 + d * 0.22);
+        g.fillStyle(0x38bdf8, 0.10 * f * pulso).fillCircle(p.x, p.y, r * 1.9);
+        g.fillStyle(0x7dd3fc, 0.22 * f * f * pulso).fillCircle(p.x, p.y, r);
+        if (k < 6) g.fillStyle(0xe0f2fe, 0.5 * (1 - k / 6) * pulso).fillCircle(p.x, p.y, r * 0.45);
+      }
+    });
   }
 
   // The destination flag: the world's own, and on the ship Earth's (the home the crew left).
@@ -192,6 +220,39 @@ export class Superficie extends Phaser.Scene {
   }
   // Whether the player already walked / jumped (read by the on-map guide, guia.ts).
   jaUsou(c: 'movimento' | 'pulo') { return this.controlesObservados.has(c); }
+
+  objetosParaEditor(): ObjetoEditor[] {
+    return [...sessao.grade.lista,...sessao.grade.deco.map((d,i)=>({id:-(i+1),deco:d,gx:d.gx,gy:d.gy,z:d.z,rotacao:d.rotacao??0,
+      tipo:{id:'habitat' as const,nome:d.nome,w:d.w,h:d.h,altura:d.altura,unico:false,cor:0,papel:d.info}}))];
+  }
+
+  dadosParaEditor(c: ObjetoEditor) {
+    if(c.deco){const v=this.decoVisuais.find(v=>v.d===c.deco);return v?{imagem:v.img,nome:c.deco.nome}:null;}
+    const desenho=this.desenhos.get(c.id);
+    return desenho?{imagem:desenho.img,nome:this.nomeDe(c)}:null;
+  }
+
+  prepararEditor() {
+    this.rota=[];this.alvoUsar=null;this.alvoRover=false;this.seguir=false;this.recolherBandeira();
+    this.dica?.setVisible(false);this.decoSobre=null;this.decoFixa=null;this.decoFixaT=0;
+    this.corpo.vx=this.corpo.vy=0;
+  }
+
+  posicionarPreviaEditor(img: Phaser.GameObjects.Image,c: ObjetoEditor,gx:number,gy:number,rotacao:number) {
+    if(c.deco){const d=c.deco,dim=(rotacao%2)!==((d.rotacao??0)%2)?{w:d.h,h:d.w}:{w:d.w,h:d.h};
+      this.posicionarDeco(img,{...d,...dim,gx,gy,rotacao,z:sessao.terreno.alturaMax(gx,gy,dim.w,dim.h)+0.01});return;}
+    const tipo=tipoOrientado(c.tipo,rotacao);
+    this.posicionar(img,{...c,tipo,gx,gy,rotacao,z:sessao.terreno.alturaMax(gx,gy,tipo.w,tipo.h)+0.025},this.modelo(c));
+  }
+
+  concluirMovimentoEditor(c: ObjetoEditor) {
+    this.rota=[];this.alvoUsar=null;this.alvoRover=false;this.seguir=false;this.recolherBandeira();
+    if(c.deco){const d=c.deco,v=this.decoVisuais.find(v=>v.d===d);if(v)this.posicionarDeco(v.img,d);
+      Object.assign(c,{gx:d.gx,gy:d.gy,z:d.z,rotacao:d.rotacao,tipo:{...c.tipo,w:d.w,h:d.h}});
+    }else this.desenharModulo(c);
+    this.desenharCaminhos();
+    sessao.emitir('estado');return sessao.salvar();
+  }
 
   // Map center in world px: the flight's first frame is centered on it.
   private get centroMapa() {
@@ -248,6 +309,9 @@ export class Superficie extends Phaser.Scene {
       ? this.add.image(0, 0, 'terreno_nave_teto').setOrigin(0).setDepth(1.5e6).setAlpha(0) : null;
     this.mapa.add(this.terreno);
     if (this.teto) this.mapa.add(this.teto);
+    // Behind the ship's picture: its structure covers the plumes where it should.
+    this.plumas = nave ? this.add.graphics().setDepth(-1.1e6).setBlendMode(Phaser.BlendModes.ADD) : null;
+    if (this.plumas) this.mapa.add(this.plumas);
     this.gCaminhos = this.add.graphics().setDepth(-900_000);
     this.mapa.add(this.gCaminhos);
     this.ambiente = new Ambiente(this,this.mapa,P,sessao.terreno,sessao.mundo);
@@ -1628,6 +1692,7 @@ export class Superficie extends Phaser.Scene {
     }
     sessao.parado = Math.hypot(this.corpo.vx, this.corpo.vy) < 0.05 && this.corpo.noChao;
     this.atualizarOclusao(dt);
+    this.desenharPlumas();
     if (this.teto) {
       // Zooming out puts the roof on: the whole closed ship; zooming in shows the deck inside.
       const a = suave(1.3, 1.75, sessao.u);
@@ -1670,11 +1735,11 @@ export class Superficie extends Phaser.Scene {
   // the shield tower's water walls fill with each battery given to it today (the pump runs on
   // them). While just exploring, the walls are shown full.
   private modelo(c: Construcao): Modelo {
-    // Mars: the lander is the crew's home until the dome is built. The heater and the dome
-    // borrow the workshop and habitat pictures until they get their own models.
+    // Mars: the lander is the crew's home until the dome is built. Heating has its own model;
+    // the dome still uses the habitat picture.
     if (sessao.mundo === 'marte') {
       if (c.tipo.id === 'habitat') return 'pouso';
-      if (c.tipo.id === 'aquecedor') return 'oficina';
+      if (c.tipo.id === 'aquecedor') return 'aquecedor';
       if (c.tipo.id === 'cupula') return 'habitat';
     }
     // The ship: the team's air recycler for Life Support, the ship's engine room for the Engines.
@@ -1682,7 +1747,7 @@ export class Superficie extends Phaser.Scene {
       if (c.tipo.id === 'suporte') return 'reciclador';
       if (c.tipo.id === 'oficina') return 'nave_motores' as Modelo;
     }
-    if (c.tipo.id === 'aquecedor') return 'oficina';
+    if (c.tipo.id === 'aquecedor') return 'aquecedor';
     if (c.tipo.id === 'cupula') return 'habitat';
     if (c.tipo.id === 'bateria') return modeloBancoBaterias(sessao.noHabitat, sessao.fase === 'inicio') as Modelo;
     const meta = sessao.estado.meta;
@@ -1694,15 +1759,24 @@ export class Superficie extends Phaser.Scene {
 
   // Puts a module picture on the map: its anchor pixel is the footprint corner (gx, gy) at floor height.
   private posicionar(img: Phaser.GameObjects.Image, c: Construcao, id: Modelo) {
-    const m = QUADROS[id];
+    const chave=c.rotacao?`${id}_r${c.rotacao}`:id;
+    const m = QUADROS[chave]??QUADROS[id];
     // A picture drawn for a smaller footprint (the lander, the air recycler) is centered on the module's.
-    // A turned module (c.girado) has its footprint swapped and the picture mirrored around the anchor.
-    const pg0 = m.pegada ?? PEGADA_MODELO[id], pg = pg0 && c.girado ? [pg0[1], pg0[0]] : pg0;
+    const pg = m.pegada ?? PEGADA_MODELO[id];
     const kx = pg ? (c.tipo.w - pg[0]) / 2 : 0, ky = pg ? (c.tipo.h - pg[1]) / 2 : 0;
     const p = paraTela(P, c.gx + kx, c.gy + ky, c.z);
-    const ox = m.ancora[0] / m.w;
-    img.setTexture(`mod_${id}`).setOrigin(c.girado ? 1 - ox : ox, m.ancora[1] / m.h).setScale(m.escala)
-      .setFlipX(!!c.girado).setPosition(p.x, p.y);
+    img.setTexture(`mod_${QUADROS[chave]?chave:id}`).setAngle(0).setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala).setPosition(p.x, p.y);
+  }
+
+  // A prop's picture: the ship's own, the Mars version on Mars (deco_marte_<id>), a pre-turned picture for a
+  // turned prop (_r<n>) when there is one, else the plain picture mirrored for a quarter turn (old look).
+  private posicionarDeco(img:Phaser.GameObjects.Image,d:DecoColocada) {
+    const marte=sessao.mundo==='marte' && QUADROS[`deco_marte_${d.id}`]?`deco_marte_${d.id}`:null;
+    const base=d.id.startsWith('nave_')?d.id:marte??`deco_${d.id}`,chave=d.rotacao?`${base}_r${d.rotacao}`:base;
+    const key=QUADROS[chave]?chave:base,m=QUADROS[key],p=paraTela(P,d.gx,d.gy,d.z);
+    const espelho=key===base && (d.rotacao??0)%2===1;
+    img.setTexture(`mod_${key}`).setAngle(0).setOrigin(espelho?1-m.ancora[0]/m.w:m.ancora[0]/m.w,m.ancora[1]/m.h).setFlipX(espelho)
+      .setScale(m.escala).setPosition(p.x,p.y).setDepth(profundidade(d.gx+d.w,d.gy+d.h));
   }
 
   // Surface props (old rover, probe, beacon...): placed once on free flat ground, solid, each with its name.
@@ -1716,12 +1790,12 @@ export class Superficie extends Phaser.Scene {
       lista.forEach((d, k) => {
         // The layout editor's spot (same id at the same place in the list), else the old search.
         const l = plano[k]?.[0] === d.id ? plano[k] : null;
-        const girado = !!l?.[3];
+        const girado = !!l?.[3];   // turned in the layout editor: a quarter turn
         const w = girado ? d.h : d.w, h = girado ? d.w : d.h;
         const tipo = comoTipo({ ...d, w, h }), x = l ? l[1] : c0 + d.dx, y = l ? l[2] : c0 + d.dy;
         const p = g.pode(tipo, x, y).motivo === 'ok' && (l || sessao.mundo === 'nave') ? { gx: x, gy: y }
           : sessao.mundo !== 'nave' ? g.procurarDeco(tipo, x, y) : g.procurarComEspaco(tipo, x, y);
-        if (p) g.colocarDeco({ id: d.id, nome: d.nome, info: d.info, w, h, altura: d.altura, ...(girado ? { girado } : {}) }, p.gx, p.gy);
+        if (p) g.colocarDeco({ id: d.id, nome: d.nome, info: d.info, w, h, altura: d.altura, ...(girado ? { rotacao: 1 } : {}) }, p.gx, p.gy);
       });
     }
     for (const d of g.deco) {
@@ -1731,10 +1805,10 @@ export class Superficie extends Phaser.Scene {
       const chave = d.id.startsWith('nave_') ? d.id : marte ?? `deco_${d.id}`;
       const m = QUADROS[chave];
       const p = paraTela(P, d.gx, d.gy, d.z);
-      // A turned prop is the same picture mirrored around its anchor pixel.
       const img = this.add.image(p.x, p.y, `mod_${chave}`)
-        .setOrigin(d.girado ? 1 - m.ancora[0] / m.w : m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala)
-        .setFlipX(!!d.girado).setDepth(profundidade(d.gx + d.w, d.gy + d.h));
+        .setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala)
+        .setDepth(profundidade(d.gx + d.w, d.gy + d.h));
+      this.posicionarDeco(img,d);
       if (sessao.mundo === 'marte') img.setTint(TOM_MARTE);
       this.mapa.add(img);
       this.decoVisuais.push({ d, img });
@@ -1883,7 +1957,8 @@ export class Superficie extends Phaser.Scene {
       // Only the instrument display changes, using actual Blender renders. The model stays still.
       const frame=animate ? Math.floor(this.tempoEfeitos/(video.qualidade==='leve'?1.3:0.85)+c.id)%3 : 0;
       const key=(frame ? `${c.tipo.id}_anim${frame}` : c.tipo.id) as Modelo;
-      if(d.img.texture.key!==`mod_${key}` && this.textures.exists(`mod_${key}`)) this.posicionar(d.img,c,key);
+      const orientado=c.rotacao?`${key}_r${c.rotacao}`:key;
+      if(d.img.texture.key!==`mod_${orientado}` && this.textures.exists(`mod_${orientado}`)) this.posicionar(d.img,c,key);
     }
   }
 

@@ -15,8 +15,10 @@ import { criarLua, LADO } from './luaShader';
 import { criarPlaneta, diametroPlaneta } from './planetaShader';
 import { caminhoTransferencia, noCaminho, quadroNave, PARTIDA, DIAS_REAIS, DIA_MS } from './transferencia';
 import dadosViagem from '../dados/viagem.json';
-import { PLANETAS, posicao, lua, nomeDaFase, AU_KM, RAIO_LUA_KM, RAIO_SOL_KM, TERRA_LUA_KM } from '../engine/astro';
-import { sessao, suave, fonte, dataBonita, COR, sDeU } from './sessao';
+import planetas3d from '../dados/planetas3d.json';
+import ceuEstrelas from '../dados/ceu_estrelas.json';
+import { PLANETAS, posicao, lua, voltasEm, nomeDaFase, AU_KM, RAIO_LUA_KM, RAIO_SOL_KM, TERRA_LUA_KM } from '../engine/astro';
+import { sessao, suave, fonte, dataBonita, COR, sDeU, ELASTICO_MAX } from './sessao';
 import { VISTA as vista, giroEm, pontoNaLua, naTela, visivel, solSobreBase, type V3 } from './globo';
 
 const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -25,13 +27,42 @@ const ACHATAR = 0.6;
 const GIRO_FILME = giroEm(Date.parse(`2024-05-${String(4 + voo.dia).padStart(2, '0')}T12:00:00Z`));                         // the solar system is drawn tilted, like the map
 const DIA_MARTE_MS = 88775244;               // one Mars day (sol), 24 h 39 min
 const MARTE_MIN_PX = 30;                     // Mars is drawn at least this wide, so you can see its face
-const HORAS_POR_SEG = 6;                     // gentle time drift while you look from space
+const HORAS_POR_SEG = 6;
+// The trip to Mars (chapter 2): the sky streams past the ship. The ship points to +gx, which on the
+// map is right and down (30, 15), so everything moves up and left. Speeds in px per second; far
+// stars barely move, near ones leave a short trail, and soft clouds of stellar dust drift between.
+const RUMO = { x: -30 / Math.hypot(30, 15), y: -15 / Math.hypot(30, 15) };
+const CAMADAS = [
+  { n: 220, v: 7, r: 0.9, a: 0.55, cor: 0xffffff, rastro: 0, poeira: false },
+  { n: 90, v: 28, r: 1.3, a: 0.75, cor: 0xdbeafe, rastro: 0, poeira: false },
+  { n: 30, v: 110, r: 1.6, a: 0.7, cor: 0xe0f2fe, rastro: 14, poeira: false },
+  { n: 14, v: 45, r: 46, a: 0.045, cor: 0xa78bfa, rastro: 0, poeira: true },
+  { n: 10, v: 70, r: 30, a: 0.05, cor: 0x7dd3fc, rastro: 0, poeira: true },
+];                     // gentle time drift while you look from space
+
+// Out at the solar system, time runs at 2 hours per second: the planets go around the Sun and
+// turn on their axes at their real (NASA) pace, all on that one clock (Earth turns in 12 s; faster
+// felt like motion sickness).
+const HORAS_SISTEMA = 2;
 
 export class Espaco extends Phaser.Scene {
   private constelacaoAtual?: {img: Phaser.GameObjects.Image; mask?: Phaser.GameObjects.Graphics; progress?: {v:number}};
   private modoConstelacao = '';
   private ceu!: Phaser.GameObjects.Image;
   private ceuMarte!: Phaser.GameObjects.Rectangle;   // chapter 3: the daytime sky of Mars behind the map
+  private ceuSistema!: Phaser.GameObjects.Image;     // the real sky behind the solar system (make_ceu.py)
+  private cintila!: Phaser.GameObjects.Graphics;     // the brightest stars twinkling
+  // Depth for the solar system: the asteroid belt and the Kuiper belt (dots going around the Sun
+  // at their real pace) and soft nebulae that sit farther back than the planets (parallax).
+  private cinto!: Phaser.GameObjects.Graphics;
+  private nebulosas: { img: Phaser.GameObjects.Image; x: number; y: number; esc: number; prof: number }[] = [];
+  private escalaCeuSistema = 1;
+  private corpos = new Map<string, Phaser.GameObjects.Sprite>();   // Blender planets, lit from 16 sides
+  private solBrilho!: Phaser.GameObjects.Image;
+  private corposProx = new Map<string, Phaser.GameObjects.Sprite>();   // the next turn frame, faded in over it: a smooth turn
+  // Chapter 2, the ship: stars and stellar dust streaming past, in parallax layers.
+  private viagem: Phaser.GameObjects.Graphics | null = null;
+  private estrelas: { x: number; y: number; c: number; r: number }[] = [];
   private escalaCeu = 1;
   private lua!: ReturnType<typeof criarLua>;        // live GPU Moon (luaShader.ts)
   private marte: ReturnType<typeof criarPlaneta> | null = null;   // live GPU Mars (planetaShader.ts)
@@ -62,10 +93,45 @@ export class Espaco extends Phaser.Scene {
     this.modoConstelacao = '';
     this.events.once('shutdown',()=>this.limparConstelacao());
     this.ceuMarte = this.add.rectangle(0, 0, W, H, 0xc99a72).setOrigin(0).setDepth(-99).setVisible(false);
+    this.viagem = null; this.estrelas = [];
+    if (sessao.mundo === 'nave') {
+      this.viagem = this.add.graphics().setDepth(-98);
+      for (let c = 0; c < CAMADAS.length; c++)
+        for (let i = 0; i < CAMADAS[c].n; i++)
+          this.estrelas.push({ x: Math.random() * W, y: Math.random() * H, c, r: CAMADAS[c].r * (0.6 + Math.random() * 0.8) });
+    }
     this.escalaCeu = Math.max(W / this.ceu.width, H / this.ceu.height);
     this.ceu.setScale(this.escalaCeu);
+    this.ceuSistema = this.add.image(W / 2, H / 2, 'ceu_sistema').setDepth(-100).setAlpha(0)
+      .setScale(Math.max(W / this.textures.get('ceu_sistema').getSourceImage().width, H / this.textures.get('ceu_sistema').getSourceImage().height));
+    this.cintila = this.add.graphics().setDepth(-97).setBlendMode(Phaser.BlendModes.ADD);
+    // A little bigger than the screen: it shrinks a bit when the zoom is pulled out (parallax).
+    this.escalaCeuSistema = this.ceuSistema.scaleX * Math.exp(0.05 * ELASTICO_MAX);
+    this.ceuSistema.setScale(this.escalaCeuSistema);
+    this.cinto = this.add.graphics().setDepth(0.4);
+    this.criarNebulosas(W, H);
 
     this.g = this.add.graphics();
+    this.corpos.clear(); this.corposProx.clear();
+    // The Sun's own light: a soft additive glow behind its ball (no rays), breathing in update.
+    if (!this.textures.exists('brilho_sol')) {
+      const c = this.textures.createCanvas('brilho_sol', 256, 256)!, x = c.getContext();
+      const gr = x.createRadialGradient(128, 128, 0, 128, 128, 128);
+      gr.addColorStop(0, 'rgba(255,236,170,1)'); gr.addColorStop(0.22, 'rgba(255,196,90,0.75)');
+      gr.addColorStop(0.45, 'rgba(255,140,40,0.25)'); gr.addColorStop(1, 'rgba(255,110,20,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, 256, 256); c.refresh();
+    }
+    this.solBrilho = this.add.image(0, 0, 'brilho_sol').setVisible(false).setDepth(0.5).setBlendMode(Phaser.BlendModes.ADD);
+    // Each body is a Blender sprite (make_planetas_3d.py) that turns on its axis; a click opens it
+    // full screen (Astro).
+    for (const nome of Object.keys(planetas3d)) {
+      if (nome === 'nota') continue;
+      const s = this.add.sprite(0, 0, `pl3d_${nome}`, 0).setVisible(false).setDepth(1);
+      s.setInteractive({ hitArea: new Phaser.Geom.Circle(0, 0, 1), hitAreaCallback: Phaser.Geom.Circle.Contains, useHandCursor: true })
+        .on('pointerdown', () => this.abrirAstro(nome));
+      this.corpos.set(nome, s);
+      this.corposProx.set(nome, this.add.sprite(0, 0, `pl3d_${nome}`, 0).setVisible(false).setDepth(1.01));
+    }
     this.lua = criarLua(this, W / 2, H / 2);
     this.lua.setVisible(false);
     this.marte = this.textures.exists('planeta_marte')
@@ -124,7 +190,7 @@ export class Espaco extends Phaser.Scene {
 
   // A thin constellation figure draws itself, stays a moment and fades.
   private tracarConstelacao() {
-    if (!constelacoes.length || !video.efeitos || configuracoesAbertas || sessao.partida || sessao.mundo === 'marte') return;
+    if (!constelacoes.length || !video.efeitos || configuracoesAbertas || sessao.partida || sessao.mundo === 'marte' || this.ceuSistema.alpha > 0.5) return;   // the figures belong to the Moon view's sky
     if(movimentoReduzido() && this.constelacaoAtual)return;
     this.limparConstelacao();
     const i = Phaser.Math.Between(0, constelacoes.length - 1);
@@ -154,6 +220,139 @@ export class Espaco extends Phaser.Scene {
     c.img.clearMask(true);c.mask?.destroy();c.img.destroy();this.constelacaoAtual=undefined;
   }
 
+  // The brightest stars of the sky in view twinkle a little (make_ceu.py found them).
+  // One body's sprite: the rotation frame of the moment and the frame lit from angle luz (the Sun's
+  // side on screen, counterclockwise from the right), scaled to radius r.
+  // Soft nebulae: a few clouds of glowing gas, made once as textures (no files), drawn with
+  // additive light over the real sky. prof: how far back (0 = with the planets, 1 = the sky).
+  private criarNebulosas(W: number, H: number) {
+    this.nebulosas = [];
+    const cores = [['rgba(168,85,247,', 'rgba(236,72,153,'], ['rgba(45,212,191,', 'rgba(59,130,246,'], ['rgba(251,146,60,', 'rgba(244,63,94,']];
+    let semente = 7;
+    const rnd = () => { semente = (semente * 16807) % 2147483647; return semente / 2147483647; };
+    cores.forEach((par, i) => {
+      const chave = `nebulosa_${i}`;
+      if (!this.textures.exists(chave)) {
+        const c = this.textures.createCanvas(chave, 512, 512)!, x = c.getContext();
+        for (let k = 0; k < 14; k++) {
+          const cx = 256 + (rnd() - 0.5) * 260, cy = 256 + (rnd() - 0.5) * 200, r = 60 + rnd() * 150;
+          const gr = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+          const cor = par[k % 2];
+          gr.addColorStop(0, `${cor}${(0.10 + rnd() * 0.12).toFixed(2)})`); gr.addColorStop(1, `${cor}0)`);
+          x.fillStyle = gr; x.fillRect(0, 0, 512, 512);
+        }
+        c.refresh();
+      }
+      const ang = (i / cores.length) * Math.PI * 2 + 0.6, dist = 0.42 + rnd() * 0.12;
+      const img = this.add.image(0, 0, chave).setDepth(-96).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+      this.nebulosas.push({ img, x: Math.cos(ang) * W * dist, y: Math.sin(ang) * H * dist, esc: (Math.max(W, H) * (0.5 + rnd() * 0.3)) / 512, prof: 0.45 + rnd() * 0.35 });
+    });
+  }
+
+  // Asteroids, made once: the main belt (2.2 to 3.3 AU) and the Kuiper belt (39 to 48 AU), each on
+  // a slightly oval orbit, going around at the pace Kepler's third law gives (a year = a^1.5).
+  private static asteroides = (() => {
+    let semente = 11;
+    const rnd = () => { semente = (semente * 16807) % 2147483647; return semente / 2147483647; };
+    const lista: { a: number; e: number; w: number; l0: number; b: number }[] = [];
+    for (let i = 0; i < 700; i++) lista.push({ a: 2.2 + rnd() * 1.1, e: rnd() * 0.15, w: rnd() * 6.283, l0: rnd() * 6.283, b: 0.35 + rnd() * 0.5 });
+    for (let i = 0; i < 350; i++) lista.push({ a: 39 + rnd() * 9, e: rnd() * 0.12, w: rnd() * 6.283, l0: rnd() * 6.283, b: 0.3 + rnd() * 0.45 });
+    return lista;
+  })();
+
+  private desenharCinturoes(tela: (p: { x: number; y: number }) => { x: number; y: number }, t: number, alfa: number, W: number, H: number) {
+    const g = this.cinto.clear();
+    if (alfa <= 0.01) return;
+    const dias = (t - Date.UTC(2000, 0, 1, 12)) / 86400000;
+    // Pulled out, the main belt crowds around the Sun: smaller, fainter dots.
+    const el = sessao.elastico, lado = el > 1 ? 1.2 : 2, apaga = 1 - 0.65 * suave(0.3, 1.5, el);
+    for (const k of Espaco.asteroides) {
+      const v = k.l0 + (2 * Math.PI * dias) / (365.25 * Math.pow(k.a, 1.5));
+      const r = (k.a * (1 - k.e * k.e)) / (1 + k.e * Math.cos(v - k.w)) * AU_KM;
+      const q = tela({ x: Math.cos(v) * r, y: Math.sin(v) * r });
+      if (q.x < -2 || q.y < -2 || q.x > W + 2 || q.y > H + 2) continue;
+      g.fillStyle(k.a > 30 ? 0xc7d2fe : 0xf5e6c8, alfa * (0.35 + k.b) * (k.a > 30 ? 1 : apaga)).fillRect(q.x - lado / 2, q.y - lado / 2, lado, lado);
+    }
+  }
+
+  private mostrarNebulosas(alfa: number, el: number, W: number, H: number) {
+    for (const n of this.nebulosas) {
+      // Farther back, it shrinks less as the view pulls out: the layers part, and space feels deep.
+      const k = Math.exp(-el * (1 - n.prof) * 0.5);
+      n.img.setVisible(alfa > 0.01).setAlpha(alfa * 0.3).setPosition(W / 2 + n.x * k, H / 2 + n.y * k).setScale(n.esc * k);
+    }
+    // The sky itself is the farthest layer: it barely moves.
+    this.ceuSistema.setScale(this.escalaCeuSistema * Math.exp(-0.05 * el));
+  }
+
+  // voltas: how many times it has turned on its axis (the frames of Venus already turn backward).
+  private mostrarCorpo(nome: string, x: number, y: number, r: number, luz: number, voltas: number, alfa = 1) {
+    const s = this.corpos.get(nome);
+    if (!s) return;
+    const info = (planetas3d as unknown as Record<string, { pequeno: { raio: number; giros: number; direcoes: number } }>)[nome].pequeno;
+    const n = info.direcoes;
+    const k = ((Math.round(luz / (2 * Math.PI / n)) % n) + n) % n;
+    // Where it is in its turn, in frames: the frame below and the next one over it, faded in by
+    // the fraction, so the turn is continuous instead of stepping from frame to frame.
+    const f = (((voltas % 1) + 1) % 1) * info.giros;
+    const j = Math.floor(f), frac = f - j;
+    s.setVisible(alfa > 0).setFrame(j * n + k).setPosition(x, y).setScale(r / info.raio).setAlpha(alfa);
+    const prox = this.corposProx.get(nome)!;
+    prox.setVisible(alfa > 0 && frac > 0.01).setFrame(((j + 1) % info.giros) * n + k).setPosition(x, y).setScale(r / info.raio)
+      .setAlpha(alfa * frac).setDepth(s.depth + 0.01);
+    // The click target: the disc, at least 16 px across on screen for the small ones.
+    const alvo = s.input?.hitArea as Phaser.Geom.Circle | undefined;
+    if (alvo) alvo.setTo(s.width / 2, s.height / 2, Math.max(info.raio, (16 * info.raio) / r));
+  }
+
+  private abrirAstro(nome: string) {
+    if (sessao.vista !== 'sistema' || sessao.voo || this.scene.isActive('Astro')) return;
+    const c = this.corpos.get(nome)!;
+    this.scene.launch('Astro', { nome, x: c.x, y: c.y, r: (c.displayWidth / 2) * 0.8 });
+    this.scene.bringToTop('Astro');
+  }
+
+  private cintilar(qual: 'lua' | 'sistema' | null, W: number, H: number) {
+    const g = this.cintila.clear();
+    if (!qual || movimentoReduzido() || !video.efeitos) return;
+    const img = qual === 'sistema' ? this.ceuSistema : this.ceu;
+    const lista = (ceuEstrelas as unknown as Record<string, number[][]>)[qual] ?? [];
+    const k = img.scaleX, t = this.time.now / 1000;
+    for (let i = 0; i < Math.min(70, lista.length); i++) {
+      const [x, y, b] = lista[i];
+      const px = W / 2 + (x - ceuEstrelas.w / 2) * k, py = H / 2 + (y - ceuEstrelas.h / 2) * k;
+      if (px < 0 || py < 0 || px > W || py > H) continue;
+      const a = Math.max(0, Math.sin(t * (0.7 + (i % 7) * 0.23) + i * 1.9)) ** 3 * 0.55 * b;
+      if (a < 0.02) continue;
+      g.fillStyle(0xe0f2fe, a * 0.35).fillCircle(px, py, 3.2);
+      g.lineStyle(1, 0xffffff, a).lineBetween(px - 4, py, px + 4, py).lineBetween(px, py - 4, px, py + 4);
+    }
+  }
+
+  // Moves and draws the streaming sky (chapter 2). Still with reduced motion or effects off.
+  private viajar(dt: number, W: number, H: number) {
+    const g = this.viagem!;
+    g.clear();
+    const anda = !movimentoReduzido() && video.efeitos && !configuracoesAbertas;
+    for (const e of this.estrelas) {
+      const c = CAMADAS[e.c];
+      if (anda) {
+        e.x += RUMO.x * c.v * dt; e.y += RUMO.y * c.v * dt;
+        const m = c.poeira ? e.r * 2 : 20;               // wrap around, entering from the far side
+        if (e.x < -m) e.x += W + 2 * m; if (e.y < -m) e.y += H + 2 * m;
+        if (e.x > W + m) e.x -= W + 2 * m; if (e.y > H + m) e.y -= H + 2 * m;
+      }
+      if (c.poeira) {
+        for (const k of [1, 0.7, 0.45]) g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r * k);
+      } else if (c.rastro && anda) {
+        g.lineStyle(e.r, c.cor, c.a * 0.5).lineBetween(e.x, e.y, e.x - RUMO.x * c.rastro, e.y - RUMO.y * c.rastro);
+        g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r);
+      } else {
+        g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r);
+      }
+    }
+  }
+
   private rotulo(id: string, x: number, y: number, s: string, cor: string, alpha: number) {
     let t = this.rotulos.get(id);
     if (!t) { t = this.add.text(0, 0, s, fonte(13, cor, { fontStyle: 'bold', stroke: '#020617', strokeThickness: 4 })).setOrigin(0.5, 0); this.rotulos.set(id, t); }
@@ -171,9 +370,17 @@ export class Espaco extends Phaser.Scene {
     const emMarte = sessao.mundo === 'marte';
     this.ceuMarte.setVisible(emMarte);
     this.ceu.setVisible(!emMarte);
+    for (const c of this.corpos.values()) c.setVisible(false);
+    for (const c of this.corposProx.values()) c.setVisible(false);
+    this.solBrilho.setVisible(false);
     if (sessao.mundo !== 'lua') {
+      // The ship looks down on the planets' plane like the solar system view: same real sky.
+      const nave = sessao.mundo === 'nave';
+      this.ceuSistema.setAlpha(nave ? 1 : 0); if (nave) this.ceu.setVisible(false);
+      this.cintilar(nave ? 'sistema' : null, W, H);
+      if (this.viagem) this.viajar(dtMs / 1000, W, H);
       this.lua.setVisible(false); this.quadro.setVisible(false); this.pino.setVisible(false); this.brilho.setVisible(false);
-      this.g.clear(); this.legendaNova = '';
+      this.g.clear(); this.cinto.clear(); this.mostrarNebulosas(0, 0, W, H); this.legendaNova = '';
       for (const r of this.rotulos.values()) r.setVisible(false);
       return;
     }
@@ -256,7 +463,8 @@ export class Espaco extends Phaser.Scene {
     // In the Moon view time runs on (no wrap: a wrap made the Moon jump back), so you watch the
     // Moon turn under the Sun. It restarts from the day's noon only once you are back on the ground.
     if (sessao.vista === 'chao' && !sessao.voo) this.relogio = 0;
-    else if (!sessao.voo && !movimentoReduzido() && !configuracoesAbertas) this.relogio += (dtMs / 1000) * HORAS_POR_SEG;
+    else if (!sessao.voo && !movimentoReduzido() && !configuracoesAbertas)
+      this.relogio += (dtMs / 1000) * Phaser.Math.Linear(HORAS_POR_SEG, HORAS_SISTEMA, suave(2.05, 2.35, sessao.nivel));
     this.brilho.setScale(movimentoReduzido() ? 1 : this.brilho.scaleX);
     this.tweens.getTweensOf(this.brilho).forEach(t=>{t.paused=movimentoReduzido() || !video.efeitos;});
     if (!movimentoReduzido() && !configuracoesAbertas) carregarFilme(this.textures);
@@ -266,6 +474,11 @@ export class Espaco extends Phaser.Scene {
     const sCruzeiro = P?.fase === 'cruzeiro' ? P.t : 0;
     const t = P && P.fase !== 'filme' ? PARTIDA + sCruzeiro * DIAS_REAIS * DIA_MS : sessao.data + this.relogio * 3600000;
     this.ceu.setAlpha(0.55 + 0.45 * suave(0.6, 1.6, n));
+    // Out to the planets the sky turns to the one the solar system camera really sees.
+    const sistema = suave(2.05, 2.35, n);
+    this.ceuSistema.setAlpha(sistema);
+    if (sistema > 0.5 && this.constelacaoAtual) this.limparConstelacao();
+    this.cintilar(sistema > 0.5 ? 'sistema' : 'lua', W, H);
     this.g.clear();
     for (const r of this.rotulos.values()) r.setVisible(false);
     this.legendaNova = '';
@@ -278,6 +491,7 @@ export class Espaco extends Phaser.Scene {
       this.brilho.setPosition(x, y);
       this.pino.setVisible(true).setAlpha(a).setPosition(x, y);
     }
+    this.cinto.clear(); this.mostrarNebulosas(0, 0, W, H);   // drawn again below when out at the planets
     if (u < uG - 0.01) return;            // Superficie draws the ground, the regions and the globe
 
     const kmPx = sDeU(u);                 // screen px per km, the same scale Superficie used
@@ -348,48 +562,85 @@ export class Espaco extends Phaser.Scene {
       if (a <= 0.01) return;
       const pts = [];
       for (let i = 0; i <= 96; i++) { const ang = (i / 96) * Math.PI * 2; pts.push(tela({ x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r })); }
-      g.lineStyle(1, cor, a).strokePoints(pts, false);
+      // Soft: a faint wide glow under a thin line (they read as paths, not as wires).
+      g.lineStyle(4, cor, a * 0.12).strokePoints(pts, false);
+      g.lineStyle(1, cor, a * 0.5).strokePoints(pts, false);
     };
-    // Inner planets only: the view stops at Mars, the next destination.
-    const internos = PLANETAS.filter((p) => p.a < 2);
-    for (const p of internos) orbita(0, 0, p.a * AU_KM, p.nome === 'Mars' ? 0xc2410c : 0x94a3b8, (p.nome === 'Mars' ? 0.55 : 0.3) * rotulos);
+    // The view rests on the inner planets, out to Mars, the next destination. Pulling the zoom
+    // out (elastic, sessao.puxo) shows the outer planets; let go and it springs back.
+    const el = sessao.elastico, fora = suave(0.15, 0.9, el);
+    const internos = PLANETAS;
+    // Each orbit is the real ellipse (NASA JPL elements), the Sun at one focus: r = a(1-e^2)/(1+e cos v),
+    // turned by the longitude of perihelion. Mercury's and Mars's are visibly off-center.
+    const elipse = (p: (typeof PLANETAS)[number], cor: number, a: number) => {
+      if (a <= 0.01) return;
+      const w = (p.varpi * Math.PI) / 180, pts = [];
+      for (let i = 0; i <= 128; i++) {
+        const v = (i / 128) * Math.PI * 2, r = (p.a * (1 - p.e * p.e)) / (1 + p.e * Math.cos(v)) * AU_KM;
+        pts.push(tela({ x: Math.cos(v + w) * r, y: Math.sin(v + w) * r }));
+      }
+      g.lineStyle(4, cor, a * 0.12).strokePoints(pts, false);
+      g.lineStyle(1, cor, a * 0.5).strokePoints(pts, false);
+    };
+    this.desenharCinturoes(tela, t, rotulos * 0.9, W, H);
+    this.mostrarNebulosas(sistema, el, W, H);
+    for (const p of internos) {
+      const externo = p.a > 2;
+      elipse(p, p.nome === 'Mars' ? 0xfb923c : externo ? 0x94a3b8 : 0xa5b4fc, (p.nome === 'Mars' ? 0.6 : 0.45) * rotulos * (externo ? fora : 1));
+    }
     orbita(terra.x, terra.y, TERRA_LUA_KM, 0x94a3b8, 0.5 * (1 - suave(2.5, 2.7, n)) * suave(2.05, 2.2, n));
 
     // Sun.
     const sp = tela({ x: 0, y: 0 });
-    const rs = Math.max(RAIO_SOL_KM * kmPx, 12);
-    g.fillStyle(0xfde68a, 0.15).fillCircle(sp.x, sp.y, rs * 2.2);
-    g.fillStyle(0xfacc15).fillCircle(sp.x, sp.y, rs);
-    g.lineStyle(2, COR.contorno).strokeCircle(sp.x, sp.y, rs);
+    // Bodies are drawn far bigger than real (the view stops at Mars, so there is room); distances
+    // stay real. Sizes in px for a 720 px tall screen.
+    const kc = Math.min(W, H) / 720;
+    // Pulled out, every body gets smaller so the inner ones do not pile up on the Sun.
+    const encolhe = Math.exp(-0.38 * el);
+    const rs = Math.max(RAIO_SOL_KM * kmPx, 28 * kc * encolhe);
+    // The Sun: its Blender ball turning (granulation and sunspots), and its light around it.
+    const aSol = Math.min(1, rotulos * 2);
+    const relogio = movimentoReduzido() ? 0 : this.time.now / 1000;
+    const pulso = 1 + 0.05 * Math.sin(relogio * 1.3) + 0.02 * Math.sin(relogio * 3.1);
+    this.solBrilho.setVisible(aSol > 0).setPosition(sp.x, sp.y).setScale((rs * 3.4 * pulso) / 128).setAlpha(aSol * 0.9);
+    this.mostrarCorpo('sol', sp.x, sp.y, rs, 0, voltasEm('sol', t), aSol);
     this.rotulo('Sun', sp.x, sp.y + rs + 4, 'Sun', '#fde68a', rotulos);
 
-    // Planets (sizes are drawn bigger than real so you can see them; distances are real).
+    // Planets: Blender models (make_planetas_3d.py), each showing the frame lit from where the Sun
+    // is on screen.
+    const NOMES: Record<string, [string, number]> = { Mercury: ['mercurio', 12], Venus: ['venus', 18], Earth: ['terra', 19], Mars: ['marte', 16],
+      Jupiter: ['jupiter', 26], Saturn: ['saturno', 22], Uranus: ['urano', 18], Neptune: ['netuno', 18] };
+    const perto = 1 - suave(0.6, 1.4, el);              // the inner labels and the Moon step aside when pulled out
+    this.marte?.setVisible(false);
     for (const p of internos) {
       const pos = posicao(p, t);
       const q = tela({ x: pos.x * AU_KM, y: pos.y * AU_KM });
-      let r = Math.max(p.raioKm * kmPx, p.raioKm > 20000 ? 6 : 4);
-      if (p.nome === 'Mars' && this.marte) {
-        // Live Mars: NASA map in toon colors, lit from the Sun's side, turning one sol per
-        // 24.6 h of the view's clock (6 h per second while you look).
-        r = Math.max(r, MARTE_MIN_PX / 2);
-        this.marte.setVisible(true).setPosition(q.x, q.y).setScale((2 * r) / diametroPlaneta(1));
-        this.marte.setSolTela(sp.x - q.x, sp.y - q.y);
-        this.marte.setGiro(((t / DIA_MARTE_MS) % 1) * 360);
-        this.rotulo(p.nome, q.x, q.y + r + 8, P ? 'Mars\nnext stop' : 'Mars\nnext stop (locked)', '#fdba74', rotulos);
-        g.lineStyle(1.5, 0xfb923c, 0.8 * rotulos).strokeCircle(q.x, q.y, r + 5);
-        continue;
-      }
-      g.fillStyle(p.cor).fillCircle(q.x, q.y, r);
-      g.lineStyle(1.5, COR.contorno).strokeCircle(q.x, q.y, r);
+      const [chave, base] = NOMES[p.nome] ?? ['', 8];
+      const externo = p.a > 2;
+      const r = Math.max(p.raioKm * kmPx, base * kc * (externo ? Math.exp(-0.15 * el) : encolhe));   // the outer ones only show pulled out: they shrink less
+      if (externo && fora <= 0.01) continue;              // off screen until the zoom is pulled out
+      if (this.corpos.has(chave)) this.mostrarCorpo(chave, q.x, q.y, r, Math.atan2(-(sp.y - q.y), sp.x - q.x), voltasEm(chave, t));   // lit from the Sun's side
+      else g.fillStyle(p.cor).fillCircle(q.x, q.y, r);
       if (p.nome === 'Earth') {
-        g.fillStyle(0x16a34a).fillEllipse(q.x - r * 0.25, q.y - r * 0.15, r * 0.9, r * 0.6);
-        this.rotulo('Earth', q.x, q.y + r + 4, rotulos > 0.5 ? (P?.fase === 'cruzeiro' ? 'Earth + Moon' : 'Earth + Moon\nyou are here') : 'Earth', '#93c5fd', suave(2.08, 2.2, n));
+        this.rotulo('Earth', q.x, q.y + r + 4, rotulos > 0.5 ? (P?.fase === 'cruzeiro' ? 'Earth + Moon' : 'Earth + Moon\nyou are here') : 'Earth', '#93c5fd', suave(2.08, 2.2, n) * perto);
+        // The Moon goes around it at its real angle (NASA phase), far enough out to be seen; it
+        // passes behind Earth on the far side of its orbit.
+        if (rotulos * perto > 0.05) {
+          const am = Math.atan2(ld.y, ld.x) + th, dm = r + 16 * kc;
+          const mx = q.x + Math.cos(am) * dm, my = q.y - Math.sin(am) * dm * ACHATAR;
+          g.lineStyle(1, 0x94a3b8, 0.25 * rotulos * perto).strokeEllipse(q.x, q.y, dm * 2, dm * 2 * ACHATAR);
+          this.corpos.get('lua')!.setDepth(Math.sin(am) > 0 ? 0.9 : 1.1);
+          // Its turn follows its trip around Earth, so the same face keeps looking at Earth (the
+          // frames start with the map's longitude 0 at 200 degrees, make_planetas_3d.py).
+          const voltasLua = (am + Math.PI - (200 * Math.PI) / 180) / (2 * Math.PI);
+          this.mostrarCorpo('lua', mx, my, 6 * kc, Math.atan2(-(sp.y - my), sp.x - mx), voltasLua, rotulos * perto);
+        }
       } else if (p.nome === 'Mars') {
         // Chapter 3's destination: shown, locked until the rocket gets there.
-        g.lineStyle(1.5, 0xfb923c, 0.8).strokeCircle(q.x, q.y, r + 5);
-        this.rotulo(p.nome, q.x, q.y + r + 8, 'Mars\nnext stop (locked)', '#fdba74', rotulos);
+        g.lineStyle(1.5, 0xfb923c, 0.7 * rotulos * perto).strokeCircle(q.x, q.y, r + 6 * kc);
+        this.rotulo(p.nome, q.x, q.y + r + 8, P ? 'Mars\nnext stop' : 'Mars\nnext stop (locked)', '#fdba74', rotulos * perto);
       } else {
-        this.rotulo(p.nome, q.x, q.y + r + 4, p.nome, '#cbd5e1', rotulos);
+        this.rotulo(p.nome, q.x, q.y + r + 4, p.nome, externo ? '#e2e8f0' : '#cbd5e1', rotulos * (externo ? fora : perto));
       }
     }
     this.rotulo('Moon', lq.x, lq.y + Math.max(largura / 2.2, 3) + 4, 'Moon', '#e2e8f0', suave(2.08, 2.2, n) * (1 - rotulos));
@@ -397,9 +648,10 @@ export class Espaco extends Phaser.Scene {
     const marte = posicao(PLANETAS[3], t);
     const dm = Math.hypot(marte.x - terraP.x, marte.y - terraP.y);
     this.definirLegenda(
-      `${dataBonita(t)} · real planet positions from NASA JPL\n` +
-      (rotulos > 0.5 ? `Mars is ${(dm * AU_KM / 1e6).toFixed(0)} million km away. Light takes ${(dm * 499 / 60).toFixed(0)} minutes!`
-        : `The Moon is ${TERRA_LUA_KM.toLocaleString('en-US')} km from Earth. Light takes 1.3 seconds!`));
+      `${dataBonita(t)} · real positions from NASA JPL orbital elements · planet sizes enlarged, distances true · time: 1 second = ${HORAS_SISTEMA} hours · click a body to see it up close\n` +
+      (el > 0.3 ? 'Neptune is 4.5 billion km from the Sun: sunlight takes 4 hours to get there. Let go to come back.'
+        : rotulos > 0.5 ? `Scroll out to peek at the outer planets. Mars, your next stop, is ${(dm * AU_KM / 1e6).toFixed(0)} million km away today. Light takes ${(dm * 499 / 60).toFixed(0)} minutes to get there.`
+        : `The Moon is ${TERRA_LUA_KM.toLocaleString('en-US')} km from Earth. Light crosses that in 1.3 seconds.`));
 
     // Leaving for Mars: the ship crosses on the transfer path, solid behind it, dashed ahead.
     if (P?.fase === 'cruzeiro') {

@@ -3,7 +3,7 @@
 // and the morning / night / end panels that run the chapter rules (../regras.ts).
 import Phaser from 'phaser';
 import { tocarSfx } from '../sfx';
-import { PRAZO_TEMPESTADE_MS, danoDaTempestade } from './tempestadeSolar';
+import { PRAZO_TEMPESTADE_MS, BATERIAS_TEMPESTADE_EXTREMA, danoDaTempestade } from './tempestadeSolar';
 import { configuracoesAbertas, movimentoReduzido } from '../video';
 import { CAPITULOS } from '../capitulos';
 import { calcularLayoutHud } from './layoutHud';
@@ -59,7 +59,7 @@ export class Interface extends Phaser.Scene {
   private contagemSolar!: Phaser.GameObjects.Text;
   private danoSolar!: Phaser.GameObjects.Text;
   private bateriasSolar: Phaser.GameObjects.Image[] = [];
-  private totalBateriasSolar = 3;
+  private readonly totalBateriasSolar = BATERIAS_TEMPESTADE_EXTREMA;
   private flashSolar!: Phaser.GameObjects.Graphics;
   private get desfechoPendente() { return sessao.desfechoPendente; }
   private set desfechoPendente(v: typeof sessao.desfechoPendente) { sessao.desfechoPendente=v; }
@@ -163,6 +163,7 @@ export class Interface extends Phaser.Scene {
     kb.on('keydown-H', () => sessao.irPara(U_INICIAL));
     kb.on('keydown-M', () => { if (!configuracoesAbertas) alternarMudo(); });
     kb.on('keydown-ESC', () => this.abrirMenu());
+    kb.on('keydown-B', () => this.abrirEditor());
     kb.on('keydown-ENTER', () => { if (!configuracoesAbertas) this.acaoPrincipal?.(); });
 
     sessao.ouvir(this, 'mensagem', (s, cor) => this.mensagem(s, cor));
@@ -180,6 +181,14 @@ export class Interface extends Phaser.Scene {
   private abrirMenu() {
     if (sessao.emTarefa || sessao.abastecendoRover || sessao.transicao || configuracoesAbertas || this.scene.isActive('MenuJogo')) return;
     this.scene.launch('MenuJogo', { aoSairTitulo: () => this.abrirTelaInicial() });
+  }
+
+  abrirEditor(): boolean {
+    if(sessao.emTarefa || sessao.abastecendoRover || sessao.editandoBase || sessao.partida || sessao.voo || sessao.transicao
+      || configuracoesAbertas || this.scene.isActive('MenuJogo') || this.scene.isActive('EditorBase'))return false;
+    if(sessao.mundo==='nave' || sessao.vista!=='chao' || (sessao.fase!=='dia' && sessao.fase!=='inicio'))return false;
+    this.scene.launch('EditorBase');
+    return true;
   }
 
   private abrirTelaInicial() {
@@ -249,9 +258,9 @@ export class Interface extends Phaser.Scene {
     this.tituloSolar = this.add.text(Math.round(w / 2), Math.round(h * 0.26), 'SOLAR STORM!', letra(px(23), '#ffd93b', {
       stroke: '#0b1a4a', strokeThickness: px(5), align: 'center',
     })).setOrigin(0.5);
-    // Battery slots: each delivered battery fills one slot. The banner is built once, before the
-    // storm day, so size it for the strongest storm in the chapter instead of today's level.
-    const n = this.totalBateriasSolar = Math.max(1, ...sessao.cap.dados.dias.map((dia) => dia.nivel));
+    // This banner represents an extreme storm, independent of the chapter's forecast range.
+    // Use the same requirement as the protection rule, including developer-triggered storms.
+    const n = this.totalBateriasSolar;
     const rowY = Math.round(h * 0.60), slotW = px(22), slotH = px(30), espacoSlot = px(6);
     this.contagemSolar = this.add.text(0, rowY, `0/${n}`, letra(px(19), '#ffffff', {
       fontStyle: 'bold', stroke: '#0b1a4a', strokeThickness: px(4),

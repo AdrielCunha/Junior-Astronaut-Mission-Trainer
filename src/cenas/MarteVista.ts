@@ -73,13 +73,13 @@ export class MarteVista extends Phaser.Scene {
     this.load.image('planeta_marte', 'lua/planetas/marte.png');
     this.load.image('planeta_terra', 'lua/planetas/terra.png');
     this.load.image('planeta_sol', 'lua/planetas/sol.png');
-    this.load.image('ceu', 'lua/sky.jpg');
+    this.load.image('ceu_sistema', 'lua/sky_sistema.jpg');   // the real sky seen looking down on the planets (make_ceu.py)
     for (let i = 0; i < VOO.quadros; i++) if (!this.textures.exists(`mv${i}`)) this.load.image(`mv${i}`, quadroMarte(i));
   }
 
   create() {
     const W = this.scale.width, H = this.scale.height;
-    this.ceu = this.add.image(W / 2, H / 2, 'ceu');
+    this.ceu = this.add.image(W / 2, H / 2, 'ceu_sistema');
     this.ceu.setScale(Math.max(W / this.ceu.width, H / this.ceu.height));
     this.ceuMarte = this.add.rectangle(0, 0, W, H, CEU_MARTE[0][1]).setOrigin(0);
     const veu = this.add.rectangle(0, 0, W, H, 0x020617, 0.3).setOrigin(0);

@@ -48,10 +48,26 @@ def limpar():
     grupo.clear()
 
 
+def luz():
+    """The team's key light (make_modules.luz_estacao: a big warm disk above the front left), scaled
+    to the model: the same light on a prop, a proportionally bigger and stronger one on the ship."""
+    if not g.get('NOVO'): return
+    pts = [o.matrix_world @ Vector(c) for o in grupo for c in o.bound_box]
+    if not pts: return
+    lado = max((max(p[i] for p in pts) - min(p[i] for p in pts)) for i in range(3))
+    k = max(1.0, lado / 6)                                 # the team's light is set for ~6-tile models
+    centro = sum(pts, Vector()) / len(pts)
+    l = bpy.data.lights.new('Sol de exportacao', 'AREA'); l.energy = 1500 * k * k; l.shape = 'DISK'; l.size = 7 * k
+    o = bpy.data.objects.new('Sol de exportacao', l); sc.collection.objects.link(o)
+    o.location = centro + Vector((2, -5, 9)) * k
+    o.rotation_euler = (centro - o.location).to_track_quat('-Z', 'Y').to_euler()
+
+
 _quadro = {}
 def render(caminho, metade=False, mesmo_quadro=False):
     """Frames the current group (or keeps the last framing), renders, quantizes; returns
     (W, H, ancora of the map origin)."""
+    luz()
     if mesmo_quadro:
         W, H, cx, cy = _quadro['q']
     else:
@@ -88,7 +104,7 @@ def escotilha(x, y, z, r=0.32, eixo='y'):
 # side toward the camera removed above the deck, like the Moon map's diorama edges).
 YC, ZC, A, B = (Y0 + Y1) / 2, 0.9, 6.9, 3.4     # tube axis (gy, z) and half width / half height
 XC0, XC1 = X0 - 0.6, X1 + 0.4                   # straight body; tail and nose beyond
-XT, XN = X0 - 2.4, X1 + 4.6                     # tail and nose tips
+XT, XN = X0 - 2.2, X1 + 2.6                     # tail and nose domes
 
 
 def fator(x):
@@ -122,7 +138,6 @@ def casco(com_teto):
             # Mission band low on the sides; the windshield on the nose.
             sn = (cz - ZC) / (B * max(fator(cx), 0.2))
             if com_teto and -0.62 < sn < -0.48 and XC0 < cx < XC1: f.material_index = 1
-            elif cx > XN - 2.6 and cz > 1.1 and cy > YC - 3.5: f.material_index = 2
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     for f in bm.faces:                                   # outward, away from the tube's axis
         c = f.calc_center_median()
@@ -134,15 +149,18 @@ def casco(com_teto):
     if not com_teto:                                     # a wall thickness shows on the cut edges
         sd = o.modifiers.new('espessura', 'SOLIDIFY'); sd.thickness = 0.16; sd.offset = -1
     g['_fim'](o, CASCO, 0, 0.03)
-    # _fim gave [hull, outline]. Faces use 0 = hull, 1 = band, 2 = glass, so the materials go
-    # [hull, band, glass, outline], and the outline shell (material index + offset) lands on the
-    # outline material for every face (indices past the end clamp to the last one).
+    # Faces use 0 = hull, 1 = band, 2 = glass. The team's current look (make_modules.py NOVO, the
+    # solar station's clay style) has no outline material: [hull, band, glass]. The old toon look
+    # adds an outline shell (material index + offset), so there the outline goes last.
     mats = o.data.materials
-    mats[1] = g['toon'](FAIXA)
-    mats.append(g['toon'](VIDRO))
-    mats.append(g['contorno'])
-    for m in o.modifiers:
-        if m.name == 'contorno': m.material_offset = 3
+    if g.get('NOVO'):
+        mats.append(g['toon'](FAIXA)); mats.append(g['toon'](VIDRO))
+    else:
+        mats[1] = g['toon'](FAIXA)
+        mats.append(g['toon'](VIDRO))
+        mats.append(g['contorno'])
+        for m in o.modifiers:
+            if m.name == 'contorno': m.material_offset = 3
     return o
 
 
@@ -178,38 +196,99 @@ def piso():
         lampada_ponto(x + 0.5, YC + 0.85, 0.012)
 
 
-def motores_externos():
-    for y in (YC - 2.4, YC, YC + 2.4):
-        bpy.ops.mesh.primitive_cone_add(vertices=24, radius1=0.95, radius2=0.5, depth=1.3)
-        o = bpy.context.active_object; o.location = (XT - 0.4, -y, ZC - 0.3); o.rotation_euler = (0, math.pi / 2, 0)
-        g['_fim'](o, '#475569', 0, 0.02)
-        emissivo(cilindro(XT - 1.06, y, 0.66, ZC - 0.32, ZC - 0.28, '#38bdf8', rot=(0, math.pi / 2, 0), linha=0.004), '#38bdf8', 2.0)
+# ---------- outside: after NASA's Mars Transit Habitat concept ----------
+# NASA Marshall's Mars Transit Habitat study (Gateway-derived, 2020): one large habitat module with
+# an airlock and docking port on its forward dome, micrometeoroid shielding and radiator panels on
+# its skin, two windows, an aft skirt with small thrusters, and behind it a hybrid propulsion
+# stage: storable propellant tanks, deployable radiators and large solar arrays feeding solar
+# electric propulsion (Hall thrusters, firing for months with a faint blue glow).
+XS = XT - 1.2                                   # aft skirt
+XP0, XP1 = XS - 0.4, XS - 13.0                  # propulsion stage truss, from the skirt back
+XH = XP1 - 0.6                                  # Hall thrusters' exit plane
+HALL = [(YC + 1.5 * math.cos(a), ZC + 1.5 * math.sin(a)) for a in (math.radians(30 + 60 * k) for k in range(6))]
 
 
-def asas(lados):
-    for lado in lados:                                   # -1 far side, +1 near side
-        y0 = YC + lado * (A - 0.3)
-        for xc in (X0 + 4, X1 - 4):
-            haste((xc, y0, ZC), (xc, y0 + lado * 5.2, ZC), 0.07, '#94a3b8')
-            for k in range(3):
-                ya = y0 + lado * (1.0 + k * 1.35)
-                caixa(xc - 2.6, min(ya, ya + lado * 1.2), xc + 2.6, max(ya, ya + lado * 1.2), ZC - 0.03, ZC + 0.03, '#1e3a8a', bevel=0.01, linha=0.01)
-                for xx in range(-2, 3):
-                    caixa(xc + xx - 0.02, min(ya, ya + lado * 1.2), xc + xx + 0.02, max(ya, ya + lado * 1.2), ZC + 0.03, ZC + 0.04, '#60a5fa', bevel=0, linha=0.002)
+def treliça(x0, x1, meio=0.9):
+    """A square truss along -gx: four longerons and diagonal braces."""
+    cantos = [(YC - meio, ZC - meio), (YC + meio, ZC - meio), (YC + meio, ZC + meio), (YC - meio, ZC + meio)]
+    for y, z in cantos:
+        haste((x0, y, z), (x1, y, z), 0.09, '#94a3b8')
+    passo = (x1 - x0) / 8
+    for k in range(8):
+        xa, xb = x0 + passo * k, x0 + passo * (k + 1)
+        for i in range(4):
+            (ya, za), (yb, zb) = cantos[i], cantos[(i + 1) % 4]
+            haste((xa, ya, za), (xb, yb, zb), 0.05, '#cbd5e1')
+
+
+def painel_solar(xc, lado):
+    """A roll-out solar array (like ROSA): a long blanket of cells between two booms."""
+    y0, y1 = YC + lado * 1.2, YC + lado * 12.5
+    ya, yb = min(y0, y1), max(y0, y1)
+    caixa(xc - 1.9, ya, xc + 1.9, yb, ZC - 0.03, ZC + 0.03, '#1e3a8a', bevel=0.01, linha=0.012)
+    for k in range(1, 10):                                  # cell rows
+        yk = ya + (yb - ya) * k / 10
+        caixa(xc - 1.9, yk - 0.03, xc + 1.9, yk + 0.03, ZC + 0.03, ZC + 0.045, '#60a5fa', bevel=0, linha=0.002)
+    for xx in (xc - 1.95, xc + 1.95):                       # booms
+        haste((xx, y0, ZC), (xx, y1, ZC), 0.06, '#e5c07b')
+    haste((xc, YC, ZC), (xc, y0, ZC), 0.1, '#94a3b8')       # the mast to the truss
+
+
+def estagio_propulsao(lados):
+    cilindro((XS + XT + 0.4) / 2, YC, 2.4, ZC - (XT + 0.4 - XS) / 2, ZC + (XT + 0.4 - XS) / 2, '#cbd5e1',
+             rot=(0, math.pi / 2, 0), linha=0.02, bevel=0.15)                                # aft skirt, round
+    for y, z in ((YC - 2.45, ZC + 0.6), (YC + 2.45, ZC + 0.6), (YC - 2.45, ZC - 0.6), (YC + 2.45, ZC - 0.6)):
+        cilindro(XS + 0.4, y, 0.16, z - 0.12, z + 0.12, '#475569', linha=0.006)             # small docking thrusters
+    treliça(XP0, XP1)
+    for y, z in ((YC - 1.7, ZC - 1.7), (YC + 1.7, ZC - 1.7), (YC - 1.7, ZC + 1.7), (YC + 1.7, ZC + 1.7)):
+        esfera(XP0 - 2.6, y, z, 1.25, 1.25, 1.25, '#f1f5f9', linha=0.02)                        # propellant tanks
+    for sentido in (1, -1):                                 # deployable radiators, up and down
+        for k in range(3):
+            xr = XP0 - 5.0 - k * 1.35
+            caixa(xr - 0.55, YC - 0.05, xr + 0.55, YC + 0.05, ZC + sentido * 1.0, ZC + sentido * 5.0, '#e2e8f0', bevel=0.02, linha=0.01)
+    for lado in lados:
+        painel_solar(XP0 - 9.0, lado)
+    # Hall thrusters in a ring around the main engine's bell, at the very back.
+    caixa(XH + 0.35, YC - 2.2, XH + 0.75, YC + 2.2, ZC - 2.2, ZC + 2.2, '#64748b', bevel=0.1, linha=0.015)
+    for y, z in HALL:
+        cilindro(XH + 0.35, y, 0.42, z - 0.3, z + 0.3, '#334155', rot=(0, math.pi / 2, 0), linha=0.012)
+        emissivo(cilindro(XH, y, 0.32, z - 0.03, z + 0.03, '#7dd3fc', rot=(0, math.pi / 2, 0), linha=0.003), '#7dd3fc', 2.4)
+    bpy.ops.mesh.primitive_cone_add(vertices=24, radius1=0.75, radius2=0.35, depth=1.0)
+    o = bpy.context.active_object; o.location = (XH, -YC, ZC); o.rotation_euler = (0, math.pi / 2, 0)
+    g['_fim'](o, '#475569', 0, 0.015)
+
+
+def proa():
+    """The forward dome's airlock and docking port (where the crew vehicles dock)."""
+    cilindro(XN + 0.8, YC, 1.4, ZC - 1.3, ZC + 1.3, '#e2e8f0', rot=(0, math.pi / 2, 0), linha=0.02, bevel=0.06)
+    cilindro(XN + 2.15, YC, 1.65, ZC - 0.08, ZC + 0.08, '#94a3b8', rot=(0, math.pi / 2, 0), linha=0.012)
+    cilindro(XN + 2.4, YC, 0.9, ZC - 0.25, ZC + 0.25, '#64748b', rot=(0, math.pi / 2, 0), linha=0.012)
+
+
+def braco_robotico():
+    """The robotic arm that walks the length of the vehicle, folded on the roof."""
+    topo = ZC + B + 0.15
+    pts = [(X0 + 3, YC + 1.5, topo), (X0 + 7, YC + 2.2, topo + 1.1), (X0 + 11, YC + 1.2, topo + 0.2)]
+    for a, b in zip(pts, pts[1:]):
+        haste(a, b, 0.14, '#f8fafc')
+    for p in pts:
+        esfera(p[0], p[1], p[2], 0.22, 0.22, 0.22, '#64748b', linha=0.008)
 
 
 def nave(com_teto):
     casco(com_teto)
-    motores_externos()
-    asas((-1, 1) if com_teto else (-1,))
-    for x in range(X0 + 1, X1, 3):
+    estagio_propulsao((-1, 1))
+    proa()
+    for x in range(X0 + 2, X1, 5):                                           # portholes on the far wall
         escotilha_casco(x + 0.5, -1)
-        if com_teto: escotilha_casco(x + 0.5, 1)
     if com_teto:
-        # Roof details: radiator panels and a hatch along the top.
-        for x in range(X0 + 2, X1 - 1, 4):
-            caixa(x, YC - 1.2, x + 2.4, YC + 1.2, ZC + B + 0.02, ZC + B + 0.1, '#cbd5e1', bevel=0.02, linha=0.01)
-        cilindro(XC1 - 2, YC, 0.6, ZC + B - 0.05, ZC + B + 0.2, '#94a3b8', linha=0.015)
+        escotilha_casco(X1 - 3, 1, r=0.55); escotilha_casco(X1 - 6, 1, r=0.55)   # the habitat's two windows
+        # Radiator panels on the skin and the robotic arm on the roof.
+        for x in range(X0 + 1, X1 - 1, 4):
+            caixa(x, YC - 1.4, x + 3.2, YC + 1.4, ZC + B + 0.02, ZC + B + 0.08, '#e2e8f0', bevel=0.02, linha=0.01)
+            for k in range(1, 4):
+                caixa(x + 0.8 * k - 0.02, YC - 1.4, x + 0.8 * k + 0.02, YC + 1.4, ZC + B + 0.08, ZC + B + 0.1, '#94a3b8', bevel=0, linha=0.002)
+        braco_robotico()
     else:
         piso()
 
@@ -497,6 +576,8 @@ def main():
         'corpo': 'nave', 'centro': {'lat': 0, 'lon': 0}, 'n': N, 'metrosPorTile': 2.0, 'alturaBaseM': 0,
         'inclinacaoMaxAndar': 20, 'inclinacaoMaxConstruir': 10, 'alturas': alturas, 'inclinacao': incl,
         'convés': {'x0': X0, 'x1': X1, 'y0': Y0, 'y1': Y1},
+        # Exits of the Hall thrusters (tiles; the plume points to -gx): the game draws their glow.
+        'propulsores': [{'x': round(XH, 3), 'y': round(y, 3), 'z': round(z, 3), 'r': 0.32} for y, z in HALL],
         # The closed ship (roof on), same size and origin: shown when zoomed out.
         'imagemTeto': 'nave/terrain_teto.png',
         'imagem': {'arquivo': 'nave/terrain.png', 'w': W, 'h': H, 'origem': ancora,
