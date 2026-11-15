@@ -2,8 +2,7 @@
 // Screen-space layer on top of everything: resource bars, build bar, zoom controls, messages,
 // and the morning / night / end panels that run the chapter rules (../regras.ts).
 import Phaser from 'phaser';
-import { abrirVideo, configuracoesAbertas, movimentoReduzido } from '../video';
-import { alternarEfeitos, efeitosEstaoMudos } from '../sfx';
+import { configuracoesAbertas, movimentoReduzido } from '../video';
 import { CAPITULOS } from '../capitulos';
 import { calcularLayoutHud } from './layoutHud';
 import { PreferenciaDicas } from './dicasControles';
@@ -11,8 +10,8 @@ import type { DadosRadar } from './Radar';
 import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, type Estado } from '../regras';
 import { suprimentoDoDia } from '../engine/suprimentos';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase } from './sessao';
-import { alternarMudo, estaMudo } from '../audio';
-import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndicador, botaoVerde, criarDicasRecolhiveis, criarBotaoMusica, criarFaixaHud, criarTituloHud, criarBotaoZoom } from '../tarefas/estilo';
+import { alternarMudo } from '../audio';
+import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndicador, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom } from '../tarefas/estilo';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 const NIVEIS = ['CALM', 'RISING', 'HIGH', 'EXTREME'];
@@ -31,15 +30,12 @@ export class Interface extends Phaser.Scene {
   private painel: Phaser.GameObjects.GameObject[] = [];
   private acaoPrincipal?: () => void;
   private aviso?: Phaser.GameObjects.Text;
+  private entregaPendente?: Phaser.Time.TimerEvent;
   private btFim!: Phaser.GameObjects.Container;
   private textoFim!: Phaser.GameObjects.Text;
   private dicas!: ReturnType<typeof criarDicasRecolhiveis>;
   private readonly preferenciaDicas = new PreferenciaDicas();
-  private musica!: ReturnType<typeof criarBotaoMusica>;
-  private btSom!: Phaser.GameObjects.Container;
-  private btVideo!: Phaser.GameObjects.Container;
-  private btEfeitos!: Phaser.GameObjects.Container;
-  private textoEfeitos!: Phaser.GameObjects.Text;
+  private btMenu!: Phaser.GameObjects.Container;
   private cortina!: Phaser.GameObjects.Rectangle;
 
   constructor() {
@@ -116,7 +112,8 @@ export class Interface extends Phaser.Scene {
     kb.on('keydown-MINUS', () => sessao.zoom(0.4));
     kb.on('keydown-NUMPAD_SUBTRACT', () => sessao.zoom(0.4));
     kb.on('keydown-H', () => sessao.irPara(U_INICIAL));
-    kb.on('keydown-M', () => { if (!configuracoesAbertas) this.atualizarSom(alternarMudo()); });
+    kb.on('keydown-M', () => { if (!configuracoesAbertas) alternarMudo(); });
+    kb.on('keydown-ESC', () => this.abrirMenu());
     kb.on('keydown-ENTER', () => { if (!configuracoesAbertas) this.acaoPrincipal?.(); });
 
     sessao.ouvir(this, 'mensagem', (s, cor) => this.mensagem(s, cor));
@@ -128,13 +125,28 @@ export class Interface extends Phaser.Scene {
     this.mostrarFase();
   }
 
-  private atualizarSom(mudo: boolean) {
-    this.musica.atualizar(mudo);
-    this.atualizarEfeitos(efeitosEstaoMudos());
+  private abrirMenu() {
+    if (sessao.emTarefa || sessao.transicao || configuracoesAbertas || this.scene.isActive('MenuJogo')) return;
+    this.scene.launch('MenuJogo', { aoSairTitulo: () => this.abrirTelaInicial() });
   }
 
-  private atualizarEfeitos(mudo: boolean) {
-    this.textoEfeitos.setText(mudo ? 'Effects off' : 'Effects on');
+  private abrirTelaInicial() {
+    const retomar = () => { this.atualizar(); if (sessao.fase !== 'inicio') this.mostrarFase(); };
+    const dados: DadosRadar = {
+      continuar: sessao.fase !== 'inicio',
+      aoNovoJogo: () => {
+        this.entregaPendente?.remove();
+        this.entregaPendente = undefined;
+        this.aviso?.destroy();
+        sessao.reiniciar();
+        this.ultimoDia = undefined;
+        this.scene.get('Superficie').scene.restart();
+        this.irPara('manha');
+      },
+      aoComecar: () => { if (sessao.fase === 'inicio') this.irPara('manha'); else retomar(); },
+      aoExplorar: retomar,
+    };
+    this.scene.launch('Radar', dados);
   }
 
   update(_tempo: number, dt: number) {
@@ -155,14 +167,12 @@ export class Interface extends Phaser.Scene {
     const descricoes: [string, string, number][] = [['\u{1f4a8}', 'Oxygen', 0x4ade80], ['\u2622', 'Radiation', 0xfde047],
       [marte ? '\u{1f3d7}' : '\u{1f680}', sessao.cap.nomeMeta, 0x60a5fa]];
     this.recursos = l.recursos.map((r, i) => criarIndicador(this, r, u, ...descricoes[i]));
-    this.musica = criarBotaoMusica(this, l.musica, u, estaMudo(), () => this.atualizarSom(alternarMudo()));
-    this.btSom = this.musica.caixa.setDepth(10);
-    const efeitos = criarBotaoPilula(this, l.efeitos, u, efeitosEstaoMudos() ? 'Effects off' : 'Effects on', () => this.atualizarEfeitos(alternarEfeitos()));
-    this.btEfeitos = efeitos.caixa.setDepth(10);
-    this.textoEfeitos = efeitos.texto.setFontSize(px(12));
-    const video = criarBotaoPilula(this, l.video, u, 'Video & comfort', () => abrirVideo());
-    this.btVideo = video.caixa.setDepth(10);
-    video.texto.setFontSize(px(12));
+    const menu = criarBotaoPilula(this, l.menu, u, '', () => this.abrirMenu());
+    const simbolo = this.add.graphics().lineStyle(Math.max(2, px(2.5)), 0xffffff);
+    const cx = Math.round(l.menu.w / 2), cy = Math.round(l.menu.h / 2);
+    for (const dy of [-6, 0, 6]) simbolo.lineBetween(cx - px(7), cy + px(dy), cx + px(7), cy + px(dy));
+    menu.caixa.add(simbolo).setDepth(10).setData('acao', 'menu');
+    this.btMenu = menu.caixa;
     this.capsula = criarCapsulaRecursos(this, l.capsula, u, marte ? {
       nomes: ['Batteries at the lander', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Heating: batteries delivered today'],
       icones: ['\u{1f50b}', '\u270b', '\u2764\ufe0f', '\u{1f6e1}', '\u{1f525}'],
@@ -254,8 +264,8 @@ export class Interface extends Phaser.Scene {
       // Title screen (Radar.ts): LAUNCH starts the first morning; "Explore" leaves the base open.
       // The title screen has its own music switch: refresh ours when it closes.
       const dados: DadosRadar = {
-        aoComecar: () => { this.atualizarSom(estaMudo()); this.irPara('manha'); },
-        aoExplorar: () => this.atualizarSom(estaMudo()),
+        aoComecar: () => this.irPara('manha'),
+        aoExplorar: () => {},
       };
       this.scene.launch('Radar', dados);
     } else if (f === 'manha') {
@@ -276,7 +286,7 @@ export class Interface extends Phaser.Scene {
         ...(sup ? [{ texto: `Supply drop: ${sup.aviso}`, cor: '#fde68a', negrito: true }] : []),
       ], [{ texto: 'Go!', acao: () => {
         sessao.novoDia(); this.irPara('dia');
-        if (sup) this.time.delayedCall(1200, () => sessao.emitir('suprimento', sup.tipo));
+        if (sup) this.entregaPendente = this.time.delayedCall(1200, () => sessao.emitir('suprimento', sup.tipo));
       }, principal: true }]);
     } else if (f === 'noite') {
       const u = this.ultimoDia!;
@@ -356,38 +366,63 @@ export class Interface extends Phaser.Scene {
 
   private abrirPainel(titulo: string, partes: (string | { texto: string; cor?: string; negrito?: boolean; tamanho?: number })[], botoes: Botao[]) {
     this.fecharPainel();
-    const u = this.u;
+    const u = this.u, px = (n: number) => Math.round(n * u);
     const W = this.scale.width, H = this.scale.height;
-    const largura = Math.min(W - 24, 620 * u);
-    const margem = 22 * u;
-    const fundo = this.add.rectangle(0, 0, W, H, 0x020617, 0.5).setOrigin(0).setInteractive();
+    const largura = Math.round(Math.min(W - 24, px(640)));
+    const margem = px(24), util = largura - 2 * margem;
+    const fundo = this.add.rectangle(0, 0, W, H, 0x050e25, 0.68).setOrigin(0).setInteractive();
+    fundo.on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => ev.stopPropagation());
     const caixa = this.add.graphics();
     const itens: Phaser.GameObjects.GameObject[] = [caixa];
     let y = margem;
-    const t = this.texto(margem, y, titulo, 22, '#f8fafc', { fontStyle: 'bold', wordWrap: { width: largura - 2 * margem } });
-    itens.push(t); y += t.height + 10 * u;
+    const t = this.add.text(Math.round(largura / 2), y, titulo, letra(px(27), '#fde047', {
+      stroke: '#07142f', strokeThickness: px(5), align: 'center', wordWrap: { width: util },
+      shadow: { offsetX: 0, offsetY: px(2), color: '#07142f', blur: 0, fill: true, stroke: true },
+    })).setOrigin(0.5, 0);
+    itens.push(t); y += Math.round(t.height) + px(18);
     for (const p0 of partes) {
       const p = typeof p0 === 'string' ? { texto: p0 } : p0;
-      const l = this.texto(margem, y, p.texto, p.tamanho ?? 15, p.cor ?? '#cbd5e1', {
-        wordWrap: { width: largura - 2 * margem, useAdvancedWrap: true }, fontStyle: p.negrito ? 'bold' : 'normal', lineSpacing: 3 * u,
-      });
-      itens.push(l); y += l.height + 8 * u;
+      if (p.texto === 'Mission Control') {
+        const label = this.add.text(0, 0, p.texto, letra(px(16), '#ffffff', { fontStyle: '700' })).setOrigin(0.5);
+        const w = Math.min(util, Math.round(label.width) + px(32)), h = px(34);
+        const pill = criarPilula(this, margem, y, w, h, u, 0x2563eb, 0x7dd3fc);
+        label.setPosition(Math.round(w / 2), Math.round(h / 2));
+        pill.add(label); itens.push(pill); y += h + px(14);
+        continue;
+      }
+      const padding = px(14), espacoIcone = p.negrito ? px(18) : 0;
+      const l = this.add.text(margem + padding + espacoIcone, y + px(12), p.texto, letra(px(p.tamanho ?? 16), p.cor ?? '#dbeafe', {
+        wordWrap: { width: util - 2 * padding - espacoIcone, useAdvancedWrap: true },
+        fontStyle: p.negrito ? '700' : '500', lineSpacing: px(3),
+      }));
+      const h = Math.max(px(42), Math.round(l.height) + px(24));
+      const row = this.add.graphics().fillStyle(p.negrito ? 0x203653 : 0x0b1a4a, 0.8)
+        .fillRoundedRect(margem, y, util, h, px(14));
+      if (p.negrito) {
+        const cor = Number.parseInt((p.cor ?? '#7dd3fc').replace('#', ''), 16);
+        row.fillStyle(cor).fillCircle(margem + padding + px(4), Math.round(y + h / 2), px(4));
+      }
+      itens.push(row, l); y += h + px(10);
     }
-    y += 6 * u;
-    let x = largura - margem;
-    for (const b of [...botoes].reverse()) {
-      const bt = this.botao(x, y, b.texto, b.acao, b.principal ? COR.azul : '#334155', 16).setOrigin(1, 0);
-      if (b.principal) this.acaoPrincipal = b.acao;
-      itens.push(bt); x -= bt.width + 10 * u;
+    y += px(8);
+    for (const b of botoes) {
+      const h = px(48);
+      let bt: Phaser.GameObjects.Container;
+      if (b.principal) {
+        bt = botaoVerde(this, Math.round(largura / 2), y + Math.round(h / 2), b.texto, px(19), h, u, b.acao,
+          { largura: util, altura: h, pulsar: false, pararPropagacao: true, animarHover: true });
+        this.acaoPrincipal = b.acao;
+      } else bt = criarBotaoPilula(this, { x: margem, y, w: util, h }, u, b.texto, b.acao).caixa;
+      itens.push(bt); y += h + px(12);
     }
-    const altura = y + 44 * u + margem / 2;
-    caixa.fillStyle(COR.fundoPainel, 0.97).fillRoundedRect(0, 0, largura, altura, 14 * u);
-    caixa.lineStyle(2, COR.borda).strokeRoundedRect(0, 0, largura, altura, 14 * u);
-    const escala = Math.min(1, (H - 24) / altura);
-    const c = this.add.container((W - largura * escala) / 2, (H - altura * escala) / 2, itens).setScale(escala);
+    const altura = y - px(12) + margem;
+    caixa.fillStyle(0x050b1b, 0.65).fillRoundedRect(px(3), px(7), largura, altura, px(28))
+      .fillStyle(0x14243e).fillRoundedRect(0, 0, largura, altura, px(28))
+      .lineStyle(px(4), 0xffffff).strokeRoundedRect(0, 0, largura, altura, px(28))
+      .lineStyle(Math.max(1, px(1)), 0x7dd3fc, 0.35).strokeRoundedRect(px(7), px(7), largura - px(14), altura - px(14), px(22));
+    const escala = Math.min(1, (H - 32) / (altura + px(8)));
+    const c = this.add.container(Math.round((W - largura * escala) / 2), Math.round((H - altura * escala) / 2), itens).setScale(escala);
     this.painel = [fundo, c];
-    this.children.bringToTop(this.btSom);
-    this.children.bringToTop(this.btEfeitos);
-    this.children.bringToTop(this.btVideo);
+    this.children.bringToTop(this.btMenu);
   }
 }
