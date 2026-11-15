@@ -4,6 +4,7 @@
 // without playing a whole chapter first.
 import Phaser from 'phaser';
 import { sessao } from '../cenas/sessao';
+import { TerrenoMarte } from './TerrenoMarte';
 
 const CENAS_DO_JOGO = ['Radar', 'Espaco', 'Superficie', 'Interface', 'Tarefa', 'Base', 'Viagem', 'MarteVista'];
 
@@ -102,6 +103,15 @@ export function criarPainelCenas(jogo: Phaser.Game) {
       sm.run('MarteVista', { data: Date.parse('2024-05-18T12:00:00Z'), aoVoltar: () => sm.resume('Base') });
     });
   });
+  titulo('Mars terrain (plan, phase 2)');
+  botao('Mars map preview (Jezero)', () => {
+    if (!sm.getScene('TerrenoMarte')) sm.add('TerrenoMarte', TerrenoMarte, false);
+    const pausadas = sm.getScenes(true).map((s) => s.scene.key).filter((k) => k !== 'TerrenoMarte');
+    pausadas.forEach((k) => { sm.pause(k); sm.getScene(k).cameras.main.setVisible(false); });
+    sm.run('TerrenoMarte', { aoSair: () => pausadas.forEach((k) => { sm.getScene(k).cameras.main.setVisible(true); sm.resume(k); }) });
+    sm.bringToTop('TerrenoMarte');
+  });
+  titulo('');
   botao('Reload: chapter 1', () => location.reload());
   lista.append(estado);
 }
