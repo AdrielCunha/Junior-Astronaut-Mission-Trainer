@@ -110,6 +110,7 @@ class Sessao {
   puloTouch = false;
   posicaoAstronauta: Corpo | null = null;
   partidaRestaurada = false;
+  pousoChegada = false;    // the new world opens with the crew's landing on the map (Mars), then the morning
   explorando = false;       // EXPLORE THE BASE in another world: no saving, the real game comes back on reload
   abastecendoRover = false;
   editandoBase = false;

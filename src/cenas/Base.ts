@@ -294,14 +294,14 @@ export class Base extends Phaser.Scene {
     this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => { if (dy > 0) abrir(); });
   }
 
-  // From the ship to Mars: the arrival and landing (Viagem), then the 3D chapter 3. Once.
+  // From the ship to Mars: the arrival film (Chegada), then the 3D chapter 3 with the landing. Once.
   private indoParaMarte = false;
   private paraMarte(dose: number) {
     if (this.indoParaMarte) return;
     this.indoParaMarte = true;
     this.pontos[this.capIdx] = pontuacao(this.estado);
     const pontos = [...this.pontos];
-    this.scene.launch('Viagem', { etapa: 'chegada', aoTerminar: () => iniciarMarte3D(this, dose, pontos) });
+    this.scene.launch('Chegada', { mundo: 'marte', aoTerminar: () => iniciarMarte3D(this, dose, pontos) });
   }
 
   // ---------- Drawing the world ----------

@@ -201,6 +201,10 @@ export class Interface extends Phaser.Scene {
     if (sessao.partidaRestaurada) {
       sessao.partidaRestaurada=false;
       this.abrirTelaInicial();
+    } else if (sessao.pousoChegada) {
+      // Arriving on Mars: the lander comes down on the map first, then the first morning opens.
+      sessao.pousoChegada = false;
+      this.events.once('update', () => sessao.emitir('pousoFoguete', () => this.mostrarFase()));
     } else this.mostrarFase();
   }
 
@@ -810,16 +814,16 @@ export class Interface extends Phaser.Scene {
         { icone: 'antenna', texto: sessao.cap.notaDados, cor: '#94a3b8', tamanho: 15 },
       ];
       if (sessao.mundo === 'nave') {
-        // Chapter 2 ends at Mars: the arrival and landing (Viagem), then chapter 3 on Mars.
+        // Chapter 2 ends at Mars: the arrival film (Chegada, like the Moon's), then chapter 3 opens with the landing.
         this.abrirPainel(venceu ? sessao.cap.vitoria[0] : r === 'sem-oxigenio' ? 'Out of oxygen' : r === 'radiacao' ? 'Too much radiation' : 'The ship missed Mars', CONTROLE, placar, venceu
-          ? [dadosReais, { texto: 'Land on Mars  ▶', acao: () => { this.fecharPainel(); this.scene.launch('Viagem', { etapa: 'chegada', aoTerminar: () => iniciarMarte3D(this, e.dose, pontos) }); }, principal: true }]
+          ? [dadosReais, { texto: 'Land on Mars  ▶', acao: () => { this.fecharPainel(); this.scene.launch('Chegada', { mundo: 'marte', aoTerminar: () => iniciarMarte3D(this, e.dose, pontos) }); this.scene.bringToTop('Chegada'); }, principal: true }]
           // Trying again: the crew rests first (regras.ts DESCANSO).
           : [dadosReais, { texto: 'Try the trip again', acao: () => iniciarNave3D(this, Math.min(e.dose, DESCANSO), sessao.pontos), principal: true }]);
         return;
       }
       if (marte) {
         this.abrirPainel(titulo, CONTROLE, placar, [dadosReais,
-          ...(!venceu ? [{ texto: 'Try Mars again', acao: () => iniciarMarte3D(this,Math.min(e.dose,DESCANSO),sessao.pontos), principal:true }] : []),
+          ...(!venceu ? [{ texto: 'Try Mars again', acao: () => iniciarMarte3D(this,Math.min(e.dose,DESCANSO),sessao.pontos,false), principal:true }] : []),
           { texto: 'PLAY AGAIN FROM THE MOON', acao: () => this.novoJogo(), principal:venceu },
         ]);
         return;
