@@ -27,6 +27,7 @@ ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 NASA = os.path.join(HERE, 'nasa')
 SRC = os.path.join(NASA, 'planetas')
 OUT = os.path.join(ROOT, 'public', 'lua', 'planetas', '3d')
+JUPITER = 'https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia07/pia07782/PIA07782.jpg'
 MERCURIO = 'https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia15/pia15063/PIA15063.jpg'
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 SO = argv[argv.index('--so') + 1].split(',') if '--so' in argv else None
@@ -46,10 +47,38 @@ CORPOS = {
     'terra': ('planetas/earth.jpg', (0.45, 0.7, 1.0), 0.8, 23.4),
     'lua': ('lroc_color_poles_2k.tif', None, 0.0, 6.7),
     'marte': ('planetas/mars.jpg', (1.0, 0.62, 0.4), 0.35, 25.2),
+    'jupiter': ('planetas/jupiter.jpg', None, 0.0, 3.1),
+    'saturno': (None, None, 0.0, 26.7),
+    'urano': (None, (0.62, 0.88, 0.95), 0.3, 97.8),
+    'netuno': (None, (0.4, 0.6, 1.0), 0.3, 28.3),
 }
+# The gas giants with no usable global map: cloud bands in their real colors (Voyager, Cassini),
+# low contrast for Uranus, which looks almost plain from space.
+BANDAS = {
+    'saturno': [(0.0, (0.80, 0.68, 0.46)), (0.35, (0.93, 0.85, 0.64)), (0.55, (0.84, 0.73, 0.50)), (0.75, (0.96, 0.89, 0.70)), (1.0, (0.78, 0.66, 0.44))],
+    'urano': [(0.0, (0.60, 0.84, 0.87)), (0.5, (0.67, 0.89, 0.91)), (1.0, (0.58, 0.82, 0.86))],
+    'netuno': [(0.0, (0.18, 0.32, 0.78)), (0.4, (0.27, 0.46, 0.92)), (0.6, (0.20, 0.36, 0.84)), (1.0, (0.30, 0.50, 0.95))],
+}
+# Saturn's rings, in Saturn radii (NASA Saturnian rings fact sheet): C 1.24-1.53 (faint),
+# B 1.53-1.95 (bright), the Cassini division, A 2.03-2.27. (radius, color, opacity)
+ANEIS = [(1.24, (0.55, 0.50, 0.42), 0.25), (1.53, (0.88, 0.80, 0.64), 0.9), (1.95, (0.5, 0.45, 0.4), 0.06), (2.03, (0.76, 0.69, 0.55), 0.6), (2.27, (0, 0, 0), 0.0)]
+RETROGRADOS = ('venus', 'urano')
+# Half the frame, in body radii: room for the glow, and for Saturn's rings.
+def meio_quadro(nome): return 2.35 if nome == 'saturno' else 1 / RAIO
 
 # The solar system view is tilted asin(0.6) above the ecliptic, looking from -Y (planetaShader.ts).
 CAM = Vector((0, -0.8, 0.6)); CIMA = Vector((0, 0.6, 0.8)); DIREITA = CIMA.cross(CAM).normalized()
+
+
+def jupiter():
+    """Jupiter: Cassini's global color map, NASA/JPL/University of Arizona (PIA07782)."""
+    p = os.path.join(SRC, 'jupiter.jpg')
+    if not os.path.exists(p):
+        tmp = p + '.orig'
+        urllib.request.urlretrieve(JUPITER, tmp)
+        subprocess.run(['magick', tmp, '-resize', '2048x1024!', '-quality', '90', p], check=True)
+        os.remove(tmp)
+    return p
 
 
 def mercurio():
@@ -86,6 +115,7 @@ def apontar_luz(a):
 
 
 def material(nome, mapa):
+    if nome in BANDAS: return material_bandas(nome)
     m = bpy.data.materials.new(nome); m.use_nodes = True
     N, L = m.node_tree.nodes, m.node_tree.links
     bs = next(n for n in N if n.type == 'BSDF_PRINCIPLED')
@@ -103,6 +133,46 @@ def material(nome, mapa):
         r.color_ramp.elements[0].color = (0.78, 0.62, 0.36, 1); r.color_ramp.elements[1].color = (0.98, 0.9, 0.7, 1)
         L.new(nz.outputs['Fac'], r.inputs['Fac']); L.new(r.outputs['Color'], bs.inputs['Base Color'])
     return m
+
+
+def material_bandas(nome):
+    """Cloud bands along the equator, a little wavy."""
+    m = bpy.data.materials.new(nome); m.use_nodes = True
+    N, L = m.node_tree.nodes, m.node_tree.links
+    bs = next(n for n in N if n.type == 'BSDF_PRINCIPLED'); bs.inputs['Roughness'].default_value = 0.85
+    tc = N.new('ShaderNodeTexCoord')
+    onda = N.new('ShaderNodeTexWave'); onda.wave_type = 'BANDS'; onda.bands_direction = 'Z'
+    onda.inputs['Scale'].default_value = 2.2; onda.inputs['Distortion'].default_value = 3.0; onda.inputs['Detail'].default_value = 2.0
+    L.new(tc.outputs['Object'], onda.inputs['Vector'])
+    r = N.new('ShaderNodeValToRGB'); r.name = 'base'; cr = r.color_ramp
+    pts = BANDAS[nome]
+    while len(cr.elements) < len(pts): cr.elements.new(0.5)
+    for el, (pos, c) in zip(cr.elements, pts): el.position = pos; el.color = (*c, 1)
+    L.new(onda.outputs['Fac'], r.inputs['Fac']); L.new(r.outputs['Color'], bs.inputs['Base Color'])
+    return m
+
+
+def aneis(eixo):
+    """Saturn's rings: a flat disc, see-through where there is no ring."""
+    bpy.ops.mesh.primitive_circle_add(vertices=192, radius=2.3, fill_type='NGON')
+    o = bpy.context.active_object; o.matrix_world = eixo
+    m = bpy.data.materials.new('aneis'); m.use_nodes = True; m.surface_render_method = 'BLENDED'
+    N, L = m.node_tree.nodes, m.node_tree.links; N.clear()
+    tc = N.new('ShaderNodeTexCoord')
+    raio = N.new('ShaderNodeVectorMath'); raio.operation = 'LENGTH'; L.new(tc.outputs['Object'], raio.inputs[0])
+    esc = N.new('ShaderNodeMath'); esc.operation = 'DIVIDE'; esc.inputs[1].default_value = 2.3
+    L.new(raio.outputs['Value'], esc.inputs[0])
+    r = N.new('ShaderNodeValToRGB'); cr = r.color_ramp; cr.interpolation = 'CONSTANT'
+    cr.elements[0].position = 0.0; cr.elements[0].color = (0, 0, 0, 0)
+    cr.elements[1].position = ANEIS[0][0] / 2.3; cr.elements[1].color = (*ANEIS[0][1], ANEIS[0][2])
+    for raio_a, c, a in ANEIS[1:]: e = cr.elements.new(raio_a / 2.3); e.color = (*c, a)
+    L.new(esc.outputs[0], r.inputs['Fac'])
+    dif = N.new('ShaderNodeBsdfDiffuse'); L.new(r.outputs['Color'], dif.inputs['Color'])
+    tr = N.new('ShaderNodeBsdfTransparent'); mx = N.new('ShaderNodeMixShader')
+    L.new(r.outputs['Alpha'], mx.inputs['Fac']); L.new(tr.outputs[0], mx.inputs[1]); L.new(dif.outputs[0], mx.inputs[2])
+    out = N.new('ShaderNodeOutputMaterial'); L.new(mx.outputs[0], out.inputs['Surface'])
+    o.data.materials.append(m)
+    return o
 
 
 def material_sol():
@@ -221,12 +291,15 @@ for nome, (arq, cor, forca, incl) in CORPOS.items():
     sc.view_settings.view_transform = 'Standard' if eh_sol else 'AgX'
     bpy.ops.mesh.primitive_uv_sphere_add(segments=128, ring_count=64, radius=1.0)
     p = bpy.context.active_object; bpy.ops.object.shade_smooth()
-    mapa = mercurio() if nome == 'mercurio' else (os.path.join(NASA, arq) if arq else None)
+    mapa = mercurio() if nome == 'mercurio' else jupiter() if nome == 'jupiter' else (os.path.join(NASA, arq) if arq else None)
     p.data.materials.append(material_sol() if eh_sol else material(nome, mapa))
     if cor: atmosfera(cor, forca)
     # Spin about the body's own axis, tilted like the real one (Venus turns backward: 177 deg).
-    eixo = Matrix.Rotation(math.radians(incl), 4, 'X')
-    sentido = -1 if nome == 'venus' else 1
+    # Saturn leans sideways: tilted toward the camera, the rings would look almost face-on.
+    eixo = Matrix.Rotation(math.radians(incl), 4, 'Y' if nome == 'saturno' else 'X')
+    sentido = -1 if nome in RETROGRADOS else 1
+    cam.ortho_scale = 2 * meio_quadro(nome)
+    anel = aneis(eixo) if nome == 'saturno' else None
 
     def girar(fr):
         p.matrix_world = eixo @ Matrix.Rotation(math.radians(200) + sentido * 2 * math.pi * fr, 4, 'Z')
@@ -240,12 +313,14 @@ for nome, (arq, cor, forca, incl) in CORPOS.items():
                 if not eh_sol: apontar_luz(2 * math.pi * k / DIRS)
                 f = os.path.join(tmp, f'{nome}_p{j:02d}_{k:02d}.png'); render(QP, f); peq.append(f)
         folha(peq, 8 if eh_sol else COLS_P, QP, os.path.join(OUT, f'{nome}_p.png'))   # frame j * direcoes + k, row by row
-        item['pequeno'] = {'arquivo': f'lua/planetas/3d/{nome}_p.png', 'quadro': QP, 'giros': GIROS, 'direcoes': 1 if eh_sol else DIRS, 'raio': round(QP / 2 * RAIO, 1)}
+    # (Always written: runs in parallel, one body each, can drop each other's entries.)
+    item['pequeno'] = {'arquivo': f'lua/planetas/3d/{nome}_p.png', 'quadro': QP, 'giros': GIROS, 'direcoes': 1 if eh_sol else DIRS, 'raio': round(QP / 2 / meio_quadro(nome), 1)}
     if not SO_PEQUENO:
         p.matrix_world = Matrix.Identity(4)
+        if anel: bpy.data.objects.remove(anel)
         cozinhar(p, os.path.abspath(os.path.join(OUT, '..', 'mapas', f'{nome}.jpg')))
         item['grande'] = {'mapa': f'lua/planetas/mapas/{nome}.jpg', 'inclinacao': incl, 'sentido': sentido,
-                          'atmos': [round(c, 3) for c in cor] if cor else None, 'atmosForca': forca, 'sol': eh_sol}
+                          'atmos': [round(c, 3) for c in cor] if cor else None, 'atmosForca': forca, 'sol': eh_sol, 'aneis': nome == 'saturno'}
     saida[nome] = item
     print('body', nome, flush=True)
 with open(JSON, 'w') as f:

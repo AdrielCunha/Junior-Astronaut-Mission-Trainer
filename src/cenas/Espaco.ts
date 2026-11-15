@@ -40,9 +40,10 @@ const CAMADAS = [
   { n: 10, v: 70, r: 30, a: 0.05, cor: 0x7dd3fc, rastro: 0, poeira: true },
 ];                     // gentle time drift while you look from space
 
-// Out at the solar system, time runs at 12 hours per second: the planets go around the Sun and
-// turn on their axes at their real (NASA) pace, all on that one clock.
-const HORAS_SISTEMA = 12;
+// Out at the solar system, time runs at 2 hours per second: the planets go around the Sun and
+// turn on their axes at their real (NASA) pace, all on that one clock (Earth turns in 12 s; faster
+// felt like motion sickness).
+const HORAS_SISTEMA = 2;
 
 export class Espaco extends Phaser.Scene {
   private constelacaoAtual?: {img: Phaser.GameObjects.Image; mask?: Phaser.GameObjects.Graphics; progress?: {v:number}};
@@ -492,9 +493,26 @@ export class Espaco extends Phaser.Scene {
       g.lineStyle(4, cor, a * 0.12).strokePoints(pts, false);
       g.lineStyle(1, cor, a * 0.5).strokePoints(pts, false);
     };
-    // Inner planets only: the view stops at Mars, the next destination.
-    const internos = PLANETAS.filter((p) => p.a < 2);
-    for (const p of internos) orbita(0, 0, p.a * AU_KM, p.nome === 'Mars' ? 0xfb923c : 0xa5b4fc, (p.nome === 'Mars' ? 0.6 : 0.45) * rotulos);
+    // The view rests on the inner planets, out to Mars, the next destination. Pulling the zoom
+    // out (elastic, sessao.puxo) shows the outer planets; let go and it springs back.
+    const el = sessao.elastico, fora = suave(0.15, 0.9, el);
+    const internos = PLANETAS;
+    // Each orbit is the real ellipse (NASA JPL elements), the Sun at one focus: r = a(1-e^2)/(1+e cos v),
+    // turned by the longitude of perihelion. Mercury's and Mars's are visibly off-center.
+    const elipse = (p: (typeof PLANETAS)[number], cor: number, a: number) => {
+      if (a <= 0.01) return;
+      const w = (p.varpi * Math.PI) / 180, pts = [];
+      for (let i = 0; i <= 128; i++) {
+        const v = (i / 128) * Math.PI * 2, r = (p.a * (1 - p.e * p.e)) / (1 + p.e * Math.cos(v)) * AU_KM;
+        pts.push(tela({ x: Math.cos(v + w) * r, y: Math.sin(v + w) * r }));
+      }
+      g.lineStyle(4, cor, a * 0.12).strokePoints(pts, false);
+      g.lineStyle(1, cor, a * 0.5).strokePoints(pts, false);
+    };
+    for (const p of internos) {
+      const externo = p.a > 2;
+      elipse(p, p.nome === 'Mars' ? 0xfb923c : externo ? 0x94a3b8 : 0xa5b4fc, (p.nome === 'Mars' ? 0.6 : 0.45) * rotulos * (externo ? fora : 1));
+    }
     orbita(terra.x, terra.y, TERRA_LUA_KM, 0x94a3b8, 0.5 * (1 - suave(2.5, 2.7, n)) * suave(2.05, 2.2, n));
 
     // Sun.
@@ -502,7 +520,9 @@ export class Espaco extends Phaser.Scene {
     // Bodies are drawn far bigger than real (the view stops at Mars, so there is room); distances
     // stay real. Sizes in px for a 720 px tall screen.
     const kc = Math.min(W, H) / 720;
-    const rs = Math.max(RAIO_SOL_KM * kmPx, 38 * kc);
+    // Pulled out, every body gets smaller so the inner ones do not pile up on the Sun.
+    const encolhe = Math.exp(-0.38 * el);
+    const rs = Math.max(RAIO_SOL_KM * kmPx, 28 * kc * encolhe);
     // The Sun: its Blender ball turning (granulation and sunspots), and its light around it.
     const aSol = Math.min(1, rotulos * 2);
     const relogio = movimentoReduzido() ? 0 : this.time.now / 1000;
@@ -513,35 +533,39 @@ export class Espaco extends Phaser.Scene {
 
     // Planets: Blender models (make_planetas_3d.py), each showing the frame lit from where the Sun
     // is on screen.
-    const NOMES: Record<string, [string, number]> = { Mercury: ['mercurio', 12], Venus: ['venus', 18], Earth: ['terra', 19], Mars: ['marte', 16] };
+    const NOMES: Record<string, [string, number]> = { Mercury: ['mercurio', 12], Venus: ['venus', 18], Earth: ['terra', 19], Mars: ['marte', 16],
+      Jupiter: ['jupiter', 26], Saturn: ['saturno', 22], Uranus: ['urano', 18], Neptune: ['netuno', 18] };
+    const perto = 1 - suave(0.6, 1.4, el);              // the inner labels and the Moon step aside when pulled out
     this.marte?.setVisible(false);
     for (const p of internos) {
       const pos = posicao(p, t);
       const q = tela({ x: pos.x * AU_KM, y: pos.y * AU_KM });
       const [chave, base] = NOMES[p.nome] ?? ['', 8];
-      const r = Math.max(p.raioKm * kmPx, base * kc);
+      const externo = p.a > 2;
+      const r = Math.max(p.raioKm * kmPx, base * kc * (externo ? Math.exp(-0.15 * el) : encolhe));   // the outer ones only show pulled out: they shrink less
+      if (externo && fora <= 0.01) continue;              // off screen until the zoom is pulled out
       if (this.corpos.has(chave)) this.mostrarCorpo(chave, q.x, q.y, r, Math.atan2(-(sp.y - q.y), sp.x - q.x), voltasEm(chave, t));   // lit from the Sun's side
       else g.fillStyle(p.cor).fillCircle(q.x, q.y, r);
       if (p.nome === 'Earth') {
-        this.rotulo('Earth', q.x, q.y + r + 4, rotulos > 0.5 ? (P?.fase === 'cruzeiro' ? 'Earth + Moon' : 'Earth + Moon\nyou are here') : 'Earth', '#93c5fd', suave(2.08, 2.2, n));
+        this.rotulo('Earth', q.x, q.y + r + 4, rotulos > 0.5 ? (P?.fase === 'cruzeiro' ? 'Earth + Moon' : 'Earth + Moon\nyou are here') : 'Earth', '#93c5fd', suave(2.08, 2.2, n) * perto);
         // The Moon goes around it at its real angle (NASA phase), far enough out to be seen; it
         // passes behind Earth on the far side of its orbit.
-        if (rotulos > 0.05) {
+        if (rotulos * perto > 0.05) {
           const am = Math.atan2(ld.y, ld.x) + th, dm = r + 16 * kc;
           const mx = q.x + Math.cos(am) * dm, my = q.y - Math.sin(am) * dm * ACHATAR;
-          g.lineStyle(1, 0x94a3b8, 0.25 * rotulos).strokeEllipse(q.x, q.y, dm * 2, dm * 2 * ACHATAR);
+          g.lineStyle(1, 0x94a3b8, 0.25 * rotulos * perto).strokeEllipse(q.x, q.y, dm * 2, dm * 2 * ACHATAR);
           this.corpos.get('lua')!.setDepth(Math.sin(am) > 0 ? 0.9 : 1.1);
           // Its turn follows its trip around Earth, so the same face keeps looking at Earth (the
           // frames start with the map's longitude 0 at 200 degrees, make_planetas_3d.py).
           const voltasLua = (am + Math.PI - (200 * Math.PI) / 180) / (2 * Math.PI);
-          this.mostrarCorpo('lua', mx, my, 6 * kc, Math.atan2(-(sp.y - my), sp.x - mx), voltasLua, rotulos);
+          this.mostrarCorpo('lua', mx, my, 6 * kc, Math.atan2(-(sp.y - my), sp.x - mx), voltasLua, rotulos * perto);
         }
       } else if (p.nome === 'Mars') {
         // Chapter 3's destination: shown, locked until the rocket gets there.
-        g.lineStyle(1.5, 0xfb923c, 0.7 * rotulos).strokeCircle(q.x, q.y, r + 6 * kc);
-        this.rotulo(p.nome, q.x, q.y + r + 8, P ? 'Mars\nnext stop' : 'Mars\nnext stop (locked)', '#fdba74', rotulos);
+        g.lineStyle(1.5, 0xfb923c, 0.7 * rotulos * perto).strokeCircle(q.x, q.y, r + 6 * kc);
+        this.rotulo(p.nome, q.x, q.y + r + 8, P ? 'Mars\nnext stop' : 'Mars\nnext stop (locked)', '#fdba74', rotulos * perto);
       } else {
-        this.rotulo(p.nome, q.x, q.y + r + 4, p.nome, '#cbd5e1', rotulos);
+        this.rotulo(p.nome, q.x, q.y + r + 4, p.nome, externo ? '#e2e8f0' : '#cbd5e1', rotulos * (externo ? fora : perto));
       }
     }
     this.rotulo('Moon', lq.x, lq.y + Math.max(largura / 2.2, 3) + 4, 'Moon', '#e2e8f0', suave(2.08, 2.2, n) * (1 - rotulos));
@@ -550,7 +574,8 @@ export class Espaco extends Phaser.Scene {
     const dm = Math.hypot(marte.x - terraP.x, marte.y - terraP.y);
     this.definirLegenda(
       `${dataBonita(t)} · real positions from NASA JPL orbital elements · planet sizes enlarged, distances true · time: 1 second = ${HORAS_SISTEMA} hours · click a body to see it up close\n` +
-      (rotulos > 0.5 ? `Mars, your next stop, is ${(dm * AU_KM / 1e6).toFixed(0)} million km away today. Light takes ${(dm * 499 / 60).toFixed(0)} minutes to get there.`
+      (el > 0.3 ? 'Neptune is 4.5 billion km from the Sun: sunlight takes 4 hours to get there. Let go to come back.'
+        : rotulos > 0.5 ? `Scroll out to peek at the outer planets. Mars, your next stop, is ${(dm * AU_KM / 1e6).toFixed(0)} million km away today. Light takes ${(dm * 499 / 60).toFixed(0)} minutes to get there.`
         : `The Moon is ${TERRA_LUA_KM.toLocaleString('en-US')} km from Earth. Light crosses that in 1.3 seconds.`));
 
     // Leaving for Mars: the ship crosses on the transfer path, solid behind it, dashed ahead.

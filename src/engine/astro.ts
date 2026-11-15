@@ -34,6 +34,7 @@ export const MES_SINODICO = 29.530589;   // days
 // The Moon turns once per trip around Earth, so the same face always looks at us.
 export const ROTACAO_DIAS: Record<string, number> = {
   sol: 25.38, mercurio: 58.646, venus: -243.025, terra: 0.99727, lua: 27.3217, marte: 1.02596,
+  jupiter: 0.41354, saturno: 0.44401, urano: -0.71833, netuno: 0.67125,
 };
 
 const J2000 = Date.UTC(2000, 0, 1, 12);

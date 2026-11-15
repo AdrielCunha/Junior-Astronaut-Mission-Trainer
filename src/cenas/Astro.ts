@@ -8,7 +8,7 @@ import Phaser from 'phaser';
 import planetas3d from '../dados/planetas3d.json';
 import { fonte, sessao } from './sessao';
 import { movimentoReduzido } from '../video';
-import { criarAstro, ESCALA_ASTRO } from './astroShader';
+import { criarAstro, ESCALA_ASTRO, ESCALA_ANEIS } from './astroShader';
 import { ROTACAO_DIAS, voltasEm } from '../engine/astro';
 
 export type DadosAstro = { nome: string; x?: number; y?: number; r?: number };
@@ -34,13 +34,27 @@ const FICHAS: Record<string, Ficha> = {
   marte: { titulo: 'Mars', tipo: 'The red planet, your next stop', cor: 0xfdba74, raioKm: 3390,
     fato: 'Its red comes from rust: iron oxide in its dust. It has the tallest volcano in the solar system, Olympus Mons, about 22 km high.',
     dados: [['Radius', '3,390 km'], ['Day', '24 h 40 min (a sol)'], ['Year', '687 Earth days'], ['From the Sun', '228 million km'], ['Gravity', '3.7 m/s²'], ['Moons', 'Phobos and Deimos']] },
+  jupiter: { titulo: 'Jupiter', tipo: 'The biggest planet, a ball of gas', cor: 0xfcd9a8, raioKm: 69911,
+    fato: 'The Great Red Spot is a storm wider than Earth that has been blowing for hundreds of years. Jupiter has no ground to stand on.',
+    dados: [['Radius', '69,911 km'], ['Day', '9 h 56 min'], ['Year', '11.9 Earth years'], ['From the Sun', '778 million km'], ['Gravity', '24.8 m/s²'], ['Moons', '95 known']] },
+  saturno: { titulo: 'Saturn', tipo: 'The ringed planet', cor: 0xfde68a, raioKm: 58232,
+    fato: 'Its rings are billions of chunks of ice and rock, from grains of dust to the size of a house, but in most places they are only about 10 m thick.',
+    dados: [['Radius', '58,232 km'], ['Day', '10 h 39 min'], ['Year', '29.4 Earth years'], ['From the Sun', '1.43 billion km'], ['Gravity', '10.4 m/s²'], ['Moons', '274 known']] },
+  urano: { titulo: 'Uranus', tipo: 'The planet that rolls on its side', cor: 0xa5f3fc, raioKm: 25362,
+    fato: 'Its axis is tipped over by 98 degrees, so each pole gets about 42 years of sunlight and then 42 years of darkness.',
+    dados: [['Radius', '25,362 km'], ['Day', '17 h 14 min, backward'], ['Year', '84 Earth years'], ['From the Sun', '2.87 billion km'], ['Gravity', '8.7 m/s²'], ['Temperature', 'about -195 °C']] },
+  netuno: { titulo: 'Neptune', tipo: 'The windiest planet, the farthest from the Sun', cor: 0x93c5fd, raioKm: 24622,
+    fato: 'Its winds blow at more than 2,000 km/h, the fastest in the solar system. It was found in 1846 with math, before anyone saw it.',
+    dados: [['Radius', '24,622 km'], ['Day', '16 h 6 min'], ['Year', '165 Earth years'], ['From the Sun', '4.5 billion km'], ['Gravity', '11.2 m/s²'], ['Moons', '16 known']] },
 };
-const ORDEM = ['sol', 'mercurio', 'venus', 'terra', 'lua', 'marte'];
+// The bodies that have a map (make_planetas_3d.py), from the Sun out.
+const ORDEM = ['sol', 'mercurio', 'venus', 'terra', 'lua', 'marte', 'jupiter', 'saturno', 'urano', 'netuno']
+  .filter((n) => n in (planetas3d as Record<string, unknown>));
 const css = (c: number) => '#' + c.toString(16).padStart(6, '0');
-type Grande = { mapa: string; inclinacao: number; sentido: number; atmos: number[] | null; atmosForca: number; sol: boolean };
+type Grande = { mapa: string; inclinacao: number; sentido: number; atmos: number[] | null; atmosForca: number; sol: boolean; aneis?: boolean };
 // How fast time runs here: the body turns at its real (NASA) pace on this clock. T or the chip
 // below the body change it.
-const ESCALAS: [number, string][] = [[1, '1 hour'], [24, '1 day'], [24 * 7, '1 week']];
+const ESCALAS: [number, string][] = [[1, '1 hour'], [3, '3 hours'], [6, '6 hours']];   // gentle: fast spins feel like motion sickness
 // One turn on its axis, written out (sidereal: relative to the stars).
 const umaVolta = (dias: number) => {
   const h = Math.abs(dias) * 24;
@@ -96,7 +110,8 @@ export class Astro extends Phaser.Scene {
     ceu.setInteractive().on('pointerdown', () => this.fechar());
 
     const cx = lado ? W * 0.3 : W / 2, cy = lado ? H * 0.52 : H * 0.25;
-    const raio = lado ? Math.min(W * 0.22, H * 0.36) : Math.min(W * 0.36, H * 0.17);
+    // Saturn's rings reach 2.3 times its radius: the ball is drawn smaller so they fit.
+    const raio = (lado ? Math.min(W * 0.22, H * 0.36) : Math.min(W * 0.36, H * 0.17)) * (grande(this.dados.nome).aneis ? 0.5 : 1);
     if (nome === 'sol' && this.textures.exists('brilho_sol')) {
       // Same soft radial glow as the solar system view (texture made by Espaco), breathing.
       const brilho = this.add.image(cx, cy, 'brilho_sol').setBlendMode(Phaser.BlendModes.ADD).setScale((raio * 3) / 128).setAlpha(0);
@@ -104,7 +119,7 @@ export class Astro extends Phaser.Scene {
       if (!movimentoReduzido()) this.tweens.add({ targets: brilho, scale: (raio * 3.3) / 128, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
     // The body, live on the GPU, turning continuously like the Moon (astroShader.ts).
-    const corpo = criarAstro(this, cx, cy, Math.ceil(raio * 2 * ESCALA_ASTRO), { textura: `mapa_${nome}`, ...info });
+    const corpo = criarAstro(this, cx, cy, Math.ceil(raio * 2 * (info.aneis ? ESCALA_ANEIS : ESCALA_ASTRO)), { textura: `mapa_${nome}`, ...info, aneis: !!info.aneis });
     this.corpo = corpo; this.raio = raio;
     this.update(this.time.now);
     if (voo) {
@@ -206,7 +221,7 @@ export class Astro extends Phaser.Scene {
     // The clock: one turn takes the real time; the chip says how fast time runs here.
     const dias = ROTACAO_DIAS[nome] ?? 1;
     // Above the body on wide screens; top left otherwise (the facts are under the body there).
-    const relogio = this.add.text(lado ? cx : 20, lado ? cy - raio - 14 * s : 20, '', fonte(13 * s, '#e0f2fe', { align: 'center', backgroundColor: '#0f2a5fcc', padding: { x: 12, y: 7 } }))
+    const relogio = this.add.text(lado ? cx : 20, lado ? Math.max(70, cy - raio * (info.aneis ? 1.25 : 1) - 14 * s) : 20, '', fonte(13 * s, '#e0f2fe', { align: 'center', backgroundColor: '#0f2a5fcc', padding: { x: 12, y: 7 } }))
       .setOrigin(lado ? 0.5 : 0, lado ? 1 : 0).setInteractive({ useHandCursor: true });
     const escrever = () => relogio.setText(movimentoReduzido()
       ? `One turn takes ${umaVolta(dias)}${dias < 0 ? ', backward' : ''}`

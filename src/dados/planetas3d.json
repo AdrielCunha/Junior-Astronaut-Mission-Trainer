@@ -13,7 +13,8 @@
    "sentido": 1,
    "atmos": null,
    "atmosForca": 0.0,
-   "sol": true
+   "sol": true,
+   "aneis": false
   }
  },
  "mercurio": {
@@ -30,7 +31,8 @@
    "sentido": 1,
    "atmos": null,
    "atmosForca": 0.0,
-   "sol": false
+   "sol": false,
+   "aneis": false
   }
  },
  "venus": {
@@ -51,7 +53,8 @@
     0.55
    ],
    "atmosForca": 0.9,
-   "sol": false
+   "sol": false,
+   "aneis": false
   }
  },
  "terra": {
@@ -72,7 +75,8 @@
     1.0
    ],
    "atmosForca": 0.8,
-   "sol": false
+   "sol": false,
+   "aneis": false
   }
  },
  "lua": {
@@ -89,7 +93,8 @@
    "sentido": 1,
    "atmos": null,
    "atmosForca": 0.0,
-   "sol": false
+   "sol": false,
+   "aneis": false
   }
  },
  "marte": {
@@ -110,7 +115,88 @@
     0.4
    ],
    "atmosForca": 0.35,
-   "sol": false
+   "sol": false,
+   "aneis": false
+  }
+ },
+ "saturno": {
+  "pequeno": {
+   "arquivo": "lua/planetas/3d/saturno_p.png",
+   "quadro": 96,
+   "giros": 48,
+   "direcoes": 16,
+   "raio": 20.4
+  },
+  "grande": {
+   "mapa": "lua/planetas/mapas/saturno.jpg",
+   "inclinacao": 26.7,
+   "sentido": 1,
+   "atmos": null,
+   "atmosForca": 0.0,
+   "sol": false,
+   "aneis": true
+  }
+ },
+ "jupiter": {
+  "pequeno": {
+   "arquivo": "lua/planetas/3d/jupiter_p.png",
+   "quadro": 96,
+   "giros": 48,
+   "direcoes": 16,
+   "raio": 38.4
+  },
+  "grande": {
+   "mapa": "lua/planetas/mapas/jupiter.jpg",
+   "inclinacao": 3.1,
+   "sentido": 1,
+   "atmos": null,
+   "atmosForca": 0.0,
+   "sol": false,
+   "aneis": false
+  }
+ },
+ "urano": {
+  "pequeno": {
+   "arquivo": "lua/planetas/3d/urano_p.png",
+   "quadro": 96,
+   "giros": 48,
+   "direcoes": 16,
+   "raio": 38.4
+  },
+  "grande": {
+   "mapa": "lua/planetas/mapas/urano.jpg",
+   "inclinacao": 97.8,
+   "sentido": -1,
+   "atmos": [
+    0.62,
+    0.88,
+    0.95
+   ],
+   "atmosForca": 0.3,
+   "sol": false,
+   "aneis": false
+  }
+ },
+ "netuno": {
+  "pequeno": {
+   "arquivo": "lua/planetas/3d/netuno_p.png",
+   "quadro": 96,
+   "giros": 48,
+   "direcoes": 16,
+   "raio": 38.4
+  },
+  "grande": {
+   "mapa": "lua/planetas/mapas/netuno.jpg",
+   "inclinacao": 28.3,
+   "sentido": 1,
+   "atmos": [
+    0.4,
+    0.6,
+    1.0
+   ],
+   "atmosForca": 0.3,
+   "sol": false,
+   "aneis": false
   }
  }
 }
