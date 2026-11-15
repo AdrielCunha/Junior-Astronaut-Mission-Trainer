@@ -19,6 +19,7 @@ import { CONDICOES, ESTUFA_OXIGENIO, type Condicao } from '../engine/condicoes';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase, type RelatorioDia } from './sessao';
 import { apagarPartida } from '../salvamento';
 import { alternarMudo } from '../audio';
+import { ativarCacheGraphics } from './cacheGraphics';
 import { letra, criarPilula, criarCapsulaRecursos, criarCapsulaRecursosMovel, criarBotaoPilula, criarIndicador, criarIndicadorCircular, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
 import { resolverIcone, textoDoJogo, type IconeJogo } from '../dados/icones';
 import { escalaInterface, dispositivoMovel } from '../mobile';
@@ -108,6 +109,8 @@ export class Interface extends Phaser.Scene {
     const W = this.scale.width, H = this.scale.height;
     this.u = escalaInterface(W, H);
     sessao.tela = { w: W, h: H };
+    // The HUD is screen-space and almost all static: bake its shapes (cacheGraphics.ts).
+    ativarCacheGraphics(this);
     this.textos = {};
     this.painel = [];
     // A restart (resize, new game) destroys every object: the notices are made again on the next update.
