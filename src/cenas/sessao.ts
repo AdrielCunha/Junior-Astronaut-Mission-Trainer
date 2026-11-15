@@ -6,9 +6,10 @@ import { movimentoReduzido, configuracoesAbertas } from '../video';
 import terrenoJson from '../dados/terreno.json';
 import terrenoMarteJson from '../dados/terreno_marte.json';
 import terrenoNaveJson from '../dados/terreno_nave.json';
-import { definirGravidade, G_LUA, G_MARTE, G_TERRA } from '../engine/fisica';
+import { definirGravidade, G_LUA, G_MARTE, G_TERRA, type Corpo } from '../engine/fisica';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
-import { haEventoHoje, esperaDoEvento, esperaDoAlarme, alarmeDoDia, type EventoDef } from '../engine/eventos';
+import { EVENTOS, haEventoHoje, esperaDoEvento, esperaDoAlarme, alarmeDoDia, type EventoDef } from '../engine/eventos';
+import { lerPartida, gravarPartida } from '../salvamento';
 import { Grade, TIPOS, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
 import { VOO as voo } from './qualidade';
@@ -25,6 +26,10 @@ export type Mundo = 'lua' | 'marte' | 'nave';
 const TERRENO_LUA = JSON.parse(JSON.stringify(terrenoJson));
 
 export type Fase = 'inicio' | 'manha' | 'dia' | 'noite' | 'fim';
+export type RelatorioDia = {
+  antes: Estado; entregas: Alocacao; nivel: number; fato: string; frio: number;
+  danoTempestade: number; bateriasTempestade: number;
+};
 
 // ---------- Zoom ----------
 // One scale for the whole game: s = screen px per km (map projection units). Everything, from the
@@ -78,6 +83,63 @@ export type Eventos = {
 };
 
 class Sessao {
+  posicaoAstronauta: Corpo | null = null;
+  partidaRestaurada = false;
+  abastecendoRover = false;
+  ultimoDia: RelatorioDia | null = null;
+  danoTempestade = 0;
+  bateriasTempestade = 0;
+  desfechoPendente: {tipo: 'protegida' | 'atingida'; baterias: number} | null = null;
+  private tempoSalvar = 0;
+  get progressoFoguete() {
+    return Math.min(100,this.estado.meta+(this.mundo==='lua' && this.fase==='dia' ? this.entregas.meta*this.C.metaPorBateria : 0));
+  }
+
+  salvar() {
+    if (!this.grade.lista.length || this.partida || this.abastecendoRover) return false;
+    return gravarPartida({versao:1,salvoEm:Date.now(),mundo:this.mundo,capIdx:this.capIdx,fase:this.fase,
+      estado:this.estado,entregas:this.entregas,pontos:this.pontos,carregando:this.carregando,noHabitat:this.noHabitat,
+      tarefasHoje:[...this.tarefasHoje],ultimaTarefa:this.ultimaTarefa,energiaHoje:this.energiaHoje,
+      curiosidadeRoverVista:this.curiosidadeRoverVista,diaCargaRover:this.diaCargaRover,rover:this.rover,astronauta:this.posicaoAstronauta,
+      modulos:this.grade.lista.map(c=>({id:c.id,tipo:c.tipo.id,gx:c.gx,gy:c.gy})),decoracao:this.grade.deco,
+      tempestade:{restante:this.tempestade.restante,status:this.tempestade.status},danoTempestade:this.danoTempestade,
+      bateriasTempestade:this.bateriasTempestade,desfechoPendente:this.desfechoPendente,ultimoDia:this.ultimoDia,
+      evento:this.evento ? {id:this.evento.def.id,construcaoId:this.evento.construcaoId}:null,
+      eventoEm:this.eventoEm,ultimoEvento:this.ultimoEvento,diasCalmos:this.diasCalmos,pulou:this.pulou});
+  }
+
+  atualizarSalvamento(dt: number) {
+    this.tempoSalvar += dt;
+    if (this.tempoSalvar < 2000) return;
+    this.tempoSalvar = 0;
+    this.salvar();
+  }
+
+  restaurarPartida() {
+    const d=lerPartida();
+    if (!d) return false;
+    try {
+      this.capIdx=d.capIdx; this.usarMundo(d.mundo);
+      this.grade.restaurar(d.modulos,d.decoracao);
+      this.estado=d.estado; this.entregas=d.entregas; this.pontos=d.pontos;
+      this.fase=d.fase; this.carregando=d.carregando; this.noHabitat=d.noHabitat;
+      this.tarefasHoje=new Set(d.tarefasHoje); this.ultimaTarefa=d.ultimaTarefa; this.energiaHoje=d.energiaHoje;
+      this.curiosidadeRoverVista=d.curiosidadeRoverVista; this.diaCargaRover=d.diaCargaRover;
+      this.rover=d.mundo==='lua'?d.rover:null; this.posicaoAstronauta=d.astronauta;
+      for (const k of [this.posicaoAstronauta,this.rover?.corpo]) if (k) {k.vx=0;k.vy=0;k.vz=0;}
+      this.tempestade.restante=d.tempestade.restante; this.tempestade.status=d.tempestade.status;
+      this.danoTempestade=d.danoTempestade; this.bateriasTempestade=d.bateriasTempestade;
+      this.desfechoPendente=d.desfechoPendente; this.ultimoDia=d.ultimoDia;
+      this.alarmeHoje=d.mundo==='lua'?alarmeDoDia(d.estado.dia)??null:null;
+      const def=d.evento ? EVENTOS.find(e=>e.id===d.evento!.id) ?? (this.alarmeHoje?.id===d.evento.id?this.alarmeHoje:null) : null;
+      this.evento=def && d.evento && this.grade.lista.some(c=>c.id===d.evento!.construcaoId) ? {def,construcaoId:d.evento.construcaoId}:null;
+      this.eventoEm=d.eventoEm; this.ultimoEvento=d.ultimoEvento; this.diasCalmos=d.diasCalmos; this.pulou=d.pulou;
+      this.partidaRestaurada=true;
+      return true;
+    } catch {
+      this.capIdx=0;this.usarMundo('lua');return false;
+    }
+  }
   mundo: Mundo = 'lua';
   capIdx = 0;                         // CAPITULOS index: 0 the Moon, 1 the ship, 2 Mars
   pontos: number[] = [];              // score of each finished chapter
@@ -164,6 +226,8 @@ class Sessao {
   }
 
   reiniciar() {
+    this.posicaoAstronauta=null; this.ultimoDia=null; this.danoTempestade=0; this.bateriasTempestade=0;
+    this.desfechoPendente=null; this.abastecendoRover=false; this.partidaRestaurada=false; this.tempoSalvar=0;
     this.grade = new Grade(this.terreno);
     this.fase = 'inicio';
     this.tempestade.iniciar(0);

@@ -9,7 +9,7 @@ export const LINHA_QUADRIL_SENTADO = 128;
 
 // Stylized Apollo LRV: exposed aluminum frame, two fabric seats, wire-mesh wheels,
 // rust-colored fenders, gold thermal blankets, front TV camera and mesh dish antenna.
-export function desenharRover(g: Phaser.GameObjects.Graphics, p: Projecao, r: Rover, tempo: number, frente: Phaser.GameObjects.Graphics) {
+export function desenharRover(g: Phaser.GameObjects.Graphics, p: Projecao, r: Rover, tempo: number, frente: Phaser.GameObjects.Graphics, carregado = true, instalando = false) {
   const k = r.corpo, co = Math.cos(r.angulo), si = Math.sin(r.angulo);
   const q = (x: number, y: number, z: number) => paraTela(p, k.x + x * co - y * si, k.y + x * si + y * co, k.z + z);
   const poli = (pts: {x: number; y: number}[], cor: number) => {
@@ -51,6 +51,9 @@ export function desenharRover(g: Phaser.GameObjects.Graphics, p: Projecao, r: Ro
   // Rear tool rack and front thermal blankets over the battery compartment.
   caixa(-0.78,-0.34,-0.48,0.34,0.31,0.48,0xc9a04d);
   caixa(0.36,-0.34,0.79,0.34,0.31,0.43,0xe8c269);
+  const led=q(0.66,0.14,0.45);
+  g.fillStyle(instalando?0xfddd45:carregado?0x4ade80:0x475569).fillCircle(led.x,led.y,3.2)
+    .lineStyle(1.2,0x14243e).strokeCircle(led.x,led.y,3.2);
   const tubo = (a: number[],b: number[],cor=0xdce3e8,espessura=2) => {
     const p0=q(a[0],a[1],a[2]),p1=q(b[0],b[1],b[2]);
     g.lineStyle(espessura,0x14243e).lineBetween(p0.x,p0.y,p1.x,p1.y)

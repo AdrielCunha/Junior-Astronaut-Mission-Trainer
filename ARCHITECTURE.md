@@ -40,6 +40,7 @@ test**. Scenes only read input, call the engine and draw.
 | `src/engine/astro.ts` | Sun, planets and Moon positions for a date (NASA JPL orbital elements). |
 | `src/engine/engine.test.ts` | Tests for all of the above. |
 | `src/cenas/sessao.ts` | State shared by the scenes, event bus, the zoom model. |
+| `src/salvamento.ts` | Versioned browser-local save format, validation, storage and deletion. Session snapshots include world layout, storm state and night report; moving/animation callbacks are never serialized. |
 | `src/cenas/Espaco.ts` | Sky, constellation tracing, Moon view, solar system. |
 | `src/cenas/Superficie.ts` | The map, modules (Blender pictures), the commander, cargo; the ground camera. |
 | `src/cenas/Interface.ts` | HUD bars, build bar, zoom buttons, morning / night / end panels. |
@@ -47,6 +48,7 @@ test**. Scenes only read input, call the engine and draw.
 | `src/cenas/desenharRover.ts` | Apollo LRV rendering, seated legs, and foreground layers around the original astronaut sprite. |
 | `src/cenas/CuriosidadeRover.ts` | First-boarding fact card; pauses the world and storm while reading. |
 | `src/cenas/ambiente.ts` | Astronaut footprints, rover tire tracks, and surface dust for each world. |
+| `src/sfx.ts` | Synthesized effects plus suit/contact ambience. Each ground scene owns and disposes its continuous voices; pause/visibility and effects settings control their gain. |
 | `src/dados/roverApollo.ts` | Short English Apollo LRV facts and their source. |
 | `public/icons/lunar-v6/` | User-selected `lunar_icons_v6` pack: eight PNG textures plus their original SVG sources and preview. Mapped in `src/dados/icones.ts`; the backpack represents carried batteries. |
 | `src/cenas/desenho.ts` | Code-drawn extras: foundations on slopes, the commander's shadow and batteries, cargo. |

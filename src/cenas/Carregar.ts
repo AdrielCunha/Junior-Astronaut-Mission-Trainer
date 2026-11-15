@@ -5,7 +5,8 @@
 // background once the game runs.
 import Phaser from 'phaser';
 import { movimentoReduzido } from '../video';
-import { fonte, dadosTerreno } from './sessao';
+import { fonte, dadosTerreno, sessao } from './sessao';
+import { carregarImagensMundo } from './irParaMarte';
 import { carregarLua, criarLua, LADO } from './luaShader';
 import { giroEm } from './globo';
 import modelos from '../dados/modulos.json';
@@ -149,10 +150,18 @@ export class Carregar extends Phaser.Scene {
   }
 
   create() {
+    sessao.restaurarPartida();
+    carregarImagensMundo(this,sessao.mundo,()=>this.iniciarCenas());
+  }
+
+  private iniciarCenas() {
     this.scene.launch('Espaco');
     this.scene.launch('Superficie');
     this.scene.launch('Interface');
     this.scene.bringToTop();
+    const salvar=()=>sessao.salvar();
+    window.addEventListener('pagehide',salvar);
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)salvar();});
     let parou = false;
     const parar = () => {
       if (parou) return;
