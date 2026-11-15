@@ -219,7 +219,9 @@ class Sessao {
     return v.sentido > 0 ? v.t : 1 - v.t;           // the easing is on the whole flight (passo)
   }
   // Farthest view: out to Mars's orbit, the next chapter's destination (the rest is for later).
-  get uSistema() { return uDeS((0.46 * Math.min(this.tela.w, this.tela.h)) / (1.75 * AU)); }
+  // The view stops at Mars, so it fills the screen: Mars's whole orbit (out to 1.67 AU) fits the
+  // width and, squashed by the tilt (0.6), the height.
+  get uSistema() { return uDeS(Math.min((0.45 * this.tela.w) / 1.7, (0.36 * this.tela.h) / (1.7 * 0.6)) / AU); }
   // 0..1 ground, 1..2 flying to the globe, 2..3 out to the planets (for fades and labels).
   get nivel() {
     const u = this.u, g = this.uGlobo;

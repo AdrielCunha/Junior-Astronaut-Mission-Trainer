@@ -42,7 +42,8 @@ The data is downloaded once and stored in the game as archived data. The game do
 | [OSDR](https://osdr.nasa.gov/bio/repo/) Open Science Data Repository | Short science facts about health and plants in space |
 | [LRO LOLA polar elevation](https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/) (LDEM_80S_80M, LDEM_75S_240M) | The real ground of the base on the rim of Shackleton crater, its slopes, and the zoom-out regions |
 | [NASA SVS CGI Moon Kit](https://svs.gsfc.nasa.gov/4720) (LRO LROC color + LOLA) | The whole Moon |
-| [NASA SVS Deep Star Maps 2020](https://svs.gsfc.nasa.gov/4851) (with ESA/Gaia/DPAC) | The star sky and constellation figures, in their real directions |
+| [NASA SVS Deep Star Maps 2020](https://svs.gsfc.nasa.gov/4851) (with ESA/Gaia/DPAC) | The star sky and constellation figures, in their real directions: the 8K Milky Way and bright-star layers, rendered toward where each view looks (the Moon view, and the solar system seen from above the planets' plane) |
+| [MESSENGER global mosaic of Mercury](https://science.nasa.gov/photojournal/a-global-view-from-orbit) (PIA15063, NASA/JHU APL/Carnegie Institution of Washington) | Mercury's surface on its 3D model |
 | [NASA JPL approximate planet positions](https://ssd.jpl.nasa.gov/planets/approx_pos.html) | Where the Sun, Earth and planets are on each chapter day |
 | [NASA 3D Resources, Mars](https://science.nasa.gov/3d-resources/mars/) (Viking images processed at USGS) | The Mars globe during the trip |
 | [NASA Goddard Blue Marble](https://commons.wikimedia.org/wiki/File:Whole_world_-_land_and_oceans_12000.jpg) (public domain) | The Earth during the trip |

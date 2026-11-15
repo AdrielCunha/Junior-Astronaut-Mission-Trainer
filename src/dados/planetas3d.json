@@ -1,0 +1,27 @@
+{
+ "nota": "Frame k is lit by a Sun at angle k * 360 / direcoes, counterclockwise from screen right (y up). raio = the planet disc radius in px within a frame.",
+ "mercurio": {
+  "arquivo": "lua/planetas/3d/mercurio.png",
+  "quadro": 192,
+  "direcoes": 16,
+  "raio": 76.8
+ },
+ "venus": {
+  "arquivo": "lua/planetas/3d/venus.png",
+  "quadro": 192,
+  "direcoes": 16,
+  "raio": 76.8
+ },
+ "terra": {
+  "arquivo": "lua/planetas/3d/terra.png",
+  "quadro": 192,
+  "direcoes": 16,
+  "raio": 76.8
+ },
+ "marte": {
+  "arquivo": "lua/planetas/3d/marte.png",
+  "quadro": 192,
+  "direcoes": 16,
+  "raio": 76.8
+ }
+}
