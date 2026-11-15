@@ -457,6 +457,8 @@ const jogo = new Phaser.Game({
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;
+// Dev server only: the DEV button that jumps to the trip and Mars scenes (not in the production build).
+if (import.meta.env.DEV) void import('./dev/painelCenas').then((m) => m.criarPainelCenas(jogo));
 
 // The classic prototype has no music control, so it stays silent.
 if (!classico) iniciarAudio();
