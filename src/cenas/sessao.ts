@@ -62,6 +62,7 @@ export type Eventos = {
   suprimento: [TipoId];               // a cargo lander is bringing this today
   desbloqueado: [Construcao];         // it landed and is part of the base
   pulo: [];
+  controleUsado: ['movimento' | 'pulo'];
 };
 
 class Sessao {
