@@ -474,7 +474,7 @@ export class Interface extends Phaser.Scene {
     const estrela = criarIconeJogo(this, pad + px(10), Math.round(o.h / 2), 'star', px(24));
     const tamanhoObjetivo = movel ? 15 : 12;
     this.textos.tarefa = this.add.text(px(30), Math.round(o.h / 2), '', letra(px(tamanhoObjetivo), '#0b1a4a', {
-      fontStyle: '700', wordWrap: { width: o.w - px(30) - pad }, lineSpacing: 0,
+      fontStyle: '700', wordWrap: { width: movel ? 0 : o.w - px(30) - pad }, lineSpacing: 0,
     })).setOrigin(0, 0.5);
     this.objetivo.add([estrela, this.textos.tarefa]);
     // Pulse only the star; the second-row elements stay on the same baseline.
@@ -559,13 +559,16 @@ export class Interface extends Phaser.Scene {
 
     this.textos.tarefa.setScale(1);
     const alturaDisponivel = this.layout.objetivo.h - Math.round(6 * this.layout.u);
-    if (dispositivoMovel()) {
-      // Shrink the font before scaling its texture: downscaled canvas text looks blurry.
+    if (dispositivoMovel() && this.scale.width > this.scale.height) {
+      // Keep the entire instruction on one line, fitting it inside the pill.
+      const larguraDisponivel=Math.max(1,this.layout.objetivo.w-Math.round(38*this.layout.u));
       let tamanho = Math.round(15 * this.layout.u);
       this.textos.tarefa.setFontSize(tamanho);
-      while (this.textos.tarefa.height > alturaDisponivel && tamanho > 11) this.textos.tarefa.setFontSize(--tamanho);
+      while ((this.textos.tarefa.width > larguraDisponivel || this.textos.tarefa.height > alturaDisponivel) && tamanho > 10) this.textos.tarefa.setFontSize(--tamanho);
+      this.textos.tarefa.setScale(Math.min(1, larguraDisponivel / this.textos.tarefa.width, alturaDisponivel / this.textos.tarefa.height));
+    } else {
+      this.textos.tarefa.setScale(Math.min(1, alturaDisponivel / this.textos.tarefa.height));
     }
-    this.textos.tarefa.setScale(Math.min(1, alturaDisponivel / this.textos.tarefa.height));
 
     const menu=sessao.fase === 'inicio';
     this.textoFim.setText(menu ? 'MENU' : 'END DAY');
