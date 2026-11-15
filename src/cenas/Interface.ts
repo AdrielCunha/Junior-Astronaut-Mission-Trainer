@@ -278,9 +278,17 @@ export class Interface extends Phaser.Scene {
         'Every battery was a choice. On a real mission, power for one system is power taken from another.',
         { texto: `Real data: ${lua.nota}`, cor: '#94a3b8', tamanho: 12 },
       ], r === 'vitoria'
-        ? [jogarDeNovo, { texto: 'Board the ship  ▶', acao: () => this.iniciarPrototipo(e), principal: true }]
+        ? [jogarDeNovo, { texto: 'Board the ship  ▶', acao: () => this.embarcar(e), principal: true }]
         : [{ ...jogarDeNovo, principal: true }]);
     }
+  }
+
+  // The rocket lifts off the pad (Superficie), then the ship sets out for Mars (Viagem), then the
+  // crew continues in chapter 2.
+  private embarcar(e: Estado) {
+    this.fecharPainel();
+    const sup = this.scene.get('Superficie') as unknown as { decolar(fim: () => void): void };
+    sup.decolar(() => this.scene.launch('Viagem', { etapa: 'partida', aoTerminar: () => this.iniciarPrototipo(e) }));
   }
 
   // Chapters 2 and 3 live in the Base prototype, which has its own art (spacecraft, Mars) and

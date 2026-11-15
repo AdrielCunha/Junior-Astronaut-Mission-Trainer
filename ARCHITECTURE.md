@@ -354,3 +354,31 @@ sets with `make_flight.py -- --frames 120 --w 1280 --h 720 --nome voo` and
 `--destino /path/to/staging` writes flight images and metadata under that root, so a complete set
 can be checked before replacing the live assets. NASA source imagery and DEM windows are cached
 locally; sky and constellation imagery are unaffected by the surface palette.
+
+
+## The trip to Mars (between chapters)
+
+`Viagem` (src/cenas/Viagem.ts) is a short animation scene drawn on top of everything:
+
+1. **Liftoff**, end of chapter 1, "Board the ship": `Superficie.decolar` swaps the pad picture for an
+   empty pad and flies the rocket (`public/lua/viagem/foguete.png`) on its engine against lunar
+   gravity (acceleration grows as propellant burns), with dust and a flickering flame; the camera
+   follows. Then `Viagem` plays `'partida'` and the crew continues in chapter 2 (Base prototype).
+2. **Cruise**: the solar system tilted like the Moon view, Sun in the middle, Earth and Mars at their
+   real positions for each day of a real 259-day transfer from May 13, 2024 (`engine/astro.ts`),
+   and a simplified transfer arc (it widens from Earth's orbit to Mars's while turning around the
+   Sun; not a computed trajectory). The ship (`nave_d<k>.png`, 16 headings) follows it.
+3. **Arrival**, chapter 2 "Next chapter" (`'chegada'`): the ship finishes the arc, the wide view fades,
+   Mars grows into a live globe and the ship swings around it and brakes, engine first.
+
+With reduced motion, liftoff is skipped and the scene runs three times faster.
+
+**Planets drawn live.** `planetaShader.ts` is the Moon shader without relief, for any planet map:
+toon light bands and outline from `paleta_lua.json`, the Sun direction given on screen, and an
+optional haze on the lit edge (Earth blue, Mars dust). Maps: `make_planet_textures.py` reduces each
+NASA map to a few flat colors (Mars saturation pushed toward rust; the Viking mosaic is pale).
+
+**Models.** `make_ship.py` renders the transfer ship (habitat with window band and mission
+stripe, docking nose, truss, two propellant tanks, engine, solar wings, radiators) from the tilted
+solar-system camera, and the rocket alone from the map's camera. `make_sun.py` renders the Sun
+(granulation bands, darker limb, soft rays). All use the shared palette through `comum.py`.

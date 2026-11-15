@@ -25,6 +25,7 @@ import type { DadosTarefa } from './Tarefa';
 import modelos from '../dados/modulos.json';
 import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
+import dadosViagem from '../dados/viagem.json';
 
 const P = dadosTerreno.imagem;
 const ALCANCE = 1.3;          // tiles from a module's edge to use it
@@ -66,6 +67,9 @@ export class Superficie extends Phaser.Scene {
   private terreno!: Phaser.GameObjects.Image;
   private inicioVoo: { x: number; y: number } | null = null;
   private pouso: Pouso | null = null;
+  // Rocket leaving the Moon at the end of chapter 1 (decolar). The pad then shows no rocket.
+  private decolagem: { img: Phaser.GameObjects.Image; chama: Phaser.GameObjects.Graphics; cx: number; cy: number; z: number; vz: number; t: number; fim: () => void } | null = null;
+  private foguetePartiu = false;
 
   constructor() {
     super({ key: 'Superficie' });   // started by Carregar
@@ -455,6 +459,48 @@ export class Superficie extends Phaser.Scene {
     sessao.emitir('mensagem', `Cargo lander coming in with the ${t.nome}! There is no air on the Moon, so a parachute would not work: it brakes with its rocket engine.`, '#fde68a');
   }
 
+  // Liftoff at the end of chapter 1 ("Board the ship"): the rocket leaves the pad on its engine,
+  // against the Moon's gravity, the camera follows, and `fim` runs once it is out of sight.
+  // With reduced motion it just calls `fim`.
+  decolar(fim: () => void) {
+    const pad = sessao.grade.lista.find((c) => c.tipo.id === 'plataforma');
+    if (!pad || movimentoReduzido() || !this.textures.exists('viagem_foguete')) { fim(); return; }
+    this.foguetePartiu = true;
+    this.desenharModulo(pad);
+    const f = dadosViagem.foguete;
+    const img = this.add.image(0, 0, 'viagem_foguete').setOrigin(f.ancora[0] / f.w, f.ancora[1] / f.h).setScale(f.escala);
+    const chama = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    this.mapa.add([chama, img]);
+    const cx = pad.gx + pad.tipo.w / 2, cy = pad.gy + pad.tipo.h / 2;
+    this.decolagem = { img, chama, cx, cy, z: pad.z + pad.tipo.altura, vz: 0, t: 0, fim };
+    this.seguir = false;
+    this.poeira(cx, cy, pad.z + pad.tipo.altura);
+    sessao.emitir('mensagem', 'Liftoff! On the Moon a rocket only has to beat one sixth of Earth\'s gravity, and there is no air to push through.', '#fde68a');
+  }
+
+  private animarDecolagem(dt: number) {
+    const D = this.decolagem;
+    if (!D) return;
+    D.t += dt;
+    // Engine thrust grows as the propellant burns off: acceleration G * (2 + 6 t), lunar gravity included.
+    D.vz += G * (2 + 6 * D.t) * dt;
+    D.z += D.vz * dt;
+    const p = paraTela(P, D.cx, D.cy, D.z);
+    const prof = 1e6 - 5;
+    D.img.setPosition(p.x, p.y).setDepth(prof);
+    const s = Math.abs(P.ez[1]) / 36;
+    const comp = (34 + 18 * Math.min(1, D.t)) * s * Phaser.Math.FloatBetween(0.85, 1.15);
+    D.chama.clear().setDepth(prof - 1)
+      .fillStyle(0xfb923c, 0.85).fillTriangle(p.x - 9 * s, p.y, p.x + 9 * s, p.y, p.x, p.y + comp)
+      .fillStyle(0xfde68a, 0.95).fillTriangle(p.x - 5 * s, p.y, p.x + 5 * s, p.y, p.x, p.y + comp * 0.55);
+    const cam = this.cameras.main;
+    cam.centerOn(Phaser.Math.Linear(cam.midPoint.x, p.x, 0.04), Phaser.Math.Linear(cam.midPoint.y, p.y + 60, 0.04));
+    if (D.t < 3.2) return;
+    D.img.destroy(); D.chama.destroy();
+    this.decolagem = null;
+    D.fim();
+  }
+
   private animarPouso(dt: number) {
     const L = this.pouso;
     if (!L) return;
@@ -543,6 +589,7 @@ export class Superficie extends Phaser.Scene {
     }
     if (Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3 && this.corpo.noChao) this.passada += dt * 12;
     this.animarPouso(dt);
+    this.animarDecolagem(dt);
     this.desenharComandante();
     sessao.parado = Math.hypot(this.corpo.vx, this.corpo.vy) < 0.05 && this.corpo.noChao;
     this.atualizarOclusao(dt);
@@ -572,6 +619,7 @@ export class Superficie extends Phaser.Scene {
   // Which Blender picture a module shows: the launch pad carries the rocket in 5 build stages.
   private modelo(c: Construcao): Modelo {
     const meta = sessao.estado.meta;
+    if (c.tipo.id === 'plataforma' && this.foguetePartiu) return 'plataforma';
     if (c.tipo.id === 'plataforma' && meta > 0) return `foguete${Math.min(4, Math.floor(meta / 25))}` as Modelo;
     return c.tipo.id as Modelo;
   }

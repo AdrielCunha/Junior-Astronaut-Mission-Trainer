@@ -1539,7 +1539,11 @@ export class Base extends Phaser.Scene {
         if (cap.tema === 'nave') {
           botoes.push({ texto: 'Build ship', acao: () => { this.construirNaveEAtivarTask(); }, principal: true });
         }
-        botoes.push({ texto: 'Next chapter', acao: () => this.comecarCapitulo(this.capIdx + 1, e.dose), principal: cap.tema !== 'nave' });
+        botoes.push({ texto: 'Next chapter', acao: () => {
+          const seguir = () => this.comecarCapitulo(this.capIdx + 1, e.dose);
+          // Between the trip and Mars, the ship arrives and enters orbit (Viagem.ts).
+          if (cap.tema === 'nave') this.scene.launch('Viagem', { etapa: 'chegada', aoTerminar: seguir }); else seguir();
+        }, principal: cap.tema !== 'nave' });
 
         this.abrirPainel(cap.vitoria[0], [
           cap.vitoria[1],
