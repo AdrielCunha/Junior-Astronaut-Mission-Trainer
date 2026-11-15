@@ -30,7 +30,8 @@ export const TIPOS: Record<TipoId, Tipo> = {
                 papel: 'A shelter with walls of water. Batteries pump the water up before a storm: water stops radiation.' },
   oficina:    { id: 'oficina', nome: 'Rocket Workshop', w: 3, h: 3, altura: 2.0, cor: 0xf97316, sala: 'meta', unico: true,
                 papel: 'Builds the rocket to Mars.' },
-  painel:     { id: 'painel', nome: 'Solar Panel', w: 2, h: 2, altura: 1.4, cor: 0x1e3a8a, unico: false,
+  // Only the narrow foundation occupies the ground; the tilted panel overhangs its supports.
+  painel:     { id: 'painel', nome: 'Solar Panel', w: 2, h: 1, altura: 1.4, cor: 0x1e3a8a, unico: false,
                 papel: 'Catches sunlight and charges the batteries at the nearby Battery Bank.' },
   plataforma: { id: 'plataforma', nome: 'Launch Pad', w: 3, h: 3, altura: 0.25, cor: 0x64748b, unico: true,
                 papel: 'Where the rocket will lift off.' },
@@ -208,13 +209,14 @@ export class Grade {
 // The base the crew already has when the game starts (players do not build; they run it).
 // Offsets in tiles from the map center; each module goes to the nearest flat, free spot, so the
 // layout follows the real ground. The rooms ring the habitat: short walks with the batteries.
-// Habitation at the center, a solar field behind it, operations to the right and launch farther out.
-// Relative offsets preserve two straight rows and the adjacent bank on uneven ground.
+// Habitation at the center, solar power behind Life Support, fabrication farther back/right.
+// Advancing gx and gy together draws vertical rows in the isometric view.
 export const ESTACAO_SOLAR: [TipoId, number, number][] = [
-  ['painel', 0, 0], ['painel', 3, 0], ['painel', 6, 0],
-  ['painel', 0, 3], ['painel', 3, 3], ['painel', 6, 3],
-  ['bateria', 9, 0],
+  ['painel', 0, 0], ['painel', 2, 2], ['painel', 4, 4],
+  ['painel', 3, -3], ['painel', 5, -1], ['painel', 7, 1],
+  ['bateria', 10, -4],
 ];
+const POSICAO_SOLAR = [-3, -10] as const;
 
 export const BASE_PADRAO: [TipoId, number, number][] = [
   ['habitat', -2, -4],
@@ -225,9 +227,9 @@ export const BASE_PADRAO: [TipoId, number, number][] = [
   ['usina', -12, -3],
   ['reciclador', -11, 3],
   ['eclusa', -2, 3],
-  ['impressora', 9, -8],
+  ['impressora', 9, -18],
   ['radiotelescopio', -10, -9],
-  ...ESTACAO_SOLAR.map(([id, x, y]): [TipoId, number, number] => [id, x - 6, y - 11]),
+  ...ESTACAO_SOLAR.map(([id, x, y]): [TipoId, number, number] => [id, x + POSICAO_SOLAR[0], y + POSICAO_SOLAR[1]]),
 ];
 
 export const SETORES_SUPRIMENTOS: Partial<Record<TipoId, [number, number]>> = {
@@ -246,22 +248,47 @@ export const BASE_MARTE: [TipoId, number, number][] = [
   ['painel', -3, -6],
 ];
 
+// The ship (chapter 2): the four rooms of the chapter on both sides of the central corridor,
+// which stays free (the deck is 18 x 12 tiles around the grid center). The Battery Bank is the
+// Power Room where the batteries charge (estacaoSolar.ts); the workshop is the Engines.
+export const BASE_NAVE: [TipoId, number, number][] = [
+  ['oficina', -7, -5],
+  ['suporte', -2, -5],
+  ['blindagem', 3, -5],
+  ['bateria', -2, 2],
+];
+
 export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BASE_PADRAO): Construcao[] {
   const c0 = Math.floor(g.n / 2);
   const feitas: Construcao[] = [];
   for (const [id, dx, dy] of base) {
-    if (base === BASE_PADRAO && (id === 'painel' || id === 'bateria')) continue;
+    if (base === BASE_PADRAO && (id === 'painel' || id === 'bateria' || id === 'impressora')) continue;
     const p = g.procurarComEspaco(TIPOS[id], c0 + dx, c0 + dy);
     const c = p && g.construir(TIPOS[id], p.gx, p.gy);
     if (c) feitas.push(c);
   }
-  if (base === BASE_PADRAO) feitas.push(...montarEstacaoSolar(g, c0 - 6, c0 - 11));
+  if (base === BASE_PADRAO) {
+    // Reserve the solar field first: fabrication must not push it to the front of the colony.
+    feitas.push(...montarEstacaoSolar(g, c0 + POSICAO_SOLAR[0], c0 + POSICAO_SOLAR[1]));
+    const [, dx, dy] = base.find(([id]) => id === 'impressora')!;
+    const p = g.procurarComEspaco(TIPOS.impressora, c0 + dx, c0 + dy);
+    const c = p && g.construir(TIPOS.impressora, p.gx, p.gy);
+    if (c) feitas.push(c);
+  }
   return feitas;
 }
 
 function montarEstacaoSolar(g: Grade, desejadoX: number, desejadoY: number): Construcao[] {
   let melhor: { x: number; y: number; custo: number } | undefined;
-  for (let y = 1; y < g.n - 5; y++) for (let x = 1; x < g.n - 11; x++) {
+  const suporte = g.lista.find(c => c.tipo.id === 'suporte');
+  const minX = Math.min(...ESTACAO_SOLAR.map(([, x]) => x));
+  const minY = Math.min(...ESTACAO_SOLAR.map(([, , y]) => y));
+  const maxX = Math.max(...ESTACAO_SOLAR.map(([id, x]) => x + TIPOS[id].w));
+  const maxY = Math.max(...ESTACAO_SOLAR.map(([id, , y]) => y + TIPOS[id].h));
+  const frente = Math.max(...ESTACAO_SOLAR.map(([id, x, y]) => x + y + (TIPOS[id].w + TIPOS[id].h) / 2));
+  for (let y = 1 - minY; y < g.n - maxY; y++) for (let x = 1 - minX; x < g.n - maxX; x++) {
+    // Isometric depth grows with gx + gy. Keep even the bank behind Life Support.
+    if (suporte && x + y + frente > suporte.gx + suporte.gy + (suporte.tipo.w + suporte.tipo.h) / 2 - 2) continue;
     const custo = (x - desejadoX) ** 2 + (y - desejadoY) ** 2;
     if (melhor && custo >= melhor.custo) continue;
     const cabe = ESTACAO_SOLAR.every(([id, dx, dy]) => {

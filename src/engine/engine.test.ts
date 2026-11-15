@@ -86,27 +86,30 @@ test('the default base fits on the real map, every room within a short walk of t
   }
 });
 
-test('six solar panels stay aligned in two rows beside a reachable five-slot bank', () => {
+test('six solar panels form two vertical rows with a reachable five-slot bank on their right', () => {
   const g = new Grade(real);
   montarBasePadrao(g);
   const panels = g.lista.filter(c => c.tipo.id === 'painel');
   const bank = g.lista.find(c => c.tipo.id === 'bateria')!;
   assert.equal(panels.length, 6);
-  const xs = [...new Set(panels.map(c => c.gx))].sort((a,b) => a-b);
-  const ys = [...new Set(panels.map(c => c.gy))].sort((a,b) => a-b);
-  assert.deepEqual(xs.map(x => x-xs[0]), [0,3,6]);
-  assert.deepEqual(ys.map(y => y-ys[0]), [0,3]);
-  assert.equal(bank.gx, xs[0]+9);
-  assert.equal(bank.gy, ys[0]);
+  const screenX = (c: typeof bank) => paraTela(dados.imagem, c.gx+c.tipo.w/2, c.gy+c.tipo.h/2, c.z).x;
+  const columns = [...new Set(panels.map(screenX))];
+  assert.equal(columns.length, 2);
+  for (const x of columns) assert.equal(panels.filter(c => screenX(c) === x).length, 3);
+  assert.ok(screenX(bank) > Math.max(...columns), 'bank is to the right of both rows');
   assert.equal(bank.tipo.h, 5);
   const hab = g.lista.find(c => c.tipo.id === 'habitat')!;
   const start = {x: hab.gx+hab.tipo.w+0.7, y: hab.gy+hab.tipo.h/2};
   assert.ok(encontrarCaminho(real,g.caixas(),0.22,start.x,start.y,bank.gx-0.65,bank.gy+2.5));
+  const support = g.lista.find(c => c.tipo.id === 'suporte')!;
+  const screenY = (c: typeof bank) => paraTela(dados.imagem, c.gx+c.tipo.w/2, c.gy+c.tipo.h/2, c.z).y;
+  for (const c of [...panels, bank]) assert.ok(screenY(c) < screenY(support), `${c.tipo.nome} stays behind Life Support`);
 });
 
 test('battery pickup uses the Moon bank, preserves the Mars lander, and displays remaining cartridges', () => {
   assert.equal(origemBaterias('lua'), 'bateria');
   assert.equal(origemBaterias('marte'), 'habitat');
+  assert.equal(origemBaterias('nave'), 'bateria');
   assert.equal(modeloBancoBaterias(0, true), 'bateria_carga5');
   for (const n of [0,1,2,3,4,5]) assert.equal(modeloBancoBaterias(n, false), `bateria_carga${n}`);
   assert.equal(modeloBancoBaterias(-1, false), 'bateria_carga0');

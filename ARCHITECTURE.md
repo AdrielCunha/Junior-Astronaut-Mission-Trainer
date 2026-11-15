@@ -397,6 +397,20 @@ MarteVista's tilted view, so `MarteVista` plays the film for z 0..1 and swaps to
 without a jump. The map is not playable yet (Superficie still assumes the Moon); the DEV panel
 shows it ("Mars map preview"), and zooming out of that preview runs the film.
 
+**Chapter 2 on the 3D engine: the ship.** After leaving the Moon, chapter 2 runs on the same
+engine on the ship's deck (`sessao.usarMundo('nave')`, `irParaMarte.ts`). `make_nave.py` loads the
+team's module helpers from `make_modules.py` (same toon material, outline and map camera, nothing
+of theirs rendered) and renders: the hull as one smooth oval shell (tapered nose with the
+windshield, rounded tail with the engines, solar wings), in two pictures with the same framing,
+cut away (`nave/terrain.png`: roof and near side removed above a continuous metal deck with a
+central corridor) and closed (`nave/terrain_teto.png`, faded in by Superficie as you zoom out);
+`terreno_nave.json` makes the deck flat and the hull a wall. The rooms are the chapter's: the
+Battery Bank is the Power Room (where batteries charge, `estacaoSolar.ts`), the team's air
+recycler and water-wall shelter, and an engine room (`nave_motores`); the props are bunks, galley,
+treadmill, Veggie plant rack, cargo bags, water tanks, medical kit and cockpit. Magnetic boots:
+walking feels like Earth. At the end of the chapter the ship arrives and lands (Viagem), then
+chapter 3.
+
 **Chapter 3 on the 3D engine.** After chapter 2 (Base prototype) the ship arrives and lands
 (Viagem), then `irParaMarte.ts` switches the world and restarts Espaco, Superficie and Interface
 on Mars: `sessao.usarMundo('marte')` swaps the terrain (in place: scenes hold references to

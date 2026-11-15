@@ -18,7 +18,8 @@ import { configuracoesAbertas, movimentoReduzido, video } from '../video';
 import { paraTela, paraChao, profundidade } from '../engine/iso';
 import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
 import { encontrarCaminho, type Ponto } from '../engine/caminho';
-import { TIPOS, montarBasePadrao, BASE_MARTE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
+import naveProps from '../dados/nave_props.json';
+import { TIPOS, montarBasePadrao, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
 import { entregar as entregarRegra, custo, pronto } from '../regras';
 import { empuxoDePouso, suprimentoDoDia } from '../engine/suprimentos';
 import { sortearEvento, DOSE_ALARME } from '../engine/eventos';
@@ -54,6 +55,23 @@ const ESCALA_MARCADOR = 0.62; // Compact destination marker; keep the source emb
 const PROFUNDIDADE_MARCADOR = 900_000; // Above world objects, below room labels and the HUD.
 const ALTURA_POUSO = 14;      // tiles at character scale (about 50 m): where the lander appears
 type Modelo = keyof typeof modelos;
+// Every module picture: the team's (modulos.json) and the ship's (nave_props.json, make_nave.py).
+// `pegada` is the footprint a picture was drawn for, when it differs from the module's own.
+type Quadro = { w: number; h: number; ancora: number[]; escala: number; pegada?: number[] };
+const QUADROS = { ...modelos, ...naveProps } as unknown as Record<string, Quadro>;
+const PEGADA_MODELO: Record<string, [number, number]> = { pouso: [2, 2], reciclador: [2, 2] };
+// Ship props (chapter 2): offsets in tiles from the grid center, inside the deck, off the corridor.
+const DECO_NAVE = [
+  { id: 'nave_cockpit', info: 'Where the pilots steer the ship. On the way to Mars the computer does most of the flying.', nome: 'Cockpit', w: 2, h: 1, altura: 1.0, dx: 7, dy: -1.5 },
+  { id: 'nave_beliche', info: 'Sleeping bags strapped to the wall. In zero gravity you can sleep standing up!', nome: 'Crew Bunks', w: 2, h: 1, altura: 1.4, dx: -8, dy: 4 },
+  { id: 'nave_beliche', info: 'Sleeping bags strapped to the wall. In zero gravity you can sleep standing up!', nome: 'Crew Bunks', w: 2, h: 1, altura: 1.4, dx: -8, dy: 2 },
+  { id: 'nave_mesa', info: 'The galley. Food comes in pouches, and drinks are sipped through straws so they do not float away.', nome: 'Galley', w: 2, h: 2, altura: 0.9, dx: 3, dy: 3 },
+  { id: 'nave_esteira', info: 'Astronauts run every day, held down by bungee cords, to keep their bones and muscles strong.', nome: 'Treadmill', w: 2, h: 1, altura: 1.1, dx: 6, dy: 4 },
+  { id: 'nave_plantas', info: 'A small veggie garden. Astronauts on the Space Station have grown and eaten lettuce in space.', nome: 'Veggie Garden', w: 1, h: 1, altura: 1.1, dx: 8, dy: -5 },
+  { id: 'nave_bolsas', info: 'Soft cargo bags hold spare parts, clothes and food for the long trip.', nome: 'Cargo Bags', w: 1, h: 1, altura: 1.0, dx: -5, dy: 4 },
+  { id: 'nave_agua', info: 'Water tanks. Water is also a good shield against radiation, so tanks often line the walls.', nome: 'Water Tanks', w: 1, h: 1, altura: 1.0, dx: 6, dy: -5 },
+  { id: 'nave_medico', info: 'The medical kit. The crew trains to treat each other, because no doctor is close by.', nome: 'Medical Kit', w: 1, h: 1, altura: 1.1, dx: 8, dy: 5 },
+];
 
 // A cargo lander bringing one piece of equipment (see engine/suprimentos.ts).
 type Pouso = {
@@ -92,6 +110,10 @@ export class Superficie extends Phaser.Scene {
   // Rocket leaving the Moon at the end of chapter 1 (decolar). The pad then shows no rocket.
   private decolagem: { img: Phaser.GameObjects.Image; chama: Phaser.GameObjects.Graphics; cx: number; cy: number; z: number; vz: number; t: number; fim: () => void } | null = null;
   private foguetePartiu = false;
+  // The ship (chapter 2): the closed ship, roof on, over everything when zoomed out; the
+  // cutaway deck when close. Names on the map fade out under the roof.
+  private teto: Phaser.GameObjects.Image | null = null;
+  private nomesNoMapa: Phaser.GameObjects.Text[] = [];
   private decoVisuais: { d: DecoColocada; img: Phaser.GameObjects.Image }[] = [];
   private dica?: Phaser.GameObjects.Text;                // shared prop tooltip
   private decoSobre: DecoColocada | null = null;         // prop under the cursor
@@ -102,6 +124,16 @@ export class Superficie extends Phaser.Scene {
     super({ key: 'Superficie' });   // started by Carregar
   }
 
+  // The destination flag: the world's own, and on the ship Earth's (the home the crew left).
+  private get planetaBandeira(): 'lua' | 'marte' | 'terra' { return sessao.mundo === 'nave' ? 'terra' : sessao.mundo; }
+
+  // A module's name: the chapter names its rooms (capitulos.ts); on Mars the Habitat is the
+  // lander, on the ship the Battery Bank is the Power Room.
+  private nomeDe(c: Construcao) {
+    if (sessao.mundo === 'marte' && c.tipo.id === 'habitat') return 'Lander';
+    if (sessao.mundo === 'nave' && c.tipo.id === 'bateria') return 'Power Room';
+    return (c.tipo.sala && sessao.cap.salas.find((sl) => sl.efeito === c.tipo.sala)?.nome) || c.tipo.nome;
+  }
   // Whether the player already walked / jumped (read by the on-map guide, guia.ts).
   jaUsou(c: 'movimento' | 'pulo') { return this.controlesObservados.has(c); }
 
@@ -122,18 +154,24 @@ export class Superficie extends Phaser.Scene {
     const marte = sessao.mundo === 'marte';
     const pal = marte ? paletaMarte : paletaLua;
     COR_SOLO_CLARO = corDe(String(pal.solo[2][1])); COR_SOLO_MEDIO = corDe(String(pal.solo[1][1])); COR_SOLO_SOMBRA = corDe(pal.contorno);
-    this.terreno = this.add.image(0, 0, marte ? 'terreno_marte' : 'terreno').setOrigin(0).setDepth(-1e6);
+    const nave = sessao.mundo === 'nave';
+    this.terreno = this.add.image(0, 0, marte ? 'terreno_marte' : nave ? 'terreno_nave' : 'terreno').setOrigin(0).setDepth(-1e6);
+    this.nomesNoMapa = [];
+    this.teto = nave && this.textures.exists('terreno_nave_teto')
+      ? this.add.image(0, 0, 'terreno_nave_teto').setOrigin(0).setDepth(1.5e6).setAlpha(0) : null;
     this.mapa.add(this.terreno);
+    if (this.teto) this.mapa.add(this.teto);
     this.gCaminhos = this.add.graphics().setDepth(-900_000);
     this.mapa.add(this.gCaminhos);
-    this.ambiente = new Ambiente(this,this.mapa,P,sessao.terreno,marte);
+    this.ambiente = new Ambiente(this,this.mapa,P,sessao.terreno,sessao.mundo);
 
     // The crew's base is already there (engine/construcao.ts, BASE_PADRAO). On Mars only the
     // lander and the panels are; the rooms are construction sites (BASE_MARTE).
-    if (!sessao.grade.lista.length) montarBasePadrao(sessao.grade, marte ? BASE_MARTE : undefined);
+    if (!sessao.grade.lista.length) montarBasePadrao(sessao.grade, marte ? BASE_MARTE : nave ? BASE_NAVE : undefined);
     // Labels and construction sites follow the rules state.
     sessao.ouvir(this, 'estado', () => { for (const c of sessao.grade.lista) if (c.tipo.sala || c.tipo.id === 'bateria') this.desenharModulo(c); });
-    const hab = sessao.grade.lista.find((c) => c.tipo.id === 'habitat')!;
+    // The commander starts by the Habitat, or by the Power Room on the ship.
+    const hab = sessao.grade.lista.find((c) => c.tipo.id === 'habitat') ?? sessao.grade.lista.find((c) => c.tipo.id === origemBaterias(sessao.mundo))!;
     const sx = hab.gx + hab.tipo.w + 0.7, sy = hab.gy + hab.tipo.h / 2;
     this.corpo = novoCorpo(sx, sy, sessao.terreno.altura(sx, sy));
     this.corpo.noChao = true;
@@ -141,8 +179,8 @@ export class Superficie extends Phaser.Scene {
     this.gAstronauta = this.add.graphics();
     this.comandante = this.add.sprite(0, 0, chaveSkin(video.skin), 0).setOrigin(sprite.pe[0] / sprite.frame, sprite.pe[1] / sprite.frame)
       .setScale(sprite.escala);
-    const bInfo = bandeiras[sessao.mundo];
-    this.bandeira = this.add.image(0, 0, `bandeira_${sessao.mundo}`)
+    const bInfo = bandeiras[this.planetaBandeira];
+    this.bandeira = this.add.image(0, 0, `bandeira_${this.planetaBandeira}`)
       .setOrigin(bInfo.ancora[0] / bInfo.w, bInfo.ancora[1] / bInfo.h)
       .setScale(bInfo.escala * ESCALA_MARCADOR)
       .setVisible(false);
@@ -265,7 +303,7 @@ export class Superficie extends Phaser.Scene {
     this.rota = caminho ?? [];
     this.bloqueadoCont = 0;
     if (this.rota.length > 0) {
-      this.plantarBandeira(destGx, destGy, sessao.mundo);
+      this.plantarBandeira(destGx, destGy, this.planetaBandeira);
     } else {
       this.recolherBandeira();
     }
@@ -570,9 +608,9 @@ export class Superficie extends Phaser.Scene {
     const n = sessao.entregas[sala];
     if (!obra) sessao.emitir('mensagem', sala === 'blindagem'
       ? `🔋 +1 battery: the pump fills the water walls${n >= 3 ? ' to the top!' : '.'} Water stops radiation.`
-      : `🔋 +1 battery to the ${c.tipo.nome}!`, '#86efac');
-    else if (pronto(sessao.estado, sala, C)) sessao.emitir('mensagem', `🏗 ${c.tipo.nome} is built! From now on its batteries make it work.`, '#86efac');
-    else sessao.emitir('mensagem', `🔋 +1 battery to build the ${c.tipo.nome}: ${sessao.estado.obras[sala] ?? 0} of ${custo(sala, C)}.`, '#fde68a');
+      : `🔋 +1 battery to the ${this.nomeDe(c)}!`, '#86efac');
+    else if (pronto(sessao.estado, sala, C)) sessao.emitir('mensagem', `🏗 ${this.nomeDe(c)} is built! From now on its batteries make it work.`, '#86efac');
+    else sessao.emitir('mensagem', `🔋 +1 battery to build the ${this.nomeDe(c)}: ${sessao.estado.obras[sala] ?? 0} of ${custo(sala, C)}.`, '#fde68a');
     sessao.emitir('estado');
   }
 
@@ -883,10 +921,15 @@ export class Superficie extends Phaser.Scene {
     if (antesNoChao && !this.corpo.noChao && this.corpo.vz > 0 && !sessao.pulou) {
       sessao.pulou = true;
       const terra = pulo(G_TERRA);
-      const mundo = sessao.mundo === 'marte' ? { nome: 'Mars', g: G_MARTE, cor: '#fdba74' } : { nome: 'Moon', g: G_LUA, cor: '#93c5fd' };
-      const vezes = pulo(mundo.g).altura / terra.altura;
-      sessao.emitir('mensagem',
-        `🦘 ${mundo.nome} jump! Gravity is weaker here, so you jump ${vezes >= 4 ? Math.round(vezes) : vezes.toFixed(1)}× higher than on Earth!`, mundo.cor);
+      if (sessao.mundo === 'nave') {
+        sessao.emitir('mensagem',
+          'Deep space has no up or down: without gravity you would float away. Magnetic boots hold you to the metal deck, so a jump barely leaves it.', '#93c5fd');
+      } else {
+        const mundo = sessao.mundo === 'marte' ? { nome: 'Mars', g: G_MARTE, cor: '#fdba74' } : { nome: 'Moon', g: G_LUA, cor: '#93c5fd' };
+        const vezes = pulo(mundo.g).altura / terra.altura;
+        sessao.emitir('mensagem',
+          `🦘 ${mundo.nome} jump! Gravity is weaker here, so you jump ${vezes >= 4 ? Math.round(vezes) : vezes.toFixed(1)}× higher than on Earth!`, mundo.cor);
+      }
     }
     // Gait: the Moon's slow bunny hop; on Mars, with more than twice the gravity, quicker steps.
     if (Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3 && this.corpo.noChao) this.passada += dt * (sessao.mundo === 'marte' ? 18 : 12);
@@ -896,6 +939,12 @@ export class Superficie extends Phaser.Scene {
     this.desenharComandante();
     sessao.parado = Math.hypot(this.corpo.vx, this.corpo.vy) < 0.05 && this.corpo.noChao;
     this.atualizarOclusao(dt);
+    if (this.teto) {
+      // Zooming out puts the roof on: the whole closed ship; zooming in shows the deck inside.
+      const a = suave(1.3, 1.75, sessao.u);
+      this.teto.setAlpha(a).setVisible(a > 0.01);
+      for (const t of this.nomesNoMapa) t.setAlpha(1 - a);
+    }
     if(this.mapa.visible) this.ambiente.update(dt,this.corpo,sessao.grade.lista);
     this.animarModulos(dt);
     this.atualizarDica(dt);
@@ -931,6 +980,11 @@ export class Superficie extends Phaser.Scene {
       if (c.tipo.id === 'aquecedor') return 'oficina';
       if (c.tipo.id === 'cupula') return 'habitat';
     }
+    // The ship: the team's air recycler for Life Support, the ship's engine room for the Engines.
+    if (sessao.mundo === 'nave') {
+      if (c.tipo.id === 'suporte') return 'reciclador';
+      if (c.tipo.id === 'oficina') return 'nave_motores' as Modelo;
+    }
     if (c.tipo.id === 'aquecedor') return 'oficina';
     if (c.tipo.id === 'cupula') return 'habitat';
     if (c.tipo.id === 'bateria') return modeloBancoBaterias(sessao.noHabitat, sessao.fase === 'inicio') as Modelo;
@@ -943,10 +997,11 @@ export class Superficie extends Phaser.Scene {
 
   // Puts a module picture on the map: its anchor pixel is the footprint corner (gx, gy) at floor height.
   private posicionar(img: Phaser.GameObjects.Image, c: Construcao, id: Modelo) {
-    const m = modelos[id];
-    // The lander picture is drawn for a 2 x 2 footprint: center it on a 3 x 3 one.
-    const k = id === 'pouso' ? (c.tipo.w - 2) / 2 : 0;
-    const p = paraTela(P, c.gx + k, c.gy + k, c.z);
+    const m = QUADROS[id];
+    // A picture drawn for a smaller footprint (the lander, the air recycler) is centered on the module's.
+    const pg = m.pegada ?? PEGADA_MODELO[id];
+    const kx = pg ? (c.tipo.w - pg[0]) / 2 : 0, ky = pg ? (c.tipo.h - pg[1]) / 2 : 0;
+    const p = paraTela(P, c.gx + kx, c.gy + ky, c.z);
     img.setTexture(`mod_${id}`).setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala).setPosition(p.x, p.y);
   }
 
@@ -957,17 +1012,19 @@ export class Superficie extends Phaser.Scene {
     this.decoVisuais = []; this.decoSobre = null; this.decoFixa = null; this.decoFixaT = 0;
     if (!g.deco.length) {
       // On Mars, only the props that fit there, under their Mars names (DECO_MARTE).
-      for (const d of DECORACAO) {
+      for (const d of sessao.mundo === 'nave' ? DECO_NAVE : DECORACAO) {
         const nome = marte && d.id in DECO_MARTE ? DECO_MARTE[d.id] : d.nome;
         if (!nome) continue;
-        const p = g.procurarDeco(comoTipo(d), c0 + d.dx, c0 + d.dy);
+        // On the ship the props stay inside the deck; on the ground they spread away from the base.
+        const p = sessao.mundo === 'nave' ? g.procurarComEspaco(comoTipo(d), c0 + d.dx, c0 + d.dy) : g.procurarDeco(comoTipo(d), c0 + d.dx, c0 + d.dy);
         if (p) g.colocarDeco({ id: d.id, nome, info: d.info, w: d.w, h: d.h, altura: d.altura }, p.gx, p.gy);
       }
     }
     for (const d of g.deco) {
-      const m = modelos[`deco_${d.id}` as Modelo];
+      const chave = d.id.startsWith('nave_') ? d.id : `deco_${d.id}`;   // the ship's props have their own pictures
+      const m = QUADROS[chave];
       const p = paraTela(P, d.gx, d.gy, d.z);
-      const img = this.add.image(p.x, p.y, `mod_deco_${d.id}`)
+      const img = this.add.image(p.x, p.y, `mod_${chave}`)
         .setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala)
         .setDepth(profundidade(d.gx + d.w, d.gy + d.h));
       if (sessao.mundo === 'marte') img.setTint(TOM_MARTE);
@@ -1016,10 +1073,11 @@ export class Superficie extends Phaser.Scene {
       d = { g: this.add.graphics(), img: this.add.image(0, 0, 'mod_habitat') };
       // Rooms you use carry their name, like the first prototype.
       if (c.tipo.id !== 'painel') {
-        d.rotulo = this.add.text(0, 0, sessao.mundo === 'marte' && c.tipo.id === 'habitat' ? 'Lander' : c.tipo.nome, fonte(13, '#f8fafc', { fontStyle: 'bold', stroke: '#17130f', strokeThickness: 4 }))
+        d.rotulo = this.add.text(0, 0, this.nomeDe(c), fonte(13, '#f8fafc', { fontStyle: 'bold', stroke: '#17130f', strokeThickness: 4 }))
           .setOrigin(0.5, 1);
       }
       this.mapa.add([d.g, d.img, ...(d.rotulo ? [d.rotulo] : [])]);
+      if (d.rotulo) this.nomesNoMapa.push(d.rotulo);
       this.desenhos.set(c.id, d);
     }
     d.g.clear();
@@ -1033,7 +1091,7 @@ export class Superficie extends Phaser.Scene {
     d.g.setDepth(prof - 1); d.img.setDepth(prof);
     if (d.rotulo && c.tipo.sala) {
       const sala = c.tipo.sala;
-      d.rotulo.setText(this.emObra(c) ? `${c.tipo.nome}\nto build: ${sessao.estado.obras[sala] ?? 0} of ${custo(sala, sessao.C)}` : c.tipo.nome)
+      d.rotulo.setText(this.emObra(c) ? `${this.nomeDe(c)}\nto build: ${sessao.estado.obras[sala] ?? 0} of ${custo(sala, sessao.C)}` : this.nomeDe(c))
         .setColor(this.emObra(c) ? '#fde68a' : '#f8fafc').setAlign('center');
     }
     if (d.rotulo) {
@@ -1045,6 +1103,7 @@ export class Superficie extends Phaser.Scene {
   // Subtle surface tracks follow actual walkable routes and terrain height.
   private desenharCaminhos() {
     const g = this.gCaminhos.clear();
+    if (sessao.mundo === 'nave') return;          // the ship has its corridor, not worn tracks
     const hab = sessao.grade.lista.find(c => c.tipo.id === 'habitat');
     if (!hab) return;
     const start = { gx: hab.gx+hab.tipo.w/2, gy: hab.gy+hab.tipo.h+0.65 };
@@ -1085,6 +1144,7 @@ export class Superficie extends Phaser.Scene {
     if(animate) this.tempoEfeitos=this.time.now/1000;
     for(const c of sessao.grade.lista) {
       if(c.tipo.id!=='suporte' && c.tipo.id!=='oficina') continue;
+      if(this.modelo(c)!==c.tipo.id) continue;   // another world's picture (the ship's recycler and engines) has no animation frames
       const d=this.desenhos.get(c.id);if(!d) continue;
       // Only the instrument display changes, using actual Blender renders. The model stays still.
       const frame=animate ? Math.floor(this.tempoEfeitos/(video.qualidade==='leve'?1.3:0.85)+c.id)%3 : 0;
