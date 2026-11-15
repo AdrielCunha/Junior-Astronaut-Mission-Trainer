@@ -114,8 +114,13 @@ export class Grade {
   }
 
   // Solid boxes for the physics. A small inset keeps paths between neighbors walkable.
+  // Called every frame by the physics: kept until the base changes, so no arrays are rebuilt per frame.
+  private cacheCaixas: Caixa[] | null = null;
+  private cacheModulos = -1;
   caixas(): Caixa[] {
-    return [...this.t.pedras, ...this.extras, ...this.lista.map((c) => ({
+    if (this.cacheCaixas && this.cacheModulos === this.lista.length) return this.cacheCaixas;
+    this.cacheModulos = this.lista.length;
+    return this.cacheCaixas = [...this.t.pedras, ...this.lista.map((c) => ({
       x0: c.gx + 0.08, y0: c.gy + 0.08, x1: c.gx + c.tipo.w - 0.08, y1: c.gy + c.tipo.h - 0.08,
       topo: c.z + c.tipo.altura,
     }))];
