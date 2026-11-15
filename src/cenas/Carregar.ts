@@ -14,6 +14,7 @@ import sprite from '../dados/astronauta.json';
 import dadosViagem from '../dados/viagem.json';
 import { SKINS, chaveSkin } from '../dados/skins';
 import constelacoes from '../dados/constelacoes.json';
+import { ICONES, chaveIcone } from '../dados/icones';
 
 const FATOS = [
   'The ground in this game is real: NASA\'s LRO spacecraft measured it with a laser.',
@@ -121,6 +122,7 @@ export class Carregar extends Phaser.Scene {
     carregarLua(this);
     this.load.image('terreno', dadosTerreno.imagem.arquivo);
     for (const [id, m] of Object.entries(modelos)) this.load.image(`mod_${id}`, m.arquivo);
+    this.load.image('foguete_voo', 'lua/modulos/foguete_voo.png');   // launch film and landing (Chegada.ts)
     for (const [id, b] of Object.entries(bandeiras)) this.load.image(`bandeira_${id}`, b.arquivo);
     for (const sk of SKINS) this.load.spritesheet(chaveSkin(sk.id), sk.arquivo, { frameWidth: sprite.frame, frameHeight: sprite.frame });
     this.load.image('viagem_foguete', dadosViagem.foguete.arquivo);
@@ -129,6 +131,7 @@ export class Carregar extends Phaser.Scene {
     this.load.image('planeta_marte', 'lua/planetas/marte.png');   // live Mars in the solar system view
     this.load.image('ceu', 'lua/sky.jpg');
     constelacoes.forEach((c, k) => this.load.image(`const${k}`, c.arquivo));
+    for (const [id, arquivo] of Object.entries(ICONES)) this.load.image(chaveIcone(id as keyof typeof ICONES), arquivo);
 
     const criarPreview = () => {
       if (this.luaPreview || !this.textures.exists('luaAlbedo') || !this.textures.exists('luaAltura')) return;

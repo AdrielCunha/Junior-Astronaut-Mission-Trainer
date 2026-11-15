@@ -15,6 +15,7 @@ const LUA_CRATERA=Number.parseInt(paletaLua.rocha.slice(1),16);
 import { abrirVideo, movimentoReduzido, configuracoesAbertas, video, escolherSkin } from '../video';
 import { SKINS } from '../dados/skins';
 import { sessao } from './sessao';
+import type { DadosChegada } from './Chegada';
 import { CONTORNO, botaoFechar, botaoVerde, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { alternarMudo, estaMudo } from '../audio';
 import { definirVolumeMusica, volumeMusica } from '../audio';
@@ -543,9 +544,14 @@ export class Radar extends Phaser.Scene {
         this.tweens.add({ targets: t, alpha: 0, duration: 250, delay: 420, onComplete: () => t.destroy() });
       });
     });
+    // After LIFT OFF the rocket flies to the Moon (Chegada.ts), lands on the pad in the game view
+    // and goes up in smoke (Superficie.ts), then the first morning opens.
+    const pousar = this.scene.isActive('Superficie');
     this.time.delayedCall(passos.length * 650 + 150, () => {
+      const dados: DadosChegada = { aoTerminar: pousar ? () => sessao.emitir('pousoFoguete', fim) : fim };
+      this.scene.launch('Chegada', dados);
+      this.scene.bringToTop('Chegada');
       this.scene.stop();
-      fim();
     });
   }
 }

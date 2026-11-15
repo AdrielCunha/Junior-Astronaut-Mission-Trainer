@@ -167,10 +167,11 @@ export class Espaco extends Phaser.Scene {
     sessao.passo(dtMs / 1000);     // Espaco runs first: every layer sees the same zoom this frame
     // Mars (chapter 3): behind the map only the sky of Mars. Its zoom out is MarteVista
     // (sessao.voar sends it there), so the Moon, its film and the planets stay off.
+    // The ship (chapter 2): its deck floats among the stars, nothing else around it.
     const emMarte = sessao.mundo === 'marte';
     this.ceuMarte.setVisible(emMarte);
     this.ceu.setVisible(!emMarte);
-    if (emMarte) {
+    if (sessao.mundo !== 'lua') {
       this.lua.setVisible(false); this.quadro.setVisible(false); this.pino.setVisible(false); this.brilho.setVisible(false);
       this.g.clear(); this.legendaNova = '';
       for (const r of this.rotulos.values()) r.setVisible(false);

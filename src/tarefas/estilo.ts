@@ -3,6 +3,8 @@
 import type Phaser from 'phaser';
 import { fonte } from '../cenas/sessao';
 import { movimentoReduzido } from '../video';
+import { chaveIcone, resolverIcone, type IconeJogo } from '../dados/icones';
+import { tocarSfx } from '../sfx';
 
 export const CONTORNO = 0x1e293b;
 export const CORES_FESTA = [0xfde047, 0x4ade80, 0xf472b6, 0x60a5fa, 0xfb923c];
@@ -75,11 +77,12 @@ export function botaoFechar(cena: Phaser.Scene, x: number, y: number, u: number,
 }
 
 // Big green pill button that gently pulses, centered on (x, y).
-export function botaoVerde(cena: Phaser.Scene, x: number, y: number, texto: string, tamanho: number, alturaMax: number, u: number, acao: () => void, opcoes: { largura?: number; altura?: number; pulsar?: boolean; pararPropagacao?: boolean; animarHover?: boolean } = {}) {
+export function botaoVerde(cena: Phaser.Scene, x: number, y: number, texto: string, tamanho: number, alturaMax: number, u: number, acao: () => void, opcoes: { largura?: number; altura?: number; pulsar?: boolean; pararPropagacao?: boolean; animarHover?: boolean; cor?: number; corHover?: number } = {}) {
+  const cor = opcoes.cor ?? 0x22c55e, corHover = opcoes.corHover ?? (opcoes.cor === undefined ? 0x4ade80 : 0x64748b);
   const t = cena.add.text(0, 0, texto, letra(tamanho)).setOrigin(0.5);
   const bw = opcoes.largura ?? t.width + 2.2 * tamanho, bh = opcoes.altura ?? Math.min(alturaMax, t.height + 0.9 * tamanho);
   const g = cena.add.graphics()
-    .fillStyle(0x22c55e).fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2)
+    .fillStyle(cor).fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2)
     .lineStyle(4 * u, 0xffffff).strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
   const c = cena.add.container(x, y, [g, t]).setSize(bw, bh).setData('texto', t).setInteractive({ useHandCursor: true })
     .on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => { if (opcoes.pararPropagacao) ev.stopPropagation(); acao(); });
@@ -91,7 +94,7 @@ export function botaoVerde(cena: Phaser.Scene, x: number, y: number, texto: stri
     c.add(visual);
     const animar = (ativo: boolean) => {
       cena.tweens.killTweensOf([visual, brilho]);
-      g.clear().fillStyle(ativo ? 0x4ade80 : 0x22c55e).fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2)
+      g.clear().fillStyle(ativo ? corHover : cor).fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2)
         .lineStyle(4 * u, 0xffffff).strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
       cena.tweens.add({ targets: visual, scale: ativo && !movimentoReduzido() ? 1.04 : 1, y: ativo && !movimentoReduzido() ? -Math.round(2 * u) : 0,
         duration: movimentoReduzido() ? 0 : ativo ? 180 : 140, ease: 'Sine.easeOut' });
@@ -119,12 +122,12 @@ export function criarBarra(cena: Phaser.Scene, cx: number, cy: number, largura: 
 
 
 // Floating HUD pieces are decorative: only buttons opt into input.
-export function criarPilula(cena: Phaser.Scene, x: number, y: number, w: number, h: number, u: number, cor = CONTORNO, borda = 0xffffff, raio?: number) {
+export function criarPilula(cena: Phaser.Scene, x: number, y: number, w: number, h: number, u: number, cor = CONTORNO, borda = 0xffffff, raio?: number, opacidade = 1) {
   x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
   const canto = raio ?? h / 2;
   const g = cena.add.graphics()
-    .fillStyle(0x0b1a4a, 0.7).fillRoundedRect(Math.round(2 * u), Math.round(4 * u), w, h, Math.round(canto))
-    .fillStyle(cor).fillRoundedRect(0, 0, w, h, canto)
+    .fillStyle(0x0b1a4a, 0.7 * opacidade).fillRoundedRect(Math.round(2 * u), Math.round(4 * u), w, h, Math.round(canto))
+    .fillStyle(cor, opacidade).fillRoundedRect(0, 0, w, h, canto)
     .lineStyle(3 * u, borda).strokeRoundedRect(0, 0, w, h, canto);
   return cena.add.container(x, y, [g]).setSize(w, h);
 }
@@ -138,7 +141,7 @@ export function criarSelo(cena: Phaser.Scene, x: number, y: number, w: number, h
 
 export function criarChip(cena: Phaser.Scene, x: number, y: number, w: number, u: number, icone: string, rotulo: string, cor: number) {
   const caixa = criarPilula(cena, x, y, w, 48 * u, u);
-  const simbolo = cena.add.text(17 * u, 24 * u, icone, letra(21 * u)).setOrigin(0.5);
+  const simbolo = criarIconeJogo(cena, 17 * u, 24 * u, icone, 25 * u);
   const label = cena.add.text(34 * u, 12 * u, rotulo, letra(14 * u, '#bfdbfe')).setOrigin(0, 0.5);
   const numero = cena.add.text(34 * u, 32 * u, '0', letra(23 * u, '#' + cor.toString(16).padStart(6, '0'), { stroke: '#0b1a4a', strokeThickness: 3 * u })).setOrigin(0, 0.5);
   const escala = Math.min(1, (w - 40 * u) / label.width);
@@ -192,21 +195,17 @@ export function criarTituloHud(cena: Phaser.Scene, b: Caixa, u: number) {
   return { caixa, data, atualizar };
 }
 
-// High-contrast vector trefoil, independent of the operating system's emoji font.
-export function criarIconeRadiacao(cena: Phaser.Scene, x: number, y: number, tamanho: number) {
-  const r = Math.round(tamanho / 2);
-  const g = cena.add.graphics().setPosition(Math.round(x), Math.round(y));
-  g.fillStyle(0xfde047).fillCircle(0, 0, r).lineStyle(Math.max(1, Math.round(tamanho * 0.07)), 0x0b1a4a).strokeCircle(0, 0, r);
-  g.fillStyle(0x0b1a4a);
-  for (let i = 0; i < 3; i++) {
-    const a = -Math.PI * 2 / 3 + i * Math.PI * 2 / 3;
-    g.slice(0, 0, r * 0.78, a, a + Math.PI / 3, false).fillPath();
-  }
-  g.fillStyle(0xfde047).fillCircle(0, 0, r * 0.36).fillStyle(0x0b1a4a).fillCircle(0, 0, r * 0.19);
-  return g;
+// Places one of the custom Lunar Odyssey icons at a fixed on-screen size.
+export function criarIconeJogo(cena: Phaser.Scene, x: number, y: number, id: string, tamanho: number) {
+  const t = Math.max(1, Math.round(tamanho));
+  return cena.add.image(Math.round(x), Math.round(y), chaveIcone(resolverIcone(id))).setDisplaySize(t, t);
 }
 
-export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: string, rotulo: string, cor: number) {
+export function criarIconeRadiacao(cena: Phaser.Scene, x: number, y: number, tamanho: number) {
+  return criarIconeJogo(cena, x, y, 'radiation', tamanho);
+}
+
+export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: IconeJogo, rotulo: string, cor: number) {
   // Enlarge every inner measurement together, capped by the available column and row.
   const ampliacao = Math.max(1, Math.min(1.2, b.w / (220 * u), b.h / (44 * u)));
   const unidade = u * ampliacao;
@@ -219,10 +218,7 @@ export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: s
   const fim = inicio + largura - pad;
   const cabecalhoY = Math.round(b.h / 2 - px(10)), seloW = px(36), seloH = px(19);
   const centroIconeX = inicio + pad + Math.round(iconeW / 2), centroIconeY = Math.round(b.h / 2);
-  const simbolo = icone === '\u2622'
-    ? criarIconeRadiacao(cena, centroIconeX, centroIconeY, px(21))
-    : cena.add.text(centroIconeX, centroIconeY, icone, letra(px(18))).setOrigin(0.5, 0.5);
-  if ('width' in simbolo) simbolo.setScale(Math.min(1, iconeW / simbolo.width));
+  const simbolo = criarIconeJogo(cena, centroIconeX, centroIconeY, icone, px(26));
   const label = cena.add.text(coluna, cabecalhoY, rotulo, letra(px(14.5), '#ffffff', { stroke: '#0b1a4a', strokeThickness: px(2) })).setOrigin(0, 0.5);
   const selo = criarSelo(cena, fim - seloW, cabecalhoY - Math.round(seloH / 2), seloW, seloH, unidade, cor);
   selo.texto.setFontSize(px(11));
@@ -258,7 +254,7 @@ export function criarBotaoPilula(cena: Phaser.Scene, b: Caixa, u: number, titulo
 export function criarCapsulaRecursos(cena: Phaser.Scene, b: Caixa, u: number, rotulos?: { nomes: string[]; icones: string[] }) {
   const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u);
   const nomes = rotulos?.nomes ?? ['Batteries at the Battery Bank', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Parts: batteries delivered to the rocket workshop today'];
-  const icones = rotulos?.icones ?? ['\u{1f50b}', '\u270b', '\u2764\ufe0f', '\u{1f6e1}', '\u{1f527}'];
+  const icones = rotulos?.icones ?? ['energy', 'backpack', 'heart', 'shield', 'wrench'];
   const cores = ['#fde047', '#fde047', '#4ade80', '#fde047', '#60a5fa'];
   const numeros: Phaser.GameObjects.Text[] = [];
   const divisores = cena.add.graphics().lineStyle(Math.max(1, Math.round(u)), 0x7dd3fc, 0.5);
@@ -270,8 +266,8 @@ export function criarCapsulaRecursos(cena: Phaser.Scene, b: Caixa, u: number, ro
   for (let i = 0; i < 5; i++) {
     const x = Math.round(i * b.w / 5), centro = Math.round(b.h / 2);
     if (i) divisores.lineBetween(x, Math.round(8 * u), x, b.h - Math.round(8 * u));
-    const simbolo = cena.add.text(x + Math.round(9 * u), centro, icones[i], letra(Math.round(16 * u))).setOrigin(0, 0.5);
-    const numero = cena.add.text(x + Math.round(30 * u), centro, '0', letra(Math.round(19 * u), cores[i])).setOrigin(0, 0.5);
+    const simbolo = criarIconeJogo(cena, x + Math.round(18 * u), centro, icones[i], Math.round(23 * u));
+    const numero = cena.add.text(x + Math.round(33 * u), centro, '0', letra(Math.round(19 * u), cores[i])).setOrigin(0, 0.5);
     numeros.push(numero);
     caixa.add([simbolo, numero]);
   }
@@ -325,22 +321,58 @@ export function criarPilulaDicas(cena: Phaser.Scene, b: Caixa, u: number, vertic
   return caixa;
 }
 
-export function criarBotaoMusica(cena: Phaser.Scene, b: Caixa, u: number, mudo: boolean, acao: () => void) {
-  const px = (n: number) => Math.round(n * u);
-  const botao = criarBotaoPilula(cena, b, u, '\u266a', acao);
-  botao.texto.setFontSize(px(27));
-  const risco = cena.add.graphics().lineStyle(px(3), 0xffffff).lineBetween(px(10), b.h - px(10), b.w - px(10), px(10));
-  botao.caixa.add(risco);
-  const tooltipH = px(26), tooltipW = px(94);
-  const tooltip = criarPilula(cena, b.x + b.w - tooltipW, b.y + b.h + px(8), tooltipW, tooltipH, u).setDepth(30).setVisible(false);
-  const texto = cena.add.text(Math.round(tooltipW / 2), Math.round(tooltipH / 2), '', letra(px(13))).setOrigin(0.5);
+// Round blue button of the title screen (blue disc, white ring, dark outline) drawn around (0, 0).
+// k = 1 is the title screen size: 52 px across.
+export const discoAzul = (g: Phaser.GameObjects.Graphics, k: number, cor = 0x2563eb) =>
+  g.fillStyle(cor).fillCircle(0, 0, 23 * k).lineStyle(4 * k, 0xffffff).strokeCircle(0, 0, 23 * k).lineStyle(2 * k, CONTORNO).strokeCircle(0, 0, 26 * k);
+
+// The settings gear on the blue disc (title screen and game HUD).
+export function desenharEngrenagem(g: Phaser.GameObjects.Graphics, k: number) {
+  discoAzul(g, k);
+  const dentes: { x: number; y: number }[] = [];
+  for (let i = 0; i < 32; i++) {
+    const angulo = -Math.PI / 2 + i * Math.PI / 16;
+    const raio = (i % 4 === 1 || i % 4 === 2 ? 20 : 15) * k;
+    dentes.push({ x: Math.cos(angulo) * raio, y: Math.sin(angulo) * raio });
+  }
+  g.fillStyle(0xffffff).fillPoints(dentes, true).lineStyle(1.5 * k, CONTORNO).strokePoints(dentes, true);
+  g.fillStyle(0x2563eb).fillCircle(0, 0, 7 * k).lineStyle(2 * k, CONTORNO).strokeCircle(0, 0, 7 * k);
+  return g;
+}
+
+// Round button in box b: grows a little under the pointer, clicks, and shows a small label below.
+// The hit area is a fixed zone, so the growing picture never changes what is under the pointer.
+export function criarBotaoRedondo(cena: Phaser.Scene, b: Caixa, desenhar: (g: Phaser.GameObjects.Graphics, k: number) => void, dica: string, acao: () => void) {
+  const px = (n: number) => Math.round(n * b.w / 52 * 1.35);
+  const k = b.w / 52;
+  const g = cena.add.graphics();
+  desenhar(g, k);
+  const visual = cena.add.container(Math.round(b.w / 2), Math.round(b.h / 2), [g]);
+  const caixa = cena.add.container(b.x, b.y, [visual]).setSize(b.w, b.h);
+  const tooltipH = px(26);
+  const tooltip = criarPilula(cena, 0, b.y + b.h + px(8), 10, tooltipH, b.w / 38).setDepth(30).setVisible(false);
+  const texto = cena.add.text(0, Math.round(tooltipH / 2), '', letra(px(13))).setOrigin(0.5);
   tooltip.add(texto);
-  const area = botao.caixa.list.find(o => o.type === 'Zone')!;
-  area.on('pointerover', () => tooltip.setVisible(true)).on('pointerout', () => tooltip.setVisible(false));
-  botao.caixa.once('destroy', () => tooltip.destroy());
-  const atualizar = (valor: boolean) => { risco.setVisible(valor); texto.setText(valor ? 'Music off' : 'Music on'); };
-  atualizar(mudo);
-  return { caixa: botao.caixa, atualizar };
+  const definirDica = (s: string) => {
+    texto.setText(s);
+    const w = Math.round(texto.width + px(24));
+    tooltip.removeAt(0, true);
+    tooltip.addAt(criarPilula(cena, 0, 0, w, tooltipH, b.w / 38), 0);
+    texto.setX(Math.round(w / 2));
+    tooltip.setX(Math.round(Math.min(cena.scale.width - w - 4, b.x + b.w / 2 - w / 2)));
+  };
+  definirDica(dica);
+  const area = cena.add.zone(0, 0, b.w, b.h).setOrigin(0).setInteractive({ useHandCursor: true });
+  area.on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => { ev.stopPropagation(); tocarSfx('clique'); acao(); });
+  area.on('pointerover', () => { visual.setScale(1.1); tooltip.setVisible(true); tocarSfx('suave'); })
+    .on('pointerout', () => { visual.setScale(1); tooltip.setVisible(false); });
+  caixa.add(area);
+  caixa.once('destroy', () => tooltip.destroy());
+  return { caixa, visual, definirDica };
+}
+
+export function criarBotaoConfiguracoes(cena: Phaser.Scene, b: Caixa, acao: () => void) {
+  return criarBotaoRedondo(cena, b, desenharEngrenagem, 'Settings', acao).caixa;
 }
 
 
@@ -393,7 +425,7 @@ export function criarDicasRecolhiveis(cena: Phaser.Scene, b: Caixa, abaB: Caixa,
   const mascara = recorte.createGeometryMask();
   caixa.setMask(mascara);
   const tooltip = criarPilula(cena, b.x, b.y + abaB.y - px(34), px(94), px(26), u).setDepth(30).setVisible(false);
-  tooltip.add(cena.add.text(px(47), px(13), 'Controles', letra(px(13))).setOrigin(0.5));
+  tooltip.add(cena.add.text(px(47), px(13), 'Controls', letra(px(13))).setOrigin(0.5));
   let estado = recolhido, animando = false, hover = false;
   const pintar = () => {
     fundo.clear();

@@ -64,6 +64,10 @@ export const TIPOS: Record<TipoId, Tipo> = {
                 papel: "The crew's new home on Mars." },
 };
 
+// Surface props stay this far (tiles) from every building and from the map center.
+export const MARGEM_DECO = 4;
+export const RAIO_LIVRE_DECO = 13;
+
 export type Construcao = { id: number; tipo: Tipo; gx: number; gy: number; z: number };
 
 export type Motivo = 'ok' | 'fora' | 'ocupado' | 'ingreme' | 'unico';
@@ -125,9 +129,11 @@ export class Grade {
   private cacheCaixas: Caixa[] | null = null;
   private cacheModulos = -1;
   caixas(): Caixa[] {
-    if (this.cacheCaixas && this.cacheModulos === this.lista.length) return this.cacheCaixas;
-    this.cacheModulos = this.lista.length;
-    return this.cacheCaixas = [...this.t.pedras, ...this.lista.map((c) => ({
+    const chave = this.lista.length * 10_000 + this.extras.length;
+    if (this.cacheCaixas && this.cacheModulos === chave) return this.cacheCaixas;
+    this.cacheModulos = chave;
+    // Props are solid too: the commander walks around them, never through.
+    return this.cacheCaixas = [...this.t.pedras, ...this.extras, ...this.lista.map((c) => ({
       x0: c.gx + 0.08, y0: c.gy + 0.08, x1: c.gx + c.tipo.w - 0.08, y1: c.gy + c.tipo.h - 0.08,
       topo: c.z + c.tipo.altura,
     }))];
@@ -140,6 +146,8 @@ export class Grade {
     for (let y = Math.max(1, gy - 9); y <= Math.min(this.n - tipo.h - 1, gy + 9); y++) {
       for (let x = Math.max(1, gx - 9); x <= Math.min(this.n - tipo.w - 1, gx + 9); x++) {
         if (this.pode(tipo, x, y).motivo !== 'ok') continue;
+        // Props keep two free tiles between them so they read as spread out, not piled up.
+        if (this.deco.some(d => x < d.gx + d.w + 2 && x + tipo.w + 2 > d.gx && y < d.gy + d.h + 2 && y + tipo.h + 2 > d.gy)) continue;
         if (this.lista.some(c => x < c.gx + c.tipo.w + 1 && x + tipo.w + 1 > c.gx &&
           y < c.gy + c.tipo.h + 1 && y + tipo.h + 1 > c.gy)) continue;
         // Compare projected silhouettes, not just footprints: tall towers can hide neighbors.
@@ -165,6 +173,27 @@ export class Grade {
     return best ?? this.procurar(tipo, gx, gy);
   }
 
+  // A spot for a surface prop: flat and free like any other, but far from the map center and at least
+  // MARGEM_DECO tiles from every building, so props fill the open ground instead of crowding the base.
+  // Returns null when there is no such spot near the wanted one (the prop is simply left out).
+  procurarDeco(tipo: Tipo, gx: number, gy: number): { gx: number; gy: number } | null {
+    const centro = this.n / 2;
+    let best: { gx: number; gy: number } | null = null;
+    let score = Infinity;
+    for (let y = Math.max(1, gy - 12); y <= Math.min(this.n - tipo.h - 1, gy + 12); y++) {
+      for (let x = Math.max(1, gx - 12); x <= Math.min(this.n - tipo.w - 1, gx + 12); x++) {
+        if (this.pode(tipo, x, y).motivo !== 'ok') continue;
+        if (Math.hypot(x + tipo.w / 2 - centro, y + tipo.h / 2 - centro) < RAIO_LIVRE_DECO) continue;
+        if (this.lista.some(c => x < c.gx + c.tipo.w + MARGEM_DECO && x + tipo.w + MARGEM_DECO > c.gx &&
+          y < c.gy + c.tipo.h + MARGEM_DECO && y + tipo.h + MARGEM_DECO > c.gy)) continue;
+        if (this.deco.some(d => x < d.gx + d.w + 2 && x + tipo.w + 2 > d.gx && y < d.gy + d.h + 2 && y + tipo.h + 2 > d.gy)) continue;
+        const cost = (x - gx) ** 2 + (y - gy) ** 2 + this.t.inclinacaoMax(x, y, tipo.w, tipo.h) * 0.3;
+        if (cost < score) { score = cost; best = { gx: x, gy: y }; }
+      }
+    }
+    return best;
+  }
+
   // Nearest flat spot for a footprint, searching outward from (gx, gy).
   procurar(tipo: Tipo, gx: number, gy: number): { gx: number; gy: number } | null {
     for (let r = 0; r < this.n; r++) {
@@ -181,12 +210,13 @@ export class Grade {
 // Offsets in tiles from the map center; each module goes to the nearest flat, free spot, so the
 // layout follows the real ground. The rooms ring the habitat: short walks with the batteries.
 // Habitation at the center, solar power behind Life Support, fabrication farther back/right.
-// Relative offsets preserve two straight rows and the adjacent bank on uneven ground.
+// Advancing gx and gy together draws vertical rows in the isometric view.
 export const ESTACAO_SOLAR: [TipoId, number, number][] = [
-  ['painel', 0, 0], ['painel', 3, 0], ['painel', 6, 0],
-  ['painel', 0, 3], ['painel', 3, 3], ['painel', 6, 3],
-  ['bateria', 9, 0],
+  ['painel', 0, 0], ['painel', 2, 2], ['painel', 4, 4],
+  ['painel', 3, -3], ['painel', 5, -1], ['painel', 7, 1],
+  ['bateria', 10, -4],
 ];
+const POSICAO_SOLAR = [-3, -10] as const;
 
 export const BASE_PADRAO: [TipoId, number, number][] = [
   ['habitat', -2, -4],
@@ -199,7 +229,7 @@ export const BASE_PADRAO: [TipoId, number, number][] = [
   ['eclusa', -2, 3],
   ['impressora', 9, -18],
   ['radiotelescopio', -10, -9],
-  ...ESTACAO_SOLAR.map(([id, x, y]): [TipoId, number, number] => [id, x - 1, y - 13]),
+  ...ESTACAO_SOLAR.map(([id, x, y]): [TipoId, number, number] => [id, x + POSICAO_SOLAR[0], y + POSICAO_SOLAR[1]]),
 ];
 
 export const SETORES_SUPRIMENTOS: Partial<Record<TipoId, [number, number]>> = {
@@ -218,6 +248,16 @@ export const BASE_MARTE: [TipoId, number, number][] = [
   ['painel', -3, -6],
 ];
 
+// The ship (chapter 2): the four rooms of the chapter on both sides of the central corridor,
+// which stays free (the deck is 18 x 12 tiles around the grid center). The Battery Bank is the
+// Power Room where the batteries charge (estacaoSolar.ts); the workshop is the Engines.
+export const BASE_NAVE: [TipoId, number, number][] = [
+  ['oficina', -7, -5],
+  ['suporte', -2, -5],
+  ['blindagem', 3, -5],
+  ['bateria', -2, 2],
+];
+
 export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BASE_PADRAO): Construcao[] {
   const c0 = Math.floor(g.n / 2);
   const feitas: Construcao[] = [];
@@ -229,7 +269,7 @@ export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BA
   }
   if (base === BASE_PADRAO) {
     // Reserve the solar field first: fabrication must not push it to the front of the colony.
-    feitas.push(...montarEstacaoSolar(g, c0 - 1, c0 - 13));
+    feitas.push(...montarEstacaoSolar(g, c0 + POSICAO_SOLAR[0], c0 + POSICAO_SOLAR[1]));
     const [, dx, dy] = base.find(([id]) => id === 'impressora')!;
     const p = g.procurarComEspaco(TIPOS.impressora, c0 + dx, c0 + dy);
     const c = p && g.construir(TIPOS.impressora, p.gx, p.gy);
@@ -241,9 +281,14 @@ export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BA
 function montarEstacaoSolar(g: Grade, desejadoX: number, desejadoY: number): Construcao[] {
   let melhor: { x: number; y: number; custo: number } | undefined;
   const suporte = g.lista.find(c => c.tipo.id === 'suporte');
-  for (let y = 1; y < g.n - 5; y++) for (let x = 1; x < g.n - 11; x++) {
+  const minX = Math.min(...ESTACAO_SOLAR.map(([, x]) => x));
+  const minY = Math.min(...ESTACAO_SOLAR.map(([, , y]) => y));
+  const maxX = Math.max(...ESTACAO_SOLAR.map(([id, x]) => x + TIPOS[id].w));
+  const maxY = Math.max(...ESTACAO_SOLAR.map(([id, , y]) => y + TIPOS[id].h));
+  const frente = Math.max(...ESTACAO_SOLAR.map(([id, x, y]) => x + y + (TIPOS[id].w + TIPOS[id].h) / 2));
+  for (let y = 1 - minY; y < g.n - maxY; y++) for (let x = 1 - minX; x < g.n - maxX; x++) {
     // Isometric depth grows with gx + gy. Keep even the bank behind Life Support.
-    if (suporte && x + y + 12.5 > suporte.gx + suporte.gy + (suporte.tipo.w + suporte.tipo.h) / 2 - 2) continue;
+    if (suporte && x + y + frente > suporte.gx + suporte.gy + (suporte.tipo.w + suporte.tipo.h) / 2 - 2) continue;
     const custo = (x - desejadoX) ** 2 + (y - desejadoY) ** 2;
     if (melhor && custo >= melhor.custo) continue;
     const cabe = ESTACAO_SOLAR.every(([id, dx, dy]) => {

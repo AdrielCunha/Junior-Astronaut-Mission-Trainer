@@ -43,6 +43,12 @@ SUIT = K['suit']; TRIM = '#94a3b8'; BOOT = K['boot']; PACK = K['pack']; VISOR = 
 ACCENT = K['accent']; GLINT = K['glint']; BEACON = '#ef4444'
 LIGHT = PALETA['luzSolo']
 OUTLINE = '#17130f'
+# ESTILO=estacao (default): the solar station's look, like the modules (make_modules.py): soft clay shading,
+# AgX, a soft area light and blue ambient. The outline stays, thinner and slate, so the commander still pops
+# out of the ground. ESTILO=toon renders the old flat toon look.
+ESTILO = os.environ.get('ESTILO', 'estacao')
+NOVO = ESTILO != 'toon'
+if NOVO: OUTLINE = '#1e293b'
 
 
 def rgb(h, a=1.0):
@@ -62,13 +68,25 @@ else:
 sc.render.engine = 'BLENDER_EEVEE'
 sc.render.film_transparent = True
 sc.render.image_settings.file_format = 'PNG'; sc.render.image_settings.color_mode = 'RGBA'
-sc.view_settings.view_transform = 'Standard'; sc.view_settings.look = 'None'
+sc.view_settings.view_transform = 'AgX' if NOVO else 'Standard'; sc.view_settings.look = 'None'
+if NOVO:
+    mundo = bpy.data.worlds.new('Astronauta | ambiente azul'); mundo.use_nodes = True
+    fundo = mundo.node_tree.nodes['Background']
+    fundo.inputs[0].default_value = (0.16, 0.21, 0.32, 1); fundo.inputs[1].default_value = 0.5
+    sc.world = mundo
 sc.render.filter_size = 1.0
 
 # ---------- toon materials ----------
 _mats = {}
 def toon(cor):
     if cor in _mats: return _mats[cor]
+    if NOVO:
+        m = bpy.data.materials.new('astro' + cor); m.use_nodes = True
+        bs = m.node_tree.nodes.get('Principled BSDF')
+        bs.inputs['Base Color'].default_value = rgb(cor); bs.inputs['Roughness'].default_value = 0.6
+        bs.inputs['Metallic'].default_value = 0.0
+        _mats[cor] = m
+        return m
     m = bpy.data.materials.new('astro' + cor); m.use_nodes = True
     N = m.node_tree.nodes; L = m.node_tree.links; N.clear()
     dif = N.new('ShaderNodeBsdfDiffuse'); s2r = N.new('ShaderNodeShaderToRGB')
@@ -114,7 +132,7 @@ def peca(nome, kind, size, loc, cor, pai=root, bevel=0.0, rot=(0, 0, 0)):
     bpy.ops.object.shade_smooth()
     o.data.materials.append(toon(cor)); o.data.materials.append(contorno)
     s = o.modifiers.new('contorno', 'SOLIDIFY')
-    s.thickness = 0.016; s.offset = 1; s.use_flip_normals = True; s.material_offset = 1; s.use_rim = False
+    s.thickness = 0.009 if NOVO else 0.016; s.offset = 1; s.use_flip_normals = True; s.material_offset = 1; s.use_rim = False
     o.parent = pai
     return o
 
@@ -177,7 +195,21 @@ centro = Vector((0, 0, H * 0.58))                 # a bit high: room for the hel
 cam = bpy.data.cameras.new('AstroCam'); cam.type = 'ORTHO'; cam.ortho_scale = FRAME / s
 cam_o = bpy.data.objects.new('AstroCam', cam); sc.collection.objects.link(cam_o); sc.camera = cam_o
 cam_o.location = centro + to_cam * 20; cam_o.rotation_mode = 'QUATERNION'; cam_o.rotation_quaternion = q
-sun = bpy.data.lights.new('Sol', 'SUN'); sun.energy = 4.0; sun.use_shadow = False
+sun = bpy.data.lights.new('Sol', 'SUN'); sun.energy = 0.0 if NOVO else 4.0; sun.use_shadow = False
+if NOVO:
+    # The solar station's key light: a big warm disk above the front-left, soft shadows.
+    luz = bpy.data.lights.new('Luz da estacao', 'AREA'); luz.energy = 1500; luz.shape = 'DISK'; luz.size = 7
+    luz_o = bpy.data.objects.new('Luz da estacao', luz); sc.collection.objects.link(luz_o)
+    luz_o.location = Vector((2, -5, 9))
+    luz_o.rotation_euler = (Vector((0, 0, 0.3)) - luz_o.location).to_track_quat('-Z', 'Y').to_euler()
+    luz.energy = 2200
+    # Cool fill from the right, as in the station's presentation render: keeps the white suit white.
+    fill = bpy.data.lights.new('Preenchimento', 'AREA'); fill.energy = 1400; fill.shape = 'DISK'; fill.size = 7
+    fill.color = (0.65, 0.81, 1)
+    fill_o = bpy.data.objects.new('Preenchimento', fill); sc.collection.objects.link(fill_o)
+    fill_o.location = Vector((7, 1, 7))
+    fill_o.rotation_euler = (Vector((0, 0, 0.3)) - fill_o.location).to_track_quat('-Z', 'Y').to_euler()
+    sc.eevee.taa_render_samples = 128
 sun_o = bpy.data.objects.new('Sol', sun); sc.collection.objects.link(sun_o)
 to_sun = (to_cam * 0.5 - right * 1.0 + Vector((0, 0, 0.45))).normalized()   # same as the terrain
 sun_o.rotation_euler = (-to_sun).to_track_quat('-Z', 'Y').to_euler()

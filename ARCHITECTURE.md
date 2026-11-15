@@ -34,6 +34,7 @@ test**. Scenes only read input, call the engine and draw.
 | `src/engine/iso.ts` | Map coordinates ↔ screen pixels (and back, onto the ground under the cursor). |
 | `src/engine/terreno.ts` | Real heights and slopes of the map. |
 | `src/engine/fisica.ts` | Lunar gravity, jumping, falling, collision with modules, slope limits. |
+| `src/engine/rover.ts` | Ground vehicle movement, collision and slope limits, parking, and safe disembarking. |
 | `src/engine/construcao.ts` | Module types, the occupancy grid, where things fit (free, flat), the default base layout. |
 | `src/engine/suprimentos.ts` | Equipment unlocked during the chapter (by day) and the cargo lander's braking burn. |
 | `src/engine/astro.ts` | Sun, planets and Moon positions for a date (NASA JPL orbital elements). |
@@ -42,6 +43,12 @@ test**. Scenes only read input, call the engine and draw.
 | `src/cenas/Espaco.ts` | Sky, constellation tracing, Moon view, solar system. |
 | `src/cenas/Superficie.ts` | The map, modules (Blender pictures), the commander, cargo; the ground camera. |
 | `src/cenas/Interface.ts` | HUD bars, build bar, zoom buttons, morning / night / end panels. |
+| `src/cenas/tempestadeSolar.ts` | Extreme Moon storm countdown, protection states, and impact damage. |
+| `src/cenas/desenharRover.ts` | Apollo LRV rendering, seated legs, and foreground layers around the original astronaut sprite. |
+| `src/cenas/CuriosidadeRover.ts` | First-boarding fact card; pauses the world and storm while reading. |
+| `src/cenas/ambiente.ts` | Astronaut footprints, rover tire tracks, and surface dust for each world. |
+| `src/dados/roverApollo.ts` | Short English Apollo LRV facts and their source. |
+| `public/icons/lunar-v6/` | User-selected `lunar_icons_v6` pack: eight PNG textures plus their original SVG sources and preview. Mapped in `src/dados/icones.ts`; the backpack represents carried batteries. |
 | `src/cenas/desenho.ts` | Code-drawn extras: foundations on slopes, the commander's shadow and batteries, cargo. |
 | `src/cenas/globo.ts` | Globe math for the Moon view (spin on a date, base pin, Sun over the base). |
 | `src/cenas/luaShader.ts` | The Moon drawn live by the GPU (toon shading, relief, outline). |
@@ -396,6 +403,20 @@ renders the zoom out (map, 18 km of CTX, 64 km and 800 km of MOLA, MOLA globe) i
 MarteVista's tilted view, so `MarteVista` plays the film for z 0..1 and swaps to the live globe
 without a jump. The map is not playable yet (Superficie still assumes the Moon); the DEV panel
 shows it ("Mars map preview"), and zooming out of that preview runs the film.
+
+**Chapter 2 on the 3D engine: the ship.** After leaving the Moon, chapter 2 runs on the same
+engine on the ship's deck (`sessao.usarMundo('nave')`, `irParaMarte.ts`). `make_nave.py` loads the
+team's module helpers from `make_modules.py` (same toon material, outline and map camera, nothing
+of theirs rendered) and renders: the hull as one smooth oval shell (tapered nose with the
+windshield, rounded tail with the engines, solar wings), in two pictures with the same framing,
+cut away (`nave/terrain.png`: roof and near side removed above a continuous metal deck with a
+central corridor) and closed (`nave/terrain_teto.png`, faded in by Superficie as you zoom out);
+`terreno_nave.json` makes the deck flat and the hull a wall. The rooms are the chapter's: the
+Battery Bank is the Power Room (where batteries charge, `estacaoSolar.ts`), the team's air
+recycler and water-wall shelter, and an engine room (`nave_motores`); the props are bunks, galley,
+treadmill, Veggie plant rack, cargo bags, water tanks, medical kit and cockpit. Magnetic boots:
+walking feels like Earth. At the end of the chapter the ship arrives and lands (Viagem), then
+chapter 3.
 
 **Chapter 3 on the 3D engine.** After chapter 2 (Base prototype) the ship arrives and lands
 (Viagem), then `irParaMarte.ts` switches the world and restarts Espaco, Superficie and Interface

@@ -6,6 +6,7 @@ import type Phaser from 'phaser';
 import type { Efeito } from '../regras';
 import { poeiraDuto } from './poeiraDuto';
 import { escudoSol } from './escudoSol';
+import { escolherEntre } from './escolha';
 
 // Screen box the task draws in; u is the UI scale (1 at 1100x650).
 export type Area = { x: number; y: number; w: number; h: number; u: number };
@@ -24,9 +25,12 @@ export type Tarefa = {
 
 export const BANCO: Tarefa[] = [poeiraDuto, escudoSol];
 
-// A random task for this room, not the same as last time when there is a choice.
-export function sortear(sala: Efeito, ultima?: string): Tarefa | undefined {
-  const daSala = BANCO.filter((t) => t.sala === sala);
-  const opcoes = daSala.length > 1 ? daSala.filter((t) => t.id !== ultima) : daSala;
-  return opcoes[Math.floor(Math.random() * opcoes.length)];
+export { CENAS_DA_SALA } from './escolha';
+export type Escolha = { id: string; tarefa: Tarefa } | { id: string; cena: string };
+
+// A random task for this room (bank or ready scene), not the same as last time when there is a choice.
+export function escolher(sala: Efeito, ultima?: string, sorte: () => number = Math.random): Escolha | undefined {
+  const e = escolherEntre(sala, ultima, BANCO, sorte);
+  if (!e) return undefined;
+  return e.cena ? { id: e.id, cena: e.cena } : { id: e.id, tarefa: BANCO.find((t) => t.id === e.id)! };
 }

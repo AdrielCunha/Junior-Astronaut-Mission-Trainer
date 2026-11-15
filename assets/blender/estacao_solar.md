@@ -10,7 +10,7 @@ Os painéis possuem células individuais, trilhas coletoras, cantos protegidos, 
 
 Os objetos `Bateria 01 | removivel` até `Bateria 05 | removivel` agrupam cada cartucho. O corredor junto aos indicadores de encaixe fica livre para a futura interação do astronauta.
 
-O conjunto está integrado à base lunar. O jogo posiciona seis painéis alinhados em duas fileiras e o banco lateral, procurando uma área adequada no relevo real e mantendo corredores de circulação.
+O conjunto está integrado à base lunar. No mapa, os seis painéis ficam em duas fileiras verticais de três, com o banco à direita, um pouco mais à frente e à esquerda da posição inicial e ainda atrás do Life Support. O posicionamento procura uma área adequada no relevo real e mantém corredores de circulação.
 
 Na Lua, as baterias diárias são coletadas no banco por clique ou pela tecla E quando o astronauta está perto. O banco mostra de zero a cinco cartuchos conforme o estoque. A exploração mostra o conjunto completo; a quantidade disponível na missão continua seguindo as regras diárias. Em Marte, a coleta continua no módulo de pouso.
 
