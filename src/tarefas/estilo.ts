@@ -3,7 +3,7 @@
 import type Phaser from 'phaser';
 import { fonte } from '../cenas/sessao';
 import { movimentoReduzido } from '../video';
-import { ICONES, chaveIcone, type IconeJogo } from '../dados/icones';
+import { chaveIcone, resolverIcone, type IconeJogo } from '../dados/icones';
 import { tocarSfx } from '../sfx';
 
 export const CONTORNO = 0x1e293b;
@@ -141,7 +141,7 @@ export function criarSelo(cena: Phaser.Scene, x: number, y: number, w: number, h
 
 export function criarChip(cena: Phaser.Scene, x: number, y: number, w: number, u: number, icone: string, rotulo: string, cor: number) {
   const caixa = criarPilula(cena, x, y, w, 48 * u, u);
-  const simbolo = cena.add.text(17 * u, 24 * u, icone, letra(21 * u)).setOrigin(0.5);
+  const simbolo = criarIconeJogo(cena, 17 * u, 24 * u, icone, 25 * u);
   const label = cena.add.text(34 * u, 12 * u, rotulo, letra(14 * u, '#bfdbfe')).setOrigin(0, 0.5);
   const numero = cena.add.text(34 * u, 32 * u, '0', letra(23 * u, '#' + cor.toString(16).padStart(6, '0'), { stroke: '#0b1a4a', strokeThickness: 3 * u })).setOrigin(0, 0.5);
   const escala = Math.min(1, (w - 40 * u) / label.width);
@@ -196,9 +196,9 @@ export function criarTituloHud(cena: Phaser.Scene, b: Caixa, u: number) {
 }
 
 // Places one of the custom Lunar Odyssey icons at a fixed on-screen size.
-export function criarIconeJogo(cena: Phaser.Scene, x: number, y: number, id: IconeJogo, tamanho: number) {
+export function criarIconeJogo(cena: Phaser.Scene, x: number, y: number, id: string, tamanho: number) {
   const t = Math.max(1, Math.round(tamanho));
-  return cena.add.image(Math.round(x), Math.round(y), chaveIcone(id)).setDisplaySize(t, t);
+  return cena.add.image(Math.round(x), Math.round(y), chaveIcone(resolverIcone(id))).setDisplaySize(t, t);
 }
 
 export function criarIconeRadiacao(cena: Phaser.Scene, x: number, y: number, tamanho: number) {
@@ -254,7 +254,7 @@ export function criarBotaoPilula(cena: Phaser.Scene, b: Caixa, u: number, titulo
 export function criarCapsulaRecursos(cena: Phaser.Scene, b: Caixa, u: number, rotulos?: { nomes: string[]; icones: string[] }) {
   const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u);
   const nomes = rotulos?.nomes ?? ['Batteries at the Battery Bank', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Parts: batteries delivered to the rocket workshop today'];
-  const icones = rotulos?.icones ?? ['energy', 'hand', 'heart', 'shield', 'wrench'];
+  const icones = rotulos?.icones ?? ['energy', 'backpack', 'heart', 'shield', 'wrench'];
   const cores = ['#fde047', '#fde047', '#4ade80', '#fde047', '#60a5fa'];
   const numeros: Phaser.GameObjects.Text[] = [];
   const divisores = cena.add.graphics().lineStyle(Math.max(1, Math.round(u)), 0x7dd3fc, 0.5);
@@ -266,9 +266,7 @@ export function criarCapsulaRecursos(cena: Phaser.Scene, b: Caixa, u: number, ro
   for (let i = 0; i < 5; i++) {
     const x = Math.round(i * b.w / 5), centro = Math.round(b.h / 2);
     if (i) divisores.lineBetween(x, Math.round(8 * u), x, b.h - Math.round(8 * u));
-    const simbolo = icones[i] in ICONES
-      ? criarIconeJogo(cena, x + Math.round(18 * u), centro, icones[i] as IconeJogo, Math.round(23 * u))
-      : cena.add.text(x + Math.round(18 * u), centro, icones[i], letra(Math.round(20 * u))).setOrigin(0.5);
+    const simbolo = criarIconeJogo(cena, x + Math.round(18 * u), centro, icones[i], Math.round(23 * u));
     const numero = cena.add.text(x + Math.round(33 * u), centro, '0', letra(Math.round(19 * u), cores[i])).setOrigin(0, 0.5);
     numeros.push(numero);
     caixa.add([simbolo, numero]);

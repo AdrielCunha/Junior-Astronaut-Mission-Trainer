@@ -17,11 +17,11 @@ import { suprimentoDoDia } from '../engine/suprimentos';
 import { DOSE_ALARME } from '../engine/eventos';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase } from './sessao';
 import { alternarMudo } from '../audio';
-import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndicador, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, criarIconeRadiacao, CONTORNO } from '../tarefas/estilo';
-import type { IconeJogo } from '../dados/icones';
+import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndicador, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
+import { resolverIcone, textoDoJogo, type IconeJogo } from '../dados/icones';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
-// A chat message: a big icon on the left (☢ is drawn, the others are emoji) and a short line.
+// A chat message: a custom equipment icon on the left and a short line.
 type Parte = string | { texto: string; icone?: string; cor?: string; negrito?: boolean; tamanho?: number };
 // Who is talking in a panel's chat: name over the first bubble, initials on the round avatar.
 type Remetente = { nome: string; sigla: string; cor: number };
@@ -384,14 +384,14 @@ export class Interface extends Phaser.Scene {
     const nave = sessao.mundo === 'nave';
     this.capsula = criarCapsulaRecursos(this, l.capsula, u, nave ? {
       nomes: ['Batteries at the Power Room', 'Carrying batteries', 'Air recycler: batteries delivered today', 'Storm shelter: batteries delivered today', 'Engines: batteries delivered today'],
-      icones: ['\u{1f50b}', '\u270b', '\u2764\ufe0f', '\u{1f6e1}', '\u{1f680}'],
+      icones: ['energy', 'backpack', 'heart', 'shield', 'rocket'],
     } : marte ? {
       nomes: ['Batteries at the lander', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Heating: batteries delivered today'],
-      icones: ['\u{1f50b}', '\u270b', '\u2764\ufe0f', '\u{1f6e1}', '\u{1f525}'],
+      icones: ['energy', 'backpack', 'heart', 'shield', 'energy'],
     } : undefined);
     const o = l.objetivo;
     this.objetivo = criarPilula(this, o.x, o.y, o.w, o.h, u, 0xffd93b);
-    const estrela = criarIconeJogo(this, pad + px(10), Math.round(o.h / 2), 'star', px(20)).setTint(0x0b1a4a);
+    const estrela = criarIconeJogo(this, pad + px(10), Math.round(o.h / 2), 'star', px(24));
     this.textos.tarefa = this.add.text(px(30), Math.round(o.h / 2), '', letra(px(12), '#0b1a4a', {
       wordWrap: { width: o.w - px(30) - pad }, lineSpacing: 0,
     })).setOrigin(0, 0.5);
@@ -453,14 +453,17 @@ export class Interface extends Phaser.Scene {
     this.aviso?.destroy();
     const u = this.u;
     const W = this.scale.width, H = this.scale.height;
-    const largura = Math.min(W - 32 * u, 680 * u), pad = 22 * u;
-    const t = this.add.text(0, 0, s, letra(16 * u, cor === '#e2e8f0' ? '#ffffff' : cor, { align: 'center', wordWrap: { width: largura - 2 * pad }, lineSpacing: 2 * u })).setOrigin(0.5);
-    const w = Math.min(largura, t.width + 2 * pad), h = t.height + 18 * u, r = Math.min(h / 2, 24 * u);
+    const largura = Math.min(W - 32 * u, 680 * u), pad = 18 * u, reserva = 38 * u;
+    const primeiro = s.match(/^\p{Extended_Pictographic}\uFE0F?/u)?.[0];
+    const id = primeiro ? resolverIcone(primeiro) : cor === '#86efac' ? 'success' : cor === '#fca5a5' || cor === '#fde68a' ? 'warning' : 'helmet';
+    const t = this.add.text(reserva/2, 0, textoDoJogo(s), letra(16 * u, cor === '#e2e8f0' ? '#ffffff' : cor, { align: 'center', wordWrap: { width: largura - 2 * pad - reserva }, lineSpacing: 2 * u })).setOrigin(0.5);
+    const w = Math.min(largura, t.width + 2 * pad + reserva), h = Math.max(42 * u,t.height + 18 * u), r = Math.min(h / 2, 24 * u);
+    const icone = criarIconeJogo(this,-w/2+pad+14*u,0,id,30*u);
     const g = this.add.graphics()
       .fillStyle(0x0b1a4a, 0.7).fillRoundedRect(-w / 2 + 2 * u, -h / 2 + 4 * u, w, h, r)
       .fillStyle(CONTORNO, 0.96).fillRoundedRect(-w / 2, -h / 2, w, h, r)
       .lineStyle(3 * u, 0xffffff).strokeRoundedRect(-w / 2, -h / 2, w, h, r);
-    const c = this.add.container(W / 2, H - 70 * u - h / 2, [g, t]).setDepth(20);
+    const c = this.add.container(W / 2, H - 70 * u - h / 2, [g, icone, t]).setDepth(20);
     this.aviso = c;
     if (!movimentoReduzido()) {
       c.setScale(0.6).setAlpha(0);
@@ -530,18 +533,18 @@ export class Interface extends Phaser.Scene {
       const enf = naEnfermaria(sessao.estado);
       const marte = sessao.mundo === 'marte';
       const sup = marte ? undefined : suprimentoDoDia(sessao.estado.dia);
-      const intro = sessao.mundo !== 'lua' && sessao.estado.dia === 1 ? sessao.cap.introducao.map((t) => ({ icone: '\u{1f680}', texto: t, cor: '#fde68a' })) : [];
-      const frio = marte && d.frio ? [{ icone: '\u{1f976}', texto: `Tonight: ${d.minima ?? ''} \u00b0C. Heating needs ${d.frio} batteries, or the cold machines lose ${d.frio * 10} oxygen.`, cor: '#93c5fd', negrito: true }] : [];
+      const intro = sessao.mundo !== 'lua' && sessao.estado.dia === 1 ? sessao.cap.introducao.map((t) => ({ icone: 'rocket', texto: t, cor: '#fde68a' })) : [];
+      const frio = marte && d.frio ? [{ icone: 'cold', texto: `Tonight: ${d.minima ?? ''} \u00b0C. Heating needs ${d.frio} batteries, or the cold machines lose ${d.frio * 10} oxygen.`, cor: '#93c5fd', negrito: true }] : [];
       // Short and visual: what the Sun did, the storm level, the shield, today's batteries.
       this.abrirPainel(`${marte ? 'Mars \u00b7 ' : sessao.mundo === 'nave' ? 'Ship \u00b7 ' : ''}Day ${sessao.estado.dia} \u00b7 ${dataBonita(sessao.data)}`, CONTROLE, [
         ...intro,
-        { icone: '\u2600\ufe0f', texto: d.curto },
-        ...(!marte && sessao.estado.dia === 1 ? [{ icone: '\u{1f680}', texto: 'Our rocket was used up on the trip. Give \u{1f50b} to the Rocket Workshop to build a new one and fly to Mars!', cor: '#fde047', negrito: true }] : []),
+        { icone: 'sun', texto: d.curto },
+        ...(!marte && sessao.estado.dia === 1 ? [{ icone: 'rocket', texto: 'Our rocket was used up on the trip. Give batteries to the Rocket Workshop to build a new one and fly to Mars!', cor: '#fde047', negrito: true }] : []),
         d.nivel
-          ? { icone: '\u2622', texto: `Radiation today: ${NIVEIS[d.nivel]}! Give the \u{1f6e1} Shield ${d.nivel} ${'\u{1f50b}'.repeat(d.nivel)} to keep the crew safe.`, cor: CORES_NIVEL[d.nivel], negrito: true }
-          : { icone: '\u2622', texto: 'Radiation today: CALM \u{1f642} The crew is safe without the shield.', cor: CORES_NIVEL[0], negrito: true },
-        { icone: '\u{1f50b}', texto: `You have ${n} batteries today. Share them between the rooms!`, cor: '#86efac', negrito: true },
-        ...(enf ? [{ icone: '\u{1f915}', texto: `${enf} astronaut${enf > 1 ? 's are' : ' is'} in the infirmary, so there ${enf > 1 ? 'are' : 'is'} ${enf} less \u{1f50b}.`, cor: '#fca5a5' }] : []),
+          ? { icone: 'radiation', texto: `Radiation today: ${NIVEIS[d.nivel]}! Give the Radiation Shield ${d.nivel} batteries to keep the crew safe.`, cor: CORES_NIVEL[d.nivel], negrito: true }
+          : { icone: 'radiation', texto: 'Radiation today: CALM. The crew is safe without the shield.', cor: CORES_NIVEL[0], negrito: true },
+        { icone: 'energy', texto: `You have ${n} batteries today. Share them between the rooms!`, cor: '#86efac', negrito: true },
+        ...(enf ? [{ icone: 'medical', texto: `${enf} astronaut${enf > 1 ? 's are' : ' is'} in the infirmary, so you have ${enf} fewer batteries.`, cor: '#fca5a5' }] : []),
         ...(sessao.mundo === 'lua' ? ['Optional rover: bring 1 battery from the Battery Bank to drive all day. A new day needs a new battery.'] : []),
         ...(sessao.mundo === 'lua' && sessao.estado.dia === 1 ? [
           'First mission: pick up batteries at the Battery Bank, then take one to Life Support and one to the Rocket Workshop. Click a building or press E nearby.',
@@ -549,7 +552,7 @@ export class Interface extends Phaser.Scene {
         ] : []),
         ...(sessao.mundo === 'lua' && d.nivel >= 3 ? [{ texto: `Emergency: ${PRAZO_TEMPESTADE_MS / 1000} seconds to deliver ${d.nivel} batteries to the Radiation Shield. The countdown starts when you press Go and continues during tasks. The pause menu stops it.`, cor: '#fde68a', negrito: true }] : []),
         ...frio,
-        ...(sup ? [{ icone: '\u{1f4e6}', texto: `Supply drop: ${sup.aviso}`, cor: '#fde68a', negrito: true }] : []),
+        ...(sup ? [{ icone: 'cargo', texto: `Supply drop: ${sup.aviso}`, cor: '#fde68a', negrito: true }] : []),
       ], [{ texto: 'GO!  \u25b6', acao: () => {
         sessao.novoDia(); this.irPara('dia');
         if (sup) this.entregaPendente = this.time.delayedCall(1200, () => sessao.emitir('suprimento', sup.tipo));
@@ -572,17 +575,17 @@ export class Interface extends Phaser.Scene {
       };
       const marte = sessao.mundo === 'marte';
       this.abrirPainel('Night report', COMPUTADOR, [
-        linha('\u{1f4a8}', 'Oxygen', e.oxigenio, u.antes.oxigenio, true, `${u.entregas.oxigenio} \u{1f50b} made air, the crew breathed ${C_().oxigenioPorNoite}.`),
-        linha('\u2622', 'Radiation dose', e.dose, u.antes.dose, false, desprotegido ? 'the shield was short of the storm.' : 'keep it low!'),
-        ...(u.frio ? [{ icone: '\u{1f525}', texto: `Heating: ${u.entregas.aquecimento} of ${u.frio} batteries${u.entregas.aquecimento < u.frio ? `: the cold cost ${(u.frio - u.entregas.aquecimento) * 10} oxygen.` : ': the machines stayed warm.'}`, cor: u.entregas.aquecimento < u.frio ? '#fca5a5' : '#86efac' }] : []),
-        linha(marte ? '\u{1f3d7}' : '\u{1f680}', sessao.cap.nomeMeta, e.meta, u.antes.meta, true, marte ? 'give \u{1f50b} to build the base!' : 'give \u{1f50b} to the Rocket Workshop to build it!'),
+        linha('oxygen', 'Oxygen', e.oxigenio, u.antes.oxigenio, true, `${u.entregas.oxigenio} batteries made air, the crew breathed ${C_().oxigenioPorNoite}.`),
+        linha('radiation', 'Radiation dose', e.dose, u.antes.dose, false, desprotegido ? 'the shield was short of the storm.' : 'keep it low!'),
+        ...(u.frio ? [{ icone: 'heating', texto: `Heating: ${u.entregas.aquecimento} of ${u.frio} batteries${u.entregas.aquecimento < u.frio ? `: the cold cost ${(u.frio - u.entregas.aquecimento) * 10} oxygen.` : ': the machines stayed warm.'}`, cor: u.entregas.aquecimento < u.frio ? '#fca5a5' : '#86efac' }] : []),
+        linha(marte ? 'construction' : 'rocket', sessao.cap.nomeMeta, e.meta, u.antes.meta, true, marte ? 'give batteries to build the base!' : 'give batteries to the Rocket Workshop to build it!'),
         desprotegido
-          ? { icone: '\u26a0\ufe0f', texto: `The shield needed ${desprotegido} more ${'\u{1f50b}'.repeat(desprotegido)}, so the crew got some radiation.`, cor: '#fde68a', negrito: true }
-          : { icone: '\u{1f6e1}', texto: 'The shield held! The crew is safe.', cor: '#86efac', negrito: true },
-        ...(perdido ? [{ icone: '\u{1f527}', texto: perdido.efeito === 'radiacao' ? `Nobody answered the radiation alarm: +${DOSE_ALARME} dose.` : `Nobody fixed the problem: ${perdido.aviso.replace(/^\S+\s/, '').replace('{nasa} ', '')}`, cor: '#fde68a' }] : []),
+          ? { icone: 'warning', texto: `The shield needed ${desprotegido} more batteries, so the crew got some radiation.`, cor: '#fde68a', negrito: true }
+          : { icone: 'shield', texto: 'The shield held! The crew is safe.', cor: '#86efac', negrito: true },
+        ...(perdido ? [{ icone: 'wrench', texto: perdido.efeito === 'radiacao' ? `Nobody answered the radiation alarm: +${DOSE_ALARME} dose.` : `Nobody fixed the problem: ${perdido.aviso.replace(/^\S+\s/, '').replace('{nasa} ', '')}`, cor: '#fde68a' }] : []),
         ...(u.danoTempestade ? [{ texto: `Solar storm impact: +${u.danoTempestade} radiation with ${u.bateriasTempestade}/${u.nivel} shield batteries.`, cor: '#fca5a5' }] : []),
         ...(sessao.mundo === 'lua' && sessao.diaCargaRover === u.antes.dia ? ['Rover: 1 battery powered your drives today. A new battery is needed tomorrow.'] : []),
-        { icone: '\u{1f4a1}', texto: u.fato, tamanho: 14 },
+        { icone: 'science', texto: u.fato, tamanho: 14 },
       ], [{ texto: r ? 'SEE THE RESULT  \u25b6' : 'NEXT MORNING  \u25b6', acao: () => this.irPara(r ? 'fim' : 'manha'), principal: true }]);
     } else if (f === 'fim') {
       const e = sessao.estado;
@@ -594,10 +597,10 @@ export class Interface extends Phaser.Scene {
         // Chapter 2 ends at Mars: the arrival and landing (Viagem), then chapter 3 on Mars.
         const pontos = [...sessao.pontos, pontuacao(e)];
         this.abrirPainel(r === 'vitoria' ? sessao.cap.vitoria[0] : r === 'sem-oxigenio' ? 'Out of oxygen' : r === 'radiacao' ? 'Too much radiation' : 'The ship missed Mars', CONTROLE, [
-          { icone: r === 'vitoria' ? '\u{1f389}' : '\u{1f614}', texto: r === 'vitoria' ? sessao.cap.vitoria[1] : sessao.cap.metaIncompleta, negrito: true },
-          { icone: '\u2b50', texto: `Chapter score: ${pontuacao(e)}  (oxygen ${Math.round(e.oxigenio)} + health ${Math.round(100 - e.dose)} + trip ${Math.round(e.meta)})`, cor: '#fde047', negrito: true },
-          ...sessao.cap.licoes.map((l) => ({ icone: '\u{1f4a1}', texto: l, tamanho: 14 })),
-          { icone: '\u{1f4ca}', texto: `Real data: ${sessao.cap.dados.nota}`, cor: '#94a3b8', tamanho: 12 },
+          { icone: r === 'vitoria' ? 'success' : 'failure', texto: r === 'vitoria' ? sessao.cap.vitoria[1] : sessao.cap.metaIncompleta, negrito: true },
+          { icone: 'star', texto: `Chapter score: ${pontuacao(e)}  (oxygen ${Math.round(e.oxigenio)} + health ${Math.round(100 - e.dose)} + trip ${Math.round(e.meta)})`, cor: '#fde047', negrito: true },
+          ...sessao.cap.licoes.map((l) => ({ icone: 'science', texto: l, tamanho: 14 })),
+          { icone: 'data', texto: `Real data: ${sessao.cap.dados.nota}`, cor: '#94a3b8', tamanho: 12 },
         ], r === 'vitoria'
           ? [{ texto: 'Build ship', acao: () => this.scene.launch('NaveTarefa', { aoConcluir: () => this.mensagem('Ship route complete', '#86efac') }) },
              { texto: 'Land on Mars  ▶', acao: () => { this.fecharPainel(); this.scene.launch('Viagem', { etapa: 'chegada', aoTerminar: () => iniciarMarte3D(this, e.dose, pontos) }); }, principal: true }]
@@ -608,20 +611,20 @@ export class Interface extends Phaser.Scene {
       if (marte) {
         const total = [...sessao.pontos, pontuacao(e)].reduce((a, b) => a + (b ?? 0), 0);
         this.abrirPainel(titulo, CONTROLE, [
-          { icone: r === 'vitoria' ? '\u{1f389}' : '\u{1f614}', texto: r === 'vitoria' ? sessao.cap.vitoria[0] : sessao.cap.metaIncompleta, negrito: true },
-          ...(r === 'vitoria' ? [{ icone: '\u{1f31f}', texto: sessao.cap.vitoria[1] }] : []),
-          { icone: '\u2b50', texto: `Chapter score: ${pontuacao(e)}  (oxygen ${Math.round(e.oxigenio)} + health ${Math.round(100 - e.dose)} + base ${Math.round(e.meta)})`, cor: '#fde047', negrito: true },
-          ...(r === 'vitoria' ? [{ icone: '\u{1f3c6}', texto: `Total score: ${total} of ${300 * CAPITULOS.length}`, cor: '#f8fafc', negrito: true }] : []),
-          ...sessao.cap.licoes.map((l) => ({ icone: '\u{1f4a1}', texto: l, tamanho: 14 })),
-          { icone: '\u{1f4ca}', texto: `Real data: ${sessao.cap.dados.nota}`, cor: '#94a3b8', tamanho: 12 },
+          { icone: r === 'vitoria' ? 'success' : 'failure', texto: r === 'vitoria' ? sessao.cap.vitoria[0] : sessao.cap.metaIncompleta, negrito: true },
+          ...(r === 'vitoria' ? [{ icone: 'star', texto: sessao.cap.vitoria[1] }] : []),
+          { icone: 'star', texto: `Chapter score: ${pontuacao(e)}  (oxygen ${Math.round(e.oxigenio)} + health ${Math.round(100 - e.dose)} + base ${Math.round(e.meta)})`, cor: '#fde047', negrito: true },
+          ...(r === 'vitoria' ? [{ icone: 'star', texto: `Total score: ${total} of ${300 * CAPITULOS.length}`, cor: '#f8fafc', negrito: true }] : []),
+          ...sessao.cap.licoes.map((l) => ({ icone: 'science', texto: l, tamanho: 14 })),
+          { icone: 'data', texto: `Real data: ${sessao.cap.dados.nota}`, cor: '#94a3b8', tamanho: 12 },
         ], [{ texto: 'PLAY AGAIN FROM THE MOON', acao: () => location.reload(), principal: true }]);
         return;
       }
       const jogarDeNovo = { texto: r === 'vitoria' ? 'PLAY CHAPTER 1 AGAIN' : 'PLAY AGAIN', acao: () => { sessao.reiniciar(); this.scene.get('Superficie').scene.restart(); this.irPara('inicio'); } };
       this.abrirPainel(titulo, CONTROLE, [
-        { icone: '\u2b50', texto: `${pontuacao(e)} points`, cor: '#fde047', negrito: true, tamanho: 24 },
-        { icone: '\u{1f4ca}', texto: `\u{1f4a8} Oxygen ${Math.round(e.oxigenio)}  +  \u2764\ufe0f Health ${Math.round(100 - e.dose)}  +  \u{1f680} Rocket ${Math.round(e.meta)}`, negrito: true },
-        { icone: '\u{1f4a1}', texto: 'Every battery was a choice: power for one room is power taken from another. Real astronauts plan like this too!' },
+        { icone: 'star', texto: `${pontuacao(e)} points`, cor: '#fde047', negrito: true, tamanho: 24 },
+        { icone: 'data', texto: `Oxygen ${Math.round(e.oxigenio)}  +  Health ${Math.round(100 - e.dose)}  +  Rocket ${Math.round(e.meta)}`, negrito: true },
+        { icone: 'science', texto: 'Every battery was a choice: power for one room is power taken from another. Real astronauts plan like this too!' },
       ], r === 'vitoria'
         ? [jogarDeNovo, { texto: 'Board the ship  ▶', acao: () => this.embarcar(e), principal: true }]
         : [{ ...jogarDeNovo, principal: true }]);
@@ -693,7 +696,10 @@ export class Interface extends Phaser.Scene {
     this.aviso?.destroy();   // an old notice would sit on top of the panel
     this.aviso = undefined;
     const W = this.scale.width, H = this.scale.height;
-    const itens = partes.map((p0) => typeof p0 === 'string' ? { texto: p0 } : p0);
+    const itens = partes.map((p0) => {
+      const p = typeof p0 === 'string' ? { texto: p0 } : p0;
+      return { ...p, texto: textoDoJogo(p.texto), icone: p.icone ? resolverIcone(p.icone) : undefined };
+    });
     const estilo = (p: (typeof itens)[number], k: number, util: number) => letra((p.tamanho ?? 16) * k, p.cor ?? '#ffffff', {
       wordWrap: { width: util, useAdvancedWrap: true }, fontStyle: p.negrito ? '700' : '500', lineSpacing: 2 * k,
     });
@@ -742,8 +748,7 @@ export class Interface extends Phaser.Scene {
         .lineStyle(2 * k, 0xffffff, 0.85).strokeRoundedRect(0, 0, w, h, { tl: canto, tr: r, br: r, bl: r });
       if (i === 0) g.fillStyle(CONTORNO, 0.96).fillTriangle(1 * k, 1 * k, -9 * k, 1 * k, 1 * k, 12 * k);
       const c = this.add.container(bx, y, [g, t]).setVisible(false);
-      if (p.icone === '☢') c.add(criarIconeRadiacao(this, 16 * k + 14 * k, h / 2, 26 * k));
-      else if (p.icone) c.add(this.add.text(16 * k + 14 * k, h / 2, p.icone, letra(24 * k)).setOrigin(0.5));
+      if (p.icone) c.add(criarIconeJogo(this, 16 * k + 14 * k, h / 2, p.icone, 32 * k));
       y += h + 10 * k;
       return c;
     });

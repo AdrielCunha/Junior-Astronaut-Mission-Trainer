@@ -48,7 +48,7 @@ test**. Scenes only read input, call the engine and draw.
 | `src/cenas/CuriosidadeRover.ts` | First-boarding fact card; pauses the world and storm while reading. |
 | `src/cenas/ambiente.ts` | Astronaut footprints, rover tire tracks, and surface dust for each world. |
 | `src/dados/roverApollo.ts` | Short English Apollo LRV facts and their source. |
-| `public/icons/` | HUD resource and warning images, mapped in `src/dados/icones.ts`. |
+| `public/icons/lunar-v6/` | User-selected `lunar_icons_v6` pack: eight PNG textures plus their original SVG sources and preview. Mapped in `src/dados/icones.ts`; the backpack represents carried batteries. |
 | `src/cenas/desenho.ts` | Code-drawn extras: foundations on slopes, the commander's shadow and batteries, cargo. |
 | `src/cenas/globo.ts` | Globe math for the Moon view (spin on a date, base pin, Sun over the base). |
 | `src/cenas/luaShader.ts` | The Moon drawn live by the GPU (toon shading, relief, outline). |
