@@ -26,18 +26,19 @@ export type DadosRadar = { aoComecar: () => void; aoExplorar: () => void; contin
 // Edit the credits here: [section, [role, name][]]. An empty role centers the name (the team).
 const CREDITOS: [string, [string, string][]][] = [
   ['THE TEAM · STAR LEAGUE', [
-    ['Team Owner', 'Adriel dos Santos Cunha (@adrielcunha)'],
-    ['Team Member', 'Andrea da Paixão Ayala (@andreapayala)'],
-    ['Team Member', 'Felipe Sabino Cota (@felipescola)'],
-    ['Team Member', 'Juliana Elen Silva Oliveira (@jeso)'],
-    ['Team Member', 'Matheus Coelho (@matheus-fsc)'],
-    ['Team Member', 'Maria Paula Moreira Rocha (@mariapaulaa)']
+    ['', 'Adriel dos Santos Cunha (@adrielcunha)'],
+    ['', 'Andrea da Paixão Ayala (@andreapayala)'],
+    ['', 'Felipe Sabino Cota (@felipescola)'],
+    ['', 'Juliana Elen Silva Oliveira (@jeso)'],
+    ['', 'Matheus Coelho (@matheus-fsc)'],
+    ['', 'Maria Paula Moreira Rocha (@mariapaulaa)']
   ]],
   ['SPECIAL THANKS', [
-    ['Event', 'NASA International Space Apps Challenge 2026 (Itabira - MG)'],
+    ['Event', 'NASA Space Apps 2026 (Itabira - MG)'],
     ['Local Lead', 'Lucas Assunção Zanon (@Lucaszanon)'],
     ['Host Venue', 'CEU UNIFEI - Campus Itabira'],
-    ['Event Page', 'spaceappschallenge.org/2026/local-events/itabira/']
+    ['Event Page', 'spaceappschallenge.org/2026/'],
+    ['', 'local-events/itabira/']
   ]],
   ['NASA DATA', [
     ['Solar storms', 'DONKI · ENLIL'],
@@ -54,7 +55,8 @@ const CREDITOS: [string, [string, string][]][] = [
     ['Code', 'TypeScript · Vite'],
     ['3D models', 'Blender'],
     ['Font', 'Fredoka · SIL OFL'],
-    ['Music', '(add the author)']
+    ['Music', 'Beneath the Silver Tide'],
+    ['', 'Lunar Odyssey Theme'],
   ]],
   ['AI TOOLS', [
     ['Coding help', 'Claude · Anthropic']
