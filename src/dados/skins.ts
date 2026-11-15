@@ -18,3 +18,7 @@ export const chaveSkin = (id: string) => `astronauta_${SKINS.some((s) => s.id ==
 // one column, the same 8 directions and frame as the walk sheet, next to it as <file>_sentado.png.
 export const chaveSkinSentado = (id: string) => `${chaveSkin(id)}_sentado`;
 export const arquivoSentado = (arquivo: string) => arquivo.replace(/\.png$/, '_sentado.png');
+
+// Carrying sheets include both forward arms and the battery, with the same 8 x 9 frames.
+export const chaveSkinCarga = (id: string) => `${chaveSkin(id)}_carga`;
+export const arquivoSkinCarga = (id: string) => `lua/astronaut_carga_${SKINS.some(s => s.id === id) ? id : SKIN_PADRAO}.png`;

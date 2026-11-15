@@ -24,7 +24,7 @@ import { entregar as entregarRegra, custo, pronto } from '../regras';
 import { empuxoDePouso, suprimentoDoDia, SUPRIMENTOS } from '../engine/suprimentos';
 import { sortearEvento, eventoPorDemora, DOSE_ALARME, DEMORA_PASSO } from '../engine/eventos';
 import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte, ZOOM_MAX } from './sessao';
-import { fundacao, sombraECarga } from './desenho';
+import { fundacao, sombraAstronauta } from './desenho';
 import { VOO as voo } from './qualidade';
 import { escolher } from '../tarefas';
 import { criarIconeJogo, fundoRotulo, letra, rotuloMapa } from '../tarefas/estilo';
@@ -35,7 +35,7 @@ import { origemBaterias, modeloBancoBaterias } from '../engine/estacaoSolar';
 import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 import dadosViagem from '../dados/viagem.json';
-import { chaveSkin, chaveSkinSentado } from '../dados/skins';
+import { chaveSkin, chaveSkinSentado, chaveSkinCarga } from '../dados/skins';
 import { LAYOUT } from '../dados/layout';
 import { DECORACAO, DECORACAO_MARTE, comoTipo, type DecoColocada } from '../dados/decoracao';
 import { CHAVE_FOGUETE } from './Chegada';
@@ -126,8 +126,13 @@ export class Superficie extends Phaser.Scene {
   private readonly controlesObservados = new Set<'movimento' | 'pulo'>();
   private corpo!: Corpo;
   private gCaminhos!: Phaser.GameObjects.Graphics;
-  private gAstronauta!: Phaser.GameObjects.Graphics;   // shadow + carried batteries
+  private gAstronauta!: Phaser.GameObjects.Graphics;   // ground shadow; inventory and carried item have their own objects
   private comandante!: Phaser.GameObjects.Sprite;
+  private cargaHud!: Phaser.GameObjects.Container;
+  private cargaFundo!: Phaser.GameObjects.Graphics;
+  private cargaTexto!: Phaser.GameObjects.Text;
+  private ultimaCarga = -1;
+  private cargaMudou = -1e9;
   private sombraBandeira!: Phaser.GameObjects.Graphics;
   private mascaraBandeira!: Phaser.GameObjects.Graphics;
   private bandeira!: Phaser.GameObjects.Image;         // flag marking the chosen destination
@@ -335,6 +340,11 @@ export class Superficie extends Phaser.Scene {
     this.gAstronauta = this.add.graphics();
     this.comandante = this.add.sprite(0, 0, chaveSkin(video.skin), 0).setOrigin(sprite.pe[0] / sprite.frame, sprite.pe[1] / sprite.frame)
       .setScale(sprite.escala);
+    this.cargaFundo=this.add.graphics();
+    this.cargaTexto=this.add.text(0,0,'',fonte(15,'#ffffff',{fontStyle:'bold',stroke:'#0b1a4a',strokeThickness:2})).setOrigin(0.5);
+    this.cargaHud=this.add.container(0,0,[this.cargaFundo,this.cargaTexto]).setVisible(false);
+    this.ultimaCarga=-1; this.cargaMudou=-1e9;
+    this.mapa.add(this.cargaHud);
     const bInfo = bandeiras[this.planetaBandeira];
     this.bandeira = this.add.image(0, 0, `bandeira_${this.planetaBandeira}`)
       .setOrigin(bInfo.ancora[0] / bInfo.w, bInfo.ancora[1] / bInfo.h)
@@ -1987,7 +1997,8 @@ export class Superficie extends Phaser.Scene {
     this.comandante.setVisible(true);
     this.gAstronauta.setVisible(!dirigindo);
     // On the rover: the seated sheet (the same model, legs forward), whole, hips on the seat.
-    const textura = dirigindo ? chaveSkinSentado(video.skin) : chaveSkin(video.skin);
+    const comCarga = sessao.carregando > 0 && !dirigindo && this.textures.exists(chaveSkinCarga(video.skin));
+    const textura = dirigindo ? chaveSkinSentado(video.skin) : comCarga ? chaveSkinCarga(video.skin) : chaveSkin(video.skin);
     if (this.comandante.texture.key !== textura) this.comandante.setTexture(textura);
     if (dirigindo) {
       const r = sessao.rover!;
@@ -1998,13 +2009,14 @@ export class Superficie extends Phaser.Scene {
       this.comandante.setFrame(this.direcao)
         .setPosition(assento.x,assento.y+(sprite.pe[1]-LINHA_QUADRIL_SENTADO)*sprite.escala)
         .setDepth(profundidade(r.corpo.x+0.7,r.corpo.y+0.7)+0.1);
+      this.atualizarCarga();
       return;
     }
     const k = this.corpo;
     const escala = Math.abs(P.ez[1]) / 36;
     const pe = paraTela(P, k.x, k.y, k.z);
     const g = this.gAstronauta.clear();
-    sombraECarga(g, pe, paraTela(P, k.x, k.y, sessao.terreno.altura(k.x, k.y)), escala, sessao.carregando);
+    sombraAstronauta(g, pe, paraTela(P, k.x, k.y, sessao.terreno.altura(k.x, k.y)), escala);
     // Sprite: row = facing (8 directions), column 0 = standing, 1.. = Moon hop cycle.
     const v = Math.hypot(k.vx, k.vy);
     if (v > 0.3) this.direcao = (Math.round(Math.atan2(-k.vy, k.vx) / (Math.PI / 4)) + 8) % 8;
@@ -2012,5 +2024,39 @@ export class Superficie extends Phaser.Scene {
     this.comandante.setPosition(pe.x, pe.y).setFrame(this.direcao * sprite.colunas + col);
     const d = profundidade(k.x + 0.3, k.y + 0.3);
     g.setDepth(d - 1); this.comandante.setDepth(d);
+    this.atualizarCarga();
   }
+  // World-anchored inventory, with a stable readable size as the ground camera zooms.
+  private atualizarCarga() {
+    const n=sessao.carregando, zoom=this.cameras.main.zoom;
+    const visivel=n>0 && this.comandante.visible;
+    this.cargaHud.setVisible(visivel);
+    if (!visivel) return;
+    if (n!==this.ultimaCarga) {
+      if (this.ultimaCarga>=0) this.cargaMudou=this.time.now;
+      this.ultimaCarga=n;
+      // One battery per battery in hand; past 5 the row would get too wide, so show one icon + "×N".
+      const icones=n<=5?n:1, bw=12, gap=5, txtW=n>5?28:0;
+      const W=icones*bw+(icones-1)*gap+txtW+18, H=30, x0=-W/2, topo=-H-7;
+      const g=this.cargaFundo.clear();
+      // Speech-bubble with a tail pointing down at the commander: "these are in my hands".
+      g.fillStyle(0x020617,.35).fillRoundedRect(x0+2,topo+3,W,H,10);
+      g.fillStyle(0x0b1a4a,.94).fillRoundedRect(x0,topo,W,H,10).fillTriangle(-6,-8,6,-8,0,0);
+      g.lineStyle(2,0x7dd3fc).strokeRoundedRect(x0,topo,W,H,10);
+      g.lineBetween(-6,-7,0,0).lineBetween(6,-7,0,0);
+      g.fillStyle(0x0b1a4a).fillRect(-5,-9,10,3);
+      for (let i=0;i<icones;i++) {
+        const bx=x0+9+i*(bw+gap), by=topo+8;
+        g.fillStyle(0xe2e8f0).fillRect(bx+3,by-2,bw-6,3).fillRoundedRect(bx,by,bw,17,2);
+        g.fillStyle(0x4ade80).fillRect(bx+2,by+2,bw-4,13);
+        g.fillStyle(0xfde047).fillTriangle(bx+7,by+3,bx+3,by+9,bx+6,by+9).fillTriangle(bx+6,by+8,bx+9,by+8,bx+5,by+14);
+      }
+      this.cargaTexto.setVisible(n>5).setText(`×${n}`).setPosition(x0+W-9-txtW/2,topo+H/2);
+    }
+    // Small pop when the count changes, so picking up / delivering a battery is noticed.
+    const t=(this.time.now-this.cargaMudou)/260, pop=t>=0&&t<1?1+.22*Math.sin(t*Math.PI):1;
+    this.cargaHud.setScale(pop/Math.max(.35,zoom)).setPosition(this.comandante.x,this.comandante.y-42-4/zoom).setDepth(900_001);
+
+  }
+
 }
