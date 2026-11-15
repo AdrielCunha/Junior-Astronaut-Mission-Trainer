@@ -795,7 +795,7 @@ export class Espaco extends Phaser.Scene {
     if (n >= 2.08) return false;
     if (!sessao.voo) this.definirLegenda(
       `Mars · ${dataBonita(t)} · your base in ${JEZERO.nome} (${JEZERO.lat.toFixed(1)}° N, ${JEZERO.lon.toFixed(1)}° E), where NASA's Perseverance rover landed in 2021\n` +
-      `Mars is about half as wide as Earth. A day there, a sol, lasts ${Math.floor(SOL_MS / 3600000)} h ${Math.round((SOL_MS % 3600000) / 60000)} min. Phobos and Deimos are its two small moons.`);
+      `Mars is about half as wide as Earth. A day there, a sol, lasts ${Math.floor(SOL_MS / 3600000)} h ${Math.floor((SOL_MS % 3600000) / 60000)} min. Phobos and Deimos are its two small moons.`);
     return true;
   }
 

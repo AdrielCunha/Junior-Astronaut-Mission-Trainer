@@ -131,7 +131,7 @@ export class AquecimentoTarefa extends Phaser.Scene {
         acabou = true;
         tocarSfx('ligar');
         msg('Warm and cozy!', '#86efac');
-        vitoria(this, janela, JANELA_W, JANELA_H, 'Warm and cozy!', 'Spacecraft wear shiny gold blankets to keep heat in. A Mars night can drop to −73 °C, colder than any freezer!', this.aoConcluir);
+        vitoria(this, janela, JANELA_W, JANELA_H, 'Warm and cozy!', 'Spacecraft are wrapped in shiny gold blankets to keep heat in. Curiosity measured a Mars night of −98 °C, colder than any freezer!', this.aoConcluir);
       } else msg(`Good! ${frioRestante(estado)} cold spot${frioRestante(estado) > 1 ? 's' : ''} left.`, '#86efac');
     });
     this.events.once('shutdown', () => { this.input.off('dragstart'); this.input.off('drag'); this.input.off('dragend'); });

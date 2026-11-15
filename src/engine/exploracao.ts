@@ -99,14 +99,14 @@ export function criarExploracao(tipo: TipoExpedicao, c: Contexto, sorte: () => n
     const p = pontoNoAnel(c, a0, 20, 28, sorte);
     return p && base('amostra', [p, { x: c.casa.x, y: c.casa.y }], {
       id: 'amostra', titulo: 'Lost sample', destino: c.casa.nome, escondidoAte: 1,
-      fato: 'Apollo crews brought back 382 kg of Moon rock. Scientists still study it today!',
+      fato: 'Apollo crews brought back 382 kg of Moon rocks and soil. Scientists still study them today!',
     });
   }
   if (tipo === 'balizas') {
     const pontos = espalhar(c, 3 + Math.floor(sorte() * 2), a0, 17, 27, sorte);   // 3 or 4 beacons
     return pontos ? base('balizas', pontos, {
       id: 'balizas', titulo: 'Relight beacons', destino: 'the beacons', livre: true, segurar: 1.6,
-      fato: 'Apollo left laser mirrors on the Moon. Scientists still bounce lasers off them to measure how far away it is!',
+      fato: 'Apollo left laser reflectors on the Moon. Scientists still bounce lasers off them to measure how far away it is!',
     }) : null;
   }
   if (tipo === 'gelo') {
@@ -121,7 +121,7 @@ export function criarExploracao(tipo: TipoExpedicao, c: Contexto, sorte: () => n
     return p && base('gelo', [p], {
       id: 'gelo', titulo: 'Ice scout', destino: marte ? 'the ice' : 'the dark crater', escondidoAte: 1, cena: 'ScannerGeloTarefa',
       fato: marte
-        ? 'In 2008 NASA\'s Phoenix lander dug into Mars and found water ice just under the dust. Ice can become water and oxygen!'
+        ? 'In 2008 NASA\'s Phoenix lander dug into Mars and found water ice just below the surface. Ice can become water and oxygen!'
         : 'In 2009 NASA found water ice in a dark crater near the Moon\'s south pole. Ice can become water and oxygen!',
     });
   }
@@ -146,7 +146,7 @@ export function criarExploracao(tipo: TipoExpedicao, c: Contexto, sorte: () => n
     const semente = Math.floor(sorte() * 1000);
     return base('redemoinho', [{ ...origem }], {
       id: 'redemoinho', titulo: 'Dust devil', destino: 'the dust devil', raio: 2.6, segurar: 3, movel: { origem, semente },
-      fato: 'Dust devils on Mars once blew the dust off the solar panels of the Spirit and Opportunity rovers, giving them more power!',
+      fato: "Martian winds once cleaned dust off the solar panels of NASA's Spirit rover, giving it more power!",
     });
   }
   if (tipo === 'vazamentos') {
@@ -160,7 +160,7 @@ export function criarExploracao(tipo: TipoExpedicao, c: Contexto, sorte: () => n
     const pontos = pontosNoConves(c, 1, sorte);
     return pontos && base('ferramenta', [pontos[0], { x: c.casa.x, y: c.casa.y }], {
       id: 'ferramenta', titulo: 'Lost wrench', destino: c.casa.nome, escondidoAte: 1, raio: 1.2, escala: 0.35,
-      fato: 'In 2008 an astronaut lost a tool bag on a spacewalk. It circled the Earth for months, and people could see it with binoculars!',
+      fato: 'In 2008 an astronaut lost a tool bag on a spacewalk. It circled the Earth for more than eight months, and skywatchers filmed it from the ground!',
     });
   }
   return null;

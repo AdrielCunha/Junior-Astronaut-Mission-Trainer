@@ -299,7 +299,7 @@ export class MarteVista extends Phaser.Scene {
     const minutos = (dist * LUZ_SEGUNDOS_AU) / 60;
     this.legenda.setText(z < 1.2
       ? `Your base: ${JEZERO.nome}, where NASA's Perseverance landed in 2021\n` +
-        `Mars is half as wide as Earth. A day (a sol) lasts ${Math.floor(DIA_MARTE_MS / 3600000)} h ${Math.round((DIA_MARTE_MS % 3600000) / 60000)} min.`
+        `Mars is half as wide as Earth. A day (a sol) lasts ${Math.floor(DIA_MARTE_MS / 3600000)} h ${Math.floor((DIA_MARTE_MS % 3600000) / 60000)} min.`
       : `${dataBonita(t)} · real planet positions from NASA JPL\n` +
         `Earth is ${(dist * 149.6).toFixed(0)} million km away. A message takes ${minutos.toFixed(0)} minutes to get there!`);
   }

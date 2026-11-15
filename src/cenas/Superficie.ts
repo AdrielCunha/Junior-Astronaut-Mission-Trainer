@@ -6,6 +6,7 @@
 // glides to the framing of the flight's first frame and the terrain dissolves into it (Espaco
 // plays the frames) while the base stays visible, live.
 import Phaser from 'phaser';
+import { t } from '../idioma';
 import paletaLua from '../dados/paleta_lua.json';
 import paletaMarte from '../dados/paleta_marte.json';
 // Ground colors for dust, paths and the flag's shadow: set in create() for the current world.
@@ -1735,7 +1736,7 @@ export class Superficie extends Phaser.Scene {
       const terra = pulo(G_TERRA);
       if (sessao.mundo === 'nave') {
         sessao.emitir('mensagem',
-          '🧑 No gravity here! Magnet boots keep you on the floor.', '#93c5fd');
+          '🧑 Floating in space! Magnet boots keep you on the floor.', '#93c5fd');
       } else {
         const mundo = sessao.mundo === 'marte' ? { nome: 'Mars', g: G_MARTE, cor: '#fdba74' } : { nome: 'Moon', g: G_LUA, cor: '#93c5fd' };
         const vezes = pulo(mundo.g).altura / terra.altura;

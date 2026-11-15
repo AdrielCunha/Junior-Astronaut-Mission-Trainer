@@ -50,7 +50,7 @@
       "dosePico": 5.6,
       "curto": "A big X4.5 flare on the Sun!",
       "aviso": "Big flash! An X4.5 flare at 06:35 UTC.",
-      "fato": "Sunspots are dark, cooler spots on the Sun. Big flares start there."
+      "fato": "Sunspots are dark, slightly cooler spots on the Sun. Flares often start near them."
     },
     {
       "data": "2024-05-07",
@@ -76,7 +76,7 @@
       "dosePico": 6.3,
       "curto": "The Sun threw a giant cloud (a CME)!",
       "aviso": "Watch out: three X1.0 flares today. At 22:24 UTC the Sun threw a cloud of solar material into space at 1,257 km/s. It is called a CME.",
-      "fato": "A CME is a giant cloud thrown by the Sun. It takes 1 to 3 days to reach the Moon."
+      "fato": "A CME is a giant cloud thrown by the Sun. It takes 1 to 3 days to reach Earth and the Moon."
     },
     {
       "data": "2024-05-09",
@@ -89,7 +89,7 @@
       "dosePico": 21.8,
       "curto": "NASA detected fast particles from the Sun!",
       "aviso": "Storm alert! An X2.2 flare at 09:13 UTC. At 13:59 UTC NASA detected fast particles from the Sun.",
-      "fato": "Solar particles are super fast. Thin walls cannot stop them!"
+      "fato": "Solar particles are super fast. Thicker walls and water help stop them!"
     },
     {
       "data": "2024-05-10",
