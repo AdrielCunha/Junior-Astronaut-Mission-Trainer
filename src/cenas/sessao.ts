@@ -94,6 +94,7 @@ class Sessao {
   posicaoAstronauta: Corpo | null = null;
   partidaRestaurada = false;
   abastecendoRover = false;
+  editandoBase = false;
   ultimoDia: RelatorioDia | null = null;
   danoTempestade = 0;
   bateriasTempestade = 0;
@@ -109,7 +110,7 @@ class Sessao {
       estado:this.estado,entregas:this.entregas,pontos:this.pontos,carregando:this.carregando,noHabitat:this.noHabitat,
       tarefasHoje:[...this.tarefasHoje],ultimaTarefa:this.ultimaTarefa,energiaHoje:this.energiaHoje,
       curiosidadeRoverVista:this.curiosidadeRoverVista,diaCargaRover:this.diaCargaRover,rover:this.rover,astronauta:this.posicaoAstronauta,
-      modulos:this.grade.lista.map(c=>({id:c.id,tipo:c.tipo.id,gx:c.gx,gy:c.gy})),decoracao:this.grade.deco,
+      modulos:this.grade.lista.map(c=>({id:c.id,tipo:c.tipo.id,gx:c.gx,gy:c.gy,rotacao:c.rotacao??0})),decoracao:this.grade.deco,
       tempestade:{restante:this.tempestade.restante,status:this.tempestade.status},danoTempestade:this.danoTempestade,
       bateriasTempestade:this.bateriasTempestade,desfechoPendente:this.desfechoPendente,ultimoDia:this.ultimoDia,
       evento:this.evento ? {id:this.evento.def.id,construcaoId:this.evento.construcaoId}:null,
@@ -241,7 +242,7 @@ class Sessao {
 
   reiniciar() {
     this.posicaoAstronauta=null; this.ultimoDia=null; this.danoTempestade=0; this.bateriasTempestade=0;
-    this.desfechoPendente=null; this.abastecendoRover=false; this.partidaRestaurada=false; this.tempoSalvar=0;
+    this.desfechoPendente=null; this.abastecendoRover=false; this.editandoBase=false; this.partidaRestaurada=false; this.tempoSalvar=0;
     this.grade = new Grade(this.terreno);
     this.fase = 'inicio';
     this.tempestade.iniciar(0);
