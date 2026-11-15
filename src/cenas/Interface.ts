@@ -51,6 +51,7 @@ export class Interface extends Phaser.Scene {
   private capsula!: { caixa: Phaser.GameObjects.Container; atualizar: (valores: number[]) => void };
   private layout!: ReturnType<typeof calcularLayoutHud>;
   private objetivo!: Phaser.GameObjects.Container;
+  private estrelaObjetivo!: ReturnType<typeof criarIconeJogo>;
   private textos: Record<string, Phaser.GameObjects.Text> = {};
   private painel: Phaser.GameObjects.GameObject[] = [];
   private acaoPrincipal?: () => void;
@@ -83,8 +84,6 @@ export class Interface extends Phaser.Scene {
   private dicas!: ReturnType<typeof criarDicasRecolhiveis>;
   private readonly preferenciaDicas = new PreferenciaDicas();
   private btMenu!: Phaser.GameObjects.Container;
-  private btEditarBase!: Phaser.GameObjects.Container;
-  private dicaEditarBase!: Phaser.GameObjects.Text;
   private timersChat: Phaser.Time.TimerEvent[] = [];
   private guia?: Guia;
   private avisoEvento?: AvisoEvento;
@@ -179,7 +178,6 @@ export class Interface extends Phaser.Scene {
     kb.on('keydown-H', () => sessao.irPara(U_INICIAL));
     kb.on('keydown-M', () => { if (!configuracoesAbertas) alternarMudo(); });
     kb.on('keydown-ESC', () => this.abrirMenu());
-    kb.on('keydown-B', () => this.abrirEditor());
     kb.on('keydown-ENTER', () => { if (!configuracoesAbertas) this.acaoPrincipal?.(); });
 
     sessao.ouvir(this, 'mensagem', (s, cor) => this.mensagem(s, cor));
@@ -247,10 +245,6 @@ export class Interface extends Phaser.Scene {
 
   update(_tempo: number, dt: number) {
     this.atualizarVisibilidadeContadores();
-    this.btEditarBase.setVisible((sessao.fase==='inicio' || sessao.fase==='dia') && sessao.mundo!=='nave' && sessao.vista==='chao'
-      && !sessao.emTarefa && !sessao.abastecendoRover && !sessao.partida && !sessao.voo && !sessao.transicao
-      && !configuracoesAbertas && !this.scene.isActive('Radar') && !this.scene.isActive('MenuJogo') && !sessao.editandoBase);
-    if(!this.btEditarBase.visible)this.dicaEditarBase.setVisible(false);
     this.cortina.setAlpha(sessao.transicao ? Math.sin(Math.PI * sessao.transicao.t) : 0);
     if (this.scene.isVisible() && !sessao.emTarefa && !configuracoesAbertas && !sessao.transicao && this.preferenciaDicas.passo(dt)) this.dicas.definir(true);
     this.atualizarTempestade(dt);
@@ -459,11 +453,12 @@ export class Interface extends Phaser.Scene {
     this.capsula = movel ? criarCapsulaRecursosMovel(this, l.capsula, u, rotulosRecursos) : criarCapsulaRecursos(this, l.capsula, u, rotulosRecursos);
     const o = l.objetivo;
     this.objetivo = criarPilula(this, o.x, o.y, o.w, o.h, u, 0xfde047);
-    const estrela = criarIconeJogo(this, pad + px(10), Math.round(o.h / 2), 'star', px(24));
+    const estrela = this.estrelaObjetivo = criarIconeJogo(this, pad + px(10), Math.round(o.h / 2), 'star', px(24));
     const tamanhoObjetivo = movel ? 15 : 12;
-    this.textos.tarefa = this.add.text(px(30), Math.round(o.h / 2), '', letra(px(tamanhoObjetivo), '#0b1a4a', {
-      fontStyle: '700', wordWrap: { width: movel ? 0 : o.w - px(30) - pad }, lineSpacing: 0,
-    })).setOrigin(0, 0.5);
+    const inicioTexto = px(30), larguraTexto = Math.max(1, o.w - inicioTexto - pad);
+    this.textos.tarefa = this.add.text(inicioTexto + larguraTexto / 2, Math.round(o.h / 2), '', letra(px(tamanhoObjetivo), '#0b1a4a', {
+      fontStyle: '700', align: 'center', wordWrap: { width: movel ? 0 : larguraTexto }, lineSpacing: 0,
+    })).setOrigin(0.5);
     this.objetivo.add([estrela, this.textos.tarefa]);
     // Pulse only the star; the second-row elements stay on the same baseline.
     if (!movimentoReduzido()) this.tweens.add({ targets: estrela, alpha: 0.45, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -474,32 +469,6 @@ export class Interface extends Phaser.Scene {
     const nivel = criarPilula(this, l.nivel.x, l.nivel.y, l.nivel.w, l.nivel.h, u);
     this.textos.altitude = this.add.text(Math.round(l.nivel.w / 2), Math.round(l.nivel.h / 2), '', letra(px(12), '#ffffff')).setOrigin(0.5);
     nivel.add(this.textos.altitude);
-    const caixaEditar=l.editar;
-    const dicaEditar=this.dicaEditarBase=this.add.text(caixaEditar.x-px(12),caixaEditar.y+caixaEditar.h/2,'Edit base · B',letra(px(13),'#ffffff',{
-      backgroundColor:'#17263f',padding:{x:px(10),y:px(7)},
-    })).setOrigin(1,0.5).setDepth(20).setVisible(false);
-    const editar=criarBotaoPilula(this,caixaEditar,u,'',()=>{dicaEditar.setVisible(false);this.abrirEditor();});
-    editar.texto.setVisible(false);
-    const fundoEditar=editar.caixa.list[0] as Phaser.GameObjects.Graphics;
-    const centroX=caixaEditar.w/2,centroY=caixaEditar.h/2,raio=Math.min(caixaEditar.w,caixaEditar.h)/2;
-    const desenharEditar=(sobre=false)=>{
-      fundoEditar.clear().fillStyle(0x07142c,0.65).fillCircle(centroX,centroY+px(3),raio+px(1))
-        .fillStyle(sobre?0x397cff:0x2563eb).fillCircle(centroX,centroY,raio)
-        .fillStyle(0x8bbaff,0.35).fillEllipse(centroX,centroY-raio*0.5,raio*1.45,raio*0.63)
-        .lineStyle(Math.max(2,px(3)),0xffffff).strokeCircle(centroX,centroY,raio);
-    };
-    desenharEditar();
-    const iconeEditar=this.add.graphics().fillStyle(0xffffff);
-    const ponto=(x:number,y:number)=>({x:centroX+px(x),y:centroY+px(y)});
-    iconeEditar.fillPoints([ponto(-8,4),ponto(3,-7),ponto(7,-3),ponto(-4,8)],true)
-      .fillPoints([ponto(4,-8),ponto(6,-10),ponto(10,-6),ponto(8,-4)],true)
-      .fillPoints([ponto(-9,5),ponto(-5,9),ponto(-10,10)],true);
-    editar.caixa.add(iconeEditar)
-      .setDepth(10).setData('acao','editar-base').setVisible(false);
-    const areaEditar=editar.caixa.list.find(o=>o.type==='Zone')!;
-    areaEditar.on('pointerover',()=>{desenharEditar(true);dicaEditar.setVisible(true);})
-      .on('pointerout',()=>{desenharEditar();dicaEditar.setVisible(false);});
-    this.btEditarBase=editar.caixa;
   }
 
   // ---------- HUD ----------
@@ -557,6 +526,8 @@ export class Interface extends Phaser.Scene {
     } else {
       this.textos.tarefa.setScale(Math.min(1, alturaDisponivel / this.textos.tarefa.height));
     }
+    const esquerdaTexto = this.textos.tarefa.x - this.textos.tarefa.displayWidth / 2;
+    this.estrelaObjetivo.setX(Math.max(Math.round(12*this.layout.u), esquerdaTexto - Math.round(16*this.layout.u)));
 
     const menu=sessao.fase === 'inicio';
     this.textoFim.setText(menu ? 'MENU' : 'END DAY');
@@ -564,9 +535,9 @@ export class Interface extends Phaser.Scene {
       // The translated label may be wider than English; keep the arrow inside the pill.
       let tamanho=Math.round(17*Math.max(this.layout.u,1));
       this.textoFim.setFontSize(tamanho);
-      while(this.textoFim.width>this.layout.fimDia.w-32 && tamanho>10)this.textoFim.setFontSize(--tamanho);
+      while(this.textoFim.width>this.layout.fimDia.w-38 && tamanho>10)this.textoFim.setFontSize(--tamanho);
     }
-    const tamanhoIcone=8*(dispositivoMovel()?Math.max(this.layout.u,1):this.layout.u);
+    const tamanhoIcone=14*(dispositivoMovel()?Math.max(this.layout.u,1):this.layout.u);
     const distancia=(this.textoFim.width+tamanhoIcone+8)/2;
     this.textoFim.setX(menu?6:-6);
     const x=menu?-distancia:distancia;
@@ -575,7 +546,10 @@ export class Interface extends Phaser.Scene {
       x+(menu?tamanhoIcone/2:-tamanhoIcone/2),tamanhoIcone/2,
       x+(menu?-tamanhoIcone/2:tamanhoIcone/2),0,
     );
-    this.btFim.setVisible(sessao.fase === 'dia' || sessao.fase === 'inicio');
+    const mostrarFim = (sessao.fase === 'dia' || sessao.fase === 'inicio')
+      && !(sessao.explorando && (sessao.mundo === 'nave' || sessao.mundo === 'marte'));
+    this.btFim.setVisible(mostrarFim);
+    if (this.btFim.input) this.btFim.input.enabled = mostrarFim;
   }
 
   painelAberto() { return this.painel.length > 0; }
@@ -962,9 +936,8 @@ export class Interface extends Phaser.Scene {
       });
       let x = x0 + largura / 2 - (larguras.reduce((a, b) => a + b, 0) + gap * (lista.length - 1)) / 2;
       return lista.map((b, i) => {
-        const setaBranca = /^(NEXT|GO!|GOT IT)\s+▶$/.test(b.texto);
         const bt = botaoVerde(this, x + larguras[i] / 2, rodape.y + rodape.h / 2, b.texto, tam, alturaBt, k, () => { tocarSfx('clique'); b.acao(); },
-          { pulsar: false, pararPropagacao: true, animarHover: true, setaBranca, ...(b.principal ? {} : { cor: 0x475569 }) });
+          { pulsar: false, pararPropagacao: true, animarHover: true, ...(b.principal ? {} : { cor: 0x475569 }) });
         x += larguras[i] + gap;
         return bt.setVisible(false);
       });

@@ -52,11 +52,11 @@ export class ManobraNaveTarefa extends Phaser.Scene {
     janela.add(this.add.graphics().lineStyle(5, 0x1e293b, 1).strokeRoundedRect(0, 0, JANELA_W, JANELA_H, 18));
 
     // Puff buttons, big for small hands.
-    const botao = (x: number, rotulo: string, lado: -1 | 1) => {
+    const botao = (x: number, lado: -1 | 1) => {
       const b = this.add.container(x, 135, [
         this.add.circle(0, 0, 30, 0x2563eb).setStrokeStyle(4, 0xffffff),
         this.add.circle(0, 0, 33).setStrokeStyle(2, 0x1e293b),
-        texto(this, 0, 0, rotulo, 26, '#ffffff'),
+        this.add.graphics().fillStyle(0xffffff).fillTriangle(-8*lado,-11,-8*lado,11,10*lado,0),
       ]).setSize(66, 66).setInteractive({ useHandCursor: true });
       b.on('pointerdown', () => puff(lado));
       raiz.add(b);
@@ -75,8 +75,8 @@ export class ManobraNaveTarefa extends Phaser.Scene {
       jato.setAlpha(1);
       this.tweens.add({ targets: jato, alpha: 0, duration: 260 });
     };
-    botao(-250, '◀', -1);
-    botao(250, '▶', 1);
+    botao(-250, -1);
+    botao(250, 1);
     this.input.keyboard?.on('keydown-LEFT', () => puff(-1));
     this.input.keyboard?.on('keydown-RIGHT', () => puff(1));
     this.input.keyboard?.on('keydown-A', () => puff(-1));
