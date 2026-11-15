@@ -28,6 +28,8 @@ export const ICONES = {
   rover: 'icons/lunar-v6/rover.png',
   plant: 'icons/lunar-v6/plant.png',
   goal: 'icons/lunar-v6/goal.png',
+  // The suit button of the start screen: a 3D shirt rendered in Blender (tools/lua3d/make_icone_camisa.py).
+  shirt: 'icons/lunar-v6/shirt.png',
 } as const;
 
 export type IconeJogo = keyof typeof ICONES;
