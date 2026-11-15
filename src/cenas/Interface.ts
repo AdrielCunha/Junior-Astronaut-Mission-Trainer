@@ -13,7 +13,7 @@ import { tutorialJaVisto } from './tutorial';
 import type { DadosRadar } from './Radar';
 import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, DESCANSO, type Estado } from '../regras';
 import { iniciarMundo3D, iniciarNave3D, iniciarMarte3D } from './irParaMarte';
-import { suprimentoDoDia } from '../engine/suprimentos';
+import { suprimentoDoMundo } from '../engine/suprimentos';
 import { DOSE_ALARME, type EventoDef } from '../engine/eventos';
 import { CONDICOES, ESTUFA_OXIGENIO, type Condicao } from '../engine/condicoes';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase, type RelatorioDia } from './sessao';
@@ -662,7 +662,7 @@ export class Interface extends Phaser.Scene {
       const cond = sessao.condicaoHoje;
       const enf = naEnfermaria(sessao.estado);
       const marte = sessao.mundo === 'marte';
-      const sup = marte ? undefined : suprimentoDoDia(sessao.estado.dia);
+      const sup = suprimentoDoMundo(sessao.mundo, sessao.estado.dia);
       const lua = sessao.mundo === 'lua', dia1 = sessao.estado.dia === 1;
       const intro = !lua && dia1 ? sessao.cap.introducao.map((t) => ({ icone: marte ? 'mars' : 'rocket', texto: t, cor: '#fde68a' })) : [];
       // One short line per bubble, the icon says what it is about. Story first, then today's numbers.

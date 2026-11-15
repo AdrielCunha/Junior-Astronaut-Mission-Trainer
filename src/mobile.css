@@ -10,6 +10,9 @@ html, body, #jogo { width: 100%; height: 100%; height: 100dvh; overscroll-behavi
 #controles-moveis .botao-movel { width: clamp(84px, 26dvh, 112px); aspect-ratio: 1; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; display: flex; align-items: center; justify-content: center; touch-action: none; -webkit-tap-highlight-color: transparent; }
 #controles-moveis .botao-movel img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-select: none; filter: drop-shadow(0 5px 7px #0006); transition: transform .08s ease, filter .08s ease; }
 #controles-moveis .botao-acao { width: clamp(96px, 30dvh, 128px); }
+#controles-moveis .botao-pintar { width: clamp(46px, 14dvh, 60px); aspect-ratio: 1; padding: 0; border: 3px solid #475569; border-radius: 50%; background: #0f172ad9; font-size: clamp(22px, 7dvh, 30px); line-height: 1; display: flex; align-items: center; justify-content: center; touch-action: none; -webkit-tap-highlight-color: transparent; box-shadow: 0 5px 7px #0006; align-self: center; }
+#controles-moveis .botao-pintar[hidden] { display: none; }
+#controles-moveis .botao-pintar[aria-pressed="true"] { border-color: #fde047; background: #854d0e; }
 #controles-moveis .botao-movel:active img { transform: translateY(2px) scale(.96); filter: brightness(1.08) drop-shadow(0 2px 4px #0005); }
 @media (max-height: 390px) and (orientation: landscape) {
   #controles-moveis .joystick { width: clamp(112px, 33dvh, 132px); }

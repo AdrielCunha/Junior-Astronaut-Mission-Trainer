@@ -3,7 +3,7 @@ import { CONTORNO, COR_BOTAO_TELA, letra, criarBotaoPilula, botaoVerde, botaoFec
 import { volumeMusica, definirVolumeMusica } from '../audio';
 import { volumeEfeitos, definirVolumeEfeitos, tocarSfx } from '../sfx';
 import { video, atualizarVideo, type Video } from '../video';
-import { SKINS } from '../dados/skins';
+import { skinsDisponiveis } from '../acessorios';
 import { sessao, dataBonita } from './sessao';
 import { lerDescobertas } from '../descobertas';
 import { idioma, escolherIdioma } from '../idioma';
@@ -147,20 +147,21 @@ export class MenuJogo extends Phaser.Scene {
     }, COR_BOTAO_TELA).caixa.setData('acao', 'language');
     // Like the video quality note: texts built from other values (dates) switch on their next update.
     if (this.idiomaMudou) this.add.text(tela.x + 20 * u, yI + 13 * u, 'Some texts update tomorrow.', letra(12 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
-    // Astronaut suit: one swatch per skin.
+    // Astronaut: one swatch per astronaut won (the Habitat's wardrobe has the full pages), sized to fit the row.
+    const lista = skinsDisponiveis();
     const yS = yLinha(3);
-    this.add.text(tela.x + 20 * u, yS, 'Astronaut suit', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
+    this.add.text(tela.x + 20 * u, yS, 'Astronaut', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
     const nome = this.add.text(tela.x + tela.w - 20 * u, yS, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(1, 0.5);
     const hex = (c: string) => Number.parseInt(c.slice(1), 16);
-    const lado = 42 * u, raio = 9 * u;
+    const lado = Math.min(42 * u, (tela.w - 40 * u) / lista.length - 10 * u), raio = Math.min(9 * u, lado / 4);
     const aneis: Phaser.GameObjects.Graphics[] = [];
     const atualizarSkin = () => {
-      aneis.forEach((a, i) => a.setAlpha(SKINS[i].id === video.skin ? 1 : 0));
-      nome.setText(SKINS.find((s) => s.id === video.skin)?.nome ?? '');
+      aneis.forEach((a, i) => a.setAlpha(lista[i].id === video.skin ? 1 : 0));
+      nome.setText(lista.find((s) => s.id === video.skin)?.nome ?? '');
     };
-    SKINS.forEach((s, i) => {
+    lista.forEach((s, i) => {
       const m = 20 * u + lado / 2 + 4 * u;
-      const x = tela.x + m + (tela.w - 2 * m) * i / (SKINS.length - 1), y = yLinha(4);
+      const x = lista.length > 1 ? tela.x + m + (tela.w - 2 * m) * i / (lista.length - 1) : tela.x + tela.w / 2, y = yLinha(4);
       aneis.push(this.add.graphics().lineStyle(4 * u, 0xfde047)
         .strokeRoundedRect(x - lado / 2 - 5 * u, y - lado / 2 - 5 * u, lado + 10 * u, lado + 10 * u, raio + 4 * u));
       this.add.graphics().fillStyle(hex(s.cor)).fillRoundedRect(x - lado / 2, y - lado / 2, lado, lado, raio)

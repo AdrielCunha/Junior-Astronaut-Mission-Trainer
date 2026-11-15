@@ -75,7 +75,7 @@ try {
  await probe('station-complete-and-save',`(async()=>{const d=superficie.decoVisuais.find(o=>o.d.id==='nave_plantas').d;superficie.usarEstacao(d);await qa.frame();const cena=superficie.scene.get('HortaTarefa');const {concluirTarefa,fecharTarefa}=await import('/src/cenas/conclusaoTarefa.ts');concluirTarefa(cena,cena.aoConcluir);fecharTarefa(cena);await qa.frame();sessao.salvar();return {done:[...sessao.estacoesHoje],day:sessao.estado.dia,dose:sessao.estado.dose,points:sessao.pontos,saved:JSON.parse(localStorage.getItem('lunar-odyssey-save-v1'))};})()`);
  await reload();
  await probe('station-after-real-reload',`({done:[...sessao.estacoesHoje],mundo:sessao.mundo,day:sessao.estado.dia,dose:sessao.estado.dose,points:sessao.pontos,radar:superficie.scene.isActive('Radar')})`);
- await click('EXPLORE A BASE');await shot('explore-ship-menu');
+ await click('EXPLORE THE BASE');await shot('explore-ship-menu');
  await probe('explore-ship-labels',`({mundo:sessao.mundo,texts:qa.texts('Radar')})`);
  await click('GO!');
  await probe('explore-moon-selected-from-ship',`({mundo:sessao.mundo,fase:sessao.fase,day:sessao.estado.dia,radar:superficie.scene.isActive('Radar')})`);

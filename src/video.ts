@@ -1,15 +1,20 @@
 // Generated with AI assistance. See README, "Use of AI tools".
 // Video preferences shared by scenes; storage is optional in private browsing.
 import { SKINS, SKIN_PADRAO } from './dados/skins';
-export type Video = { qualidade: 'auto' | 'leve' | 'alta'; movimento: 'sistema' | 'reduzido' | 'completo'; efeitos: boolean; pegadas: boolean; skin: string };
+import { doEspaco, type Espaco } from './dados/acessorios';
+import { acessoriosGanhos, skinsDisponiveis } from './acessorios';
+// Which video field holds the accessory of each slot.
+const ESPACOS: ['acessorio' | 'rosto' | 'carinha', Espaco][] = [['acessorio', 'cabeca'], ['rosto', 'rosto'], ['carinha', 'carinha']];
+export type Video = { qualidade: 'auto' | 'leve' | 'alta'; movimento: 'sistema' | 'reduzido' | 'completo'; efeitos: boolean; pegadas: boolean; skin: string; acessorio: string; rosto: string; carinha: string };
 const KEY = 'lunar-odyssey-video';
 const systemMotion = matchMedia('(prefers-reduced-motion: reduce)');
-export const video: Video = { qualidade: 'auto', movimento: 'sistema', efeitos: true, pegadas: true, skin: SKIN_PADRAO };
+export const video: Video = { qualidade: 'auto', movimento: 'sistema', efeitos: true, pegadas: true, skin: SKIN_PADRAO, acessorio: '', rosto: '', carinha: '' };
 try {
   const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}');
   if (['auto','leve','alta'].includes(saved.qualidade)) video.qualidade = saved.qualidade;
   if (['sistema','reduzido','completo'].includes(saved.movimento)) video.movimento = saved.movimento;
   if (SKINS.some((s) => s.id === saved.skin)) video.skin = saved.skin;
+  for (const [campo, espaco] of ESPACOS) if (doEspaco(espaco).some((a) => a.id === saved[campo])) video[campo] = saved[campo];
   for (const key of ['efeitos','pegadas'] as const) if (typeof saved[key] === 'boolean') video[key] = saved[key];
 } catch { /* Defaults also work without storage. */ }
 export function escolherSkin(id: string) {
@@ -40,12 +45,15 @@ export function abrirVideo() {
     document.head.append(style);
     dialog = document.createElement('dialog'); dialog.id = 'video-settings';
     dialog.setAttribute('aria-labelledby','video-title');
-    dialog.innerHTML = `<form method="dialog"><h2 id="video-title">Video & comfort</h2><p>Adjust the mission to your screen and comfort.</p><label>Astronaut skin<select name="skin">${SKINS.map((s) => `<option value="${s.id}">${s.nome}</option>`).join('')}</select></label><label>Video quality<select name="qualidade"><option value="auto">Automatic</option><option value="leve">Low · fewer effects</option><option value="alta">High · more detail</option></select></label><label>Camera motion<select name="movimento"><option value="sistema">Use device preference</option><option value="reduzido">Reduced · no zoom flights</option><option value="completo">Full · cinematic zoom</option></select></label><p>Reduced motion uses a short fade between views and keeps decorative lights steady.</p><label><input type="checkbox" name="efeitos">Decorative animations & lunar dust</label><label><input type="checkbox" name="pegadas">Astronaut footprints</label><p>Effects and comfort update immediately. Full video quality applies the next time you open the game.</p><button type="submit">Save & return</button></form>`;
+    dialog.innerHTML = `<form method="dialog"><h2 id="video-title">Video & comfort</h2><p>Adjust the mission to your screen and comfort.</p><label>Astronaut<select name="skin"></select></label><label>Hat<select name="acessorio"></select></label><label>Glasses<select name="rosto"></select></label><label>Face<select name="carinha"></select></label><label>Video quality<select name="qualidade"><option value="auto">Automatic</option><option value="leve">Low · fewer effects</option><option value="alta">High · more detail</option></select></label><label>Camera motion<select name="movimento"><option value="sistema">Use device preference</option><option value="reduzido">Reduced · no zoom flights</option><option value="completo">Full · cinematic zoom</option></select></label><p>Reduced motion uses a short fade between views and keeps decorative lights steady.</p><label><input type="checkbox" name="efeitos">Decorative animations & lunar dust</label><label><input type="checkbox" name="pegadas">Astronaut footprints</label><p>Effects and comfort update immediately. Full video quality applies the next time you open the game.</p><button type="submit">Save & return</button></form>`;
     document.body.append(dialog);
     dialog.querySelector('form')!.addEventListener('submit', () => {
       const form = dialog!.querySelector('form')!;
       atualizarVideo({
         skin: (form.elements.namedItem('skin') as HTMLSelectElement).value,
+        acessorio: (form.elements.namedItem('acessorio') as HTMLSelectElement).value,
+        rosto: (form.elements.namedItem('rosto') as HTMLSelectElement).value,
+        carinha: (form.elements.namedItem('carinha') as HTMLSelectElement).value,
         qualidade: (form.elements.namedItem('qualidade') as HTMLSelectElement).value as Video['qualidade'],
         movimento: (form.elements.namedItem('movimento') as HTMLSelectElement).value as Video['movimento'],
         efeitos: (form.elements.namedItem('efeitos') as HTMLInputElement).checked,
@@ -58,7 +66,14 @@ export function abrirVideo() {
     dialog.addEventListener('keyup',e=>e.stopPropagation());
   }
   const form = dialog.querySelector('form')!;
-  for (const key of ['skin','qualidade','movimento'] as const) (form.elements.namedItem(key) as HTMLSelectElement).value = video[key];
+  // Only the astronauts and accessories won can be picked.
+  const ganhos = acessoriosGanhos();
+  (form.elements.namedItem('skin') as HTMLSelectElement).innerHTML = skinsDisponiveis().map((s) => `<option value="${s.id}">${s.nome}</option>`).join('');
+  for (const [campo, espaco] of ESPACOS) {
+    const todos = doEspaco(espaco);
+    (form.elements.namedItem(campo) as HTMLSelectElement).innerHTML = `<option value="">None</option>${todos.filter((a) => ganhos.includes(a.id)).map((a) => `<option value="${a.id}">${a.nome}</option>`).join('')}${todos.some((a) => !ganhos.includes(a.id)) ? '<option disabled>… win more in side missions!</option>' : ''}`;
+  }
+  for (const key of ['skin','qualidade','movimento','acessorio','rosto','carinha'] as const) (form.elements.namedItem(key) as HTMLSelectElement).value = video[key];
   for (const key of ['efeitos','pegadas'] as const) (form.elements.namedItem(key) as HTMLInputElement).checked = video[key];
   configuracoesAbertas=true;
   dialog.showModal();

@@ -4,11 +4,11 @@ from pathlib import Path
 from mathutils import Vector, Matrix
 import numpy as np
 ROOT=Path(__file__).resolve().parents[2]
-HERE=ROOT/'tools/lua3d';OUT=ROOT/'public/lua';TMP=HERE/'.cache/astronaut_carry';TMP.mkdir(parents=True,exist_ok=True)
+HERE=ROOT/'tools/lua3d';OUT=ROOT/'public/lua';TMP=HERE/('.cache/astronaut_carry_'+os.environ.get('SKIN','comandante'));TMP.mkdir(parents=True,exist_ok=True)
 source=(HERE/'make_astronaut.py').read_text(encoding='utf-8').split('if LIVE:\n    pose(0.25)')[0]
 source=source.replace('    sc.eevee.taa_render_samples = 128','    if hasattr(sc.eevee, "taa_render_samples"): sc.eevee.taa_render_samples = 16')
 exec(compile(source,str(HERE/'make_astronaut.py'),'exec'),globals())
-ROOT=Path(ROOT);HERE=ROOT/'tools/lua3d';OUT=ROOT/'public/lua';TMP=HERE/'.cache/astronaut_carry';TMP.mkdir(parents=True,exist_ok=True)
+ROOT=Path(ROOT);HERE=ROOT/'tools/lua3d';OUT=ROOT/'public/lua';TMP=HERE/('.cache/astronaut_carry_'+os.environ.get('SKIN','comandante'));TMP.mkdir(parents=True,exist_ok=True)
 metadata=json.loads((ROOT/'src/dados/astronauta.json').read_text(encoding='utf-8'))
 assert metadata['frame']==FRAME and metadata['colunas']==WALK+1
 assert all(abs(a-b)<.02 for a,b in zip(anchor,metadata['pe'])), 'Carrying feet must match the normal astronaut.'
@@ -57,7 +57,7 @@ def recolor(skin):
         if color:o.data.materials[0]=toon(color)
 cols=1+WALK
 preview=ROOT/'assets/blender/astronauta_carga';preview.mkdir(parents=True,exist_ok=True)
-for skin in SKINS:
+for skin in [k for k in SKINS if not os.environ.get('SO_SKINS') or k in os.environ['SO_SKINS'].split(',')]:
     recolor(skin)
     sheet=np.zeros((8*FRAME,cols*FRAME,4),np.float32)
     for d in range(8):

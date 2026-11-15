@@ -4,7 +4,7 @@
 import type { Efeito } from '../regras';
 
 export const CENAS_DA_SALA: Partial<Record<Efeito, string[]>> = {
-  oxigenio: ['TrocarFiltroCo2Tarefa', 'EquilibrarValvulasTarefa', 'FiltroO2Tarefa', 'OxigenioFaixaTarefa'],   // air: filters, valves, oxygen level
+  oxigenio: ['TrocarFiltroCo2Tarefa', 'EquilibrarValvulasTarefa', 'FiltroO2Tarefa', 'OxigenioFaixaTarefa', 'IluminacaoTarefa'],   // air: filters, valves, oxygen level, direct the oxygen (pipes)
   blindagem: ['TaparTempestadeTarefa', 'FecharEscotilhasTarefa'],                                          // storm: water bags, hatches
   meta: ['PotenciaMotorTarefa', 'DirecaoTarefa'],
   aquecimento: ['AquecimentoTarefa'],                                                                      // heating (Mars): gold blankets                                                           // rocket: engine power, steering
