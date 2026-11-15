@@ -3,6 +3,7 @@
 // Rules live in ../regras.ts, chapter settings in ../capitulos.ts, real NASA data in ../dados/.
 import Phaser from 'phaser';
 import { desenharPaisagemMarte } from './marte';
+import { iniciarMarte3D } from './irParaMarte';
 import { CAPITULOS, type Dia, type Equipamento, type Lugar } from '../capitulos';
 import {
   COMUM, DESCANSO, inicioDoCapitulo, fimDoDia, resultado, bateriasDoDia, naEnfermaria, pontuacao, nenhuma, entregar, pronto, custo,
@@ -137,6 +138,7 @@ export class Base extends Phaser.Scene {
     this.sys.settings.data = {};
     const idx = Phaser.Math.Clamp(Math.floor(data.capitulo), 0, CAPITULOS.length - 1);
     this.capIdx = idx;
+    this.indoParaMarte = false;
     this.pontos = data.pontos ? [...data.pontos] : [];
     this.doseNoInicio = data.dose ?? 0;
     this.estado = inicioDoCapitulo(CAPITULOS[idx].config, this.doseNoInicio);
@@ -276,6 +278,16 @@ export class Base extends Phaser.Scene {
     this.texto(W - 16 * u, this.layout.topo + 14 * u, '−  Mars from space', 14, '#ffffff', { backgroundColor: '#334155', padding: { x: 10 * u, y: 6 * u } })
       .setOrigin(1, 0).setDepth(1e5 + 1).setInteractive({ useHandCursor: true }).on('pointerdown', abrir);
     this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => { if (dy > 0) abrir(); });
+  }
+
+  // From the ship to Mars: the arrival and landing (Viagem), then the 3D chapter 3. Once.
+  private indoParaMarte = false;
+  private paraMarte(dose: number) {
+    if (this.indoParaMarte) return;
+    this.indoParaMarte = true;
+    this.pontos[this.capIdx] = pontuacao(this.estado);
+    const pontos = [...this.pontos];
+    this.scene.launch('Viagem', { etapa: 'chegada', aoTerminar: () => iniciarMarte3D(this, dose, pontos) });
   }
 
   // ---------- Drawing the world ----------
@@ -1557,9 +1569,9 @@ export class Base extends Phaser.Scene {
           botoes.push({ texto: 'Build ship', acao: () => { this.construirNaveEAtivarTask(); }, principal: true });
         }
         botoes.push({ texto: 'Next chapter', acao: () => {
-          const seguir = () => this.comecarCapitulo(this.capIdx + 1, e.dose);
-          // Between the trip and Mars, the ship arrives and enters orbit (Viagem.ts).
-          if (cap.tema === 'nave') this.scene.launch('Viagem', { etapa: 'chegada', aoTerminar: seguir }); else seguir();
+          // After the ship: it arrives, enters orbit and lands (Viagem.ts), then chapter 3 runs on
+          // the 3D engine on the Mars map (irParaMarte.ts).
+          if (cap.tema === 'nave') this.paraMarte(e.dose); else this.comecarCapitulo(this.capIdx + 1, e.dose);
         }, principal: cap.tema !== 'nave' });
 
         this.abrirPainel(cap.vitoria[0], [
@@ -1571,9 +1583,7 @@ export class Base extends Phaser.Scene {
 
         if (cap.tema === 'nave') {
           this.time.delayedCall(1800, () => {
-            if (this.fase === 'fim' && this.res === 'vitoria') {
-              this.comecarCapitulo(this.capIdx + 1, e.dose);
-            }
+            if (this.fase === 'fim' && this.res === 'vitoria') this.paraMarte(e.dose);
           });
         }
       };

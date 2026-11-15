@@ -7,9 +7,13 @@
 // Walking speed is not to scale; it is set for play.
 
 export const G_LUA = 1.62;           // m/s^2, Moon surface gravity
+export const G_MARTE = 3.71;         // m/s^2, Mars surface gravity (chapter 3)
 export const G_TERRA = 9.81;         // m/s^2, for comparison on screen
 export const METROS_POR_TILE_CORPO = 3.6;
-export const G = G_LUA / METROS_POR_TILE_CORPO;   // tiles/s^2 at character scale
+// tiles/s^2 at character scale. `let`: the world sets it (definirGravidade), and every module
+// that imports G sees the new value (ES modules export live bindings).
+export let G = G_LUA / METROS_POR_TILE_CORPO;
+export const definirGravidade = (ms2: number) => { G = ms2 / METROS_POR_TILE_CORPO; };
 
 export type Corpo = {
   x: number; y: number; z: number;     // tiles; z is the feet

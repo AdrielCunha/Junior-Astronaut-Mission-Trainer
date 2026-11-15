@@ -3,8 +3,9 @@
 // event bus they talk through. One game = one Sessao. See ARCHITECTURE.md.
 import Phaser from 'phaser';
 import { movimentoReduzido, configuracoesAbertas } from '../video';
-import lua from '../dados/lua.json';
 import terrenoJson from '../dados/terreno.json';
+import terrenoMarteJson from '../dados/terreno_marte.json';
+import { definirGravidade, G_LUA, G_MARTE } from '../engine/fisica';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { Grade, TIPOS, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
@@ -12,7 +13,10 @@ import { VOO as voo } from './qualidade';
 import { CAPITULOS } from '../capitulos';
 import { inicioDoCapitulo, bateriasDoDia, nenhuma, type Alocacao, type Efeito, type Estado } from '../regras';
 
-const C = CAPITULOS[0].config;
+// The world the 3D scenes show: the Moon (chapter 1) or Mars (chapter 3, same engine).
+export type Mundo = 'lua' | 'marte';
+// A pristine copy of the Moon's terrain, to come back to it after Mars (usarMundo).
+const TERRENO_LUA = JSON.parse(JSON.stringify(terrenoJson));
 
 export type Fase = 'inicio' | 'manha' | 'dia' | 'noite' | 'fim';
 
@@ -62,15 +66,19 @@ export type Eventos = {
   suprimento: [TipoId];               // a cargo lander is bringing this today
   desbloqueado: [Construcao];         // it landed and is part of the base
   pulo: [];
+  zoomMarte: [];                      // on Mars, zooming out past the ground opens MarteVista
 };
 
 class Sessao {
-  readonly terreno = new Terreno(dadosTerreno);
+  mundo: Mundo = 'lua';
+  capIdx = 0;                         // CAPITULOS index: 0 the Moon, 2 Mars (1, the ship, is the Base prototype)
+  pontos: number[] = [];              // score of each finished chapter
+  terreno = new Terreno(dadosTerreno);
   grade = new Grade(this.terreno);
   readonly sinais = new Phaser.Events.EventEmitter();
 
   fase: Fase = 'inicio';
-  estado: Estado = inicioDoCapitulo(C);
+  estado: Estado = inicioDoCapitulo(CAPITULOS[0].config);
   entregas: Alocacao = nenhuma();
   carregando = 0;           // batteries in the commander's hands
   noHabitat = 0;            // batteries still waiting at the habitat today
@@ -106,10 +114,36 @@ class Sessao {
     else this.voar('lua');
   }
 
+  get cap() { return CAPITULOS[this.capIdx]; }
+  get C() { return this.cap.config; }
+
+  // Switches the terrain, the base layout and gravity to another world. The terrain data is
+  // changed IN PLACE: scenes keep references to dadosTerreno and its projection (Superficie's P).
+  usarMundo(m: Mundo) {
+    this.mundo = m;
+    const fonte = m === 'marte' ? terrenoMarteJson : TERRENO_LUA;
+    const d = dadosTerreno as unknown as Record<string, unknown>;
+    const img = dadosTerreno.imagem;
+    for (const k of Object.keys(d)) if (k !== 'imagem') delete d[k];
+    Object.assign(d, JSON.parse(JSON.stringify(fonte)), { imagem: img });
+    Object.assign(img, JSON.parse(JSON.stringify(fonte.imagem)));
+    this.terreno = new Terreno(dadosTerreno);
+    definirGravidade(m === 'marte' ? G_MARTE : G_LUA);
+    this.reiniciar();
+  }
+
+  // Starts a chapter on the current world, keeping the crew's radiation dose and the scores.
+  comecarCapitulo(idx: number, dose = 0, pontos: number[] = []) {
+    this.capIdx = idx;
+    this.pontos = [...pontos];
+    this.reiniciar();
+    this.estado = inicioDoCapitulo(this.C, dose);
+  }
+
   reiniciar() {
     this.grade = new Grade(this.terreno);
     this.fase = 'inicio';
-    this.estado = inicioDoCapitulo(C);
+    this.estado = inicioDoCapitulo(this.C);
     this.entregas = nenhuma();
     this.carregando = 0;
     this.noHabitat = 0;
@@ -171,6 +205,9 @@ class Sessao {
 
   // Plays the whole flight to another view; input waits until it lands.
   voar(destino: Vista) {
+    // Mars has no globe or film in Espaco: its zoom out is MarteVista (the Mars film, live globe
+    // and solar system), opened by Interface.
+    if (this.mundo === 'marte' && destino !== 'chao') { this.empurrao = 0; this.emitir('zoomMarte'); return; }
     if (configuracoesAbertas || this.transicao) return;
     this.empurrao = 0;
     if (destino === this.vista) return;
@@ -251,7 +288,8 @@ class Sessao {
   }
 
   get dia() {
-    return lua.dias[Math.min(this.estado.dia, lua.dias.length) - 1];
+    const dias = this.cap.dados.dias;
+    return dias[Math.min(this.estado.dia, dias.length) - 1];
   }
 
   // Noon of the current chapter day, as a timestamp: drives the Sun, Moon and planets.
@@ -262,7 +300,7 @@ class Sessao {
   novoDia() {
     this.entregas = nenhuma();
     this.carregando = 0;
-    this.noHabitat = bateriasDoDia(this.estado, C);
+    this.noHabitat = bateriasDoDia(this.estado, this.C);
     this.tarefasHoje.clear();
   }
 

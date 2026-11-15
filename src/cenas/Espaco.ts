@@ -31,6 +31,7 @@ export class Espaco extends Phaser.Scene {
   private constelacaoAtual?: {img: Phaser.GameObjects.Image; mask?: Phaser.GameObjects.Graphics; progress?: {v:number}};
   private modoConstelacao = '';
   private ceu!: Phaser.GameObjects.Image;
+  private ceuMarte!: Phaser.GameObjects.Rectangle;   // chapter 3: the daytime sky of Mars behind the map
   private escalaCeu = 1;
   private lua!: ReturnType<typeof criarLua>;        // live GPU Moon (luaShader.ts)
   private marte: ReturnType<typeof criarPlaneta> | null = null;   // live GPU Mars (planetaShader.ts)
@@ -59,6 +60,7 @@ export class Espaco extends Phaser.Scene {
     this.ceu = this.add.image(W / 2, H / 2, 'ceu').setDepth(-100);
     this.modoConstelacao = '';
     this.events.once('shutdown',()=>this.limparConstelacao());
+    this.ceuMarte = this.add.rectangle(0, 0, W, H, 0xc99a72).setOrigin(0).setDepth(-99).setVisible(false);
     this.escalaCeu = Math.max(W / this.ceu.width, H / this.ceu.height);
     this.ceu.setScale(this.escalaCeu);
 
@@ -120,7 +122,7 @@ export class Espaco extends Phaser.Scene {
 
   // A thin constellation figure draws itself, stays a moment and fades.
   private tracarConstelacao() {
-    if (!constelacoes.length || !video.efeitos || configuracoesAbertas || sessao.partida) return;
+    if (!constelacoes.length || !video.efeitos || configuracoesAbertas || sessao.partida || sessao.mundo === 'marte') return;
     if(movimentoReduzido() && this.constelacaoAtual)return;
     this.limparConstelacao();
     const i = Phaser.Math.Between(0, constelacoes.length - 1);
@@ -161,6 +163,17 @@ export class Espaco extends Phaser.Scene {
     if(mode!==this.modoConstelacao && !configuracoesAbertas){this.modoConstelacao=mode;this.limparConstelacao();if(mode!=='off')this.tracarConstelacao();}
     const W = this.scale.width, H = this.scale.height;
     sessao.passo(dtMs / 1000);     // Espaco runs first: every layer sees the same zoom this frame
+    // Mars (chapter 3): behind the map only the sky of Mars. Its zoom out is MarteVista
+    // (sessao.voar sends it there), so the Moon, its film and the planets stay off.
+    const emMarte = sessao.mundo === 'marte';
+    this.ceuMarte.setVisible(emMarte);
+    this.ceu.setVisible(!emMarte);
+    if (emMarte) {
+      this.lua.setVisible(false); this.quadro.setVisible(false); this.pino.setVisible(false); this.brilho.setVisible(false);
+      this.g.clear(); this.legendaNova = '';
+      for (const r of this.rotulos.values()) r.setVisible(false);
+      return;
+    }
     if (!this.aqueceu && sessao.filmePronto) { this.aqueceu = true; this.aquecer(); }
     this.avancarPartida(dtMs / 1000);
     const P = sessao.partida;

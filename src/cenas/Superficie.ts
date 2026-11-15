@@ -7,15 +7,19 @@
 // plays the frames) while the base stays visible, live.
 import Phaser from 'phaser';
 import paletaLua from '../dados/paleta_lua.json';
-const COR_SOLO_CLARO=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
-const COR_SOLO_MEDIO=Number.parseInt(String(paletaLua.solo[1][1]).slice(1),16);
-const COR_SOLO_SOMBRA=Number.parseInt(paletaLua.contorno.slice(1),16);
+import paletaMarte from '../dados/paleta_marte.json';
+// Ground colors for dust, paths and the flag's shadow: set in create() for the current world.
+const corDe = (h: string) => Number.parseInt(h.slice(1), 16);
+let COR_SOLO_CLARO = corDe(String(paletaLua.solo[2][1]));
+let COR_SOLO_MEDIO = corDe(String(paletaLua.solo[1][1]));
+let COR_SOLO_SOMBRA = corDe(paletaLua.contorno);
 import { Ambiente } from './ambiente';
 import { configuracoesAbertas, movimentoReduzido, video } from '../video';
 import { paraTela, paraChao, profundidade } from '../engine/iso';
-import { passo, novoCorpo, G, G_LUA, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
+import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
 import { encontrarCaminho, type Ponto } from '../engine/caminho';
-import { TIPOS, montarBasePadrao, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
+import { TIPOS, montarBasePadrao, BASE_MARTE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
+import { entregar as entregarRegra, custo, pronto } from '../regras';
 import { empuxoDePouso, suprimentoDoDia } from '../engine/suprimentos';
 import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte } from './sessao';
 import { fundacao, sombraECarga } from './desenho';
@@ -89,14 +93,20 @@ export class Superficie extends Phaser.Scene {
     this.pouso = null;
     this.tempoEfeitos = 0;
     this.mapa = this.add.layer().setDepth(0);
-    this.terreno = this.add.image(0, 0, 'terreno').setOrigin(0).setDepth(-1e6);
+    const marte = sessao.mundo === 'marte';
+    const pal = marte ? paletaMarte : paletaLua;
+    COR_SOLO_CLARO = corDe(String(pal.solo[2][1])); COR_SOLO_MEDIO = corDe(String(pal.solo[1][1])); COR_SOLO_SOMBRA = corDe(pal.contorno);
+    this.terreno = this.add.image(0, 0, marte ? 'terreno_marte' : 'terreno').setOrigin(0).setDepth(-1e6);
     this.mapa.add(this.terreno);
     this.gCaminhos = this.add.graphics().setDepth(-900_000);
     this.mapa.add(this.gCaminhos);
     this.ambiente = new Ambiente(this,this.mapa,P,sessao.terreno);
 
-    // The crew's base is already there (engine/construcao.ts, BASE_PADRAO).
-    if (!sessao.grade.lista.length) montarBasePadrao(sessao.grade);
+    // The crew's base is already there (engine/construcao.ts, BASE_PADRAO). On Mars only the
+    // lander and the panels are; the rooms are construction sites (BASE_MARTE).
+    if (!sessao.grade.lista.length) montarBasePadrao(sessao.grade, marte ? BASE_MARTE : undefined);
+    // Labels and construction sites follow the rules state.
+    sessao.ouvir(this, 'estado', () => { for (const c of sessao.grade.lista) if (c.tipo.sala) this.desenharModulo(c); });
     const hab = sessao.grade.lista.find((c) => c.tipo.id === 'habitat')!;
     const sx = hab.gx + hab.tipo.w + 0.7, sy = hab.gy + hab.tipo.h / 2;
     this.corpo = novoCorpo(sx, sy, sessao.terreno.altura(sx, sy));
@@ -105,8 +115,8 @@ export class Superficie extends Phaser.Scene {
     this.gAstronauta = this.add.graphics();
     this.comandante = this.add.sprite(0, 0, 'astronauta', 0).setOrigin(sprite.pe[0] / sprite.frame, sprite.pe[1] / sprite.frame)
       .setScale(sprite.escala);
-    const bInfo = bandeiras.lua;
-    this.bandeira = this.add.image(0, 0, 'bandeira_lua')
+    const bInfo = bandeiras[sessao.mundo];
+    this.bandeira = this.add.image(0, 0, `bandeira_${sessao.mundo}`)
       .setOrigin(bInfo.ancora[0] / bInfo.w, bInfo.ancora[1] / bInfo.h)
       .setScale(bInfo.escala * ESCALA_MARCADOR)
       .setVisible(false);
@@ -221,7 +231,7 @@ export class Superficie extends Phaser.Scene {
     this.rota = caminho ?? [];
     this.bloqueadoCont = 0;
     if (this.rota.length > 0) {
-      this.plantarBandeira(destGx, destGy);
+      this.plantarBandeira(destGx, destGy, sessao.mundo);
     } else {
       this.recolherBandeira();
     }
@@ -432,11 +442,24 @@ export class Superficie extends Phaser.Scene {
     sessao.emitir('estado');
   }
 
+  // One battery to a room, through the rules (regras.entregar): on Mars it first builds the
+  // module (its construction cost), then powers it.
   private entregar(c: Construcao) {
+    const sala = c.tipo.sala!;
+    const C = sessao.C;
+    const obra = this.emObra(c);
     sessao.carregando--;
-    sessao.entregas[c.tipo.sala!]++;
-    sessao.emitir('mensagem', `+1 battery to ${c.tipo.nome}.`, '#86efac');
+    [sessao.estado, sessao.entregas] = entregarRegra(sessao.estado, sessao.entregas, sala, C);
+    if (!obra) sessao.emitir('mensagem', `+1 battery to ${c.tipo.nome}.`, '#86efac');
+    else if (pronto(sessao.estado, sala, C)) sessao.emitir('mensagem', `${c.tipo.nome} is built! From now on its batteries make it work.`, '#86efac');
+    else sessao.emitir('mensagem', `+1 battery to build the ${c.tipo.nome}: ${sessao.estado.obras[sala] ?? 0} of ${custo(sala, C)}.`, '#fde68a');
     sessao.emitir('estado');
+  }
+
+  // A room still being built (Mars): its batteries go into construction.
+  private emObra(c: Construcao) {
+    const sala = c.tipo.sala;
+    return !!sala && custo(sala, sessao.C) > 0 && !pronto(sessao.estado, sala, sessao.C);
   }
 
   // ---------- cargo lander ----------
@@ -582,10 +605,18 @@ export class Superficie extends Phaser.Scene {
     }
     if (antesNoChao && !this.corpo.noChao && this.corpo.vz > 0 && !sessao.pulou) {
       sessao.pulou = true;
-      const lua = pulo(G_LUA), terra = pulo(G_TERRA);
-      sessao.emitir('mensagem',
-        `Moon jump! Gravity here is ${G_LUA} m/s², one sixth of Earth's ${G_TERRA}. ` +
-        `You rise ${lua.altura.toFixed(1)} m and float ${lua.tempo.toFixed(1)} s. On Earth: ${terra.altura.toFixed(2)} m, ${terra.tempo.toFixed(1)} s.`, '#93c5fd');
+      const terra = pulo(G_TERRA);
+      if (sessao.mundo === 'marte') {
+        const m = pulo(G_MARTE), l = pulo(G_LUA);
+        sessao.emitir('mensagem',
+          `Mars jump! Gravity here is ${G_MARTE} m/s², about 3/8 of Earth's ${G_TERRA}. ` +
+          `You rise ${m.altura.toFixed(1)} m and land after ${m.tempo.toFixed(1)} s. On the Moon it was ${l.altura.toFixed(1)} m; on Earth ${terra.altura.toFixed(2)} m.`, '#fdba74');
+      } else {
+        const lua = pulo(G_LUA);
+        sessao.emitir('mensagem',
+          `Moon jump! Gravity here is ${G_LUA} m/s², one sixth of Earth's ${G_TERRA}. ` +
+          `You rise ${lua.altura.toFixed(1)} m and float ${lua.tempo.toFixed(1)} s. On Earth: ${terra.altura.toFixed(2)} m, ${terra.tempo.toFixed(1)} s.`, '#93c5fd');
+      }
     }
     if (Math.hypot(this.corpo.vx, this.corpo.vy) > 0.3 && this.corpo.noChao) this.passada += dt * 12;
     this.animarPouso(dt);
@@ -618,6 +649,15 @@ export class Superficie extends Phaser.Scene {
   // ---------- drawing ----------
   // Which Blender picture a module shows: the launch pad carries the rocket in 5 build stages.
   private modelo(c: Construcao): Modelo {
+    // Mars: the lander is the crew's home until the dome is built. The heater and the dome
+    // borrow the workshop and habitat pictures until they get their own models.
+    if (sessao.mundo === 'marte') {
+      if (c.tipo.id === 'habitat') return 'pouso';
+      if (c.tipo.id === 'aquecedor') return 'oficina';
+      if (c.tipo.id === 'cupula') return 'habitat';
+    }
+    if (c.tipo.id === 'aquecedor') return 'oficina';
+    if (c.tipo.id === 'cupula') return 'habitat';
     const meta = sessao.estado.meta;
     if (c.tipo.id === 'plataforma' && this.foguetePartiu) return 'plataforma';
     if (c.tipo.id === 'plataforma' && meta > 0) return `foguete${Math.min(4, Math.floor(meta / 25))}` as Modelo;
@@ -627,7 +667,9 @@ export class Superficie extends Phaser.Scene {
   // Puts a module picture on the map: its anchor pixel is the footprint corner (gx, gy) at floor height.
   private posicionar(img: Phaser.GameObjects.Image, c: Construcao, id: Modelo) {
     const m = modelos[id];
-    const p = paraTela(P, c.gx, c.gy, c.z);
+    // The lander picture is drawn for a 2 x 2 footprint: center it on a 3 x 3 one.
+    const k = id === 'pouso' ? (c.tipo.w - 2) / 2 : 0;
+    const p = paraTela(P, c.gx + k, c.gy + k, c.z);
     img.setTexture(`mod_${id}`).setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala).setPosition(p.x, p.y);
   }
 
@@ -637,7 +679,7 @@ export class Superficie extends Phaser.Scene {
       d = { g: this.add.graphics(), img: this.add.image(0, 0, 'mod_habitat') };
       // Rooms you use carry their name, like the first prototype.
       if (c.tipo.sala || c.tipo.id === 'habitat') {
-        d.rotulo = this.add.text(0, 0, c.tipo.nome, fonte(13, '#f8fafc', { fontStyle: 'bold', stroke: '#17130f', strokeThickness: 4 }))
+        d.rotulo = this.add.text(0, 0, sessao.mundo === 'marte' && c.tipo.id === 'habitat' ? 'Lander' : c.tipo.nome, fonte(13, '#f8fafc', { fontStyle: 'bold', stroke: '#17130f', strokeThickness: 4 }))
           .setOrigin(0.5, 1);
       }
       this.mapa.add([d.g, d.img, ...(d.rotulo ? [d.rotulo] : [])]);
@@ -651,6 +693,11 @@ export class Superficie extends Phaser.Scene {
     // disappeared under it whenever walking next to a wall.
     const prof = profundidade(c.gx, c.gy);
     d.g.setDepth(prof - 1); d.img.setDepth(prof);
+    if (d.rotulo && c.tipo.sala) {
+      const sala = c.tipo.sala;
+      d.rotulo.setText(this.emObra(c) ? `${c.tipo.nome}\nto build: ${sessao.estado.obras[sala] ?? 0} of ${custo(sala, sessao.C)}` : c.tipo.nome)
+        .setColor(this.emObra(c) ? '#fde68a' : '#f8fafc').setAlign('center');
+    }
     if (d.rotulo) {
       const topo = paraTela(P, c.gx + c.tipo.w / 2, c.gy + c.tipo.h / 2, c.z + c.tipo.altura + 0.6);
       d.rotulo.setPosition(topo.x, topo.y).setDepth(1e6);
@@ -722,7 +769,7 @@ export class Superficie extends Phaser.Scene {
       const order = overlaps ? (behind ? Math.max(normal, depth + 0.5) : Math.min(normal, depth - 0.5)) : normal;
       // setDepth re-sorts the layer: only when the order really changes.
       if (d.img.depth !== order) { d.img.setDepth(order); d.g.setDepth(order - 0.1); }
-      const alpha = overlaps && behind ? 0.38 : 1;
+      const alpha = overlaps && behind ? 0.38 : this.emObra(c) ? 0.35 : 1;   // construction sites are ghosts
       const next = Phaser.Math.Linear(d.img.alpha, alpha, 1 - Math.exp(-dt * 12));
       d.img.setAlpha(next); d.g.setAlpha(next);
     }

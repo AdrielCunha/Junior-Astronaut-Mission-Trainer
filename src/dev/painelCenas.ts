@@ -5,6 +5,7 @@
 import Phaser from 'phaser';
 import { sessao } from '../cenas/sessao';
 import { TerrenoMarte } from './TerrenoMarte';
+import { iniciarMarte3D } from '../cenas/irParaMarte';
 
 const CENAS_DO_JOGO = ['Radar', 'Espaco', 'Superficie', 'Interface', 'Tarefa', 'Base', 'Viagem', 'MarteVista'];
 
@@ -95,7 +96,12 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   botao('Skip to the landing', () => chegada(true));
   titulo('Chapters');
   botao('Chapter 2: the ship', () => capitulo(1));
-  botao('Chapter 3: Mars base', () => capitulo(2));
+  botao('Chapter 3: Mars 3D (playable)', () => {
+    const ativa = sm.getScenes(true)[0];
+    if (!ativa) { avisar('No running scene to load from.'); return; }
+    iniciarMarte3D(ativa, 10, [200, 200]);
+  });
+  botao('Chapter 3: old 2D prototype (Base)', () => capitulo(2));
   botao('Mars base, zoom out to space', () => {
     capitulo(2);
     depois(400, () => {

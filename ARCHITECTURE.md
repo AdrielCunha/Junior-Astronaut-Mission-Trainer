@@ -397,6 +397,16 @@ MarteVista's tilted view, so `MarteVista` plays the film for z 0..1 and swaps to
 without a jump. The map is not playable yet (Superficie still assumes the Moon); the DEV panel
 shows it ("Mars map preview"), and zooming out of that preview runs the film.
 
+**Chapter 3 on the 3D engine.** After chapter 2 (Base prototype) the ship arrives and lands
+(Viagem), then `irParaMarte.ts` switches the world and restarts Espaco, Superficie and Interface
+on Mars: `sessao.usarMundo('marte')` swaps the terrain (in place: scenes hold references to
+`dadosTerreno` and its projection), the base layout (`BASE_MARTE`: the lander plays the Habitat,
+four construction sites) and gravity (`fisica.definirGravidade`, 3.71 m/s2); `sessao.comecarCapitulo(2)`
+runs chapter 3's rules (`regras.ts` with `obras`: batteries build a room first, then power it).
+Superficie shows unfinished rooms as ghosts with their build count; Interface adds the night cold
+and heating; Espaco shows only the Mars sky, and zooming out past the ground opens MarteVista
+(`sessao.voar` emits `zoomMarte`). The Moon path is unchanged.
+
 **Mars in chapter 3.** `marte.ts` holds the landing site, Mars facts and the toon landscape
 (butterscotch sky in flat bands, a small Sun with a pale halo, the crater rim, rocks), drawn behind
 the chapter 3 base by `Base.desenharCeu` and during the landing. `MarteVista` is the zoom out from

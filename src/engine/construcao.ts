@@ -5,7 +5,7 @@ import type { Caixa } from './fisica.ts';
 import type { Terreno } from './terreno.ts';
 
 export type TipoId = 'habitat' | 'suporte' | 'blindagem' | 'oficina' | 'painel' | 'plataforma'
-  | 'antena' | 'estufa' | 'perfuratriz' | 'rover';
+  | 'antena' | 'estufa' | 'perfuratriz' | 'rover' | 'aquecedor' | 'cupula';
 
 export type Tipo = {
   id: TipoId;
@@ -40,6 +40,11 @@ export const TIPOS: Record<TipoId, Tipo> = {
                 papel: 'Digs for frozen water in the dark craters.' },
   rover:      { id: 'rover', nome: 'Rover', w: 2, h: 1, altura: 0.6, cor: 0xcbd5e1, unico: true,
                 papel: 'Carries astronauts far from the base.' },
+  // Mars (chapter 3): built from batteries first (regras.ts, obras), then powered.
+  aquecedor:  { id: 'aquecedor', nome: 'Heating', w: 3, h: 3, altura: 2.0, cor: 0xef4444, sala: 'aquecimento', unico: true,
+                papel: 'Keeps the machines warm on cold Mars nights.' },
+  cupula:     { id: 'cupula', nome: 'Habitat Dome', w: 3, h: 3, altura: 1.4, cor: 0xf97316, sala: 'meta', unico: true,
+                papel: "The crew's new home on Mars." },
 };
 
 export type Construcao = { id: number; tipo: Tipo; gx: number; gy: number; z: number };
@@ -163,10 +168,22 @@ export const SETORES_SUPRIMENTOS: Partial<Record<TipoId, [number, number]>> = {
   antena: [-7, -6], estufa: [-6, 4], perfuratriz: [7, -7], rover: [5, 6],
 };
 
-export function montarBasePadrao(g: Grade): Construcao[] {
+// Mars, chapter 3: the crew landed with only its lander (it plays the Habitat: batteries charge
+// there), solar panels, and four construction sites (regras.ts obras).
+export const BASE_MARTE: [TipoId, number, number][] = [
+  ['habitat', -2, -2],
+  ['suporte', 4, -3],
+  ['blindagem', -6, 1],
+  ['aquecedor', 4, 3],
+  ['cupula', -3, 5],
+  ['painel', -6, -6],
+  ['painel', -3, -6],
+];
+
+export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BASE_PADRAO): Construcao[] {
   const c0 = Math.floor(g.n / 2);
   const feitas: Construcao[] = [];
-  for (const [id, dx, dy] of BASE_PADRAO) {
+  for (const [id, dx, dy] of base) {
     const p = g.procurarComEspaco(TIPOS[id], c0 + dx, c0 + dy);
     const c = p && g.construir(TIPOS[id], p.gx, p.gy);
     if (c) feitas.push(c);
