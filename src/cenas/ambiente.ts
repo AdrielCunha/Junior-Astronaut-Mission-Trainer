@@ -40,7 +40,11 @@ export class Ambiente {
   private readonly vidaPoeira: number;
   private readonly vento: number;
 
-  constructor(private cena: Phaser.Scene, private mapa: Phaser.GameObjects.Layer, private p: Projecao, private terreno: Terreno, marte = false) {
+  private readonly metal: boolean;              // the ship's deck: no prints, no dust
+
+  constructor(private cena: Phaser.Scene, private mapa: Phaser.GameObjects.Layer, private p: Projecao, private terreno: Terreno, mundo: 'lua' | 'marte' | 'nave' = 'lua') {
+    const marte = mundo === 'marte';
+    this.metal = mundo === 'nave';
     const pal = marte ? paletaMarte : paletaLua;
     this.corImpressao = cor(pal.sombraSolo); this.corPoeira = cor(String(pal.solo[2][1])); this.corSulco = cor(String(pal.solo[0][1]));
     this.passoTiles = marte ? 0.26 : 0.32;
@@ -88,7 +92,7 @@ export class Ambiente {
     const soil=k.noChao && Math.abs(k.z-this.terreno.altura(k.x,k.y))<0.08 &&
       !construcoes.some(c=>k.x>=c.gx && k.x<=c.gx+c.tipo.w && k.y>=c.gy && k.y<=c.gy+c.tipo.h);
     if(!soil || dist>1 || dist<0.0001) {this.distancia=0;return;}
-    if(!video.pegadas)return;
+    if(!video.pegadas || this.metal)return;
     this.distancia+=dist;
     if(this.distancia<this.passoTiles)return;
     this.distancia%=this.passoTiles;

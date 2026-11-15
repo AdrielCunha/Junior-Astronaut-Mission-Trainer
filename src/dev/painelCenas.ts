@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { sessao } from '../cenas/sessao';
 import { TerrenoMarte } from './TerrenoMarte';
-import { iniciarMarte3D } from '../cenas/irParaMarte';
+import { iniciarMarte3D, iniciarNave3D } from '../cenas/irParaMarte';
 
 const CENAS_DO_JOGO = ['Radar', 'Espaco', 'Superficie', 'Interface', 'Tarefa', 'Base', 'Viagem', 'MarteVista'];
 
@@ -61,11 +61,6 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   };
   const paraCapitulo2 = () => (sm.getScene('Interface') as unknown as { iniciarPrototipo(e: unknown): void }).iniciarPrototipo(sessao.estado);
   const fimPartida = () => { if (ativa('Interface')) paraCapitulo2(); };
-  // Chapter 2 (index 1, the ship) or 3 (index 2, Mars) of the Base prototype.
-  const capitulo = (indice: number) => {
-    parar(...CENAS_DO_JOGO);
-    sm.start('Base', { capitulo: indice, dose: 10, pontos: indice === 2 ? [200, 200] : [200] });
-  };
   // Chapter 3 is the 3D Mars (irParaMarte.ts), loaded from whatever scene is running.
   const marte3D = () => {
     const ativa = sm.getScenes(true)[0];
@@ -101,7 +96,11 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   botao('Arrival: orbit, then landing', () => chegada(false));
   botao('Skip to the landing', () => chegada(true));
   titulo('Chapters');
-  botao('Chapter 2: the ship', () => capitulo(1));
+  botao('Chapter 2: the ship (3D, playable)', () => {
+    const ativa = sm.getScenes(true)[0];
+    if (!ativa) { avisar('No running scene to load from.'); return; }
+    iniciarNave3D(ativa, 5, [200]);
+  });
   botao('Chapter 3: Mars (3D, playable)', marte3D);
   botao('Mars, zoom out to space', () => {
     marte3D();

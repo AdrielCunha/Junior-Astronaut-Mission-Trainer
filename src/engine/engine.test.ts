@@ -109,6 +109,7 @@ test('six solar panels form two vertical rows with a reachable five-slot bank on
 test('battery pickup uses the Moon bank, preserves the Mars lander, and displays remaining cartridges', () => {
   assert.equal(origemBaterias('lua'), 'bateria');
   assert.equal(origemBaterias('marte'), 'habitat');
+  assert.equal(origemBaterias('nave'), 'bateria');
   assert.equal(modeloBancoBaterias(0, true), 'bateria_carga5');
   for (const n of [0,1,2,3,4,5]) assert.equal(modeloBancoBaterias(n, false), `bateria_carga${n}`);
   assert.equal(modeloBancoBaterias(-1, false), 'bateria_carga0');

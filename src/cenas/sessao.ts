@@ -5,7 +5,8 @@ import Phaser from 'phaser';
 import { movimentoReduzido, configuracoesAbertas } from '../video';
 import terrenoJson from '../dados/terreno.json';
 import terrenoMarteJson from '../dados/terreno_marte.json';
-import { definirGravidade, G_LUA, G_MARTE } from '../engine/fisica';
+import terrenoNaveJson from '../dados/terreno_nave.json';
+import { definirGravidade, G_LUA, G_MARTE, G_TERRA } from '../engine/fisica';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { Grade, TIPOS, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
@@ -14,7 +15,8 @@ import { CAPITULOS } from '../capitulos';
 import { inicioDoCapitulo, bateriasDoDia, nenhuma, type Alocacao, type Efeito, type Estado } from '../regras';
 
 // The world the 3D scenes show: the Moon (chapter 1) or Mars (chapter 3, same engine).
-export type Mundo = 'lua' | 'marte';
+// The ship (chapter 2) is a world too: its deck, on the same engine.
+export type Mundo = 'lua' | 'marte' | 'nave';
 // A pristine copy of the Moon's terrain, to come back to it after Mars (usarMundo).
 const TERRENO_LUA = JSON.parse(JSON.stringify(terrenoJson));
 
@@ -72,7 +74,7 @@ export type Eventos = {
 
 class Sessao {
   mundo: Mundo = 'lua';
-  capIdx = 0;                         // CAPITULOS index: 0 the Moon, 2 Mars (1, the ship, is the Base prototype)
+  capIdx = 0;                         // CAPITULOS index: 0 the Moon, 1 the ship, 2 Mars
   pontos: number[] = [];              // score of each finished chapter
   terreno = new Terreno(dadosTerreno);
   grade = new Grade(this.terreno);
@@ -122,14 +124,16 @@ class Sessao {
   // changed IN PLACE: scenes keep references to dadosTerreno and its projection (Superficie's P).
   usarMundo(m: Mundo) {
     this.mundo = m;
-    const fonte = m === 'marte' ? terrenoMarteJson : TERRENO_LUA;
+    const fonte = m === 'marte' ? terrenoMarteJson : m === 'nave' ? terrenoNaveJson : TERRENO_LUA;
     const d = dadosTerreno as unknown as Record<string, unknown>;
     const img = dadosTerreno.imagem;
     for (const k of Object.keys(d)) if (k !== 'imagem') delete d[k];
     Object.assign(d, JSON.parse(JSON.stringify(fonte)), { imagem: img });
     Object.assign(img, JSON.parse(JSON.stringify(fonte.imagem)));
     this.terreno = new Terreno(dadosTerreno);
-    definirGravidade(m === 'marte' ? G_MARTE : G_LUA);
+    // On the ship there is no gravity in deep space: magnetic boots hold the crew to the metal
+    // deck, so walking feels like on Earth and a jump barely leaves the floor.
+    definirGravidade(m === 'marte' ? G_MARTE : m === 'nave' ? G_TERRA : G_LUA);
     this.reiniciar();
   }
 
@@ -209,6 +213,11 @@ class Sessao {
     // Mars has no globe or film in Espaco: its zoom out is MarteVista (the Mars film, live globe
     // and solar system), opened by Interface.
     if (this.mundo === 'marte' && destino !== 'chao') { this.empurrao = 0; this.emitir('zoomMarte'); return; }
+    if (this.mundo === 'nave' && destino !== 'chao') {
+      this.empurrao = 0;
+      this.emitir('mensagem', 'You are inside the ship, on the way to Mars. Look out of the portholes: only stars, for months.', '#93c5fd');
+      return;
+    }
     if (configuracoesAbertas || this.transicao) return;
     this.empurrao = 0;
     if (destino === this.vista) return;

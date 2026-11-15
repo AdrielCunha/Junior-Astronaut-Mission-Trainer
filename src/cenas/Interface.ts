@@ -7,7 +7,8 @@ import { CAPITULOS } from '../capitulos';
 import { calcularLayoutHud } from './layoutHud';
 import { PreferenciaDicas } from './dicasControles';
 import type { DadosRadar } from './Radar';
-import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, type Estado } from '../regras';
+import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, DESCANSO, type Estado } from '../regras';
+import { iniciarNave3D, iniciarMarte3D } from './irParaMarte';
 import { suprimentoDoDia } from '../engine/suprimentos';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase } from './sessao';
 import { alternarMudo } from '../audio';
@@ -173,7 +174,11 @@ export class Interface extends Phaser.Scene {
     for (const dy of [-6, 0, 6]) simbolo.lineBetween(cx - px(7), cy + px(dy), cx + px(7), cy + px(dy));
     menu.caixa.add(simbolo).setDepth(10).setData('acao', 'menu');
     this.btMenu = menu.caixa;
-    this.capsula = criarCapsulaRecursos(this, l.capsula, u, marte ? {
+    const nave = sessao.mundo === 'nave';
+    this.capsula = criarCapsulaRecursos(this, l.capsula, u, nave ? {
+      nomes: ['Batteries at the Power Room', 'Carrying batteries', 'Air recycler: batteries delivered today', 'Storm shelter: batteries delivered today', 'Engines: batteries delivered today'],
+      icones: ['\u{1f50b}', '\u270b', '\u2764\ufe0f', '\u{1f6e1}', '\u{1f680}'],
+    } : marte ? {
       nomes: ['Batteries at the lander', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Heating: batteries delivered today'],
       icones: ['\u{1f50b}', '\u270b', '\u2764\ufe0f', '\u{1f6e1}', '\u{1f525}'],
     } : undefined);
@@ -199,7 +204,7 @@ export class Interface extends Phaser.Scene {
     const marte = sessao.mundo === 'marte';
     this.textos.dia.setText(sessao.fase === 'inicio'
       ? `Exploring \u00b7 ${marte ? 'Jezero crater' : 'Shackleton rim'}`
-      : `${marte ? 'Mars \u00b7 ' : ''}Day ${Math.min(e.dia, C_().dias)} of ${C_().dias} \u00b7 ${dataBonita(sessao.data)}`);
+      : `${marte ? 'Mars \u00b7 ' : sessao.mundo === 'nave' ? 'Ship \u00b7 ' : ''}Day ${Math.min(e.dia, C_().dias)} of ${C_().dias} \u00b7 ${dataBonita(sessao.data)}`);
     this.tituloHud.atualizar(this.textos.dia.text);
     const valores = [e.oxigenio, e.dose, e.meta];
     this.recursos.forEach((r, i) => { r.caixa.setVisible(sessao.fase !== 'inicio'); r.atualizar(valores[i]); });
@@ -210,7 +215,7 @@ export class Interface extends Phaser.Scene {
     this.capsula.atualizar(contadores);
     this.objetivo.setVisible(sessao.fase === 'dia');
     this.textos.tarefa.setText(sessao.noHabitat
-      ? `Walk to the ${marte ? 'Lander' : 'Battery Bank'} to pick up today's batteries.`
+      ? `Walk to the ${marte ? 'Lander' : sessao.mundo === 'nave' ? 'Power Room' : 'Battery Bank'} to pick up today's batteries.`
       : sessao.carregando ? 'Click a room (or press E next to it) to give it a battery.' : 'All batteries used. Press "End day".');
 
     this.textos.tarefa.setScale(1);
@@ -274,9 +279,9 @@ export class Interface extends Phaser.Scene {
       const enf = naEnfermaria(sessao.estado);
       const marte = sessao.mundo === 'marte';
       const sup = marte ? undefined : suprimentoDoDia(sessao.estado.dia);
-      const intro = marte && sessao.estado.dia === 1 ? sessao.cap.introducao.map((t) => ({ texto: t, cor: '#fde68a' })) : [];
+      const intro = sessao.mundo !== 'lua' && sessao.estado.dia === 1 ? sessao.cap.introducao.map((t) => ({ texto: t, cor: '#fde68a' })) : [];
       const frio = marte && d.frio ? [{ texto: `Tonight: ${d.minima ?? ''} °C. Heating needs ${d.frio} batteries, or the cold machines lose ${d.frio * 10} oxygen.`, cor: '#93c5fd', negrito: true }] : [];
-      this.abrirPainel(`${marte ? 'Mars · ' : ''}Day ${sessao.estado.dia} · ${dataBonita(sessao.data)}`, [
+      this.abrirPainel(`${marte ? 'Mars · ' : sessao.mundo === 'nave' ? 'Ship · ' : ''}Day ${sessao.estado.dia} · ${dataBonita(sessao.data)}`, [
         ...intro,
         { texto: 'Mission Control', cor: '#93c5fd', negrito: true },
         d.aviso,
@@ -307,6 +312,21 @@ export class Interface extends Phaser.Scene {
       const marte = sessao.mundo === 'marte';
       const titulo = r === 'vitoria' ? (marte ? 'Mission complete!' : 'Launch! To Mars!') : r === 'sem-oxigenio' ? 'Out of oxygen' : r === 'radiacao' ? 'Too much radiation'
         : marte ? 'The base was not finished' : 'The rocket was not ready';
+      if (sessao.mundo === 'nave') {
+        // Chapter 2 ends at Mars: the arrival and landing (Viagem), then chapter 3 on Mars.
+        const pontos = [...sessao.pontos, pontuacao(e)];
+        this.abrirPainel(r === 'vitoria' ? sessao.cap.vitoria[0] : r === 'sem-oxigenio' ? 'Out of oxygen' : r === 'radiacao' ? 'Too much radiation' : 'The ship missed Mars', [
+          r === 'vitoria' ? sessao.cap.vitoria[1] : sessao.cap.metaIncompleta,
+          `Chapter score: ${pontuacao(e)}  (oxygen ${Math.round(e.oxigenio)} + health ${Math.round(100 - e.dose)} + trip ${Math.round(e.meta)})`,
+          ...sessao.cap.licoes.map((l) => `• ${l}`),
+          { texto: `Real data: ${sessao.cap.dados.nota}`, cor: '#94a3b8', tamanho: 12 },
+        ], r === 'vitoria'
+          ? [{ texto: 'Build ship', acao: () => this.scene.launch('NaveTarefa', { aoConcluir: () => this.mensagem('Ship route complete', '#86efac') }) },
+             { texto: 'Land on Mars  ▶', acao: () => { this.fecharPainel(); this.scene.launch('Viagem', { etapa: 'chegada', aoTerminar: () => iniciarMarte3D(this, e.dose, pontos) }); }, principal: true }]
+          // Trying again: the crew rests first (regras.ts DESCANSO).
+          : [{ texto: 'Try the trip again', acao: () => iniciarNave3D(this, Math.min(e.dose, DESCANSO), sessao.pontos), principal: true }]);
+        return;
+      }
       if (marte) {
         const total = [...sessao.pontos, pontuacao(e)].reduce((a, b) => a + (b ?? 0), 0);
         this.abrirPainel(titulo, [
@@ -339,14 +359,10 @@ export class Interface extends Phaser.Scene {
     sup.decolar(() => sessao.partir(() => this.iniciarPrototipo(e)));
   }
 
-  // Chapters 2 and 3 live in the Base prototype, which has its own art (spacecraft, Mars) and
-  // mechanics (heating, dome). Hand the crew over keeping its radiation dose and the score so far.
+  // Chapter 2 runs on this same engine, on the ship's deck (irParaMarte.ts). Hand the crew over
+  // keeping its radiation dose and the score so far.
   private iniciarPrototipo(e: Estado) {
-    this.scene.stop('Espaco');
-    this.scene.stop('Superficie');
-    this.scene.stop('Tarefa');
-    this.scene.start('Base', { capitulo: 1, dose: e.dose, pontos: [pontuacao(e)] });
-    this.scene.stop();
+    iniciarNave3D(this, e.dose, [pontuacao(e)]);
   }
 
   // Mars: zooming out past the ground opens MarteVista (the Mars film, live globe with its
