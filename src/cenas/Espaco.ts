@@ -205,9 +205,14 @@ export class Espaco extends Phaser.Scene {
       // If this frame never downloaded, keep showing the last one that did.
       while (i > 0 && !this.textures.exists(`voo${i}`)) i--;
       const temQuadro = this.textures.exists(`voo${i}`);
-      const fim = 1 - suave(0.975, 1, q);
+      // Fades in under the map picture at the start (and out at the end of the way back), so the
+      // space around the map's cut edges turns into ground gradually instead of in one frame.
+      const fim = suave(0, 0.08, q) * (1 - suave(0.975, 1, q));
       if (temQuadro) {
-        this.quadro.setTexture(`voo${i}`).setScale(sessao.escalaFilme * Math.pow(voo.razao, -(q - voo.p[i])))
+        // Never smaller than the screen: when this frame is not on the GPU yet an older one stands
+        // in, and shrinking it to this frame's distance left a dark rim that flickered at the edges.
+        const cobre = Math.max(W / (voo.w * voo.margem), H / (voo.h * voo.margem));
+        this.quadro.setTexture(`voo${i}`).setScale(Math.max(cobre, sessao.escalaFilme * Math.pow(voo.razao, -(q - voo.p[i]))))
           .setPosition(W / 2, H / 2).setAlpha(fim).setVisible(fim > 0);
       }
       // The colony on the moving planet: the base's pixel in this frame and the next (from

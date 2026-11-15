@@ -4,12 +4,15 @@
 //   globe; frames in public/marte/voo) -> Mars from orbit (live globe, planetaShader.ts, the same
 //   picture as the film's last frame) with the base pin and the two moons going round -> the inner
 //   solar system with Mars where it really is that day.
-// Opened over Base (paused); the wheel, + / - or Back returns to it.
+// Like the Moon's zoom, it moves between three stops (the ground, the globe, the solar system)
+// and each push of the wheel or the buttons plays the whole flight to the next stop by itself
+// (the film takes as long as the Moon's). Opening it flies from the ground to the globe.
+// Opened over the map (paused); zooming back in to the ground, or Back, returns to it.
 import Phaser from 'phaser';
 import { PLANETAS, posicao } from '../engine/astro';
 import { criarPlaneta, diametroPlaneta, giroOlhando, pontoNoPlaneta } from './planetaShader';
 import { COR_MARTE, DIA_MARTE_MS, JEZERO } from './marte';
-import { fonte, dataBonita, suave } from './sessao';
+import { fonte, dataBonita, suave, DURACAO_FILME } from './sessao';
 import { movimentoReduzido } from '../video';
 import vooHD from '../dados/voo_marte.json';
 import vooLeve from '../dados/voo_leve_marte.json';
@@ -35,7 +38,9 @@ const LUZ_SEGUNDOS_AU = 499;               // light (and radio) takes 499 s to c
 export class MarteVista extends Phaser.Scene {
   private d!: DadosMarteVista;
   private z = 0;                           // 0 ground, 1 Mars filling a third of the screen, 2 solar system
-  private alvo = 0;
+  private parada = 1;                      // the stop the view is at or flying to
+  private voo: { de: number; para: number; t: number; dur: number } | null = null;
+  private empurrao = 0;                    // wheel pushes add up, like sessao.zoom
   private horas = 0;                       // simulated hours since the view opened
   private giroExtra = 0;
   private saindo = false;
@@ -58,7 +63,7 @@ export class MarteVista extends Phaser.Scene {
 
   init(d: DadosMarteVista) {
     this.d = d;
-    this.z = 0; this.alvo = 0.45; this.horas = 0; this.giroExtra = 0; this.saindo = false;
+    this.z = 0; this.parada = 0; this.voo = null; this.empurrao = 0; this.horas = 0; this.giroExtra = 0; this.saindo = false;
     this.conteudo = [];
     this.rotulos.clear();
   }
@@ -94,13 +99,17 @@ export class MarteVista extends Phaser.Scene {
       this.conteudo.push(t);
       return t;
     };
-    botao(W - 16, H / 2 - 30, '+', () => this.mudar(-0.4));
-    botao(W - 16, H / 2 + 30, '−', () => this.mudar(0.4));
+    botao(W - 16, H / 2 - 30, '+', () => this.mudar(-1));
+    botao(W - 16, H / 2 + 30, '−', () => this.mudar(1));
     botao(W - 16, H - 30, 'Back to base', () => this.voltar(), true);
-    this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => this.mudar(dy * 0.0015));
+    this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => {
+      this.empurrao += dy * 0.0015;
+      if (Math.abs(this.empurrao) > 0.3) { this.mudar(Math.sign(this.empurrao)); this.empurrao = 0; }
+    });
     this.input.keyboard?.on('keydown-ESC', () => this.voltar());
-    this.input.keyboard?.on('keydown-MINUS', () => this.mudar(0.4));
-    this.input.keyboard?.on('keydown-PLUS', () => this.mudar(-0.4));
+    this.input.keyboard?.on('keydown-MINUS', () => this.mudar(1));
+    this.input.keyboard?.on('keydown-PLUS', () => this.mudar(-1));
+    this.voar(1);                                      // from the ground to the globe, by itself
 
     // In: the Mars ground color covers the base, then opens on Mars seen from just above.
     this.conteudo.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
@@ -114,17 +123,28 @@ export class MarteVista extends Phaser.Scene {
     });
   }
 
-  private mudar(dz: number) {
-    if (this.saindo) return;
-    this.alvo = Phaser.Math.Clamp(this.alvo + dz, -0.2, 2);
-    if (this.alvo < 0) this.voltar();
+  // One step out (+1) or in (-1). A flight in progress plays to its end first.
+  private mudar(sentido: number) {
+    if (this.saindo || this.voo) return;
+    const proxima = this.parada + sentido;
+    if (proxima < 0) { this.voltar(); return; }
+    if (proxima > 2) return;
+    this.voar(proxima);
+  }
+
+  // The whole flight to a stop: the film (ground <-> globe) takes as long as the Moon's.
+  private voar(para: number) {
+    const longe = Math.abs(para - this.z);
+    const dur = movimentoReduzido() ? 0.3 : (Math.max(para, this.z) <= 1 ? DURACAO_FILME : 2.4) * Math.max(0.4, longe);
+    this.parada = para;
+    this.voo = { de: this.z, para, t: 0, dur };
   }
 
   // Out: the same cover, then the base again.
   private voltar() {
     if (this.saindo) return;
     this.saindo = true;
-    this.alvo = 0;
+    this.voo = null;
     this.tweens.add({
       targets: this.cobertura, alpha: 1, duration: movimentoReduzido() ? 1 : 300,
       onComplete: () => {
@@ -148,7 +168,13 @@ export class MarteVista extends Phaser.Scene {
     const W = this.scale.width, H = this.scale.height, M = Math.min(W, H);
     const dt = dtMs / 1000;
     const lento = movimentoReduzido();
-    this.z = lento ? this.alvo : this.z + (this.alvo - this.z) * (1 - Math.exp(-dt * 5));
+    this.empurrao *= Math.exp(-dt * 3);
+    if (this.voo) {
+      const v = this.voo;
+      v.t = Math.min(1, v.t + dt / v.dur);
+      this.z = v.de + (v.para - v.de) * (0.5 - 0.5 * Math.cos(Math.PI * v.t));   // ease in and out, like the Moon's film
+      if (v.t >= 1) { this.voo = null; if (v.para === 0) this.voltar(); }
+    }
     const z = Phaser.Math.Clamp(this.z, 0, 2);
     if (!lento) this.horas += dt;                       // one hour per second: the moons go round
     const w = Phaser.Math.Easing.Sine.InOut(Phaser.Math.Clamp(z - 1, 0, 1));   // 0 Mars, 1 solar system
@@ -191,7 +217,8 @@ export class MarteVista extends Phaser.Scene {
       let i = 0;
       while (i < VOO.p.length - 1 && VOO.p[i + 1] <= z) i++;
       const esc = Math.max(W / VOO.w, H / VOO.h);
-      const k = esc * Math.pow(VOO.razao, -(z - VOO.p[i]));
+      // Never smaller than the screen (no dark rim at the edges), as on the Moon.
+      const k = Math.max(Math.max(W / (VOO.w * VOO.margem), H / (VOO.h * VOO.margem)), esc * Math.pow(VOO.razao, -(z - VOO.p[i])));
       const fade = 1 - suave(0.975, 1, z);
       this.quadro.setTexture(`mv${i}`).setScale(k).setPosition(W / 2, H / 2).setAlpha(fade);
       const fw = VOO.w * VOO.margem, fh = VOO.h * VOO.margem;
