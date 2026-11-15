@@ -756,7 +756,13 @@ export class Superficie extends Phaser.Scene {
       feito = true;
       sessao.emTarefa = false;
       sessao.estacoesHoje.add(d.id);
-      sessao.emitir('mensagem', `✅ ${d.nome}: ${e.acao.toLowerCase()} done!`, '#86efac');
+      const ganhoOxigenio = Math.min(e.recompensaOxigenio ?? 0, 100 - sessao.estado.oxigenio);
+      if (ganhoOxigenio > 0) {
+        sessao.estado = { ...sessao.estado, oxigenio: sessao.estado.oxigenio + ganhoOxigenio };
+        sessao.emitir('estado');
+      }
+      const premio = ganhoOxigenio > 0 ? ` +${ganhoOxigenio} oxygen.` : '';
+      sessao.emitir('mensagem', `✅ ${d.nome}: ${e.acao.toLowerCase()} done!${premio}`, '#86efac');
     } });
     this.scene.bringToTop(e.cena);
   }

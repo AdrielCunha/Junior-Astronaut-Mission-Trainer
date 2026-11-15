@@ -3,7 +3,7 @@
 - **Category:** Navigation (cockpit, window, radio) · Life Support (garden)
 - **Chapter(s):** any (ship world only)
 - **Trigger:** press E next to a station prop (or tap it while next to it), once per day each. Stations still to do today show a bobbing yellow "!" and the tooltip says "Press E: …" (or "✓ Done today"). Thruster puffs also joins the Engines room tasks (`CENAS_DA_NAVE`). Debug buttons in `?debug=1` (Tasks tab).
-- **Reward:** to be defined (for now only `aoConcluir`; the station is marked done for the day)
+- **Reward:** finishing the garden task immediately adds 1 oxygen point (up to 100); the station is marked done for the day
 - **Interaction:** tap buttons / arrow keys (thrusters); tap pots + switch (garden)
 - **Difficulty (7–12 years):** short, no penalty
 
@@ -39,6 +39,7 @@ Every piece of equipment brought by a cargo lander (`engine/suprimentos.ts`) is 
 | Greenhouse (4) | Water the lettuce (`HortaTarefa`) | Unbalanced air (valves) |
 | Ice Drill (5) | Find the best spot to drill (`ScannerGeloTarefa`) | Overheating |
 | Rover (6) | Charge the cargo rover (`BateriaRoverTarefa`) | Lost route |
-- Verified in Chrome: a landed Greenhouse shows the "!", E opens the garden task, finishing marks `mod_estufa` done for the day. Test: `estacoes.test.ts` (every supply has a station and none repeats its event's task).
+- Verified in Chrome: a landed Greenhouse shows the "!", E opens the garden task, and finishing marks `mod_estufa` done for the day.
+- Garden reward: finishing immediately adds 1 oxygen point (up to 100); the reward code has not yet been verified in-game. Test: `estacoes.test.ts` (every supply has a station and none repeats its event's task).
 
 

@@ -2,20 +2,20 @@
 // Ship stations: some of the ship's props are places where the commander can do a job (press E next to
 // them). Each one plays its task once a day, so walking around the ship always has something to do.
 // No Phaser, so node --test can run it.
-export type Estacao = { cena: string; acao: string };
+export type Estacao = { cena: string; acao: string; recompensaOxigenio?: number };
 
 export const ESTACOES: Record<string, Estacao> = {
   nave_cockpit: { cena: 'ManobraNaveTarefa', acao: 'Steer the ship' },
   nave_janela: { cena: 'LimparJanelaTarefa', acao: 'Clean the window' },
   nave_radio: { cena: 'ComunicacoesTarefa', acao: 'Tune the radio' },
-  nave_plantas: { cena: 'HortaTarefa', acao: 'Water the garden' },
+  nave_plantas: { cena: 'HortaTarefa', acao: 'Water the garden', recompensaOxigenio: 1 },
 };
 
 // Equipment that lands on the Moon by cargo lander (engine/suprimentos.ts): each one is a station too, keyed
 // by `mod_<type>`. Its task is a different one from its fix-it event (engine/eventos.ts), so both feel new.
 export const ESTACOES_MODULO: Record<string, Estacao> = {
   antena: { cena: 'FiacaoTarefa', acao: 'Check the antenna cables' },
-  estufa: { cena: 'HortaTarefa', acao: 'Water the lettuce' },
+  estufa: { cena: 'HortaTarefa', acao: 'Water the lettuce', recompensaOxigenio: 1 },
   perfuratriz: { cena: 'ScannerGeloTarefa', acao: 'Find the best spot to drill' },
   rover: { cena: 'BateriaRoverTarefa', acao: 'Charge the cargo rover' },
 };

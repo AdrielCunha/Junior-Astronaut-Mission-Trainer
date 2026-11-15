@@ -32,7 +32,7 @@ This file centralizes the game's tasks and points to the specification files in 
 
 ### Ship
 - `task-clean-ship-window` — status: implemented — wipe fog and dust off the window, then find Earth (Engines room, ship only)
-- `task-ship-stations` — status: implemented — E at the Cockpit (Thruster puffs), Window, Radio and Veggie Garden (Grow the lettuce), once a day each; garden task verified by hand on a landed Greenhouse
+- `task-ship-stations` — status: implemented — E at the Cockpit (Thruster puffs), Window, Radio and Veggie Garden (Grow the lettuce), once a day each; garden task gives +1 oxygen point (up to 100)
 - `task-ship-explorations` — status: implemented — hot/cold hunts on the deck: patch 3 air leaks, find the lost wrench
 
 ### Exploration events (engine/exploracao.ts)
