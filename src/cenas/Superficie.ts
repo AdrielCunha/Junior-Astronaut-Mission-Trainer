@@ -51,6 +51,7 @@ type Pouso = {
 export class Superficie extends Phaser.Scene {
   private tempoEfeitos = 0;
   private ambiente!: Ambiente;
+  private readonly controlesObservados = new Set<'movimento' | 'pulo'>();
   private corpo!: Corpo;
   private gCaminhos!: Phaser.GameObjects.Graphics;
   private gAstronauta!: Phaser.GameObjects.Graphics;   // shadow + carried batteries
@@ -595,7 +596,15 @@ export class Superficie extends Phaser.Scene {
     const caixas = sessao.grade.caixas();
     const e = this.input.enabled ? this.entrada() : null;
     const antesNoChao = this.corpo.noChao;
+    const antesX = this.corpo.x, antesY = this.corpo.y;
     const { bloqueado } = passo(this.corpo, e, sessao.terreno, caixas, dt);
+    // Observe successful controls for the tutorial, without changing movement or physics.
+    if (e && (e.dx || e.dy) && Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY) > 0.001 && !this.controlesObservados.has('movimento')) {
+      this.controlesObservados.add('movimento'); sessao.emitir('controleUsado', 'movimento');
+    }
+    if (e?.pular && antesNoChao && !this.corpo.noChao && this.corpo.vz > 0 && !this.controlesObservados.has('pulo')) {
+      this.controlesObservados.add('pulo'); sessao.emitir('controleUsado', 'pulo');
+    }
     if (this.rota.length > 0 && bloqueado) {
       if (++this.bloqueadoCont > 20) {
         this.rota = [];

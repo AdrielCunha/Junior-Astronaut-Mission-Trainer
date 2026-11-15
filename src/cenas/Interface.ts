@@ -2,38 +2,45 @@
 // Screen-space layer on top of everything: resource bars, build bar, zoom controls, messages,
 // and the morning / night / end panels that run the chapter rules (../regras.ts).
 import Phaser from 'phaser';
-import { abrirVideo, configuracoesAbertas } from '../video';
+import { abrirVideo, configuracoesAbertas, movimentoReduzido } from '../video';
+import { alternarEfeitos, efeitosEstaoMudos } from '../sfx';
 import { CAPITULOS } from '../capitulos';
+import { calcularLayoutHud } from './layoutHud';
+import { PreferenciaDicas } from './dicasControles';
 import type { DadosRadar } from './Radar';
 import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, type Estado } from '../regras';
-import { TIPOS } from '../engine/construcao';
 import { suprimentoDoDia } from '../engine/suprimentos';
-import { sessao, fonte, dataBonita, U_INICIAL, COR, dadosTerreno, type Fase } from './sessao';
+import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase } from './sessao';
 import { alternarMudo, estaMudo } from '../audio';
-import { alternarEfeitos, efeitosEstaoMudos } from '../sfx';
+import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndicador, botaoVerde, criarDicasRecolhiveis, criarBotaoMusica, criarFaixaHud, criarTituloHud, criarBotaoZoom } from '../tarefas/estilo';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 const NIVEIS = ['CALM', 'RISING', 'HIGH', 'EXTREME'];
 const CORES_NIVEL = ['#4ade80', '#facc15', '#fb923c', '#f87171'];
 // The rules of the chapter being played (the Moon, or Mars on the same engine).
 const C_ = () => sessao.C;
-const corDaBarra = (v: number, inverter = false) => {
-  const x = inverter ? 100 - v : v;
-  return x > 70 ? 0x22c55e : x >= 30 ? 0xeab308 : 0xef4444;
-};
 
 export class Interface extends Phaser.Scene {
   private u = 1;
-  private hud!: Phaser.GameObjects.Graphics;
+  private tituloHud!: ReturnType<typeof criarTituloHud>;
+  private recursos: ReturnType<typeof criarIndicador>[] = [];
+  private capsula!: ReturnType<typeof criarCapsulaRecursos>;
+  private layout!: ReturnType<typeof calcularLayoutHud>;
+  private objetivo!: Phaser.GameObjects.Container;
   private textos: Record<string, Phaser.GameObjects.Text> = {};
   private painel: Phaser.GameObjects.GameObject[] = [];
   private acaoPrincipal?: () => void;
   private aviso?: Phaser.GameObjects.Text;
-  private btFim!: Phaser.GameObjects.Text;
+  private btFim!: Phaser.GameObjects.Container;
+  private textoFim!: Phaser.GameObjects.Text;
+  private dicas!: ReturnType<typeof criarDicasRecolhiveis>;
+  private readonly preferenciaDicas = new PreferenciaDicas();
+  private musica!: ReturnType<typeof criarBotaoMusica>;
+  private btSom!: Phaser.GameObjects.Container;
+  private btVideo!: Phaser.GameObjects.Container;
+  private btEfeitos!: Phaser.GameObjects.Container;
+  private textoEfeitos!: Phaser.GameObjects.Text;
   private cortina!: Phaser.GameObjects.Rectangle;
-  private btVideo!: Phaser.GameObjects.Text;
-  private btSom!: Phaser.GameObjects.Text;
-  private btEfeitos!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: 'Interface' });   // started by Carregar
@@ -52,7 +59,6 @@ export class Interface extends Phaser.Scene {
     const W = this.scale.width, H = this.scale.height;
     this.u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.62, 1.4);
     sessao.tela = { w: W, h: H };
-    const u = this.u;
     this.textos = {};
     this.painel = [];
 
@@ -74,33 +80,18 @@ export class Interface extends Phaser.Scene {
     this.scale.on('resize', redimensionar);
     this.events.once('shutdown', () => this.scale.off('resize', redimensionar));
 
-    // ----- top bar -----
-    this.hud = this.add.graphics();
-    this.textos.titulo = this.texto(16 * u, 10 * u, 'LUNAR ODYSSEY', 18, '#f8fafc', { fontStyle: 'bold' });
-    this.textos.dia = this.texto(16 * u, 34 * u, '', 13, '#93c5fd', { fontStyle: 'bold' });
-    this.textos.barras = this.texto(0, 0, '', 1);
-    this.textos.baterias = this.texto(W - 16 * u, 12 * u, '', 15, '#f8fafc', { fontStyle: 'bold', align: 'right' }).setOrigin(1, 0);
-    this.textos.tarefa = this.texto(16 * u, 62 * u, '', 14, '#fde68a', { fontStyle: 'bold', lineSpacing: 4 * u });
+    this.criarHUD(W, H);
 
-    // ----- main button (bottom right) -----
-    const yb = H - 16 * u;
-    this.btFim = this.botao(W - 16 * u, yb, 'End day  ▶', () => this.terminarDia(), COR.azul, 16).setOrigin(1, 1);
-    this.btSom = this.botao(W - 16 * u, 62 * u, estaMudo() ? 'Music off' : 'Music on', () => this.atualizarSom(alternarMudo()), '#334155', 12).setOrigin(1, 0).setDepth(10);
-    this.btEfeitos = this.botao(W - 16 * u, 94 * u, efeitosEstaoMudos() ? 'Effects off' : 'Effects on', () => this.atualizarEfeitos(alternarEfeitos()), '#334155', 12).setOrigin(1, 0).setDepth(10);
-
-    this.btVideo = this.botao(W-16*u,98*u,'Video & comfort',()=>abrirVideo(),'#334155',12).setFontSize(Math.max(12,12*u)).setPadding(10,8,10,8).setOrigin(1,0).setDepth(10);
-    this.cortina = this.add.rectangle(0,0,W,H,0x05070f).setOrigin(0).setDepth(10_000_000).setAlpha(0);
-
-    // ----- zoom (right side) -----
-    const zx = W - 16 * u, zy = H * 0.42;
-    this.botao(zx, zy, '+', () => sessao.zoom(-0.5), '#334155', 18).setOrigin(1, 0.5);
-    this.botao(zx, zy + 44 * u, '−', () => sessao.zoom(0.5), '#334155', 18).setOrigin(1, 0.5);
-    this.botao(zx, zy + 88 * u, '⌂', () => sessao.irPara(U_INICIAL), '#334155', 18).setOrigin(1, 0.5);
-    this.textos.altitude = this.texto(zx - 48 * u, zy + 44 * u, '', 12, '#94a3b8', { align: 'right' }).setOrigin(1, 0.5);
-
-    this.textos.ajuda = this.texto(16 * u, H - 100 * u,
-      'WASD or click: walk · Space: jump · click a room (or E next to it): use it · wheel or pinch: zoom to space',
-      12, '#94a3b8', { stroke: '#020617', strokeThickness: 3 });
+    const l = this.layout, fim = l.fimDia;
+    this.btFim = botaoVerde(this, Math.round(fim.x + fim.w / 2), Math.round(fim.y + fim.h / 2), 'End day  \u25b6', Math.round(17 * l.u), fim.h, l.u,
+      () => this.terminarDia(), { largura: fim.w, altura: fim.h, pulsar: false, pararPropagacao: true, animarHover: true });
+    this.textoFim = this.btFim.getData('texto');
+    this.cortina = this.add.rectangle(0, 0, W, H, 0x05070f).setOrigin(0).setDepth(10_000_000).setAlpha(0);
+    this.dicas = criarDicasRecolhiveis(this, l.dicasPainel, l.dicasAba, l.dicasFechadasX, l.u, l.dicasCompactas,
+      this.preferenciaDicas.inicial(l.dicasCompactas), (recolhido) => this.preferenciaDicas.definir(recolhido));
+    sessao.ouvir(this, 'controleUsado', (controle) => {
+      if (this.preferenciaDicas.usar(controle)) this.dicas.definir(true);
+    });
 
     // ----- input that must work at any zoom -----
     // Mouse wheel / touchpad: zoom around the cursor.
@@ -125,8 +116,8 @@ export class Interface extends Phaser.Scene {
     kb.on('keydown-MINUS', () => sessao.zoom(0.4));
     kb.on('keydown-NUMPAD_SUBTRACT', () => sessao.zoom(0.4));
     kb.on('keydown-H', () => sessao.irPara(U_INICIAL));
-    kb.on('keydown-M', () => {if (!configuracoesAbertas) this.atualizarSom(alternarMudo());});
-    kb.on('keydown-ENTER', () => {if (!configuracoesAbertas) this.acaoPrincipal?.();});
+    kb.on('keydown-M', () => { if (!configuracoesAbertas) this.atualizarSom(alternarMudo()); });
+    kb.on('keydown-ENTER', () => { if (!configuracoesAbertas) this.acaoPrincipal?.(); });
 
     sessao.ouvir(this, 'mensagem', (s, cor) => this.mensagem(s, cor));
     sessao.ouvir(this, 'desbloqueado', () => this.atualizar());
@@ -138,64 +129,84 @@ export class Interface extends Phaser.Scene {
   }
 
   private atualizarSom(mudo: boolean) {
-    this.btSom.setText(mudo ? 'Music off' : 'Music on');
+    this.musica.atualizar(mudo);
+    this.atualizarEfeitos(efeitosEstaoMudos());
   }
 
   private atualizarEfeitos(mudo: boolean) {
-    this.btEfeitos.setText(mudo ? 'Effects off' : 'Effects on');
+    this.textoEfeitos.setText(mudo ? 'Effects off' : 'Effects on');
   }
 
-  update() {
-    this.cortina.setAlpha(sessao.transicao ? Math.sin(Math.PI*sessao.transicao.t) : 0);
-    const n = sessao.nivel;
-    this.textos.altitude.setText(sessao.voo ? '' : sessao.vista === 'chao' ? 'Ground' : sessao.vista === 'lua' ? 'Moon' : 'Solar\nsystem');
-    // Ground-only controls fade out in space.
-    const a = n < 1.02 ? 1 : 0.25;
-    this.textos.ajuda.setAlpha(a);
+  update(_tempo: number, dt: number) {
+    this.cortina.setAlpha(sessao.transicao ? Math.sin(Math.PI * sessao.transicao.t) : 0);
+    if (this.scene.isVisible() && !sessao.emTarefa && !configuracoesAbertas && !sessao.transicao && this.preferenciaDicas.passo(dt)) this.dicas.definir(true);
+    this.textos.altitude.setText(sessao.vista === 'chao' ? 'Ground' : 'Space');
+  }
+
+  // Decorative containers have no hit area: the map remains clickable between buttons.
+  private criarHUD(W: number, H: number) {
+    const l = this.layout = calcularLayoutHud(W, H, this.u), u = l.u;
+    const px = (v: number) => Math.round(v * u);
+    criarFaixaHud(this, l.faixa, u);
+    const pad = px(8);
+    this.tituloHud = criarTituloHud(this, l.titulo, u);
+    this.textos.dia = this.tituloHud.data;
+    const marte = sessao.mundo === 'marte';
+    const descricoes: [string, string, number][] = [['\u{1f4a8}', 'Oxygen', 0x4ade80], ['\u2622', 'Radiation', 0xfde047],
+      [marte ? '\u{1f3d7}' : '\u{1f680}', sessao.cap.nomeMeta, 0x60a5fa]];
+    this.recursos = l.recursos.map((r, i) => criarIndicador(this, r, u, ...descricoes[i]));
+    this.musica = criarBotaoMusica(this, l.musica, u, estaMudo(), () => this.atualizarSom(alternarMudo()));
+    this.btSom = this.musica.caixa.setDepth(10);
+    const efeitos = criarBotaoPilula(this, l.efeitos, u, efeitosEstaoMudos() ? 'Effects off' : 'Effects on', () => this.atualizarEfeitos(alternarEfeitos()));
+    this.btEfeitos = efeitos.caixa.setDepth(10);
+    this.textoEfeitos = efeitos.texto.setFontSize(px(12));
+    const video = criarBotaoPilula(this, l.video, u, 'Video & comfort', () => abrirVideo());
+    this.btVideo = video.caixa.setDepth(10);
+    video.texto.setFontSize(px(12));
+    this.capsula = criarCapsulaRecursos(this, l.capsula, u, marte ? {
+      nomes: ['Batteries at the lander', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Heating: batteries delivered today'],
+      icones: ['\u{1f50b}', '\u270b', '\u2764\ufe0f', '\u{1f6e1}', '\u{1f525}'],
+    } : undefined);
+    const o = l.objetivo;
+    this.objetivo = criarPilula(this, o.x, o.y, o.w, o.h, u, 0xffd93b);
+    const estrela = this.add.text(pad, Math.round(o.h / 2), '\u2605', letra(px(18), '#0b1a4a')).setOrigin(0, 0.5);
+    this.textos.tarefa = this.add.text(px(30), Math.round(o.h / 2), '', letra(px(12), '#0b1a4a', {
+      wordWrap: { width: o.w - px(30) - pad }, lineSpacing: 0,
+    })).setOrigin(0, 0.5);
+    this.objetivo.add([estrela, this.textos.tarefa]);
+    // Pulse only the star; the second-row elements stay on the same baseline.
+    if (!movimentoReduzido()) this.tweens.add({ targets: estrela, alpha: 0.45, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    (['mais', 'menos', 'casa'] as const).forEach((icone, i) => criarBotaoZoom(this, l.zoom[i], u, icone,
+      () => i === 2 ? sessao.irPara(U_INICIAL) : sessao.zoom(i === 0 ? -0.5 : 0.5)));
+    const nivel = criarPilula(this, l.nivel.x, l.nivel.y, l.nivel.w, l.nivel.h, u);
+    this.textos.altitude = this.add.text(Math.round(l.nivel.w / 2), Math.round(l.nivel.h / 2), '', letra(px(12), '#bfdbfe')).setOrigin(0.5);
+    nivel.add(this.textos.altitude);
   }
 
   // ---------- HUD ----------
   private atualizar() {
-    const W = this.scale.width;
-    const u = this.u;
     const e = sessao.estado;
-    const g = this.hud.clear();
-    g.fillStyle(0x020617, 0.72).fillRect(0, 0, W, 54 * u);
-
     const marte = sessao.mundo === 'marte';
-    this.textos.titulo.setText(marte ? 'MARS BASE' : 'LUNAR ODYSSEY');
     this.textos.dia.setText(sessao.fase === 'inicio'
-      ? `Exploring · ${dadosTerreno.centro.lat.toFixed(2)}°, ${dadosTerreno.centro.lon.toFixed(1)}° · ${marte ? 'Jezero crater' : 'Shackleton rim'}`
-      : `${marte ? 'Chapter 3 · ' : ''}Day ${Math.min(e.dia, C_().dias)} of ${C_().dias} · ${dataBonita(sessao.data)}`);
-
-    // Bars: oxygen, radiation dose (lower is better), rocket. None while just exploring the base.
-    const barras: [string, number, number][] = sessao.fase === 'inicio' ? [] : [
-      ['Oxygen', e.oxigenio, corDaBarra(e.oxigenio)],
-      ['Radiation', e.dose, corDaBarra(e.dose, true)],
-      [sessao.cap.nomeMeta, e.meta, 0x60a5fa],
-    ];
-    for (let i = 0; i < 3; i++) this.textos[`b${i}`]?.setText('');
-    const bw = 130 * u, x0 = W / 2 - (barras.length * (bw + 24 * u)) / 2;
-    for (const [i, [nome, v, cor]] of barras.entries()) {
-      const x = x0 + i * (bw + 24 * u), y = 26 * u;
-      g.fillStyle(0x1e293b).fillRoundedRect(x, y, bw, 12 * u, 4 * u);
-      g.fillStyle(cor).fillRoundedRect(x, y, Math.max(4, (bw * v) / 100), 12 * u, 4 * u);
-      const id = `b${i}`;
-      if (!this.textos[id]) this.textos[id] = this.texto(x, 8 * u, '', 12, '#cbd5e1', { fontStyle: 'bold' });
-      this.textos[id].setText(`${nome} ${Math.round(v)}%`);
-    }
-
-    // Batteries and the to-do line.
+      ? `Exploring \u00b7 ${marte ? 'Jezero crater' : 'Shackleton rim'}`
+      : `${marte ? 'Mars \u00b7 ' : ''}Day ${Math.min(e.dia, C_().dias)} of ${C_().dias} \u00b7 ${dataBonita(sessao.data)}`);
+    this.tituloHud.atualizar(this.textos.dia.text);
+    const valores = [e.oxigenio, e.dose, e.meta];
+    this.recursos.forEach((r, i) => { r.caixa.setVisible(sessao.fase !== 'inicio'); r.atualizar(valores[i]); });
     const d = sessao.entregas;
-    this.textos.baterias.setText(sessao.fase === 'dia'
-      ? `Batteries at ${marte ? 'the lander' : 'habitat'} ${sessao.noHabitat} · carrying ${sessao.carregando}\n` +
-        (marte ? `Life ${d.oxigenio} · Shield ${d.blindagem} · Heat ${d.aquecimento}` : `Life ${d.oxigenio} · Shield ${d.blindagem} · Rocket ${d.meta}`)
-      : '');
-    this.textos.tarefa.setText(sessao.fase === 'dia'
-      ? (sessao.noHabitat ? `Walk to the ${marte ? 'Lander' : 'Habitat'} to pick up today's batteries.` : sessao.carregando ? 'Click a room (or press E next to it) to give it a battery.' : 'All batteries used. Press "End day".')
-      : '');
+    // On Mars the last counter is the heating (the dome is built through construction, not powered).
+    const contadores = [sessao.noHabitat, sessao.carregando, d.oxigenio, d.blindagem, marte ? d.aquecimento : d.meta];
+    this.capsula.caixa.setVisible(sessao.fase === 'dia');
+    this.capsula.atualizar(contadores);
+    this.objetivo.setVisible(sessao.fase === 'dia');
+    this.textos.tarefa.setText(sessao.noHabitat
+      ? `Walk to the ${marte ? 'Lander' : 'Habitat'} to pick up today's batteries.`
+      : sessao.carregando ? 'Click a room (or press E next to it) to give it a battery.' : 'All batteries used. Press "End day".');
 
-    this.btFim.setText(sessao.fase === 'inicio' ? '◀  Menu' : 'End day  ▶');
+    this.textos.tarefa.setScale(1);
+    this.textos.tarefa.setScale(Math.min(1, (this.layout.objetivo.h - Math.round(6 * this.layout.u)) / this.textos.tarefa.height));
+
+    this.textoFim.setText(sessao.fase === 'inicio' ? '◀  Menu' : 'End day  ▶');
     this.btFim.setVisible(sessao.fase === 'dia' || sessao.fase === 'inicio');
   }
 
@@ -376,6 +387,7 @@ export class Interface extends Phaser.Scene {
     const c = this.add.container((W - largura * escala) / 2, (H - altura * escala) / 2, itens).setScale(escala);
     this.painel = [fundo, c];
     this.children.bringToTop(this.btSom);
+    this.children.bringToTop(this.btEfeitos);
     this.children.bringToTop(this.btVideo);
   }
 }

@@ -67,6 +67,7 @@ export type Eventos = {
   desbloqueado: [Construcao];         // it landed and is part of the base
   pulo: [];
   zoomMarte: [];                      // on Mars, zooming out past the ground opens MarteVista
+  controleUsado: ['movimento' | 'pulo'];
 };
 
 class Sessao {
