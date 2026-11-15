@@ -25,7 +25,20 @@ export type DadosRadar = { aoComecar: () => void; aoExplorar: () => void; contin
 
 // Edit the credits here: [section, [role, name][]]. An empty role centers the name (the team).
 const CREDITOS: [string, [string, string][]][] = [
-  ['THE TEAM', [['', 'Team member 1'], ['', 'Team member 2'], ['', 'Team member 3'], ['', 'Team member 4']]],
+  ['THE TEAM · STAR LEAGUE', [
+    ['Team Owner', 'Adriel dos Santos Cunha (@adrielcunha)'],
+    ['Team Member', 'Andrea da Paixão Ayala (@andreapayala)'],
+    ['Team Member', 'Felipe Sabino Cota (@felipescola)'],
+    ['Team Member', 'Juliana Elen Silva Oliveira (@jeso)'],
+    ['Team Member', 'Matheus Coelho (@matheus-fsc)'],
+    ['Team Member', 'Maria Paula Moreira Rocha (@mariapaulaa)']
+  ]],
+  ['SPECIAL THANKS', [
+    ['Event', 'NASA International Space Apps Challenge 2026 (Itabira - MG)'],
+    ['Local Lead', 'Lucas Assunção Zanon (@Lucaszanon)'],
+    ['Host Venue', 'CEU UNIFEI - Campus Itabira'],
+    ['Event Page', 'spaceappschallenge.org/2026/local-events/itabira/']
+  ]],
   ['NASA DATA', [
     ['Solar storms', 'DONKI · ENLIL'],
     ['Radiation dose', 'OSDR RadLab'],
@@ -36,8 +49,16 @@ const CREDITOS: [string, [string, string][]][] = [
     ['Stars', 'SVS Deep Star Maps · ESA/Gaia/DPAC'],
     ['Planet positions', 'JPL'],
   ]],
-  ['MADE WITH', [['Game engine', 'Phaser 3'], ['Code', 'TypeScript · Vite'], ['3D models', 'Blender'], ['Font', 'Fredoka · SIL OFL'], ['Music', '(add the author)']]],
-  ['AI TOOLS', [['Coding help', 'Claude · Anthropic']]],
+  ['MADE WITH', [
+    ['Game engine', 'Phaser 3'],
+    ['Code', 'TypeScript · Vite'],
+    ['3D models', 'Blender'],
+    ['Font', 'Fredoka · SIL OFL'],
+    ['Music', '(add the author)']
+  ]],
+  ['AI TOOLS', [
+    ['Coding help', 'Claude · Anthropic']
+  ]],
 ];
 
 const VEL_VARREDURA = 0.9;   // rad/s

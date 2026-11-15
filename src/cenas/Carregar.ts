@@ -16,7 +16,7 @@ import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 import dadosViagem from '../dados/viagem.json';
 import planetas3d from '../dados/planetas3d.json';
-import { SKINS, chaveSkin, chaveSkinSentado, arquivoSentado } from '../dados/skins';
+import { SKINS, chaveSkin, chaveSkinSentado, arquivoSentado, chaveSkinCarga, arquivoSkinCarga } from '../dados/skins';
 import constelacoes from '../dados/constelacoes.json';
 import { ICONES, chaveIcone } from '../dados/icones';
 import { soltarTeclasAoPerderFoco } from '../foco';
@@ -153,6 +153,7 @@ export class Carregar extends Phaser.Scene {
     this.load.image('terreno', dadosTerreno.imagem.arquivo);
     for (const [id, m] of Object.entries(modelos)) this.load.image(`mod_${id}`, m.arquivo);
     for (const [id, m] of Object.entries(rotacoesModulos) as [string,{arquivo:string}][]) this.load.image(`mod_${id}`, m.arquivo);
+    for (const sk of SKINS) this.load.spritesheet(chaveSkinCarga(sk.id), arquivoSkinCarga(sk.id), { frameWidth: sprite.frame, frameHeight: sprite.frame });
     this.load.image('foguete_voo', 'lua/modulos/foguete_voo.png');   // launch film and landing (Chegada.ts)
     carregarRover(this.load);   // the Apollo LRV in 16 headings (desenharRover.ts)
     for (const [id, b] of Object.entries(bandeiras)) this.load.image(`bandeira_${id}`, b.arquivo);

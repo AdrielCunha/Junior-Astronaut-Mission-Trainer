@@ -1,6 +1,6 @@
 // Generated with AI assistance (Claude). See README, "Use of AI tools".
 // Code-drawn bits that go with the Blender pictures on the map: foundations, the commander's
-// shadow and batteries, falling cargo. Flat colors and a dark outline, like the renders.
+// shadow and falling cargo. Flat colors and a dark outline, like the renders.
 import Phaser from 'phaser';
 import paletaLua from '../dados/paleta_lua.json';
 const CORES_FUNDACAO = paletaLua.fundacao.map(h=>Number.parseInt(h.slice(1),16));
@@ -44,17 +44,12 @@ export function fundacao(g: G, p: Projecao, c: Construcao, altura: (x: number, y
 }
 
 // What goes with the commander sprite (tools/lua3d/make_astronaut.py): the shadow on the ground,
-// which shows how high a jump is, and the batteries being carried above the helmet.
-export function sombraECarga(g: G, pe: P, sombra: P, escala: number, carregando: number) {
+// which shows how high a jump is, the inventory and carried item are separate game objects.
+export function sombraAstronauta(g: G, pe: P, sombra: P, escala: number) {
   const s = escala;
   const alto = Math.max(0, sombra.y - pe.y);
   g.fillStyle(0x000000, Phaser.Math.Clamp(0.35 - alto / 300, 0.08, 0.35)).fillEllipse(sombra.x, sombra.y, s * 16, s * 7);
-  for (let i = 0; i < carregando; i++) {
-    const bx = pe.x - (carregando * s * 5) / 2 + i * s * 5 + s * 0.5, by = pe.y - s * 44;
-    g.fillStyle(0x22c55e).fillRect(bx, by, s * 4, s * 7);
-    g.lineStyle(1.5, COR.contorno).strokeRect(bx, by, s * 4, s * 7);
-    g.fillStyle(0xf8fafc).fillRect(bx + s * 1.2, by - s * 1.2, s * 1.6, s * 1.2);
-  }
+
 }
 
 // Cargo falling from the lander: a crate, nothing to slow it (no air, no parachute).
