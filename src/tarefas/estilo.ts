@@ -2,6 +2,7 @@
 // Shared cartoon look for the task screens: rounded font, bright colors, thick dark outlines.
 import type Phaser from 'phaser';
 import { fonte } from '../cenas/sessao';
+import { movimentoReduzido } from '../video';
 
 export const CONTORNO = 0x1e293b;
 export const CORES_FESTA = [0xfde047, 0x4ade80, 0xf472b6, 0x60a5fa, 0xfb923c];
@@ -74,14 +75,31 @@ export function botaoFechar(cena: Phaser.Scene, x: number, y: number, u: number,
 }
 
 // Big green pill button that gently pulses, centered on (x, y).
-export function botaoVerde(cena: Phaser.Scene, x: number, y: number, texto: string, tamanho: number, alturaMax: number, u: number, acao: () => void) {
+export function botaoVerde(cena: Phaser.Scene, x: number, y: number, texto: string, tamanho: number, alturaMax: number, u: number, acao: () => void, opcoes: { largura?: number; altura?: number; pulsar?: boolean; pararPropagacao?: boolean; animarHover?: boolean } = {}) {
   const t = cena.add.text(0, 0, texto, letra(tamanho)).setOrigin(0.5);
-  const bw = t.width + 2.2 * tamanho, bh = Math.min(alturaMax, t.height + 0.9 * tamanho);
+  const bw = opcoes.largura ?? t.width + 2.2 * tamanho, bh = opcoes.altura ?? Math.min(alturaMax, t.height + 0.9 * tamanho);
   const g = cena.add.graphics()
     .fillStyle(0x22c55e).fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2)
     .lineStyle(4 * u, 0xffffff).strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
-  const c = cena.add.container(x, y, [g, t]).setSize(bw, bh).setInteractive({ useHandCursor: true }).on('pointerdown', acao);
-  cena.tweens.add({ targets: c, scale: 1.08, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  const c = cena.add.container(x, y, [g, t]).setSize(bw, bh).setData('texto', t).setInteractive({ useHandCursor: true })
+    .on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => { if (opcoes.pararPropagacao) ev.stopPropagation(); acao(); });
+  if (opcoes.animarHover) {
+    // Animate only the artwork so the button's hit area stays stable under the pointer.
+    const brilho = cena.add.graphics().lineStyle(8 * u, 0x86efac, 0.2)
+      .strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2).setAlpha(0);
+    const visual = cena.add.container(0, 0, [brilho, g, t]);
+    c.add(visual);
+    const animar = (ativo: boolean) => {
+      cena.tweens.killTweensOf([visual, brilho]);
+      g.clear().fillStyle(ativo ? 0x4ade80 : 0x22c55e).fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2)
+        .lineStyle(4 * u, 0xffffff).strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
+      cena.tweens.add({ targets: visual, scale: ativo && !movimentoReduzido() ? 1.04 : 1, y: ativo && !movimentoReduzido() ? -Math.round(2 * u) : 0,
+        duration: movimentoReduzido() ? 0 : ativo ? 180 : 140, ease: 'Sine.easeOut' });
+      cena.tweens.add({ targets: brilho, alpha: ativo ? 1 : 0, duration: 160 });
+    };
+    c.on('pointerover', () => animar(true)).on('pointerout', () => animar(false));
+  }
+  if (opcoes.pulsar !== false && !movimentoReduzido()) cena.tweens.add({ targets: c, scale: 1.08, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   return c;
 }
 
@@ -97,4 +115,330 @@ export function criarBarra(cena: Phaser.Scene, cx: number, cy: number, largura: 
     g.clear();
     if (p > 0) g.fillStyle(cor).fillRoundedRect(x + 3 * u, cy - alt / 2 + 3 * u, Math.max(alt - 6 * u, (largura - 6 * u) * Math.min(1, p)), alt - 6 * u, (alt - 6 * u) / 2);
   };
+}
+
+
+// Floating HUD pieces are decorative: only buttons opt into input.
+export function criarPilula(cena: Phaser.Scene, x: number, y: number, w: number, h: number, u: number, cor = CONTORNO, borda = 0xffffff, raio?: number) {
+  x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+  const canto = raio ?? h / 2;
+  const g = cena.add.graphics()
+    .fillStyle(0x0b1a4a, 0.7).fillRoundedRect(Math.round(2 * u), Math.round(4 * u), w, h, Math.round(canto))
+    .fillStyle(cor).fillRoundedRect(0, 0, w, h, canto)
+    .lineStyle(3 * u, borda).strokeRoundedRect(0, 0, w, h, canto);
+  return cena.add.container(x, y, [g]).setSize(w, h);
+}
+
+export function criarSelo(cena: Phaser.Scene, x: number, y: number, w: number, h: number, u: number, cor = 0x2563eb) {
+  const caixa = criarPilula(cena, x, y, w, h, u, cor);
+  const texto = cena.add.text(w / 2, h / 2, '', letra(16 * u, '#ffffff', { stroke: '#1e293b', strokeThickness: 3 * u })).setOrigin(0.5);
+  caixa.add(texto);
+  return { caixa, texto };
+}
+
+export function criarChip(cena: Phaser.Scene, x: number, y: number, w: number, u: number, icone: string, rotulo: string, cor: number) {
+  const caixa = criarPilula(cena, x, y, w, 48 * u, u);
+  const simbolo = cena.add.text(17 * u, 24 * u, icone, letra(21 * u)).setOrigin(0.5);
+  const label = cena.add.text(34 * u, 12 * u, rotulo, letra(14 * u, '#bfdbfe')).setOrigin(0, 0.5);
+  const numero = cena.add.text(34 * u, 32 * u, '0', letra(23 * u, '#' + cor.toString(16).padStart(6, '0'), { stroke: '#0b1a4a', strokeThickness: 3 * u })).setOrigin(0, 0.5);
+  const escala = Math.min(1, (w - 40 * u) / label.width);
+  label.setScale(escala);
+  caixa.add([simbolo, label, numero]);
+  return { caixa, atualizar: (n: number) => numero.setText(String(n)) };
+}
+
+export const COR_FAIXA_HUD = 0x0b1630;
+const OPACIDADE_FAIXA_HUD = 0.9;
+
+export function criarFaixaHud(cena: Phaser.Scene, b: Caixa, u: number) {
+  return cena.add.graphics().fillStyle(COR_FAIXA_HUD, OPACIDADE_FAIXA_HUD).fillRect(b.x, b.y, b.w, b.h)
+    .lineStyle(Math.max(1, Math.round(u)), 0x7dd3fc, 0.45).lineBetween(b.x, b.y + b.h, b.x + b.w, b.y + b.h);
+}
+
+export function criarTituloHud(cena: Phaser.Scene, b: Caixa, u: number) {
+  const px = (n: number) => Math.round(n * u);
+  const raio = Math.round(b.h / 2);
+  const fundo = cena.add.graphics()
+    .lineStyle(px(10), 0x7dd3fc, 0.06).strokeRoundedRect(0, 0, b.w, b.h, raio)
+    .lineStyle(px(7), 0x7dd3fc, 0.1).strokeRoundedRect(0, 0, b.w, b.h, raio)
+    .fillStyle(CONTORNO).fillRoundedRect(0, 0, b.w, b.h, raio)
+    .lineStyle(px(4), 0x7dd3fc).strokeRoundedRect(0, 0, b.w, b.h, raio);
+  const caixa = cena.add.container(b.x, b.y, [fundo]).setSize(b.w, b.h);
+  const estilo = { stroke: '#1e293b', strokeThickness: px(6) };
+  // The main text is measured without a shadow. Only its duplicate receives the offset.
+  const sombra = cena.add.text(0, 0, 'LUNAR ODYSSEY', letra(px(32.5), '#07102d', { ...estilo, stroke: '#07102d' })).setOrigin(0.5, 0.5);
+  const logo = cena.add.text(0, 0, 'LUNAR ODYSSEY', letra(px(32.5), '#fde047', estilo)).setOrigin(0.5, 0.5);
+  const fundoData = cena.add.graphics();
+  const data = cena.add.text(0, 0, '', letra(px(13), '#dbeafe', { fontStyle: '700' })).setOrigin(0.5, 0.5);
+  const pilula = cena.add.container(0, 0, [fundoData, data]);
+  caixa.add([sombra, logo, pilula]);
+  const atualizar = (texto: string) => {
+    const margem = px(2), gap = px(3), alturaData = px(20), paddingData = px(10);
+    const centroX = Math.round(b.w / 2);
+    data.setText(texto).setScale(1);
+    const maximo = Math.floor(b.w * 0.85);
+    data.setScale(Math.min(1, (maximo - 2 * paddingData) / Math.max(1, data.width)));
+    const larguraData = Math.min(maximo, Math.ceil(data.displayWidth) + 2 * paddingData);
+    const escala = Math.min(1, (b.w - 2 * margem) / logo.width, (b.h - 2 * margem - gap - alturaData) / logo.height);
+    logo.setScale(escala); sombra.setScale(escala);
+    const grupoH = logo.displayHeight + gap + alturaData;
+    const topo = (b.h - grupoH) / 2;
+    logo.setPosition(centroX, Math.round(topo + logo.displayHeight / 2));
+    sombra.setPosition(centroX, logo.y + px(4));
+    pilula.setPosition(centroX, Math.round(topo + logo.displayHeight + gap + alturaData / 2)).setSize(larguraData, alturaData);
+    fundoData.clear().fillStyle(0x0b1a4a).fillRoundedRect(-Math.round(larguraData / 2), -Math.round(alturaData / 2), larguraData, alturaData, Math.round(alturaData / 2))
+      .lineStyle(Math.max(1, px(1)), 0x7dd3fc, 0.7).strokeRoundedRect(-Math.round(larguraData / 2), -Math.round(alturaData / 2), larguraData, alturaData, Math.round(alturaData / 2));
+  };
+  return { caixa, data, atualizar };
+}
+
+// High-contrast vector trefoil, independent of the operating system's emoji font.
+export function criarIconeRadiacao(cena: Phaser.Scene, x: number, y: number, tamanho: number) {
+  const r = Math.round(tamanho / 2);
+  const g = cena.add.graphics().setPosition(Math.round(x), Math.round(y));
+  g.fillStyle(0xfde047).fillCircle(0, 0, r).lineStyle(Math.max(1, Math.round(tamanho * 0.07)), 0x0b1a4a).strokeCircle(0, 0, r);
+  g.fillStyle(0x0b1a4a);
+  for (let i = 0; i < 3; i++) {
+    const a = -Math.PI * 2 / 3 + i * Math.PI * 2 / 3;
+    g.slice(0, 0, r * 0.78, a, a + Math.PI / 3, false).fillPath();
+  }
+  g.fillStyle(0xfde047).fillCircle(0, 0, r * 0.36).fillStyle(0x0b1a4a).fillCircle(0, 0, r * 0.19);
+  return g;
+}
+
+export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: string, rotulo: string, cor: number) {
+  // Enlarge every inner measurement together, capped by the available column and row.
+  const ampliacao = Math.max(1, Math.min(1.2, b.w / (220 * u), b.h / (44 * u)));
+  const unidade = u * ampliacao;
+  const px = (n: number) => Math.round(n * unidade);
+  const caixa = cena.add.container(b.x, b.y).setSize(b.w, b.h);
+  // Equal outer columns retain their width; their inner content stays compact and centered.
+  const largura = Math.min(px(240), b.w - px(16));
+  const inicio = Math.round((b.w - largura) / 2), pad = px(8);
+  const iconeW = px(24), gap = px(8), coluna = inicio + pad + iconeW + gap;
+  const fim = inicio + largura - pad;
+  const cabecalhoY = Math.round(b.h / 2 - px(10)), seloW = px(36), seloH = px(19);
+  const centroIconeX = inicio + pad + Math.round(iconeW / 2), centroIconeY = Math.round(b.h / 2);
+  const simbolo = icone === '\u2622'
+    ? criarIconeRadiacao(cena, centroIconeX, centroIconeY, px(21))
+    : cena.add.text(centroIconeX, centroIconeY, icone, letra(px(18))).setOrigin(0.5, 0.5);
+  if ('width' in simbolo) simbolo.setScale(Math.min(1, iconeW / simbolo.width));
+  const label = cena.add.text(coluna, cabecalhoY, rotulo, letra(px(14.5), '#ffffff', { stroke: '#0b1a4a', strokeThickness: px(2) })).setOrigin(0, 0.5);
+  const selo = criarSelo(cena, fim - seloW, cabecalhoY - Math.round(seloH / 2), seloW, seloH, unidade, cor);
+  selo.texto.setFontSize(px(11));
+  label.setScale(Math.min(1, (fim - seloW - px(5) - coluna) / label.width));
+  const trilhoY = Math.round(b.h / 2 + px(10)), trilhoH = px(14), trilhoW = fim - coluna;
+  const trilho = cena.add.graphics().fillStyle(0x0b1a4a).fillRoundedRect(coluna, trilhoY - trilhoH / 2, trilhoW, trilhoH, trilhoH / 2)
+    .lineStyle(px(2), 0xffffff).strokeRoundedRect(coluna, trilhoY - trilhoH / 2, trilhoW, trilhoH, trilhoH / 2);
+  const preenchimento = cena.add.graphics();
+  caixa.add([simbolo, label, selo.caixa, trilho, preenchimento]);
+  return { caixa, atualizar: (valor: number) => {
+    const fracao = Math.max(0, Math.min(100, valor)) / 100;
+    const borda = px(2), alto = trilhoH - 2 * borda, util = trilhoW - 2 * borda;
+    const largura = fracao > 0 ? Math.min(util, Math.max(alto, Math.round(util * fracao))) : 0;
+    preenchimento.clear();
+    if (largura) preenchimento.fillStyle(cor).fillRoundedRect(coluna + borda, trilhoY - alto / 2, largura, alto, alto / 2);
+    selo.texto.setText(`${Math.round(valor)}%`);
+  } };
+}
+
+export function criarBotaoPilula(cena: Phaser.Scene, b: Caixa, u: number, titulo: string, acao: () => void) {
+  const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u);
+  const texto = cena.add.text(Math.round(b.w / 2), Math.round(b.h / 2), titulo, letra(Math.round(16 * u), '#ffffff', { stroke: '#0b1a4a', strokeThickness: Math.round(2 * u) })).setOrigin(0.5);
+  caixa.add(texto);
+  // Container hit areas are centered on its local origin; use explicit top-left geometry.
+  const area = cena.add.zone(0, 0, b.w, b.h).setOrigin(0).setInteractive({ useHandCursor: true });
+  area.on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => { ev.stopPropagation(); acao(); });
+  area.on('pointerover', () => texto.setColor('#FFD93B')).on('pointerout', () => texto.setColor('#ffffff'));
+  caixa.add(area);
+  return { caixa, texto };
+}
+
+export function criarCapsulaRecursos(cena: Phaser.Scene, b: Caixa, u: number) {
+  const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u);
+  const nomes = ['Batteries at Habitat', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Parts: batteries delivered to the rocket workshop today'];
+  const icones = ['\u{1f50b}', '\u270b', '\u2764\ufe0f', '\u{1f6e1}', '\u{1f527}'];
+  const cores = ['#fde047', '#fde047', '#4ade80', '#fde047', '#60a5fa'];
+  const numeros: Phaser.GameObjects.Text[] = [];
+  const divisores = cena.add.graphics().lineStyle(Math.max(1, Math.round(u)), 0x7dd3fc, 0.5);
+  caixa.add(divisores);
+  const tooltip = cena.add.container(0, 0).setDepth(30).setVisible(false);
+  const fundo = cena.add.graphics();
+  const texto = cena.add.text(0, 0, '', letra(Math.round(14 * u))).setOrigin(0, 0.5);
+  tooltip.add([fundo, texto]);
+  for (let i = 0; i < 5; i++) {
+    const x = Math.round(i * b.w / 5), centro = Math.round(b.h / 2);
+    if (i) divisores.lineBetween(x, Math.round(8 * u), x, b.h - Math.round(8 * u));
+    const simbolo = cena.add.text(x + Math.round(9 * u), centro, icones[i], letra(Math.round(16 * u))).setOrigin(0, 0.5);
+    const numero = cena.add.text(x + Math.round(30 * u), centro, '0', letra(Math.round(19 * u), cores[i])).setOrigin(0, 0.5);
+    numeros.push(numero);
+    caixa.add([simbolo, numero]);
+  }
+  // Observe pointer movement without hit areas, so tooltips never consume map clicks.
+  const mover = (p: Phaser.Input.Pointer) => {
+    if (!caixa.visible || p.x < b.x || p.x >= b.x + b.w || p.y < b.y || p.y >= b.y + b.h) { tooltip.setVisible(false); return; }
+    const i = Math.min(4, Math.floor((p.x - b.x) * 5 / b.w));
+    texto.setText(nomes[i]);
+    const pad = Math.round(10 * u), h = Math.round(30 * u), w = texto.width + 2 * pad;
+    const x = Math.round(Math.max(2, Math.min(b.x + i * b.w / 5, cena.scale.width - w - 2)));
+    tooltip.setPosition(x, b.y + b.h + Math.round(8 * u)).setVisible(true);
+    texto.setPosition(pad, Math.round(h / 2));
+    fundo.clear().fillStyle(CONTORNO).fillRoundedRect(0, 0, w, h, h / 2).lineStyle(Math.max(1, Math.round(u)), 0xffffff).strokeRoundedRect(0, 0, w, h, h / 2);
+  };
+  const ocultar = () => tooltip.setVisible(false);
+  cena.input.on('pointermove', mover).on('gameout', ocultar);
+  caixa.once('destroy', () => { cena.input.off('pointermove', mover).off('gameout', ocultar); tooltip.destroy(); });
+  return { caixa, atualizar: (valores: number[]) => { if (!caixa.visible) tooltip.setVisible(false); numeros.forEach((t, i) => t.setText(String(valores[i]))); } };
+}
+
+
+// Decorative keycaps and hints deliberately have no input zones.
+export function criarTecla(cena: Phaser.Scene, x: number, cy: number, tecla: string, u: number) {
+  const px = (n: number) => Math.round(n * u);
+  const texto = cena.add.text(px(6), 0, tecla, letra(px(12), '#0b1a4a')).setOrigin(0, 0.5);
+  const w = Math.round(texto.width) + px(12), h = px(22);
+  const g = cena.add.graphics().fillStyle(0xdbeafe).fillRoundedRect(0, -Math.round(h / 2), w, h, px(5))
+    .lineStyle(Math.max(1, px(1)), 0x7dd3fc).strokeRoundedRect(0, -Math.round(h / 2), w, h, px(5));
+  return cena.add.container(Math.round(x), Math.round(cy), [g, texto]).setSize(w, h);
+}
+
+export function criarPilulaDicas(cena: Phaser.Scene, b: Caixa, u: number, vertical = false, reservaDireita = 0) {
+  const px = (n: number) => Math.round(n * u);
+  const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u, CONTORNO, 0xffffff, vertical ? px(16) : undefined);
+  const grupos = [['WASD', 'Walk'], ['Space', 'Jump'], ['E', 'Use room'], ['Scroll', 'Zoom']];
+  const g = cena.add.graphics().lineStyle(Math.max(1, px(1)), 0x7dd3fc, 0.45);
+  caixa.add(g);
+  const pad = px(12), util = (vertical ? b.h : b.w - reservaDireita) - 2 * pad;
+  grupos.forEach(([tecla, descricao], i) => {
+    const inicio = Math.round(i * util / 4), fim = Math.round((i + 1) * util / 4);
+    const x = vertical ? pad : pad + inicio;
+    const cy = vertical ? pad + Math.round((inicio + fim) / 2) : Math.round(b.h / 2);
+    if (i) {
+      if (vertical) g.lineBetween(pad, pad + inicio, b.w - pad, pad + inicio);
+      else g.lineBetween(x - px(5), px(9), x - px(5), b.h - px(9));
+    }
+    const key = criarTecla(cena, x, cy, tecla, u);
+    const label = cena.add.text(x + key.width + px(6), cy, descricao, letra(px(13))).setOrigin(0, 0.5);
+    caixa.add([key, label]);
+  });
+  return caixa;
+}
+
+export function criarBotaoMusica(cena: Phaser.Scene, b: Caixa, u: number, mudo: boolean, acao: () => void) {
+  const px = (n: number) => Math.round(n * u);
+  const botao = criarBotaoPilula(cena, b, u, '\u266a', acao);
+  botao.texto.setFontSize(px(27));
+  const risco = cena.add.graphics().lineStyle(px(3), 0xffffff).lineBetween(px(10), b.h - px(10), b.w - px(10), px(10));
+  botao.caixa.add(risco);
+  const tooltipH = px(26), tooltipW = px(94);
+  const tooltip = criarPilula(cena, b.x + b.w - tooltipW, b.y + b.h + px(8), tooltipW, tooltipH, u).setDepth(30).setVisible(false);
+  const texto = cena.add.text(Math.round(tooltipW / 2), Math.round(tooltipH / 2), '', letra(px(13))).setOrigin(0.5);
+  tooltip.add(texto);
+  const area = botao.caixa.list.find(o => o.type === 'Zone')!;
+  area.on('pointerover', () => tooltip.setVisible(true)).on('pointerout', () => tooltip.setVisible(false));
+  botao.caixa.once('destroy', () => tooltip.destroy());
+  const atualizar = (valor: boolean) => { risco.setVisible(valor); texto.setText(valor ? 'Music off' : 'Music on'); };
+  atualizar(mudo);
+  return { caixa: botao.caixa, atualizar };
+}
+
+
+// Vector controls avoid font-dependent glyph baselines and share the same visual center.
+export function criarBotaoZoom(cena: Phaser.Scene, b: Caixa, u: number, icone: 'mais' | 'menos' | 'casa', acao: () => void) {
+  const botao = criarBotaoPilula(cena, b, u, '', acao);
+  botao.texto.setVisible(false);
+  const g = cena.add.graphics();
+  const cx = Math.round(b.w / 2), cy = Math.round(b.h / 2);
+  const x = (v: number) => cx + Math.round(v * u), y = (v: number) => cy + Math.round(v * u);
+  const desenhar = (cor: number) => {
+    g.clear().lineStyle(Math.max(2, Math.round(2.5 * u)), cor);
+    if (icone === 'casa') {
+      g.beginPath().moveTo(x(-9), y(-1)).lineTo(x(0), y(-8)).lineTo(x(9), y(-1)).strokePath();
+      g.beginPath().moveTo(x(-6), y(-1)).lineTo(x(-6), y(8)).lineTo(x(6), y(8)).lineTo(x(6), y(-1)).strokePath();
+      g.beginPath().moveTo(x(-2), y(8)).lineTo(x(-2), y(2)).lineTo(x(2), y(2)).lineTo(x(2), y(8)).strokePath();
+    } else {
+      g.lineBetween(x(-6), y(0), x(6), y(0));
+      if (icone === 'mais') g.lineBetween(x(0), y(-6), x(0), y(6));
+    }
+  };
+  desenhar(0xffffff);
+  botao.caixa.add(g);
+  const area = botao.caixa.list.find(o => o.type === 'Zone')!;
+  area.on('pointerover', () => desenhar(0xffd93b)).on('pointerout', () => desenhar(0xffffff));
+  return botao.caixa;
+}
+
+
+export function criarDicasRecolhiveis(cena: Phaser.Scene, b: Caixa, abaB: Caixa, fechadoX: number, u: number, compacto: boolean, recolhido: boolean, aoAlternar: (valor: boolean) => void) {
+  const px = (n: number) => Math.round(n * u);
+  const caixa = cena.add.container(b.x, b.y);
+  const painel = criarPilulaDicas(cena, { x: 0, y: 0, w: b.w, h: b.h }, u, compacto, compacto ? 0 : px(30));
+  const aba = cena.add.container(abaB.x, abaB.y);
+  const fundo = cena.add.graphics();
+  const cx = Math.round(abaB.w / 2), cy = Math.round(abaB.h / 2);
+  const setaX = cx - Math.max(1, px(2));
+  const seta = cena.add.graphics().setPosition(setaX, cy);
+  const teclado = cena.add.graphics();
+  teclado.lineStyle(Math.max(1, px(1.2)), 0xffffff).strokeRoundedRect(-px(7), -px(5), px(14), px(10), px(2));
+  for (let j = 0; j < 2; j++) for (let i = 0; i < 4; i++) teclado.fillStyle(0xffffff).fillRect(-px(5) + px(3) * i, -px(3) + px(3) * j, Math.max(1, px(1.5)), Math.max(1, px(1)));
+  teclado.lineStyle(Math.max(1, px(1)), 0xffffff).lineBetween(-px(3), px(3), px(3), px(3));
+  teclado.setPosition(cx, cy);
+  const areaPainel = cena.add.zone(0, 0, b.w, b.h).setOrigin(0).setInteractive({ useHandCursor: true });
+  const areaAba = cena.add.zone(0, 0, abaB.w, abaB.h).setOrigin(0).setInteractive({ useHandCursor: true });
+  aba.add([fundo, seta, teclado, areaAba]);
+  caixa.add([painel, areaPainel, aba]);
+  // Clip the sliding drawer to the left HUD margin, including its stroke.
+  const recorte = cena.make.graphics({}, false).fillStyle(0xffffff).fillRect(b.x - px(3), b.y - px(6), cena.scale.width - b.x + px(6), b.h + px(12));
+  const mascara = recorte.createGeometryMask();
+  caixa.setMask(mascara);
+  const tooltip = criarPilula(cena, b.x, b.y + abaB.y - px(34), px(94), px(26), u).setDepth(30).setVisible(false);
+  tooltip.add(cena.add.text(px(47), px(13), 'Controles', letra(px(13))).setOrigin(0.5));
+  let estado = recolhido, animando = false, hover = false;
+  const pintar = () => {
+    fundo.clear();
+    const soIcone = estado && !animando;
+    // Expanded: just the arrow inside the panel, with no independent border or background.
+    if (soIcone) fundo.fillStyle(hover ? 0x334155 : CONTORNO).fillRoundedRect(0, 0, abaB.w, abaB.h, px(8))
+      .lineStyle(Math.max(1, px(2)), 0xffffff).strokeRoundedRect(0, 0, abaB.w, abaB.h, px(8));
+    const sentido = estado ? 1 : -1;
+    seta.clear().lineStyle(Math.max(2, px(2.5)), hover ? 0xfde047 : 0xffffff)
+      .beginPath().moveTo(-sentido * px(3), -px(5)).lineTo(sentido * px(3), 0).lineTo(-sentido * px(3), px(5)).strokePath();
+    teclado.setVisible(soIcone); seta.setVisible(!soIcone);
+  };
+  const definir = (valor: boolean, animar = true) => {
+    animar = animar && !movimentoReduzido();
+    estado = valor;
+    tooltip.setVisible(false);
+    cena.tweens.killTweensOf(caixa);
+    animando = animar;
+    painel.setVisible(true);
+    if (valor) areaPainel.disableInteractive(); else areaPainel.setInteractive({ useHandCursor: true });
+    pintar();
+    const concluir = () => { animando = false; caixa.x = Math.round(valor ? fechadoX : b.x); painel.setVisible(!valor); pintar(); };
+    if (!animar) { concluir(); return; }
+    cena.tweens.add({ targets: caixa, x: valor ? fechadoX : b.x, duration: 250, ease: 'Sine.easeInOut',
+      onUpdate: () => { caixa.x = Math.round(caixa.x); }, onComplete: concluir });
+  };
+  const alternar = (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => {
+    ev.stopPropagation();
+    const valor = !estado;
+    aoAlternar(valor);
+    definir(valor);
+  };
+  areaAba.on('pointerdown', alternar); areaPainel.on('pointerdown', alternar);
+  areaAba.on('pointerover', () => {
+    hover = true; pintar();
+    cena.tweens.killTweensOf([seta, teclado]);
+    cena.tweens.add({ targets: seta, x: setaX + (movimentoReduzido() ? 0 : estado ? px(2) : -px(2)), duration: 120, ease: 'Sine.easeOut' });
+    cena.tweens.add({ targets: teclado, x: cx + (movimentoReduzido() ? 0 : estado ? px(2) : -px(2)), duration: 120, ease: 'Sine.easeOut' });
+    tooltip.setVisible(estado && !animando);
+  }).on('pointerout', () => {
+    hover = false; pintar(); tooltip.setVisible(false);
+    cena.tweens.killTweensOf([seta, teclado]);
+    cena.tweens.add({ targets: seta, x: setaX, duration: 120, ease: 'Sine.easeOut' });
+    cena.tweens.add({ targets: teclado, x: cx, duration: 120, ease: 'Sine.easeOut' });
+  });
+  caixa.once('destroy', () => { tooltip.destroy(); mascara.destroy(); recorte.destroy(); });
+  definir(recolhido, false);
+  return { caixa, painel, aba, areaPainel, areaAba, definir, get recolhida() { return estado; } };
 }
