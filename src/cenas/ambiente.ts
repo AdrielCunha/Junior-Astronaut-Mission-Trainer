@@ -1,5 +1,9 @@
 // Grounded footprints and ballistic lunar dust. Building illumination is rendered in Blender.
 import Phaser from 'phaser';
+import paletaLua from '../dados/paleta_lua.json';
+const COR_IMPRESSAO=Number.parseInt(paletaLua.sombraSolo.slice(1),16);
+const COR_POEIRA=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
+const COR_SULCO=Number.parseInt(String(paletaLua.solo[0][1]).slice(1),16);
 import { paraTela, type Projecao } from '../engine/iso';
 import type { Corpo } from '../engine/fisica';
 import type { Terreno } from '../engine/terreno';
@@ -52,7 +56,7 @@ export class Ambiente {
       const x=gr.x+gr.vx*gr.t,y=gr.y+gr.vy*gr.t;
       if(gr.t>0.55 || z<this.terreno.altura(x,y))return false;
       const pos=paraTela(this.p,x,y,z);
-      this.gPoeira.fillStyle(0xe1d0ac,0.55*(1-gr.t/0.55)).fillCircle(pos.x,pos.y,0.9);
+      this.gPoeira.fillStyle(COR_POEIRA,0.55*(1-gr.t/0.55)).fillCircle(pos.x,pos.y,0.9);
       return true;
     });
   }
@@ -93,11 +97,11 @@ export class Ambiente {
         return paraTela(this.p,x,y,this.terreno.altura(x,y)+0.006);
       };
       const outline=[q(-0.095,-0.045),q(0.08,-0.045),q(0.115,-0.025),q(0.115,0.025),q(0.08,0.045),q(-0.095,0.045)];
-      g.fillStyle(0x554c41,0.40*alpha).fillPoints(outline,true);
-      g.lineStyle(0.8,0xd2c2a4,0.5*alpha).lineBetween(outline[4].x,outline[4].y,outline[5].x,outline[5].y);
+      g.fillStyle(COR_IMPRESSAO,0.40*alpha).fillPoints(outline,true);
+      g.lineStyle(0.8,COR_POEIRA,0.5*alpha).lineBetween(outline[4].x,outline[4].y,outline[5].x,outline[5].y);
       for(const forward of [-0.055,0,0.055]) {
         const a=q(forward,-0.03),b=q(forward,0.03);
-        g.lineStyle(0.7,0xb7a58a,0.65*alpha).lineBetween(a.x,a.y,b.x,b.y);
+        g.lineStyle(0.7,COR_SULCO,0.65*alpha).lineBetween(a.x,a.y,b.x,b.y);
       }
     }
   }

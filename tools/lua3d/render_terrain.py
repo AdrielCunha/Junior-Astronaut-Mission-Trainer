@@ -8,10 +8,12 @@
 # In:  src/dados/terreno.json (alturas)
 # Out: public/lua/terrain.png, and terreno.json gains "imagem": {w, h, origem, ex, ey, ez}
 #      so that pixel = origem + gx * ex + gy * ey + z * ez   (z in tiles, up)
-import bpy, bmesh, os, json, math, random
+import bpy, bmesh, os, json, math, random, sys
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0,HERE)
+from estilo_lua import PALETA, contornos_crateras
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 JSON = os.path.join(ROOT, 'src', 'dados', 'terreno.json')
 PNG = os.path.join(ROOT, 'public', 'lua', 'terrain.png')
@@ -21,11 +23,11 @@ T = 30                      # pixels per tile step: gx moves (T, T/2) on screen,
 SKIRT = 3.0                 # tiles of "cut ground" under the lowest point, diorama style
 PAD = 24                    # px around the picture
 # Palette shared with make_moon.py: warm regolith, cool purple shade, dark outline.
-GROUND = [(0.0, '#8f8571'), (0.42, '#a39882'), (0.6, '#b6ab92'), (0.75, '#c6bba1')]
-ROCK = '#6a6152'            # steep tiles
-STRATA = [(0.0, '#3b342c'), (0.5, '#4f463b'), (0.8, '#5c5245')]
-LIGHT = [(0.0, '#3a3550'), (0.10, '#8a7f92'), (0.35, '#c9c0c4'), (0.55, '#ece5df'), (0.75, '#fffaf0')]
-OUTLINE = '#17130f'
+GROUND = PALETA['solo']
+ROCK = PALETA['rocha']
+STRATA = PALETA['estratos']
+LIGHT = PALETA['luzSolo']
+OUTLINE = PALETA['contorno']
 
 
 def rgb(h, a=1.0):
@@ -174,8 +176,8 @@ def matte(name, color):
     return m
 
 # Rounded, asymmetric rocks with continuous shading and a dark contact patch.
-rock_mats=[matte('Basalt warm grey','#968b76'),matte('Rock lit facets','#b4a78c'),matte('Rock dark facets','#766b5c')]
-contact=matte('Rock contact shadow','#655d53')
+rock_mats=[matte('Basalt warm grey',PALETA['pedras'][0]),matte('Rock lit facets',PALETA['pedras'][1]),matte('Rock dark facets',PALETA['pedras'][2])]
+contact=matte('Rock contact shadow',PALETA['sombraSolo'])
 clusters=0
 for attempt in range(700):
     x,y=rng.uniform(4,N-4),rng.uniform(4,N-4)
@@ -212,6 +214,8 @@ for attempt in range(700):
             face.use_smooth=True
         smooth=stone.modifiers.new('Rounded organic surface','SUBSURF')
         smooth.levels=1; smooth.render_levels=1
+
+contornos_crateras(bpy,sc,centers,lambda x,y:(x,-y,relief(x,y)+0.022))
 
 # ---------- 2:1 isometric camera: 30 deg above the ground, looking along +gx +gy ----------
 elev = math.radians(30)

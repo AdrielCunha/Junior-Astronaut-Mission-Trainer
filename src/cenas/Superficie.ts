@@ -6,6 +6,10 @@
 // glides to the framing of the flight's first frame and the terrain dissolves into it (Espaco
 // plays the frames) while the base stays visible, live.
 import Phaser from 'phaser';
+import paletaLua from '../dados/paleta_lua.json';
+const COR_SOLO_CLARO=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
+const COR_SOLO_MEDIO=Number.parseInt(String(paletaLua.solo[1][1]).slice(1),16);
+const COR_SOLO_SOMBRA=Number.parseInt(paletaLua.contorno.slice(1),16);
 import { Ambiente } from './ambiente';
 import { configuracoesAbertas, movimentoReduzido, video } from '../video';
 import { paraTela, paraChao, profundidade } from '../engine/iso';
@@ -275,7 +279,7 @@ export class Superficie extends Phaser.Scene {
       const a=i*Math.PI*2/24,x=gx+Math.cos(a)*0.15,y=gy+Math.sin(a)*0.11;
       shadow.push(paraTela(P,x,y,t.altura(x,y)+0.006));
     }
-    this.sombraBandeira.clear().fillStyle(0x302b28,0.35).fillPoints(shadow,true).setVisible(true);
+    this.sombraBandeira.clear().fillStyle(COR_SOLO_SOMBRA,0.35).fillPoints(shadow,true).setVisible(true);
   }
 
   /** Smoothly folds and hides the destination flag when arriving or changing path. */
@@ -557,7 +561,7 @@ export class Superficie extends Phaser.Scene {
     const p = paraTela(P, gx, gy, z);
     for (let i = 0; i < 18; i++) {
       const a = (i / 18) * Math.PI * 2;
-      const d = this.add.circle(p.x, p.y, Phaser.Math.Between(2, 4), 0xc9bfa8).setDepth(profundidade(gx, gy) + 5);
+      const d = this.add.circle(p.x, p.y, Phaser.Math.Between(2, 4), COR_SOLO_CLARO).setDepth(profundidade(gx, gy) + 5);
       this.mapa.add(d);
       this.tweens.add({ targets: d, x: p.x + Math.cos(a) * 55, y: p.y + Math.sin(a) * 24, alpha: 0, duration: 900, ease: 'Quad.easeOut', onComplete: () => d.destroy() });
     }
@@ -637,8 +641,8 @@ export class Superficie extends Phaser.Scene {
           points.push(paraTela(P,x,y,sessao.terreno.altura(x,y)+0.01));
         }
       }
-      g.lineStyle(9,0xd4c5a7,0.20).strokePoints(points,false);
-      g.lineStyle(2,0xe5d8b8,0.22).strokePoints(points,false);
+      g.lineStyle(9,COR_SOLO_MEDIO,0.20).strokePoints(points,false);
+      g.lineStyle(2,COR_SOLO_CLARO,0.22).strokePoints(points,false);
     }
   }
 

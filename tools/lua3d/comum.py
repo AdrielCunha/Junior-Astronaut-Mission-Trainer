@@ -3,6 +3,7 @@
 # the NASA LOLA polar elevation reader. Import from a Blender script with:
 #   import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import comum
 import math, os, urllib.request
+from estilo_lua import PALETA
 import numpy as np
 
 R_KM = 1737.4
@@ -10,10 +11,10 @@ PDS = 'https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/dat
 CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.cache')
 
 # Look shared by every render.
-LIGHT = [(0.0, '#3a3550'), (0.10, '#8a7f92'), (0.35, '#c9c0c4'), (0.55, '#ece5df'), (0.75, '#fffaf0')]
-GROUND = [(0.0, '#8f8571'), (0.42, '#a39882'), (0.6, '#b6ab92'), (0.75, '#c6bba1')]
-ROCK = '#6a6152'
-OUTLINE = '#17130f'
+LIGHT = PALETA['luzSolo']
+GROUND = PALETA['solo']
+ROCK = PALETA['rocha']
+OUTLINE = PALETA['contorno']
 
 # Polar DEMs (PDS labels). The map center, as polar stereographic meters.
 DEMS = {
@@ -128,7 +129,7 @@ def albedo_chao(ruido_km, curva_km=None, raio_km=None):
     above the sphere (|p| - R, so it works on curved patches)."""
     def fn(N, L):
         tc = N.new('ShaderNodeTexCoord')
-        nz = N.new('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 1 / ruido_km; nz.inputs['Detail'].default_value = 3
+        nz = N.new('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 1 / ruido_km; nz.inputs['Detail'].default_value = 1
         L.new(tc.outputs['Object'], nz.inputs['Vector'])
         g = _ramp(N, GROUND); L.new(nz.outputs['Fac'], g.inputs['Fac'])
         geo = N.new('ShaderNodeNewGeometry')
@@ -148,7 +149,7 @@ def albedo_chao(ruido_km, curva_km=None, raio_km=None):
         fr = N.new('ShaderNodeMath'); fr.operation = 'FRACT'; L.new(dv.outputs[0], fr.inputs[0])
         pp = N.new('ShaderNodeMath'); pp.operation = 'PINGPONG'; pp.inputs[1].default_value = 0.5; L.new(fr.outputs[0], pp.inputs[0])
         lt = N.new('ShaderNodeMath'); lt.operation = 'LESS_THAN'; lt.inputs[1].default_value = 0.035; L.new(pp.outputs[0], lt.inputs[0])
-        lm = N.new('ShaderNodeMix'); lm.data_type = 'RGBA'; lm.inputs[7].default_value = rgb('#6f6556')
+        lm = N.new('ShaderNodeMix'); lm.data_type = 'RGBA'; lm.inputs[7].default_value = rgb(PALETA['rocha'])
         L.new(lt.outputs[0], lm.inputs['Factor']); L.new(mx.outputs[2], lm.inputs[6])
         return lm.outputs[2]
     return fn

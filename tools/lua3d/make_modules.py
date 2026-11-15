@@ -8,10 +8,12 @@
 # Out: public/lua/modulos/<id>.png, src/dados/modulos.json
 #      { id: { arquivo, w, h, ancora: [x, y], escala } }: ancora = pixel of the footprint's
 #      corner (gx, gy) at floor height; draw the picture there at `escala`.
-import bpy, bmesh, os, json, math, subprocess
+import bpy, bmesh, os, json, math, subprocess, sys
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0,HERE)
+from estilo_lua import PALETA
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 OUT = os.path.join(ROOT, 'public', 'lua', 'modulos')
 JSON = os.path.join(ROOT, 'src', 'dados', 'modulos.json')
@@ -19,7 +21,7 @@ LIVE = not bpy.app.background
 T = 30; SUPER = 2; PAD = 18
 FASE = 0
 ANIMADOS = {'suporte': 3, 'oficina': 3}
-LIGHT = [(0.0, '#3a3550'), (0.10, '#8a7f92'), (0.35, '#c9c0c4'), (0.55, '#ece5df'), (0.75, '#fffaf0')]
+LIGHT = PALETA['luzSolo']
 OUTLINE = '#17130f'
 # Footprints in tiles, as in src/engine/construcao.ts.
 TIPOS = {
@@ -127,16 +129,16 @@ def haste(a, b, r, cor, linha=0.012):
     return _fim(o, cor, 0, linha)
 
 
-def piso(w, h, cor='#8f8571', z=0.12):
+def piso(w, h, cor=PALETA['fundacao'][2], z=0.12):
     caixa(0.04, 0.04, w - 0.04, h - 0.04, 0, z, cor, bevel=0.045, linha=0.018)
     deck=grupo[-1]
     mat=bpy.data.materials.get('Regolith landing deck')
     if mat is None:
         mat=bpy.data.materials.new('Regolith landing deck');mat.use_nodes=True
-        bs=mat.node_tree.nodes.get('Principled BSDF');bs.inputs['Base Color'].default_value=rgb('#8f8571');bs.inputs['Roughness'].default_value=0.85
+        bs=mat.node_tree.nodes.get('Principled BSDF');bs.inputs['Base Color'].default_value=rgb(PALETA['fundacao'][2]);bs.inputs['Roughness'].default_value=0.85
     deck.data.materials[0]=mat
     # A warm regolith skirt meets the runtime terrain-following foundation.
-    caixa(0.13, h-0.15, w-0.13, h-0.06, z*0.4, z, '#b6ab92', bevel=0.015, linha=0.006)
+    caixa(0.13, h-0.15, w-0.13, h-0.06, z*0.4, z, PALETA['solo'][2][1], bevel=0.015, linha=0.006)
 
 
 # Emissive lenses are part of the actual 3D fixture; area lights illuminate the platform.
@@ -220,7 +222,7 @@ def suporte():
 def blindagem():
     w, h = TIPOS['blindagem']
     # Regolith berm: the shield is Moon dust piled on a bunker, as real designs plan.
-    esfera(1.0, 1.0, 0.0, 0.98, 0.98, 0.95, '#a39882', metade=True)
+    esfera(1.0, 1.0, 0.0, 0.98, 0.98, 0.95, PALETA['solo'][1][1], metade=True)
     caixa(0.55, 1.55, 1.45, 2.0, 0.0, 0.7, '#eab308')                        # entrance
     caixa(0.55, 1.62, 1.45, 1.72, 0.48, 0.56, '#1c1917', bevel=0.005, linha=0.01)
     caixa(0.75, 1.97, 1.25, 2.01, 0.05, 0.45, '#1c1917', bevel=0.005, linha=0.01)
@@ -265,7 +267,7 @@ def oficina():
 
 
 def painel():
-    caixa(0.3,0.22,1.7,0.78,0,0.10,'#8f8571',bevel=0.04,linha=0.012)
+    caixa(0.3,0.22,1.7,0.78,0,0.10,PALETA['fundacao'][2],bevel=0.04,linha=0.012)
     for x in (0.55,1.45):
         haste((x,0.5,0.1),(x,0.5,1.13),0.035,'#94a3b8',linha=0.007)
         haste((x,0.25,0.1),(x,0.5,0.65),0.025,'#64748b',linha=0.005)
