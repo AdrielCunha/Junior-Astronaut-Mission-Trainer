@@ -77,6 +77,7 @@ class Sessao {
   tarefasHoje = new Set<Efeito>();                    // rooms that already had their task today
   ultimaTarefa: Partial<Record<Efeito, string>> = {}; // so the bank does not repeat itself
   emTarefa = false;         // a task overlay is open: the map and zoom wait
+  parado = true;            // the commander is standing still (Espaco uploads flight frames then)
   transicao: { t: number; destino: Vista; mudou: boolean } | null = null;
   vista: Vista = 'chao';
   u = U_INICIAL;            // zoom shown this frame

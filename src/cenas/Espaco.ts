@@ -10,7 +10,7 @@ import Phaser from 'phaser';
 import { movimentoReduzido, configuracoesAbertas, video } from '../video';
 import constelacoes from '../dados/constelacoes.json';
 import { VOO as voo, LEVE } from './qualidade';
-import { carregarFilme } from './filme';
+import { carregarFilme, garantirQuadro, proximoPendente } from './filme';
 import { criarLua, LADO } from './luaShader';
 import { PLANETAS, posicao, lua, nomeDaFase, AU_KM, RAIO_LUA_KM, RAIO_SOL_KM, TERRA_LUA_KM } from '../engine/astro';
 import { sessao, suave, fonte, dataBonita, COR, sDeU } from './sessao';
@@ -80,6 +80,7 @@ export class Espaco extends Phaser.Scene {
   }
 
   private legendaNova = '';
+  private subir = 0;              // ms until the next background frame upload
   private aqueceu = false;
   private definirLegenda(s: string) { this.legendaNova = s; }
 
@@ -91,7 +92,8 @@ export class Espaco extends Phaser.Scene {
     let i = 0;
     const ev = this.time.addEvent({
       delay: 150, loop: true, callback: () => {
-        fora.setTexture(`voo${i++}`);
+        if (garantirQuadro(this.textures, i)) fora.setTexture(`voo${i}`);
+        i++;
         if (i >= Math.min(6, voo.quadros)) { ev.remove(); fora.destroy(); }
       },
     });
@@ -141,6 +143,15 @@ export class Espaco extends Phaser.Scene {
     const W = this.scale.width, H = this.scale.height;
     sessao.passo(dtMs / 1000);     // Espaco runs first: every layer sees the same zoom this frame
     if (!this.aqueceu && sessao.filmePronto) { this.aqueceu = true; this.aquecer(); }
+    // On the ground, send decoded flight frames to the GPU one at a time, in order: every 150 ms
+    // while the commander stands still (a hitch then is barely seen), every 700 ms while walking.
+    // What is still missing when the flight starts goes up just in time (see below).
+    this.subir -= dtMs;
+    if (this.subir <= 0 && !sessao.voo && sessao.vista === 'chao') {
+      this.subir = sessao.parado ? 150 : 700;
+      const i = proximoPendente();
+      if (i >= 0) garantirQuadro(this.textures, i);
+    }
     const n = sessao.nivel;
     const uG = sessao.uGlobo;
     // Flight frames. Show the frame rendered just before the current point p and shrink it to
@@ -152,6 +163,8 @@ export class Espaco extends Phaser.Scene {
     if (q !== null) {
       let i = 0;
       while (i < voo.p.length - 1 && voo.p[i + 1] <= q) i++;
+      // Frames reach the GPU just in time: this one and the next two ahead (either direction).
+      for (let k = -2; k <= 2; k++) if (i + k >= 0 && i + k < voo.quadros) garantirQuadro(this.textures, i + k);
       // If this frame never downloaded, keep showing the last one that did.
       while (i > 0 && !this.textures.exists(`voo${i}`)) i--;
       const temQuadro = this.textures.exists(`voo${i}`);
