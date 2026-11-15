@@ -596,7 +596,197 @@
   "escala": 0.5,
   "ancora": [
    85.5,
-   69.79
+   69.93
+  ]
+ },
+ "deco_queijo": {
+  "arquivo": "lua/modulos/deco_queijo.png",
+  "w": 148,
+  "h": 155,
+  "escala": 0.5,
+  "ancora": [
+   78.8,
+   76.44
+  ]
+ },
+ "deco_marciano": {
+  "arquivo": "lua/modulos/deco_marciano.png",
+  "w": 103,
+  "h": 118,
+  "escala": 0.5,
+  "ancora": [
+   58.38,
+   47.28
+  ]
+ },
+ "passa_ovni": {
+  "arquivo": "lua/modulos/passa_ovni.png",
+  "w": 154,
+  "h": 117,
+  "escala": 0.5,
+  "ancora": [
+   77.0,
+   48.34
+  ]
+ },
+ "passa_pato": {
+  "arquivo": "lua/modulos/passa_pato.png",
+  "w": 111,
+  "h": 124,
+  "escala": 0.5,
+  "ancora": [
+   57.18,
+   64.01
+  ]
+ },
+ "passa_cometa": {
+  "arquivo": "lua/modulos/passa_cometa.png",
+  "w": 146,
+  "h": 110,
+  "escala": 0.5,
+  "ancora": [
+   67.97,
+   53.89
+  ]
+ },
+ "deco_marte_rover_velho": {
+  "arquivo": "lua/modulos/deco_marte_rover_velho.png",
+  "w": 189,
+  "h": 164,
+  "escala": 0.5,
+  "ancora": [
+   64.5,
+   48.85
+  ]
+ },
+ "deco_marte_modulo_descida": {
+  "arquivo": "lua/modulos/deco_marte_modulo_descida.png",
+  "w": 253,
+  "h": 178,
+  "escala": 0.5,
+  "ancora": [
+   126.5,
+   39.54
+  ]
+ },
+ "deco_marte_sonda": {
+  "arquivo": "lua/modulos/deco_marte_sonda.png",
+  "w": 117,
+  "h": 145,
+  "escala": 0.5,
+  "ancora": [
+   58.5,
+   70.14
+  ]
+ },
+ "deco_marte_amostras": {
+  "arquivo": "lua/modulos/deco_marte_amostras.png",
+  "w": 132,
+  "h": 138,
+  "escala": 0.5,
+  "ancora": [
+   74.06,
+   61.89
+  ]
+ },
+ "deco_marte_sismografo": {
+  "arquivo": "lua/modulos/deco_marte_sismografo.png",
+  "w": 136,
+  "h": 119,
+  "escala": 0.5,
+  "ancora": [
+   68.0,
+   39.63
+  ]
+ },
+ "deco_marte_barris": {
+  "arquivo": "lua/modulos/deco_marte_barris.png",
+  "w": 131,
+  "h": 116,
+  "escala": 0.5,
+  "ancora": [
+   69.21,
+   48.39
+  ]
+ },
+ "deco_marte_mochila": {
+  "arquivo": "lua/modulos/deco_marte_mochila.png",
+  "w": 110,
+  "h": 110,
+  "escala": 0.5,
+  "ancora": [
+   58.78,
+   30.63
+  ]
+ },
+ "deco_marte_caixas": {
+  "arquivo": "lua/modulos/deco_marte_caixas.png",
+  "w": 156,
+  "h": 146,
+  "escala": 0.5,
+  "ancora": [
+   79.81,
+   72.92
+  ]
+ },
+ "deco_marte_bandeira": {
+  "arquivo": "lua/modulos/deco_marte_bandeira.png",
+  "w": 106,
+  "h": 150,
+  "escala": 0.5,
+  "ancora": [
+   53.0,
+   84.05
+  ]
+ },
+ "deco_marte_lanterna": {
+  "arquivo": "lua/modulos/deco_marte_lanterna.png",
+  "w": 114,
+  "h": 131,
+  "escala": 0.5,
+  "ancora": [
+   65.44,
+   67.68
+  ]
+ },
+ "deco_marte_carretel": {
+  "arquivo": "lua/modulos/deco_marte_carretel.png",
+  "w": 127,
+  "h": 145,
+  "escala": 0.5,
+  "ancora": [
+   67.18,
+   72.14
+  ]
+ },
+ "deco_marte_baliza": {
+  "arquivo": "lua/modulos/deco_marte_baliza.png",
+  "w": 97,
+  "h": 164,
+  "escala": 0.5,
+  "ancora": [
+   48.5,
+   100.63
+  ]
+ },
+ "deco_marte_pedras": {
+  "arquivo": "lua/modulos/deco_marte_pedras.png",
+  "w": 128,
+  "h": 124,
+  "escala": 0.5,
+  "ancora": [
+   64.5,
+   39.6
+  ]
+ },
+ "deco_marte_camera": {
+  "arquivo": "lua/modulos/deco_marte_camera.png",
+  "w": 101,
+  "h": 126,
+  "escala": 0.5,
+  "ancora": [
+   50.5,
+   61.52
   ]
  }
 }

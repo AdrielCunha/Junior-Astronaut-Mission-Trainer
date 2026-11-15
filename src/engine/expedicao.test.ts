@@ -1,7 +1,7 @@
 // Generated with AI assistance (Claude). See README, "Use of AI tools".
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { linha, OBJETIVOS, avancar, terminada, tracarRota, pontoLivrePerto, maisLonge, criarCorridaEntrega, alvoDaSeta, pista, temperatura, BANDEIRAS_CORRIDA, type Expedicao } from './expedicao.ts';
+import { moverExpedicao, posicaoRedemoinho, RAIO_REDEMOINHO, linha, OBJETIVOS, avancar, terminada, tracarRota, pontoLivrePerto, maisLonge, criarCorridaEntrega, alvoDaSeta, pista, temperatura, BANDEIRAS_CORRIDA, type Expedicao } from './expedicao.ts';
 import { criarExploracao, sortearTipo, haExploracaoHoje, esperaDaExploracao, TIPOS_POR_MUNDO, ESPERA_EXPLORACAO_MIN, ESPERA_EXPLORACAO_MAX, type Contexto } from './exploracao.ts';
 
 const tudoLivre = () => true;
@@ -149,7 +149,7 @@ test('events come from day 2, by world, and never the same kind twice in a row',
   assert.equal(haExploracaoHoje(5, 'nave', () => 0), true);   // the ship has its own (leaks, lost wrench)
   assert.ok(TIPOS_POR_MUNDO.lua.includes(sortearTipo('lua', undefined, () => 0)!));
   for (let i = 0; i < 30; i++) assert.notEqual(sortearTipo('lua', 'balizas', () => i / 30), 'balizas');
-  assert.equal(sortearTipo('marte', 'tubos', () => 0), 'tubos');   // only one kind: it can repeat
+  for (let i = 0; i < 30; i++) assert.notEqual(sortearTipo('marte', 'tubos', () => i / 30), 'tubos');   // Mars has 4 kinds now
   assert.ok(['vazamentos', 'ferramenta'].includes(sortearTipo('nave', undefined, () => 0)!));
   assert.equal(esperaDaExploracao(() => 0), ESPERA_EXPLORACAO_MIN);
   assert.ok(esperaDaExploracao(() => 0.999) <= ESPERA_EXPLORACAO_MAX);
@@ -193,4 +193,36 @@ test('ship hot/cold is scaled to the small deck', () => {
   const p = e.pontos[0];
   assert.ok(pista(e, p.x + 1, p.y)!.nivel >= 3);   // one tile away is already hot on the ship
   assert.equal(linha(e, pista(e, p.x + 1, p.y), 0).titulo, OBJETIVOS.ferramenta);
+});
+
+test('Mars: the dust devil wanders around where it was born, inside the map, and must be followed', () => {
+  let e = criarExploracao('redemoinho', ctx({ mundo: 'marte' }), fixa(0.3))!;
+  const o = e.movel!.origem;
+  for (let t = 0; t < 600; t += 1.7) {
+    const p = posicaoRedemoinho(o, t, e.movel!.semente);
+    assert.ok(Math.hypot(p.x - o.x, p.y - o.y) <= RAIO_REDEMOINHO);
+    assert.ok(p.x > 0 && p.y > 0 && p.x < 64 && p.y < 64);
+  }
+  const depois = moverExpedicao(e, 20);
+  assert.notDeepEqual(depois.pontos[0], e.pontos[0]);
+  // Staying close while it moves: follow it for 3 s.
+  let t = 0;
+  while (!terminada(e) && t < 10) { e = moverExpedicao(e, t); const p = e.pontos[0]; e = avancar(e, p.x + 1, p.y, true, 0.1).e; t += 0.1; }
+  assert.ok(terminada(e));
+  assert.ok(Math.abs(t - 3) < 0.25);
+});
+
+test('Mars: the space rock is hidden (hot/cold) and scanned by staying by it', () => {
+  let e = criarExploracao('meteorito', ctx({ mundo: 'marte' }), fixa(0.6))!;
+  assert.equal(alvoDaSeta(e, 0, 0), null);
+  const p = e.pontos[0];
+  const r = avancar(e, p.x, p.y, false, 0.75);
+  assert.ok(!r.passou && linha(r.e, null, r.progresso).detalhe.includes('Scanning'));
+  e = avancar(r.e, p.x, p.y, false, 0.8).e;
+  assert.ok(terminada(e));
+});
+
+test('Mars ice tells the Phoenix fact; Moon ice tells the LCROSS one', () => {
+  assert.ok(criarExploracao('gelo', ctx({ mundo: 'marte' }), fixa())!.fato.includes('Phoenix'));
+  assert.ok(criarExploracao('gelo', ctx(), fixa())!.fato.includes('2009'));
 });

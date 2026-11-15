@@ -8,7 +8,7 @@ import { pontoLivrePerto } from './expedicao.ts';
 export type MundoExp = 'lua' | 'marte' | 'nave';
 export const TIPOS_POR_MUNDO: Record<MundoExp, TipoExpedicao[]> = {
   lua: ['amostra', 'balizas', 'gelo'],
-  marte: ['tubos'],
+  marte: ['tubos', 'meteorito', 'redemoinho', 'gelo'],
   nave: ['vazamentos', 'ferramenta'],
 };
 
@@ -38,6 +38,7 @@ export type Contexto = {
   evitar?: Ponto[];                            // module centres: spots stay away from the buildings
   limites?: { x0: number; x1: number; y0: number; y1: number };   // the ship's deck: spots anywhere inside it
   jogador?: Ponto;                             // spots on the ship start a few tiles away from the player
+  mundo?: MundoExp;                            // the same kind can tell a different real fact on Mars
 };
 
 const MARGEM = 4;
@@ -116,9 +117,12 @@ export function criarExploracao(tipo: TipoExpedicao, c: Contexto, sorte: () => n
     const opcoes = longe.slice(0, Math.max(1, Math.ceil(longe.length / 2)));
     const k = opcoes.length ? opcoes[Math.floor(sorte() * opcoes.length)] : null;
     const p = (k && pontoLivrePerto(k.x, k.y, c.livre, k.raio)) ?? pontoNoAnel(c, a0, 20, 28, sorte);
+    const marte = c.mundo === 'marte';
     return p && base('gelo', [p], {
-      id: 'gelo', titulo: 'Ice scout', destino: 'the dark crater', escondidoAte: 1, cena: 'ScannerGeloTarefa',
-      fato: 'In 2009 NASA found water ice in a dark crater near the Moon\'s south pole. Ice can become water and oxygen!',
+      id: 'gelo', titulo: 'Ice scout', destino: marte ? 'the ice' : 'the dark crater', escondidoAte: 1, cena: 'ScannerGeloTarefa',
+      fato: marte
+        ? 'In 2008 NASA\'s Phoenix lander dug into Mars and found water ice just under the dust. Ice can become water and oxygen!'
+        : 'In 2009 NASA found water ice in a dark crater near the Moon\'s south pole. Ice can become water and oxygen!',
     });
   }
   if (tipo === 'tubos') {
@@ -127,6 +131,23 @@ export function criarExploracao(tipo: TipoExpedicao, c: Contexto, sorte: () => n
       id: 'tubos', titulo: 'Sample tubes', destino: 'the tubes',
       fato: 'NASA\'s Perseverance rover leaves sealed rock samples on Mars, for a future mission to bring home.',
     }) : null;
+  }
+  if (tipo === 'meteorito') {
+    const p = pontoNoAnel(c, a0, 18, 27, sorte);
+    return p && base('meteorito', [p], {
+      id: 'meteorito', titulo: 'Space rock', destino: 'the space rock', escondidoAte: 1, segurar: 1.5,
+      fato: 'In 2005 the Opportunity rover found a metal meteorite on Mars: the first meteorite ever found on another planet!',
+    });
+  }
+  if (tipo === 'redemoinho') {
+    // Born far enough from the base, and inside the map for its whole wander (engine/expedicao.ts RAIO_REDEMOINHO).
+    const origem = pontoNoAnel(c, a0, 12, 16, sorte);
+    if (!origem) return null;
+    const semente = Math.floor(sorte() * 1000);
+    return base('redemoinho', [{ ...origem }], {
+      id: 'redemoinho', titulo: 'Dust devil', destino: 'the dust devil', raio: 2.6, segurar: 3, movel: { origem, semente },
+      fato: 'Dust devils on Mars once blew the dust off the solar panels of the Spirit and Opportunity rovers, giving them more power!',
+    });
   }
   if (tipo === 'vazamentos') {
     const pontos = pontosNoConves(c, 3, sorte);
@@ -148,7 +169,9 @@ export function criarExploracao(tipo: TipoExpedicao, c: Contexto, sorte: () => n
 export const AVISOS: Record<string, string> = {
   amostra: '🧪 A sample case fell off the rover far from the base! Search the map: the hint says if you are getting Warm or Cold.',
   balizas: '🔦 Some beacons far out on the map went dark! Take the rover, visit each one and stay a moment to relight it.',
-  gelo: '❄ Scientists think there is ice in a dark crater far away! Take the rover: Cold means far, Hot means close.',
+  gelo: '❄ Scientists think there is ice hidden far away! Take the rover: Cold means far, Hot means close.',
+  meteorito: '☄ A space rock fell on Mars! Find it: Cold means far, Hot means close. Stay by it to scan it.',
+  redemoinho: '🌪 A dust devil is spinning across Mars! Take the rover, catch it and stay close to it for a moment.',
   vazamentos: '💨 Hiss! Air is leaking somewhere in the ship! Walk around, listen, and patch 3 leaks.',
   ferramenta: '🔧 A wrench is missing! Search the ship: Cold means far, Hot means close. Then bring it to the Engines.',
   tubos: '🧪 Sample tubes are lying far out on the ground! Take the rover and pick them up in order, number 1 first.',

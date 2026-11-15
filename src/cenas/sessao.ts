@@ -111,7 +111,7 @@ class Sessao {
     return gravarPartida({versao:1,salvoEm:Date.now(),layout:LAYOUT_VERSAO,mundo:this.mundo,capIdx:this.capIdx,fase:this.fase,
       estado:this.estado,entregas:this.entregas,pontos:this.pontos,carregando:this.carregando,noHabitat:this.noHabitat,
       tarefasHoje:[...this.tarefasHoje],ultimaTarefa:this.ultimaTarefa,energiaHoje:this.energiaHoje,
-      curiosidadeRoverVista:this.curiosidadeRoverVista,diaCargaRover:this.diaCargaRover,rover:this.rover,astronauta:this.posicaoAstronauta,
+      curiosidadeRoverVista:this.curiosidadeRoverVista,curiosidadeRoverMarteVista:this.curiosidadeRoverMarteVista,diaCargaRover:this.diaCargaRover,rover:this.rover,astronauta:this.posicaoAstronauta,
       modulos:this.grade.lista.map(c=>({id:c.id,tipo:c.tipo.id,gx:c.gx,gy:c.gy,...(c.girado?{girado:true}:{})})),decoracao:this.grade.deco,
       tempestade:{restante:this.tempestade.restante,status:this.tempestade.status},danoTempestade:this.danoTempestade,
       bateriasTempestade:this.bateriasTempestade,desfechoPendente:this.desfechoPendente,ultimoDia:this.ultimoDia,
@@ -148,8 +148,8 @@ class Sessao {
       this.estado=d.estado; this.entregas=d.entregas; this.pontos=d.pontos;
       this.fase=d.fase; this.carregando=d.carregando; this.noHabitat=d.noHabitat;
       this.tarefasHoje=new Set(d.tarefasHoje); this.ultimaTarefa=d.ultimaTarefa; this.energiaHoje=d.energiaHoje;
-      this.curiosidadeRoverVista=d.curiosidadeRoverVista; this.diaCargaRover=d.diaCargaRover;
-      this.rover=d.mundo==='lua'?d.rover:null; this.posicaoAstronauta=d.astronauta;
+      this.curiosidadeRoverVista=d.curiosidadeRoverVista; this.curiosidadeRoverMarteVista=!!d.curiosidadeRoverMarteVista; this.diaCargaRover=d.diaCargaRover;
+      this.rover=d.mundo!=='nave'?d.rover:null; this.posicaoAstronauta=d.astronauta;
       for (const k of [this.posicaoAstronauta,this.rover?.corpo]) if (k) {k.vx=0;k.vy=0;k.vz=0;}
       this.tempestade.restante=d.tempestade.restante; this.tempestade.status=d.tempestade.status;
       this.danoTempestade=d.danoTempestade; this.bateriasTempestade=d.bateriasTempestade;
@@ -176,6 +176,7 @@ class Sessao {
   diaCargaRover: number | null = null;
   get roverCarregado() { return this.fase === 'inicio' || this.diaCargaRover === this.estado.dia; }
   curiosidadeRoverVista = false;
+  curiosidadeRoverMarteVista = false;   // the Mars joke panel about the Apollo rover was shown
   nivelTeste: number | null = null;
   fase: Fase = 'inicio';
   estado: Estado = inicioDoCapitulo(CAPITULOS[0].config);
@@ -274,7 +275,7 @@ class Sessao {
     this.tempestade.iniciar(0);
     this.rover = null;
     this.diaCargaRover = null;
-    this.curiosidadeRoverVista = false;
+    this.curiosidadeRoverVista = false; this.curiosidadeRoverMarteVista = false;
     this.nivelTeste = null;
     this.estado = inicioDoCapitulo(this.C);
     this.entregas = nenhuma();

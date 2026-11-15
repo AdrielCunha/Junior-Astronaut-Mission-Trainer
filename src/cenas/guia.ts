@@ -192,7 +192,7 @@ export class AvisoEvento {
 // - a blue arrow over the next spot (or at the screen edge pointing to it) when the spot has an arrow.
 // Hidden while a fix-it event is shown.
 const CORES_QUENTE = [0x38bdf8, 0x60a5fa, 0xfacc15, 0xfb923c, 0xef4444];
-const ICONES_EXP: Record<string, string> = { corrida: 'rover', amostra: 'cargo', balizas: 'idea', gelo: 'cold', tubos: 'goal', vazamentos: 'oxygen', ferramenta: 'wrench' };
+const ICONES_EXP: Record<string, string> = { corrida: 'rover', amostra: 'cargo', balizas: 'idea', gelo: 'cold', tubos: 'goal', vazamentos: 'oxygen', ferramenta: 'wrench', meteorito: 'star', redemoinho: 'mars' };
 const TEMPO_CARTAO = 5.5;   // seconds the start card stays
 
 export class AvisoExpedicao {
@@ -200,7 +200,7 @@ export class AvisoExpedicao {
   private caixa?: Phaser.GameObjects.Container;
   private cartao?: Phaser.GameObjects.Container;
   private cartaoT = 0;
-  private atual: unknown = null;   // the pontos array of the expedition on screen (a new one = a new expedition)
+  private atual: unknown = null;   // what identifies the expedition on screen (a new one = a new expedition)
   private chave = '';
   private t = 0;
   private abaixo = false;   // the tutorial pill is on screen: the box goes under it
@@ -214,8 +214,11 @@ export class AvisoExpedicao {
     this.g.clear();
     const exp = sessao.expedicao;
     if (this.tutorialNaTela() !== this.abaixo) { this.abaixo = !this.abaixo; this.chave = ''; }
-    if ((exp?.pontos ?? null) !== this.atual) {
-      this.atual = exp?.pontos ?? null;
+    // A new expedition = a new spots array; a wandering one (dust devil) gets new spots every frame, so its
+    // own `movel` object is what stays the same.
+    const id = exp ? (exp.movel ?? exp.pontos) : null;
+    if (id !== this.atual) {
+      this.atual = id;
       this.fecharCartao(true);
       if (exp) { this.cartaoT = 0; this.abrirCartao(); }
     }

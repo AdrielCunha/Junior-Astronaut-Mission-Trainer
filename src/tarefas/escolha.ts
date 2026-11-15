@@ -6,7 +6,8 @@ import type { Efeito } from '../regras';
 export const CENAS_DA_SALA: Partial<Record<Efeito, string[]>> = {
   oxigenio: ['TrocarFiltroCo2Tarefa', 'EquilibrarValvulasTarefa', 'FiltroO2Tarefa', 'OxigenioFaixaTarefa'],   // air: filters, valves, oxygen level
   blindagem: ['TaparTempestadeTarefa', 'FecharEscotilhasTarefa'],                                          // storm: water bags, hatches
-  meta: ['PotenciaMotorTarefa', 'DirecaoTarefa'],                                                           // rocket: engine power, steering
+  meta: ['PotenciaMotorTarefa', 'DirecaoTarefa'],
+  aquecimento: ['AquecimentoTarefa'],                                                                      // heating (Mars): gold blankets                                                           // rocket: engine power, steering
 };
 
 // Extra scenes only on the ship (chapter 2): the Engines room also looks out of the window to find Earth.

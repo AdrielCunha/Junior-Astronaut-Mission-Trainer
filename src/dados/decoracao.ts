@@ -21,7 +21,8 @@ const AMOSTRAS = 'A case of lunar soil and rock samples. They are sent to labs o
 const LANTERNA = 'A solar lamp. It stores sunlight in the day to glow when the long lunar night comes.';
 const FERRAMENTAS = 'Tool rack: shovels, rakes and tongs used to collect rocks and fix equipment.';
 const CARRETEL = 'A spool of power cable that links solar panels to the base.';
-const MOCHILA = 'A lost backpack! Life support packs hold oxygen and cooling water for a moonwalk.';
+const QUEIJO = 'The Moon is not cheese! It is rock and dust.';
+const MOCHILA ='A lost backpack! Life support packs hold oxygen and cooling water for a moonwalk.';
 
 export const DECORACAO: Deco[] = [
   // Spread over the open ground, away from the center and the main buildings (Grade.procurarDeco)
@@ -54,6 +55,7 @@ export const DECORACAO: Deco[] = [
   { id: 'ferramentas', nome: 'Tool Rack', info: FERRAMENTAS, w: 1, h: 1, altura: 0.75, dx: 24, dy: 4 },
   { id: 'carretel', nome: 'Cable Spool', info: CARRETEL, w: 1, h: 1, altura: 0.7, dx: -18, dy: 11 },
   { id: 'mochila', nome: 'Lost Backpack', info: MOCHILA, w: 1, h: 1, altura: 0.3, dx: 7, dy: -25 },
+  { id: 'queijo', nome: 'Moon Cheese', info: QUEIJO, w: 1, h: 1, altura: 1.0, dx: -25, dy: -12 },
 ];
 
 // Mars (chapter 3, Jezero crater): its own props, each with a real fact told simply for young kids.
@@ -81,6 +83,7 @@ export const DECORACAO_MARTE: Deco[] = [
   marte('lanterna', 'Solar Lamp', 'Mars is far from the Sun, so sunlight here is weaker. Solar panels work extra hard!', 16, -10, 1.1),
   marte('carretel', 'Cable Spool', 'Dust storms on Mars can cover the whole planet for months!', -13, 18, 0.7),
   marte('baliza', 'Beacon', 'Mars has two little moons shaped like potatoes: Phobos and Deimos!', -2, 22, 1.3),
+  marte('marciano', 'Mini Martian', 'Hi! Just kidding. Nobody has ever found life on Mars. But we are still looking!', 8, -24, 0.8),
   marte('casa_sem_teto', 'Roof Not Included', 'Real Mars homes hide underground to stay safe from space rays. Ours is up here so you can see it. We know, we know!', 21, -14, 0.95),
   marte('sonda', 'Crashed Probe', 'Landing on Mars is very hard. About half of the robots sent here did not make it.', 9, -17, 0.9),
 ];

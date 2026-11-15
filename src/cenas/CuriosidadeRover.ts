@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { botaoFechar, botaoVerde, letra, moldura } from '../tarefas/estilo';
-import { ROVER_APOLLO } from '../dados/roverApollo';
+import { ROVER_APOLLO, ROVER_APOLLO_MARTE } from '../dados/roverApollo';
 import { sessao } from './sessao';
 import { tocarSfx } from '../sfx';
 
@@ -12,7 +12,7 @@ export class CuriosidadeRover extends Phaser.Scene {
   constructor() { super({ key: 'CuriosidadeRover' }); }
 
   create() {
-    sessao.curiosidadeRoverVista = true;
+    if (sessao.mundo === 'marte') sessao.curiosidadeRoverMarteVista = true; else sessao.curiosidadeRoverVista = true;
     this.pausadas = [];
     for (const chave of ['Espaco', 'Superficie', 'Interface']) {
       if (!this.scene.isActive(chave)) continue;
@@ -50,12 +50,14 @@ export class CuriosidadeRover extends Phaser.Scene {
     const telaW = largura - 52 * u, pad = 22 * u, util = telaW - 2 * pad;
 
     // Lay the text out once off-screen to size the window; shrink the letters if it would not fit.
+    // On Mars the panel jokes that the Apollo rover never really went there.
+    const texto = sessao.mundo === 'marte' ? ROVER_APOLLO_MARTE : ROVER_APOLLO;
     const montar = (k: number, adicionar: boolean) => {
       const make = (s: string, estilo: Phaser.Types.GameObjects.Text.TextStyle) =>
         adicionar ? this.add.text(0, 0, s, estilo) : this.make.text({ text: s, style: estilo }, false);
-      const titulo = make(ROVER_APOLLO.titulo, letra(26 * u * k, '#fde047', { align: 'center', wordWrap: { width: util }, stroke: '#1e293b', strokeThickness: 6 * u * k }));
-      const paragrafos = ROVER_APOLLO.paragrafos.map((p) => make(p, letra(18 * u * k, '#ffffff', { wordWrap: { width: util, useAdvancedWrap: true }, lineSpacing: 4 * u * k })));
-      const fonte = make(ROVER_APOLLO.fonte, letra(12 * u * k, '#bfdbfe', { fontStyle: '500' }));
+      const titulo = make(texto.titulo, letra(26 * u * k, '#fde047', { align: 'center', wordWrap: { width: util }, stroke: '#1e293b', strokeThickness: 6 * u * k }));
+      const paragrafos = texto.paragrafos.map((p) => make(p, letra(18 * u * k, '#ffffff', { wordWrap: { width: util, useAdvancedWrap: true }, lineSpacing: 4 * u * k })));
+      const fonte = make(texto.fonte, letra(12 * u * k, '#bfdbfe', { fontStyle: '500' }));
       const pecas = [titulo, ...paragrafos, fonte];
       const espacos = [18, ...paragrafos.map(() => 12)].map((e) => e * u * k);
       const alto = pad * 2 + pecas.reduce((s, t) => s + t.height, 0) + espacos.slice(0, pecas.length - 1).reduce((s, e) => s + e, 0);
@@ -68,7 +70,7 @@ export class CuriosidadeRover extends Phaser.Scene {
     this.add.rectangle(0, 0, W, H, 0x020617, 0.6).setOrigin(0).setInteractive();
     const altura = alturaFixa;
     const x0 = (W - largura) / 2, y0 = (H - altura) / 2 + 8 * u;
-    const { tela, rodape, borda } = moldura(this, { x: x0, y: y0, w: largura, h: altura }, u, 'APOLLO LRV · 1971–1972');
+    const { tela, rodape, borda } = moldura(this, { x: x0, y: y0, w: largura, h: altura }, u, sessao.mundo === 'marte' ? ROVER_APOLLO_MARTE.pilula : 'APOLLO LRV · 1971–1972');
 
     const c = montar(k, true);
     let y = tela.y + Math.max(pad, (tela.h - (m.alto - 2 * pad)) / 2);

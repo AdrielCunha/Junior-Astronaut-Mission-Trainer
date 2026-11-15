@@ -39,7 +39,7 @@ const LEGADOS: Record<string, IconeJogo> = {
   '🔥':'warning','☀':'sun','☀️':'sun','📦':'cargo','⚠':'warning','⚠️':'warning',
   '🤕':'heart','💡':'idea','🏗':'wrench','🏗️':'wrench','🎉':'star','⏱':'timer','⏱️':'timer',
   '✅':'check','❌':'cross','🙂':'check','😔':'cross','📊':'star','🥶':'cold','🌙':'moon',
-  '📡':'antenna','🧑‍🚀':'helmet','👩‍🚀':'helmet','🚙':'rover', '🧪':'idea','🔦':'idea','❄':'cold','❄️':'cold','🚩':'goal','🌱':'plant','👉':'goal','➡️':'goal','🔴':'mars','🧑':'helmet',
+  '📡':'antenna','🧑‍🚀':'helmet','👩‍🚀':'helmet','🚙':'rover', '🧪':'idea','🔦':'idea','❄':'cold','❄️':'cold','🚩':'goal','☄':'star','🌪':'mars','🌱':'plant','👉':'goal','➡️':'goal','🔴':'mars','🧑':'helmet',
   hand:'backpack',heating:'energy',construction:'wrench',
   medical:'heart',science:'idea',success:'check',failure:'cross',data:'antenna',
   solar:'energy',

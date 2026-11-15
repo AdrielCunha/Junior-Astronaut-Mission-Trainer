@@ -3,7 +3,7 @@
 // events of engine/exploracao.ts: find a lost sample, relight beacons, scout for ice, collect Mars tubes).
 // The scene draws the markers and the HUD arrow; the rules live here. No Phaser, so node --test can run them.
 export type Ponto = { x: number; y: number };
-export type TipoExpedicao = 'corrida' | 'amostra' | 'balizas' | 'gelo' | 'tubos' | 'vazamentos' | 'ferramenta';
+export type TipoExpedicao = 'corrida' | 'amostra' | 'balizas' | 'gelo' | 'tubos' | 'vazamentos' | 'ferramenta' | 'meteorito' | 'redemoinho';
 
 export type Expedicao = {
   id: string;
@@ -20,6 +20,7 @@ export type Expedicao = {
   espera: number;      // seconds already spent at the current spot
   escondidoAte: number; // the first spots (index below this) have no arrow: only a hot/cold hint
   escala?: number;      // hot/cold distances are multiplied by this (the ship's deck is small: 0.35)
+  movel?: { origem: Ponto; semente: number };   // the spot wanders around `origem` (a Mars dust devil)
   cena?: string;       // task scene opened when the last spot is reached
   fato: string;        // shown at the end
 };
@@ -47,6 +48,21 @@ export function avancar(e: Expedicao, x: number, y: number, dirigindo: boolean, 
   }
   const feitos = e.feitos.map((v, i) => v || i === melhor);
   return { e: { ...e, feitos, atual: e.atual + 1, espera: 0 }, passou: true, aPe: false, progresso: 1, indice: melhor };
+}
+
+// A dust devil wanders slowly around where it was born, never more than RAIO_REDEMOINHO tiles away.
+export const RAIO_REDEMOINHO = 9;
+export function posicaoRedemoinho(origem: Ponto, t: number, semente: number): Ponto {
+  return {
+    // At most 4.5 + 1.8 tiles on each axis, so never more than about 8.9 tiles away in a diagonal.
+    x: origem.x + 4.5 * Math.sin(t * 0.17 + semente) + 1.8 * Math.sin(t * 0.37 + semente * 2),
+    y: origem.y + 4.5 * Math.cos(t * 0.15 + semente * 3) + 1.8 * Math.sin(t * 0.31 + semente),
+  };
+}
+// Moves the wandering spot to where it is at time t (seconds since it started).
+export function moverExpedicao(e: Expedicao, t: number): Expedicao {
+  if (!e.movel || terminada(e)) return e;
+  return { ...e, pontos: [posicaoRedemoinho(e.movel.origem, t, e.movel.semente), ...e.pontos.slice(1)] };
 }
 
 // Where the HUD arrow points: the next spot, the nearest pending one (any order), or nothing while hidden.
@@ -130,6 +146,8 @@ export const OBJETIVOS: Record<TipoExpedicao, string> = {
   tubos: 'Collect the sample tubes',
   vazamentos: 'Find and patch the air leaks',
   ferramenta: 'Find the lost wrench',
+  meteorito: 'Find the space rock',
+  redemoinho: 'Catch the dust devil',
 };
 // How to do it, in one short line (shown on the start card).
 export const COMO: Record<TipoExpedicao, string> = {
@@ -140,6 +158,8 @@ export const COMO: Record<TipoExpedicao, string> = {
   tubos: 'Follow the blue arrow. Number 1 first!',
   vazamentos: 'Listen! Cold = far away, Hot = very close. Stay by a leak to patch it.',
   ferramenta: 'No arrow this time! Cold = far away, Hot = very close.',
+  meteorito: 'No arrow this time! Cold = far away, Hot = very close.',
+  redemoinho: 'It moves! Take the rover, follow the blue arrow and stay close to it.',
 };
 
 // The HUD box: the goal on top (it changes only when the goal changes) and how it is going below.
@@ -148,6 +168,8 @@ export function linha(e: Expedicao, p: { nivel: number; texto: string } | null, 
   if (terminada(e)) return { titulo: OBJETIVOS[e.tipo], detalhe: 'Done!' };
   if (e.tipo === 'amostra' && e.atual >= 1) return { titulo: `Bring the case to the ${e.destino}`, detalhe: 'Follow the blue arrow' };
   if (e.tipo === 'ferramenta' && e.atual >= 1) return { titulo: `Bring the wrench to the ${e.destino}`, detalhe: 'Follow the blue arrow' };
+  if (e.tipo === 'redemoinho') return { titulo: OBJETIVOS.redemoinho, detalhe: progresso > 0.01 ? `Stay close… ${Math.round(progresso * 10) * 10}%` : 'It moves! Follow the blue arrow' };
+  if (e.tipo === 'meteorito' && progresso > 0.01) return { titulo: OBJETIVOS.meteorito, detalhe: `Scanning the rock… ${Math.round(progresso * 10) * 10}%` };
   if (e.tipo === 'vazamentos') {
     const det = progresso > 0.01 ? `Patching… ${Math.round(progresso * 10) * 10}%` : p ? `${p.texto} · ${e.atual} of ${n} patched` : `${e.atual} of ${n} patched`;
     return { titulo: OBJETIVOS.vazamentos, detalhe: det };
