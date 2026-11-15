@@ -9,6 +9,8 @@ export class CicloPassada {
 
   constructor(quadros = 8) { this.quadros = quadros; }
 
+  get faseAtual() { return this.fase; }
+
   reiniciar() {
     this.fase = 0;
     this.colunaAnterior = 0;

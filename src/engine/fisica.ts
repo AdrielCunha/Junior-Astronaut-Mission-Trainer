@@ -10,6 +10,10 @@ export const G_LUA = 1.62;           // m/s^2, Moon surface gravity
 export const G_MARTE = 3.71;         // m/s^2, Mars surface gravity (chapter 3)
 export const G_TERRA = 9.81;         // m/s^2, for comparison on screen
 export const METROS_POR_TILE_CORPO = 3.6;
+// Magnetic soles hold the ship's deck: deliberate walking and a firm stop instead of coasting.
+export let botasMagneticas = false;
+export const definirBotasMagneticas = (ativas: boolean) => { botasMagneticas = ativas; };
+export const BOTA_MAGNETICA = { velocidade: 3.2, aceleracao: 14, freio: 32 };
 // tiles/s^2 at character scale. `let`: the world sets it (definirGravidade), and every module
 // that imports G sees the new value (ES modules export live bindings).
 export let G = G_LUA / METROS_POR_TILE_CORPO;
@@ -78,10 +82,11 @@ export function passo(k: Corpo, e: Entrada | null, c: Chao, caixas: Caixa[], dt:
   // Horizontal: steer toward the wanted velocity; little control in the air (no air on the Moon
   // to push against: once you jump, you mostly keep going).
   const len = e ? Math.hypot(e.dx, e.dy) : 0;
-  const velocidade = AJUSTES.velocidade * (k.noChao ? (c.fatorVelocidade?.(k.x, k.y) ?? 1) : 1);
+  const velocidade = (botasMagneticas ? BOTA_MAGNETICA.velocidade : AJUSTES.velocidade) * (k.noChao ? (c.fatorVelocidade?.(k.x, k.y) ?? 1) : 1);
   const wx = len > 0 ? (e!.dx / len) * velocidade : 0;
   const wy = len > 0 ? (e!.dy / len) * velocidade : 0;
-  const a = AJUSTES.aceleracao * (k.noChao ? 1 : AJUSTES.controleNoAr) * dt;
+  const aceleracao = botasMagneticas ? (len > 0 ? BOTA_MAGNETICA.aceleracao : BOTA_MAGNETICA.freio) : AJUSTES.aceleracao;
+  const a = aceleracao * (k.noChao ? 1 : AJUSTES.controleNoAr) * dt;
   const ax = wx - k.vx, ay = wy - k.vy, al = Math.hypot(ax, ay);
   if (al > 0) { const f = Math.min(1, a / al); k.vx += ax * f; k.vy += ay * f; }
   if (e?.pular && k.noChao) { k.vz = AJUSTES.impulsoPulo; k.noChao = false; }

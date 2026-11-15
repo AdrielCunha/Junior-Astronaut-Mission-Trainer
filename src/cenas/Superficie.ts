@@ -6,6 +6,7 @@
 // glides to the framing of the flight's first frame and the terrain dissolves into it (Espaco
 // plays the frames) while the base stays visible, live.
 import Phaser from 'phaser';
+import { AstronautaEmJogo } from '../astronauta/emJogo';
 import paletaLua from '../dados/paleta_lua.json';
 import paletaMarte from '../dados/paleta_marte.json';
 // Ground colors for dust, paths and the flag's shadow: set in create() for the current world.
@@ -126,6 +127,8 @@ export class Superficie extends Phaser.Scene {
   private ambiente!: Ambiente;
   private readonly controlesObservados = new Set<'movimento' | 'pulo'>();
   private corpo!: Corpo;
+  private astronautaProcedural!: AstronautaEmJogo;
+  private dtAstronauta=0;
   private gCaminhos!: Phaser.GameObjects.Graphics;
   private gAstronauta!: Phaser.GameObjects.Graphics;   // ground shadow; inventory and carried item have their own objects
   private comandante!: Phaser.GameObjects.Sprite;
@@ -351,6 +354,7 @@ export class Superficie extends Phaser.Scene {
     this.corpo.noChao = true;
 
     this.gAstronauta = this.add.graphics();
+    this.astronautaProcedural = new AstronautaEmJogo(this);
     this.comandante = this.add.sprite(0, 0, chaveSkin(video.skin), 0).setOrigin(sprite.pe[0] / sprite.frame, sprite.pe[1] / sprite.frame)
       .setScale(sprite.escala);
     this.cargaFundo=this.add.graphics();
@@ -1743,7 +1747,7 @@ export class Superficie extends Phaser.Scene {
         tocarSfx(sessao.mundo === 'nave' ? 'puloNave' : sessao.mundo === 'marte' ? 'puloMarte' : 'puloLua');
       } else if (pousou) {
         tocarSfx(sessao.mundo === 'nave' ? 'aterrissarNave' : sessao.mundo === 'marte' ? 'aterrissarMarte' : 'aterrissarLua');
-      } else if (passada.contato) {
+      } else if (passada.contato && !this.astronautaProcedural.passosPropriosAtivos) {
         // Emit only when the displayed sprite enters a boot-contact frame.
         tocarSfx(sessao.mundo === 'nave' ? 'passoNave' : sessao.mundo === 'marte' ? 'passoMarte' : 'passoLua');
       }
@@ -1752,7 +1756,15 @@ export class Superficie extends Phaser.Scene {
     this.animarDecolagem(dt);
     this.passarEventos(dt);
     this.passarPassantes(dt);
+    this.dtAstronauta=dt;
     this.desenharComandante();
+    const contatoLunar=this.astronautaProcedural.consumirContatoLunar();
+    const botas=this.astronautaProcedural.consumirEventosMagneticos();
+    if(passosAtivos&&!pousou&&!(antesNoChao&&!this.corpo.noChao)&&!sessao.rover?.dirigindo){
+      if(botas.soltou)tocarSfx('botaSoltar');
+      if(botas.fixou)tocarSfx('botaFixar');
+    }
+    if(contatoLunar && passosAtivos && !pousou && !sessao.rover?.dirigindo)tocarSfx('passoLua');
     if (!sessao.rover) { esconderRover(this.gRover, this.pecasRover); this.dicaRover.setVisible(false); fundoRotulo(this.fundoDicaRover, this.dicaRover); }
     if (sessao.rover) {
       const r = sessao.rover;
@@ -1774,7 +1786,7 @@ export class Superficie extends Phaser.Scene {
       this.teto.setAlpha(a).setVisible(a > 0.01);
       for (const t of this.nomesNoMapa) t.setAlpha(1 - a);
     }
-    if(this.mapa.visible) this.ambiente.update(dt,this.corpo,sessao.grade.lista,sessao.rover);
+    if(this.mapa.visible) this.ambiente.update(dt,this.corpo,sessao.grade.lista,sessao.rover,{ativo:this.astronautaProcedural.passosLunaresAtivos,contato:contatoLunar});
     const ativo=this.scene.isVisible() && !document.hidden && this.input.enabled && (sessao.fase==='dia'||sessao.fase==='inicio');
     const proximidade=sessao.grade.lista.filter(c=>c.tipo.sala || c.tipo.id==='habitat')
       .reduce((v,c)=>Math.max(v,1/(1+Math.hypot(c.gx+c.tipo.w/2-this.corpo.x,c.gy+c.tipo.h/2-this.corpo.y)**2*0.2)),0);
@@ -2091,7 +2103,9 @@ export class Superficie extends Phaser.Scene {
     const v = Math.hypot(k.vx, k.vy);
     if (v > 0.3) this.direcao = (Math.round(Math.atan2(-k.vy, k.vx) / (Math.PI / 4)) + 8) % 8;
     const col = this.quadroPassada;
-    this.comandante.setPosition(pe.x, pe.y).setFrame(this.direcao * sprite.colunas + col);
+    this.comandante.setPosition(pe.x, pe.y);
+    if(!this.mapa.visible || !this.astronautaProcedural.atualizar(this.comandante,k,sessao.mundo,sessao.carregando,this.direcao,this.passada.faseAtual,this.dtAstronauta,sessao.terreno.altura(k.x,k.y),P,sprite.escala))
+      this.comandante.setFrame(this.direcao * sprite.colunas + col);
     const d = profundidade(k.x + 0.3, k.y + 0.3);
     g.setDepth(d - 1); this.comandante.setDepth(d);
     this.atualizarCarga();

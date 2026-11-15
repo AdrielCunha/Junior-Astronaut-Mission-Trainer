@@ -4,6 +4,7 @@
 export type Traducao = string | ((...partes: string[]) => string);
 
 export const PT: Record<string, Traducao> = {
+  "Explorer 3D": "Explorador 3D",
   "BLANKETS": "MANTAS",
   "Drag a gold blanket onto each BLUE cold spot.": "Arraste uma manta dourada para cada ponto frio AZUL.",
   "Good! {} cold spot{} left.": (n) => n === '1' ? 'Boa! Falta 1 ponto frio.' : `Boa! Faltam ${n} pontos frios.`,

@@ -1,6 +1,6 @@
 // Generated with AI assistance. See README, "Use of AI tools".
 // Video preferences shared by scenes; storage is optional in private browsing.
-import { SKINS, SKIN_PADRAO } from './dados/skins';
+import { SKINS, SKIN_PADRAO } from './dados/skins.ts';
 export type Video = { qualidade: 'auto' | 'leve' | 'alta'; movimento: 'sistema' | 'reduzido' | 'completo'; efeitos: boolean; pegadas: boolean; skin: string };
 const KEY = 'lunar-odyssey-video';
 const systemMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -10,6 +10,8 @@ try {
   if (['auto','leve','alta'].includes(saved.qualidade)) video.qualidade = saved.qualidade;
   if (['sistema','reduzido','completo'].includes(saved.movimento)) video.movimento = saved.movimento;
   if (SKINS.some((s) => s.id === saved.skin)) video.skin = saved.skin;
+  // Upgrade the former experimental video toggle into the dedicated skin.
+  if (saved.animacao === 'procedural') video.skin = 'procedural';
   for (const key of ['efeitos','pegadas'] as const) if (typeof saved[key] === 'boolean') video[key] = saved[key];
 } catch { /* Defaults also work without storage. */ }
 export function escolherSkin(id: string) {

@@ -85,6 +85,14 @@ How the game is built (engine, scenes, zoom, art pipeline in Blender): see [ARCH
 Controls: WASD or click to walk, Space to jump, click a module (or E) to use it, mouse wheel or
 pinch to zoom; zoom out past the ground to fly to the whole Moon and on to the planets.
 
+## Explorer 3D skin
+
+Choose **Explorer 3D** in the astronaut suit selector to use the articulated character,
+carried battery stack, alternating lunar strides and magnetic ship boots. The original
+six sprite suits remain available. Selection is saved; unsupported WebGL and seated rover
+poses fall back to Commander. See [the feature, assets and validation guide](docs/astronauta-procedural.md)
+for details and the separate animation laboratory.
+
 ## Use of AI tools
 
 The team used Claude (Anthropic) to explore the NASA APIs, to draft project documents including this README, and to write code. Codex (OpenAI) helped implement and integrate the Moon rover, storm alerts, HUD updates, and documentation. Files may include additional AI attribution in their header comments.

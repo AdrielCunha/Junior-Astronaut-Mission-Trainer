@@ -466,3 +466,15 @@ NASA map to a few flat colors (Mars saturation pushed toward rust; the Viking mo
 stripe, docking nose, truss, two propellant tanks, engine, solar wings, radiators) from the tilted
 solar-system camera, and the rocket alone from the map's camera. `make_sun.py` renders the Sun
 (granulation bands, darker limb, soft rays). All use the shared palette through `comum.py`.
+
+
+## Optional procedural astronaut skin
+
+`src/dados/skins.ts` exposes Explorer 3D as a skin (`procedural`), with Commander as
+its sprite fallback. `SKINS_SPRITES` prevents duplicate or nonexistent sprite loads.
+`AstronautaEmJogo` lazily loads the Blender mesh data, applies the authoritative body
+state to the articulated pose and refreshes a Phaser canvas texture. Static WebGL
+buffers are reused and disposed on scene shutdown. The lunar controller emits a single
+sole-contact event shared by audio, footprints and dust; the ship controller emits
+magnet release/latch events and uses the ship's braking profile. Skin choice never
+changes inventory rules or jump physics. See [the complete guide](docs/astronauta-procedural.md).

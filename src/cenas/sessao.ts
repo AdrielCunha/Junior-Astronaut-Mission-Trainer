@@ -7,7 +7,7 @@ import { localeData } from '../idioma';
 import terrenoJson from '../dados/terreno.json';
 import terrenoMarteJson from '../dados/terreno_marte.json';
 import terrenoNaveJson from '../dados/terreno_nave.json';
-import { definirGravidade, G_LUA, G_MARTE, G_TERRA, type Corpo } from '../engine/fisica';
+import { definirBotasMagneticas, definirGravidade, G_LUA, G_MARTE, G_TERRA, type Corpo } from '../engine/fisica';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { EVENTOS, haEventoHoje, esperaDoEvento, esperaDoAlarme, alarmeDoDia, type EventoDef } from '../engine/eventos';
 import type { Expedicao } from '../engine/expedicao';
@@ -268,7 +268,8 @@ class Sessao {
     Object.assign(img, JSON.parse(JSON.stringify(fonte.imagem)));
     this.terreno = new Terreno(dadosTerreno);
     // On the ship there is no gravity in deep space: magnetic boots hold the crew to the metal
-    // deck, so walking feels like on Earth and a jump barely leaves the floor.
+    // deck. Heavy soles require deliberate walking, firm braking and only a small jump.
+    definirBotasMagneticas(m === 'nave');
     definirGravidade(m === 'marte' ? G_MARTE : m === 'nave' ? G_TERRA : G_LUA);
     this.reiniciar();
   }

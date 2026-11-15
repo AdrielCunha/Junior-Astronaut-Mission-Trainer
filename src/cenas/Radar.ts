@@ -13,7 +13,7 @@ import paletaLua from '../dados/paleta_lua.json';
 const LUA_COR=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
 const LUA_CRATERA=Number.parseInt(paletaLua.rocha.slice(1),16);
 import { abrirVideo, movimentoReduzido, configuracoesAbertas, video, escolherSkin } from '../video';
-import { SKINS } from '../dados/skins';
+import { SKINS, skinUsaProcedural } from '../dados/skins';
 import { sessao, type Mundo } from './sessao';
 import { basesLiberadas } from '../salvamento';
 import type { DadosChegada } from './Chegada';
@@ -395,12 +395,12 @@ export class Radar extends Phaser.Scene {
       });
       // Like the video quality note: texts built from other values (dates) switch on their next update.
       if (idiomaMudou) this.add.text(tela.x + 20 * u, yI + 13 * u, 'Some texts update tomorrow.', letra(12 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
-      // Astronaut suit: one swatch per skin (sheets in public/lua/astronaut_<id>.png).
+      // Astronaut suit: one swatch per skin, including the procedural model.
       const yS = tela.y + tela.h * 3.5 / 5;
       this.add.text(tela.x + 20 * u, yS, 'Astronaut suit', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
       const nome = this.add.text(tela.x + tela.w - 20 * u, yS, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(1, 0.5);
       const hex = (c: string) => Number.parseInt(c.slice(1), 16);
-      const lado = 42 * u, raio = 9 * u;
+      const lado = Math.min(42 * u, (tela.w - 48 * u - (SKINS.length - 1) * 14 * u) / SKINS.length), raio = 9 * u;
       const aneis: Phaser.GameObjects.Graphics[] = [];
       const atualizarSkin = () => {
         aneis.forEach((a, i) => a.setAlpha(SKINS[i].id === video.skin ? 1 : 0));
@@ -417,6 +417,7 @@ export class Radar extends Phaser.Scene {
           .setInteractive(new Phaser.Geom.Rectangle(x - lado / 2, y - lado / 2, lado, lado), Phaser.Geom.Rectangle.Contains)
           .on('pointerover', () => tocarSfx('suave'))
           .on('pointerdown', () => { tocarSfx('clique'); escolherSkin(s.id); atualizarSkin(); });
+        if(skinUsaProcedural(s.id))this.add.text(x,y,'3D',letra(12*u,'#0f172a',{fontStyle:'bold'})).setOrigin(.5);
       });
       atualizarSkin();
     }, 'DONE');

@@ -3,7 +3,7 @@ import { CONTORNO, COR_BOTAO_TELA, letra, criarBotaoPilula, botaoVerde, botaoFec
 import { volumeMusica, definirVolumeMusica } from '../audio';
 import { volumeEfeitos, definirVolumeEfeitos, tocarSfx } from '../sfx';
 import { video, atualizarVideo, type Video } from '../video';
-import { SKINS } from '../dados/skins';
+import { SKINS, skinUsaProcedural } from '../dados/skins';
 import { sessao, dataBonita } from './sessao';
 import { idioma, escolherIdioma } from '../idioma';
 
@@ -128,7 +128,7 @@ export class MenuJogo extends Phaser.Scene {
     this.add.text(tela.x + 20 * u, yS, 'Astronaut suit', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
     const nome = this.add.text(tela.x + tela.w - 20 * u, yS, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(1, 0.5);
     const hex = (c: string) => Number.parseInt(c.slice(1), 16);
-    const lado = 42 * u, raio = 9 * u;
+    const lado = Math.min(42 * u, (tela.w - 48 * u - (SKINS.length - 1) * 14 * u) / SKINS.length), raio = 9 * u;
     const aneis: Phaser.GameObjects.Graphics[] = [];
     const atualizarSkin = () => {
       aneis.forEach((a, i) => a.setAlpha(SKINS[i].id === video.skin ? 1 : 0));
@@ -144,6 +144,7 @@ export class MenuJogo extends Phaser.Scene {
         .setInteractive(new Phaser.Geom.Rectangle(x - lado / 2, y - lado / 2, lado, lado), Phaser.Geom.Rectangle.Contains)
         .on('pointerover', () => tocarSfx('suave'))
         .on('pointerdown', () => { tocarSfx('clique'); atualizarVideo({ skin: s.id }); atualizarSkin(); });
+      if(skinUsaProcedural(s.id))this.add.text(x,y,'3D',letra(12*u,'#0f172a',{fontStyle:'bold'})).setOrigin(.5);
     });
     atualizarSkin();
     this.botao(tela, yLinha(5), 'VIDEO & COMFORT  ›', () => this.abrirPagina('video'), 'video', COR_BOTAO_TELA);
