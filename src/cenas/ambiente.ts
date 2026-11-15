@@ -30,6 +30,7 @@ export class Ambiente {
   private intervalo = 0;
   private pegadasVisiveis = true;
   private ultimaAtualizacaoPegadas = 0;
+  private limiteMarcas = 1800;
   private ultimoRastro: {x: number; y: number; angulo: number} | null = null;
 
   // Mars: rust-colored prints and dust, shorter steps, and dust that hangs in the thin air and
@@ -60,6 +61,7 @@ export class Ambiente {
 
   update(dt: number, corpo: Corpo, construcoes: readonly Construcao[], rover?: Rover | null) {
     const leve = video.qualidade === 'leve' || (video.qualidade === 'auto' && LEVE);
+    this.limiteMarcas=leve ? 480 : 1800;
     const reduzido = movimentoReduzido();
     if (rover?.dirigindo) {
       this.ultimo = null; this.distancia = 0;
@@ -68,7 +70,7 @@ export class Ambiente {
       this.ultimoRastro = null;
       this.passos(corpo,construcoes,leve,reduzido);
     }
-    // Age continues even while standing still or looking at space; no count-based eviction.
+    // Prints age normally while idle; quality also bounds the cost of busy rover trails.
     const agora=this.cena.time.now/1000;
     // Full redraw (for the fade) once a second; a new step is only appended in between.
     if(this.marcas.length && agora-this.ultimaAtualizacaoPegadas>=1) this.redesenharPegadas();
@@ -164,13 +166,19 @@ export class Ambiente {
   }
 
   private redesenharPegadas() {
-    const g=this.gPegadas.clear();
     const agora=this.cena.time.now/1000;
     this.ultimaAtualizacaoPegadas=agora;
+    const excesso=this.marcas.length-this.limiteMarcas;
+    if(excesso>0)this.marcas.splice(0,excesso);
+    // Fresh marks are already appended at full opacity. Rebuild only once fading starts.
+    if (excesso<=0 && this.marcas.length && agora-this.marcas[0].nascimento<VIDA_PEGADA-FADE_PEGADA) return;
+    const g=this.gPegadas.clear();
     this.marcas=this.marcas.filter(m=>agora-m.nascimento<VIDA_PEGADA);
-    for(const m of this.marcas) {
+    for(let i=0;i<this.marcas.length;i++) {
+      const m=this.marcas[i];
       const t=Phaser.Math.Clamp((agora-m.nascimento-(VIDA_PEGADA-FADE_PEGADA))/FADE_PEGADA,0,1);
-      this.desenharMarca(g,m,1-t*t*(3-2*t));
+      const cauda=this.marcas.length>=this.limiteMarcas ? Math.min(1,(i+1)/(this.limiteMarcas*0.1)) : 1;
+      this.desenharMarca(g,m,cauda*(1-t*t*(3-2*t)));
     }
   }
 

@@ -3,7 +3,7 @@
 // The rules live in ../colapso-reator-tarefa.ts (pure functions, tested); this scene only draws and reads the mouse.
 import Phaser from 'phaser';
 import { criarTarefaColapsoReator, avancar, resfriar, tarefaConcluida, META, type TarefaColapsoReator } from '../colapso-reator-tarefa';
-import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
@@ -108,8 +108,8 @@ export class ColapsoReatorTarefa extends Phaser.Scene {
         texto(this, 0, 26, 'Reactors need constant cooling so they do not overheat.', 14, '#dcfce7', 0x1e293b),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-      this.time.delayedCall(2800, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     const criarPonto = (id: number, x: number, y: number) => {

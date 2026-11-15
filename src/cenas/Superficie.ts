@@ -124,6 +124,7 @@ export class Superficie extends Phaser.Scene {
   private tempoEfeitos = 0;
   private ambiente!: Ambiente;
   private readonly controlesObservados = new Set<'movimento' | 'pulo'>();
+  private readonly limitesOclusao = new Phaser.Geom.Rectangle();
   private corpo!: Corpo;
   private gCaminhos!: Phaser.GameObjects.Graphics;
   private gAstronauta!: Phaser.GameObjects.Graphics;   // ground shadow; inventory and carried item have their own objects
@@ -159,8 +160,6 @@ export class Superficie extends Phaser.Scene {
   private avisoAPe = 0;
   private bloqueioExp = 0;      // seconds before a closed expedition task may open again
   private proxBip = 0;          // seconds until the next hot/cold beep
-  private movelRef: unknown = null;   // the wandering expedition being timed (a new one restarts the clock)
-  private tempoMovel = 0;
   private pecasRover!: PecasRover;
   private dicaRover!: Phaser.GameObjects.Text;
   private fundoDicaRover!: Phaser.GameObjects.Graphics;
@@ -276,6 +275,8 @@ export class Superficie extends Phaser.Scene {
   }
 
   create() {
+    this.foguetePartiu=false;
+    this.decolagem=null;
     // Scene inspection is available in development or explicitly opted-in benchmark builds.
     if (import.meta.env.DEV || import.meta.env.VITE_MEDIR === '1') Object.assign(window, { superficie: this, sessao });
     this.controlesObservados.clear();   // a NEW GAME restarts this scene: the guide asks to walk and jump again
@@ -704,7 +705,9 @@ export class Superficie extends Phaser.Scene {
         }
       }
     }
-    return { dx, dy, pular: Phaser.Input.Keyboard.JustDown(t.SPACE) };
+    const pular=Phaser.Input.Keyboard.JustDown(t.SPACE)||sessao.puloTouch;
+    sessao.puloTouch=false;
+    return { dx, dy, pular };
   }
 
   // ---------- batteries ----------
@@ -797,9 +800,9 @@ export class Superficie extends Phaser.Scene {
         const cena = ultimaEnergia = lista[Math.floor(Math.random() * lista.length)];
         sessao.emTarefa = true;
         let feito = false;
-        const uma = () => { if (feito) return; feito = true; sessao.emTarefa = false; pegar(); };
-        this.scene.get(cena).events.once('shutdown', () => this.time.delayedCall(0, uma));
-        this.scene.launch(cena, { aoConcluir: uma });
+        const uma = (pulou=false) => { if (feito) return; feito = true; sessao.emTarefa = false; pegar(); if(pulou)sessao.emitir('mensagem','Charging task skipped. Your batteries are ready.','#fde68a'); };
+        this.scene.get(cena).events.once('shutdown', () => this.time.delayedCall(0, () => uma(true)));
+        this.scene.launch(cena, { aoConcluir: () => uma(), pular:'energy' });
         this.scene.bringToTop(cena);
         return;
       }
@@ -820,10 +823,10 @@ export class Superficie extends Phaser.Scene {
         } else {
           // A ready scene: the battery goes in when it ends, or when it is closed (the red X / Esc).
           let entregue = false;
-          const uma = () => { if (entregue) return; entregue = true; terminar(); };
+          const uma = (pulou=false) => { if (entregue) return; entregue = true; terminar(); if(pulou)sessao.emitir('mensagem','Task skipped. One battery delivered.','#fde68a'); };
           const cena = this.scene.get(escolha.cena);
-          cena.events.once('shutdown', () => this.time.delayedCall(0, uma));
-          this.scene.launch(escolha.cena, { aoConcluir: uma });
+          cena.events.once('shutdown', () => this.time.delayedCall(0, () => uma(true)));
+          this.scene.launch(escolha.cena, { aoConcluir: () => uma(), pular:'battery' });
           this.scene.bringToTop(escolha.cena);
         }
         return;
@@ -915,6 +918,7 @@ export class Superficie extends Phaser.Scene {
     const exp = destino && fim ? criarCorridaEntrega(inicio, { ...fim, nome: destino.nome }, livre) : null;
     if (!exp) return;
     sessao.expedicao = exp;
+    sessao.tempoExpedicao=0;
     tocarSfx('ok');
     sessao.emitir('mensagem', `🚩 Delivery run! Drive through the flags to bring parts to the ${exp.destino}.`, '#93c5fd');
   }
@@ -970,9 +974,8 @@ export class Superficie extends Phaser.Scene {
     // A wandering spot (the dust devil) moves on while the day is being played.
     let exp2 = exp;
     if (exp.movel) {
-      if (this.movelRef !== exp.movel) { this.movelRef = exp.movel; this.tempoMovel = 0; }
-      if (!sessao.emTarefa && !sessao.transicao) this.tempoMovel += dt;
-      exp2 = moverExpedicao(exp, this.tempoMovel);
+      if (!sessao.emTarefa && !sessao.transicao) sessao.tempoExpedicao += dt;
+      exp2 = moverExpedicao(exp, sessao.tempoExpedicao);
       sessao.expedicao = exp2;
     }
     const x = this.corpo.x, y = this.corpo.y;
@@ -1706,8 +1709,12 @@ export class Superficie extends Phaser.Scene {
         : this.pertoRover()
           ? carregado ? 'E / click: Drive Apollo LRV' : sessao.carregando ? 'E / click: Install 1 battery & drive' : `Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}`
           : sessao.mundo === 'marte' ? 'APOLLO LRV (on a pretend Mars trip!) · Click to approach' : 'APOLLO LRV · Click to approach';
-      this.dicaRover.setPosition(p.x, p.y).setVisible(this.podeUsarRover())
-        .setText(`Battery: ${carregado ? 'charged' : 'empty'}\n${acao}`);
+      const cam=this.cameras.main,wrap=Math.min(320,this.scale.width-64);
+      if(this.dicaRover.style.wordWrapWidth!==wrap)this.dicaRover.setWordWrapWidth(wrap,true);
+      this.dicaRover.setScale(1/cam.zoom).setText(`Battery: ${carregado ? 'charged' : 'empty'}\n${acao}`);
+      const metade=this.dicaRover.displayWidth/2,pad=12/cam.zoom;
+      this.dicaRover.setPosition(Phaser.Math.Clamp(p.x,cam.worldView.left+metade+pad,cam.worldView.right-metade-pad),p.y)
+        .setVisible(this.podeUsarRover() && cam.worldView.contains(p.x,p.y));
       fundoRotulo(this.fundoDicaRover, this.dicaRover);
     }
     sessao.parado = Math.hypot(this.corpo.vx, this.corpo.vy) < 0.05 && this.corpo.noChao;
@@ -1721,8 +1728,12 @@ export class Superficie extends Phaser.Scene {
     }
     if(this.mapa.visible) this.ambiente.update(dt,this.corpo,sessao.grade.lista,sessao.rover);
     const ativo=this.scene.isVisible() && !document.hidden && this.input.enabled && (sessao.fase==='dia'||sessao.fase==='inicio');
-    const proximidade=sessao.grade.lista.filter(c=>c.tipo.sala || c.tipo.id==='habitat')
-      .reduce((v,c)=>Math.max(v,1/(1+Math.hypot(c.gx+c.tipo.w/2-this.corpo.x,c.gy+c.tipo.h/2-this.corpo.y)**2*0.2)),0);
+    let proximidade=0;
+    for(const c of sessao.grade.lista) {
+      if(!c.tipo.sala && c.tipo.id!=='habitat') continue;
+      const dx=c.gx+c.tipo.w/2-this.corpo.x,dy=c.gy+c.tipo.h/2-this.corpo.y;
+      proximidade=Math.max(proximidade,1/(1+(dx*dx+dy*dy)*0.2));
+    }
     this.sons.atualizar(sessao.rover?.dirigindo?Math.hypot(this.corpo.vx,this.corpo.vy)/6.4:0,proximidade,ativo);
     sessao.posicaoAstronauta=this.corpo;
     sessao.atualizarSalvamento(dtMs);
@@ -1735,7 +1746,8 @@ export class Superficie extends Phaser.Scene {
     if (sessao.vista === 'chao' && !sessao.voo && this.seguir && !this.pouso) {
       const pe = paraTela(P, this.corpo.x, this.corpo.y, this.corpo.z);
       const cam = this.cameras.main;
-      cam.centerOn(Phaser.Math.Linear(cam.midPoint.x, pe.x, 0.12), Phaser.Math.Linear(cam.midPoint.y, pe.y, 0.12));
+      const suavizacao = 1 - Math.pow(1 - 0.12, dt * 60);
+      cam.centerOn(Phaser.Math.Linear(cam.midPoint.x, pe.x, suavizacao), Phaser.Math.Linear(cam.midPoint.y, pe.y, suavizacao));
     }
   }
 
@@ -1994,7 +2006,7 @@ export class Superficie extends Phaser.Scene {
     for (const c of sessao.grade.lista) {
       const d = this.desenhos.get(c.id);
       if (!d) continue;
-      const bounds = d.img.getBounds();
+      const bounds = d.img.getBounds(this.limitesOclusao);
       const overlaps = bounds.contains(feet.x, feet.y - 15) || bounds.contains(feet.x, feet.y - 26);
       const behind = k.x < c.gx + c.tipo.w && k.y < c.gy + c.tipo.h && k.z < c.z + c.tipo.altura - 0.1;
       const normal = profundidade(c.gx + c.tipo.w, c.gy + c.tipo.h);

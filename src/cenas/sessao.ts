@@ -2,6 +2,7 @@
 // State shared by the three scenes that run together (Espaco, Superficie, Interface), plus the
 // event bus they talk through. One game = one Sessao. See ARCHITECTURE.md.
 import Phaser from 'phaser';
+import { definirMusicaDaFase } from '../audio';
 import { movimentoReduzido, configuracoesAbertas } from '../video';
 import terrenoJson from '../dados/terreno.json';
 import terrenoMarteJson from '../dados/terreno_marte.json';
@@ -96,6 +97,8 @@ export type Eventos = {
 };
 
 class Sessao {
+  explorando = false;
+  puloTouch = false;
   posicaoAstronauta: Corpo | null = null;
   partidaRestaurada = false;
   abastecendoRover = false;
@@ -110,10 +113,12 @@ class Sessao {
   }
 
   salvar() {
-    if (!this.grade.lista.length || this.partida || this.abastecendoRover) return false;
+    if (this.explorando || !this.grade.lista.length || this.partida || this.abastecendoRover) return false;
     return gravarPartida({versao:1,salvoEm:Date.now(),layout:LAYOUT_VERSAO,mundo:this.mundo,capIdx:this.capIdx,fase:this.fase,
       estado:this.estado,entregas:this.entregas,pontos:this.pontos,carregando:this.carregando,noHabitat:this.noHabitat,
       tarefasHoje:[...this.tarefasHoje],ultimaTarefa:this.ultimaTarefa,energiaHoje:this.energiaHoje,
+      estacoesHoje:[...this.estacoesHoje],exploracaoEm:this.exploracaoEm,expedicao:this.expedicao,
+      corridaHoje:this.corridaHoje,paralamaHoje:this.paralamaHoje,odometroRover:this.odometroRover,ultimaExploracao:this.ultimaExploracao,tempoExpedicao:this.tempoExpedicao,
       curiosidadeRoverVista:this.curiosidadeRoverVista,curiosidadeRoverMarteVista:this.curiosidadeRoverMarteVista,diaCargaRover:this.diaCargaRover,rover:this.rover,astronauta:this.posicaoAstronauta,
       modulos:this.grade.lista.map(c=>({id:c.id,tipo:c.tipo.id,gx:c.gx,gy:c.gy,rotacao:c.rotacao??0,copia:c.copia||undefined})),decoracao:this.grade.deco,
       tempestade:{restante:this.tempestade.restante,status:this.tempestade.status},danoTempestade:this.danoTempestade,
@@ -152,6 +157,14 @@ class Sessao {
       this.estado=d.estado; this.entregas=d.entregas; this.pontos=d.pontos;
       this.fase=d.fase; this.carregando=d.carregando; this.noHabitat=d.noHabitat;
       this.tarefasHoje=new Set(d.tarefasHoje); this.ultimaTarefa=d.ultimaTarefa; this.energiaHoje=d.energiaHoje;
+      this.estacoesHoje=new Set(d.estacoesHoje??[]);this.exploracaoEm=d.exploracaoEm??null;this.expedicao=d.expedicao??null;
+      this.corridaHoje=d.corridaHoje??false;this.paralamaHoje=d.paralamaHoje??false;this.odometroRover=d.odometroRover??0;
+      this.ultimaExploracao=d.ultimaExploracao;this.tempoExpedicao=d.tempoExpedicao??0;
+      // Restore the scanner's final spot, not an unfinished overlay.
+      if (this.expedicao?.cena && this.expedicao.atual>=this.expedicao.pontos.length) {
+        const e=this.expedicao,i=e.pontos.length-1;
+        this.expedicao={...e,atual:i,feitos:e.feitos.map((v,k)=>k===i?false:v),espera:0};
+      }
       this.curiosidadeRoverVista=d.curiosidadeRoverVista; this.curiosidadeRoverMarteVista=!!d.curiosidadeRoverMarteVista; this.diaCargaRover=d.diaCargaRover;
       this.rover=d.mundo!=='nave'?d.rover:null; this.posicaoAstronauta=d.astronauta;
       for (const k of [this.posicaoAstronauta,this.rover?.corpo]) if (k) {k.vx=0;k.vy=0;k.vz=0;}
@@ -201,6 +214,7 @@ class Sessao {
   estacoesHoje = new Set<string>();   // ship stations already used today (engine/estacoes.ts)
   exploracaoEm: number | null = null;   // seconds of play until today's exploration event (null: none today)
   ultimaExploracao?: string;
+  tempoExpedicao = 0;
   pistaExpedicao: { nivel: number; texto: string } | null = null;   // hot/cold hint, set by Superficie every frame
   alvoExpedicao: { x: number; y: number } | null = null;            // where the HUD arrow points
   progressoExpedicao = 0;                                           // 0..1 while staying at a spot
@@ -250,6 +264,7 @@ class Sessao {
   // changed IN PLACE: scenes keep references to dadosTerreno and its projection (Superficie's P).
   usarMundo(m: Mundo) {
     this.mundo = m;
+    definirMusicaDaFase(m);
     const fonte = m === 'marte' ? terrenoMarteJson : m === 'nave' ? terrenoNaveJson : TERRENO_LUA;
     const d = dadosTerreno as unknown as Record<string, unknown>;
     const img = dadosTerreno.imagem;
@@ -272,6 +287,9 @@ class Sessao {
   }
 
   reiniciar() {
+    this.puloTouch=false;
+    this.tempoExpedicao=0;
+    this.explorando=false;
     this.posicaoAstronauta=null; this.ultimoDia=null; this.danoTempestade=0; this.bateriasTempestade=0;
     this.desfechoPendente=null; this.abastecendoRover=false; this.editandoBase=false; this.partidaRestaurada=false; this.tempoSalvar=0;
     this.grade = new Grade(this.terreno);
@@ -488,6 +506,7 @@ class Sessao {
   }
 
   novoDia() {
+    this.tempoExpedicao=0;
     this.nivelTeste = null;
     this.tempestade.iniciar(this.mundo === 'lua' ? this.dia.nivel : 0);
     this.entregas = nenhuma();

@@ -42,7 +42,7 @@ export function dirigirRover(r: Rover, e: Entrada | null, c: Chao, caixas: Caixa
   if (Math.hypot(k.vx, k.vy) > 0.1) {
     const alvo = Math.atan2(k.vy, k.vx);
     const delta = Math.atan2(Math.sin(alvo - r.angulo), Math.cos(alvo - r.angulo));
-    r.angulo += delta * Math.min(1, tempo * 10);
+    r.angulo += delta * (1 - Math.pow(1 - 10 / 60, tempo * 60));
   }
   const passos = Math.max(1, Math.ceil(Math.hypot(k.vx, k.vy) * tempo / 0.1));
   let bloqueado = false;

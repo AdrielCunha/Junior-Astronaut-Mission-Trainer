@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import { tocarSfx } from '../sfx';
 import { criarMotorAjuste, moverControle, controleNaZona, controlesNaZona, avancarEstabilidade, estabilidade, motorAjustado, potenciaMedia, todosNaZona, type MotorAjuste } from '../potencia-motor-tarefa';
-import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -180,8 +180,8 @@ export class PotenciaMotorTarefa extends Phaser.Scene {
         texto(this, 0, 28, 'Gas goes back, the ship goes forward!', 14, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       janela.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-      this.time.delayedCall(2800, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     const aCadaQuadro = (t: number, delta: number) => {

@@ -3,7 +3,7 @@
 // The rules live in ../nave-tarefa.ts (pure functions, tested); this scene only draws and reads the mouse.
 import Phaser from 'phaser';
 import { tocarSfx } from '../sfx';
-import { escalaPainel, moldura, faixaTitulo, barraStatus, botaoFechar } from './moldura';
+import { escalaPainel, moldura, faixaTitulo, barraStatus, botaoFechar, concluirTarefa } from './moldura';
 import { criarTarefaNave, naveEmColisao, tarefaConcluida, moverAsteroides, distancia, type Ponto } from '../nave-tarefa';
 
 const FONTE = '"Fredoka", system-ui, "Segoe UI", sans-serif';
@@ -267,8 +267,8 @@ export class NaveTarefa extends Phaser.Scene {
       const t = txt(0, 0, 'Route complete!', 42, '#ffffff', 0x14532d);
       const bloco = this.add.container(tarefa.largura / 2, tarefa.altura / 2, [faixaWin, t]).setScale(0).setDepth(40);
       mapa.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 300, ease: 'Back.easeOut' });
-      this.time.delayedCall(2300, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     const mover = (alvoBruto: Ponto) => {
@@ -313,7 +313,7 @@ export class NaveTarefa extends Phaser.Scene {
         r.sp.setPosition(r.o.x, r.o.y); r.sp.angle += r.giro * dt;
         r.sombra.setPosition(r.o.x + 7, r.o.y + 10).setAngle(r.sp.angle);
       }
-      corpo.rotation = Phaser.Math.Angle.RotateTo(corpo.rotation, ang + Math.PI / 2, 0.18);
+      corpo.rotation = Phaser.Math.Angle.RotateTo(corpo.rotation, ang + Math.PI / 2, 0.18 * dt * 60);
       sombraNave.rotation = corpo.rotation;
       rastro.clear().fillStyle(0xffffff, 1);
       pontos.forEach((p, i) => { rastro.fillStyle(0xffffff, (i / pontos.length) * 0.85).fillCircle(p.x, p.y, 3); });

@@ -6,13 +6,14 @@ const CHAVE_MUDO = 'lunar-odyssey-mudo';
 const CHAVE_VOLUME = 'lunar-odyssey-volume-musica';
 const BASE = import.meta.env.BASE_URL;
 
-const FAIXAS = [
-  'lunar-odyssey-theme',
-  'Beneath_the_Silver_Tide',
-];
+const FAIXAS = {
+  lua: { nome: 'lunar-odyssey-theme', alternativa: 'm4a' },
+  nave: { nome: 'Beneath_the_Silver_Tide', alternativa: 'm4a' },
+  marte: { nome: 'Across_the_Crimson_Basin-aero', alternativa: 'mp4' },
+} as const;
 
 let audio: HTMLAudioElement | null = null;
-let faixaAtual = 0;
+let faixaAtual: keyof typeof FAIXAS = 'lua';
 let iniciado = false;
 let mudo = lerMudo();
 let volume = (() => { try { const salvo = localStorage.getItem(CHAVE_VOLUME); if (salvo === null) return 0.7; const n = Number(salvo); return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.7; } catch { return 0.7; } })();
@@ -25,15 +26,15 @@ function salvarMudo() {
   try { localStorage.setItem(CHAVE_MUDO, mudo ? '1' : '0'); } catch { /* private mode */ }
 }
 
-function carregarFaixa(el: HTMLAudioElement, indice: number) {
-  const nome = FAIXAS[indice];
+function carregarFaixa(el: HTMLAudioElement, fase: keyof typeof FAIXAS) {
+  const { nome, alternativa } = FAIXAS[fase];
   el.replaceChildren();
 
   const ogg = document.createElement('source');
   ogg.src = `${BASE}audio/${nome}.ogg`;
   ogg.type = 'audio/ogg; codecs="opus"';
   const m4a = document.createElement('source');
-  m4a.src = `${BASE}audio/${nome}.m4a`;
+  m4a.src = `${BASE}audio/${nome}.${alternativa}`;
   m4a.type = 'audio/mp4; codecs="mp4a.40.2"';
 
   el.append(ogg, m4a);
@@ -44,19 +45,11 @@ function criarAudio() {
   if (audio) return audio;
   audio = new Audio();
   audio.preload = 'none';
+  audio.loop = true;
   audio.volume = VOLUME * volume * volume;
   audio.style.display = 'none';
 
   carregarFaixa(audio, faixaAtual);
-
-  audio.addEventListener('ended', () => {
-    if (!audio) return;
-    faixaAtual = (faixaAtual + 1) % FAIXAS.length;
-    carregarFaixa(audio, faixaAtual);
-    if (!mudo) {
-      audio.play().catch(() => {});
-    }
-  });
 
   document.body.append(audio);
   return audio;
@@ -86,6 +79,16 @@ export function iniciarAudio() {
   iniciado = true;
   criarAudio();
   if (!mudo) esperarInteracao();
+}
+
+// Keep the chapter's track through tasks, day changes and scene restarts.
+export function definirMusicaDaFase(fase: keyof typeof FAIXAS) {
+  if (faixaAtual === fase) return;
+  faixaAtual = fase;
+  if (!audio) return;
+  audio.pause();
+  carregarFaixa(audio, fase);
+  if (iniciado && !mudo) tocar();
 }
 
 export function estaMudo() {

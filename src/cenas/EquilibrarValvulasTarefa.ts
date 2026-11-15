@@ -6,7 +6,7 @@ import {
   criarTarefaValvulas, girarValvula, leituras, naFaixa, tudoNaFaixa, avancar, progresso, tarefaConcluida, nivelDoAngulo,
   type TarefaValvulas, type Valvula,
 } from '../equilibrar-valvulas-tarefa';
-import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
+import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto, concluirTarefa } from './moldura';
 import { tocarSfx } from '../sfx';
 
 const QUADRO_W = 760;
@@ -209,8 +209,8 @@ export class EquilibrarValvulasTarefa extends Phaser.Scene {
         texto(this, 0, 28, 'Earth air is about 21% oxygen!', 15, '#dcfce7', 0x14532d),
       ]).setScale(0).setDepth(40);
       raiz.add(bloco);
-      this.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-      this.time.delayedCall(2500, () => { this.scene.stop(); this.aoConcluir?.(); });
+      this.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+      concluirTarefa(this, this.aoConcluir);
     };
 
     const aCadaQuadro = (_t: number, delta: number) => {

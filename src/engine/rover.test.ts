@@ -15,6 +15,16 @@ test('rover accelerates, brakes and stays grounded even with jump pressed', () =
   assert.equal(r.corpo.vx, 0);
 });
 
+test('steering follows the same heading at 30, 60 and 120 FPS', () => {
+  const angulos = [30,60,120].map(fps => {
+    const r = rover(); r.corpo.vy = 6.4;
+    for (let i=0;i<fps/5;i++) dirigirRover(r,{dx:0,dy:1,pular:false},terreno,[],1/fps);
+    return r.angulo;
+  });
+  assert.ok(Math.abs(angulos[0]-angulos[1])<1e-10);
+  assert.ok(Math.abs(angulos[1]-angulos[2])<1e-10);
+});
+
 test('rover cannot drive through walls or outside the map', () => {
   const r = rover();
   const caixas = [{ x0: 8, y0: 0, x1: 9, y1: 30, topo: 0.1 }];

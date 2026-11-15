@@ -5,8 +5,9 @@ import { volumeEfeitos, definirVolumeEfeitos, tocarSfx } from '../sfx';
 import { video, atualizarVideo, type Video } from '../video';
 import { SKINS } from '../dados/skins';
 import { sessao, dataBonita } from './sessao';
+import { lerDescobertas } from '../descobertas';
 
-type Pagina = 'menu' | 'settings' | 'video';
+type Pagina = 'menu' | 'settings' | 'video' | 'science';
 type DadosMenu = { aoSairTitulo: () => void };
 
 // A separate overlay keeps the world, mission panels and tutorial timers paused together.
@@ -18,6 +19,7 @@ export class MenuJogo extends Phaser.Scene {
   private pausadas: string[] = [];
   private aoSairTitulo!: () => void;
   private u = 1;
+  private descoberta = 0;
 
   constructor() { super({ key: 'MenuJogo' }); }
 
@@ -25,7 +27,7 @@ export class MenuJogo extends Phaser.Scene {
     this.pagina = 'menu';
     this.aoSairTitulo = dados.aoSairTitulo;
     this.pausadas = [];
-    for (const chave of ['Espaco', 'Superficie', 'Interface']) {
+    for (const chave of ['Espaco', 'Superficie', 'Interface', 'Viagem', 'Chegada', 'MarteVista']) {
       if (!this.scene.isActive(chave)) continue;
       this.scene.get(chave).input.keyboard?.resetKeys();
       this.pausadas.push(chave);
@@ -62,12 +64,13 @@ export class MenuJogo extends Phaser.Scene {
     this.add.rectangle(0, 0, W, H, 0x020617, 0.6).setOrigin(0).setInteractive()
       .on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => ev.stopPropagation());
     const [titulo, lw, lh, rodape] = this.pagina === 'menu' ? ['MISSION PAUSED', 520, 400, 'CONTINUE  ▶']
-      : this.pagina === 'settings' ? ['SETTINGS', 520, 470, 'DONE'] : ['VIDEO & COMFORT', 560, 470, 'DONE'];
+      : this.pagina === 'settings' ? ['SETTINGS', 520, 470, 'DONE'] : this.pagina==='science' ? ['SCIENCE LOG',600,490,'BACK'] : ['VIDEO & COMFORT', 560, 470, 'DONE'];
     const largura = Math.min(W - 40 * u, lw * u), altura = Math.min(H - 40 * u, lh * u);
     const x0 = (W - largura) / 2, y0 = (H - altura) / 2 - 8 * u;
     const { tela, rodape: pe, borda } = moldura(this, { x: x0, y: y0, w: largura, h: altura }, u, titulo);
     if (this.pagina === 'menu') this.menu(tela);
     else if (this.pagina === 'settings') this.configuracoes(tela);
+    else if(this.pagina==='science') this.descobertas(tela);
     else this.configuracoesVideo(tela);
     borda();
     botaoVerde(this, x0 + largura / 2, pe.y + pe.h / 2, rodape, 20 * u, Math.min(pe.h, 50 * u), u, () => { tocarSfx('clique'); this.voltar(); },
@@ -85,13 +88,34 @@ export class MenuJogo extends Phaser.Scene {
 
   private menu(tela: Caixa) {
     const u = this.u, cx = tela.x + tela.w / 2;
-    const texto = sessao.fase === 'inicio' ? 'Exploring the Moon' : `Day ${sessao.estado.dia} · ${dataBonita(sessao.data)}`;
+    const texto = sessao.fase === 'inicio' ? `Exploring ${sessao.mundo==='lua'?'the Moon':sessao.mundo==='nave'?'the ship':'Mars'}` : `Day ${sessao.estado.dia} · ${dataBonita(sessao.data)}`;
     const t = this.add.text(cx, tela.y + tela.h * 0.2, texto, letra(17 * u, '#ffffff')).setOrigin(0.5).setDepth(1);
     const pw = t.width + 44 * u, ph = t.height + 14 * u;
     pilulaEscura(this.add.graphics(), cx - pw / 2, t.y - ph / 2, pw, ph, u);
-    this.botao(tela, tela.y + tela.h * 0.48, 'SETTINGS', () => this.abrirPagina('settings'), 'settings');
-    this.botao(tela, tela.y + tela.h * 0.76, 'SAVE & MAIN MENU', () => { sessao.salvar(); this.aoSairTitulo(); this.fechar(); }, 'main-menu', 0x475569);
+    this.botao(tela, tela.y + tela.h * 0.42, 'SETTINGS', () => this.abrirPagina('settings'), 'settings');
+    this.botao(tela, tela.y + tela.h * 0.61, 'SCIENCE LOG', () => { this.descoberta=Math.max(0,lerDescobertas().length-1);this.abrirPagina('science'); }, 'science');
+    this.botao(tela, tela.y + tela.h * 0.81, sessao.explorando ? 'MAIN MENU' : 'SAVE & MAIN MENU', () => {
+      sessao.salvar();
+      // Return from a cinematic at its saved chapter checkpoint.
+      if (sessao.explorando || this.pausadas.some(k => ['Viagem','Chegada','MarteVista'].includes(k)) || sessao.partida) { location.reload(); return; }
+      this.aoSairTitulo(); this.fechar();
+    }, 'main-menu', 0x475569);
     this.add.text(cx, tela.y + tela.h - 14 * u, 'Autosave on this device · ESC to continue', letra(12 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0.5);
+  }
+
+  private descobertas(tela: Caixa) {
+    const lista=lerDescobertas(),u=this.u;
+    this.descoberta=Phaser.Math.Clamp(this.descoberta,0,Math.max(0,lista.length-1));
+    const d=lista[this.descoberta];
+    const fonte=Math.max(14,Math.round(18*u));
+    this.add.text(tela.x+18*u,tela.y+18*u,d?.titulo??'Your discoveries',letra(fonte+2,'#fde047',{wordWrap:{width:tela.w-36*u},fontStyle:'bold'}));
+    this.add.text(tela.x+18*u,tela.y+70*u,d?.fato??'Complete a task to save its science fact here. You can read it any time.',letra(fonte,'#ffffff',{wordWrap:{width:tela.w-36*u},lineSpacing:4*u}));
+    if(lista.length>1) {
+      const y=tela.y+tela.h-28*u;
+      botaoVerde(this,tela.x+55*u,y,'◀',20*u,40*u,u,()=>{this.descoberta=(this.descoberta-1+lista.length)%lista.length;this.desenhar();},{pulsar:false});
+      botaoVerde(this,tela.x+tela.w-55*u,y,'▶',20*u,40*u,u,()=>{this.descoberta=(this.descoberta+1)%lista.length;this.desenhar();},{pulsar:false});
+      this.add.text(tela.x+tela.w/2,y,`${this.descoberta+1} / ${lista.length}`,letra(16*u)).setOrigin(0.5);
+    }
   }
 
   // Same rows as the title screen's gear (Radar.configurarAudio), plus the way to the video options.

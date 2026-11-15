@@ -1,0 +1,543 @@
+{
+  "url": "http://127.0.0.1:5173/?leve",
+  "cpuSlowdown": 1,
+  "viewport": {
+    "width": 412,
+    "height": 915
+  },
+  "motion": "reduced",
+  "softwareRequested": false,
+  "date": "2026-11-15T19:26:25.244Z",
+  "stages": [],
+  "errors": [],
+  "browser": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/157.0.8103.52",
+    "revision": "@0985600c06a688b9c669e74afde7dacd5aaed047",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+    "jsVersion": "15.7.112.23"
+  },
+  "readyMs": 7907.199999999255,
+  "firstContentfulPaintMs": 1540,
+  "renderer": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164C) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "taskCpuSlowdown": 1,
+  "taskPanels": [
+    {
+      "key": "NaveTarefa",
+      "modo": "automatico",
+      "ms": 545.0999999996275,
+      "entregas": 1
+    },
+    {
+      "key": "NaveTarefa",
+      "modo": "esc-sucesso",
+      "ms": 20.199999999254942,
+      "entregas": 1
+    },
+    {
+      "key": "NaveTarefa",
+      "modo": "cancelar",
+      "ms": 27.100000001490116,
+      "entregas": 0
+    },
+    {
+      "key": "FiltroO2Tarefa",
+      "modo": "automatico",
+      "ms": 387.5,
+      "entregas": 1
+    },
+    {
+      "key": "FiltroO2Tarefa",
+      "modo": "esc-sucesso",
+      "ms": 19.199999999254942,
+      "entregas": 1
+    },
+    {
+      "key": "FiltroO2Tarefa",
+      "modo": "cancelar",
+      "ms": 16.399999998509884,
+      "entregas": 0
+    },
+    {
+      "key": "OxigenioFaixaTarefa",
+      "modo": "automatico",
+      "ms": 419.69999999925494,
+      "entregas": 1
+    },
+    {
+      "key": "OxigenioFaixaTarefa",
+      "modo": "esc-sucesso",
+      "ms": 21.5,
+      "entregas": 1
+    },
+    {
+      "key": "OxigenioFaixaTarefa",
+      "modo": "cancelar",
+      "ms": 16.5,
+      "entregas": 0
+    },
+    {
+      "key": "ReatorTarefa",
+      "modo": "automatico",
+      "ms": 415.19999999925494,
+      "entregas": 1
+    },
+    {
+      "key": "ReatorTarefa",
+      "modo": "esc-sucesso",
+      "ms": 19.59999999962747,
+      "entregas": 1
+    },
+    {
+      "key": "ReatorTarefa",
+      "modo": "cancelar",
+      "ms": 19.700000001117587,
+      "entregas": 0
+    },
+    {
+      "key": "DesviarEnergiaTarefa",
+      "modo": "automatico",
+      "ms": 412,
+      "entregas": 1
+    },
+    {
+      "key": "DesviarEnergiaTarefa",
+      "modo": "esc-sucesso",
+      "ms": 19.600000001490116,
+      "entregas": 1
+    },
+    {
+      "key": "DesviarEnergiaTarefa",
+      "modo": "cancelar",
+      "ms": 17.5,
+      "entregas": 0
+    },
+    {
+      "key": "FiacaoTarefa",
+      "modo": "automatico",
+      "ms": 415.30000000074506,
+      "entregas": 1
+    },
+    {
+      "key": "FiacaoTarefa",
+      "modo": "esc-sucesso",
+      "ms": 18.200000001117587,
+      "entregas": 1
+    },
+    {
+      "key": "FiacaoTarefa",
+      "modo": "cancelar",
+      "ms": 17.300000000745058,
+      "entregas": 0
+    },
+    {
+      "key": "PotenciaMotorTarefa",
+      "modo": "automatico",
+      "ms": 414.80000000074506,
+      "entregas": 1
+    },
+    {
+      "key": "PotenciaMotorTarefa",
+      "modo": "esc-sucesso",
+      "ms": 18.300000000745058,
+      "entregas": 1
+    },
+    {
+      "key": "PotenciaMotorTarefa",
+      "modo": "cancelar",
+      "ms": 17.59999999962747,
+      "entregas": 0
+    },
+    {
+      "key": "DirecaoTarefa",
+      "modo": "automatico",
+      "ms": 414.09999999962747,
+      "entregas": 1
+    },
+    {
+      "key": "DirecaoTarefa",
+      "modo": "esc-sucesso",
+      "ms": 18.40000000037253,
+      "entregas": 1
+    },
+    {
+      "key": "DirecaoTarefa",
+      "modo": "cancelar",
+      "ms": 17.299999998882413,
+      "entregas": 0
+    },
+    {
+      "key": "MapearRotaTarefa",
+      "modo": "automatico",
+      "ms": 415.19999999925494,
+      "entregas": 1
+    },
+    {
+      "key": "MapearRotaTarefa",
+      "modo": "esc-sucesso",
+      "ms": 19.199999999254942,
+      "entregas": 1
+    },
+    {
+      "key": "MapearRotaTarefa",
+      "modo": "cancelar",
+      "ms": 17.699999999254942,
+      "entregas": 0
+    },
+    {
+      "key": "TransferirDadosTarefa",
+      "modo": "automatico",
+      "ms": 426,
+      "entregas": 1
+    },
+    {
+      "key": "TransferirDadosTarefa",
+      "modo": "esc-sucesso",
+      "ms": 22.399999998509884,
+      "entregas": 1
+    },
+    {
+      "key": "TransferirDadosTarefa",
+      "modo": "cancelar",
+      "ms": 18.300000000745058,
+      "entregas": 0
+    },
+    {
+      "key": "ComunicacoesTarefa",
+      "modo": "automatico",
+      "ms": 396.5,
+      "entregas": 1
+    },
+    {
+      "key": "ComunicacoesTarefa",
+      "modo": "esc-sucesso",
+      "ms": 18.800000000745058,
+      "entregas": 1
+    },
+    {
+      "key": "ComunicacoesTarefa",
+      "modo": "cancelar",
+      "ms": 17.800000000745058,
+      "entregas": 0
+    },
+    {
+      "key": "IluminacaoTarefa",
+      "modo": "automatico",
+      "ms": 410.09999999962747,
+      "entregas": 1
+    },
+    {
+      "key": "IluminacaoTarefa",
+      "modo": "esc-sucesso",
+      "ms": 17.800000000745058,
+      "entregas": 1
+    },
+    {
+      "key": "IluminacaoTarefa",
+      "modo": "cancelar",
+      "ms": 19.699999999254942,
+      "entregas": 0
+    },
+    {
+      "key": "ColapsoReatorTarefa",
+      "modo": "automatico",
+      "ms": 414.40000000037253,
+      "entregas": 1
+    },
+    {
+      "key": "ColapsoReatorTarefa",
+      "modo": "esc-sucesso",
+      "ms": 19.199999999254942,
+      "entregas": 1
+    },
+    {
+      "key": "ColapsoReatorTarefa",
+      "modo": "cancelar",
+      "ms": 19.300000000745058,
+      "entregas": 0
+    },
+    {
+      "key": "TrocarFiltroCo2Tarefa",
+      "modo": "automatico",
+      "ms": 413.69999999925494,
+      "entregas": 1
+    },
+    {
+      "key": "TrocarFiltroCo2Tarefa",
+      "modo": "esc-sucesso",
+      "ms": 18.5,
+      "entregas": 1
+    },
+    {
+      "key": "TrocarFiltroCo2Tarefa",
+      "modo": "cancelar",
+      "ms": 19.699999999254942,
+      "entregas": 0
+    },
+    {
+      "key": "EquilibrarValvulasTarefa",
+      "modo": "automatico",
+      "ms": 404.3999999985099,
+      "entregas": 1
+    },
+    {
+      "key": "EquilibrarValvulasTarefa",
+      "modo": "esc-sucesso",
+      "ms": 18.100000001490116,
+      "entregas": 1
+    },
+    {
+      "key": "EquilibrarValvulasTarefa",
+      "modo": "cancelar",
+      "ms": 19.200000001117587,
+      "entregas": 0
+    },
+    {
+      "key": "TaparTempestadeTarefa",
+      "modo": "automatico",
+      "ms": 416.80000000074506,
+      "entregas": 1
+    },
+    {
+      "key": "TaparTempestadeTarefa",
+      "modo": "esc-sucesso",
+      "ms": 15.900000000372529,
+      "entregas": 1
+    },
+    {
+      "key": "TaparTempestadeTarefa",
+      "modo": "cancelar",
+      "ms": 14.599999999627471,
+      "entregas": 0
+    },
+    {
+      "key": "FecharEscotilhasTarefa",
+      "modo": "automatico",
+      "ms": 411,
+      "entregas": 1
+    },
+    {
+      "key": "FecharEscotilhasTarefa",
+      "modo": "esc-sucesso",
+      "ms": 18.90000000037253,
+      "entregas": 1
+    },
+    {
+      "key": "FecharEscotilhasTarefa",
+      "modo": "cancelar",
+      "ms": 19.300000000745058,
+      "entregas": 0
+    },
+    {
+      "key": "PaineisSolaresTarefa",
+      "modo": "automatico",
+      "ms": 407.7000000011176,
+      "entregas": 1
+    },
+    {
+      "key": "PaineisSolaresTarefa",
+      "modo": "esc-sucesso",
+      "ms": 15.100000001490116,
+      "entregas": 1
+    },
+    {
+      "key": "PaineisSolaresTarefa",
+      "modo": "cancelar",
+      "ms": 16.199999999254942,
+      "entregas": 0
+    },
+    {
+      "key": "SeguirSolTarefa",
+      "modo": "automatico",
+      "ms": 409.69999999925494,
+      "entregas": 1
+    },
+    {
+      "key": "SeguirSolTarefa",
+      "modo": "esc-sucesso",
+      "ms": 19.59999999962747,
+      "entregas": 1
+    },
+    {
+      "key": "SeguirSolTarefa",
+      "modo": "cancelar",
+      "ms": 18.59999999962747,
+      "entregas": 0
+    },
+    {
+      "key": "ForaDaSombraTarefa",
+      "modo": "automatico",
+      "ms": 415.5,
+      "entregas": 1
+    },
+    {
+      "key": "ForaDaSombraTarefa",
+      "modo": "esc-sucesso",
+      "ms": 16.90000000037253,
+      "entregas": 1
+    },
+    {
+      "key": "ForaDaSombraTarefa",
+      "modo": "cancelar",
+      "ms": 15.300000000745058,
+      "entregas": 0
+    },
+    {
+      "key": "LimparJanelaTarefa",
+      "modo": "automatico",
+      "ms": 450,
+      "entregas": 1
+    },
+    {
+      "key": "LimparJanelaTarefa",
+      "modo": "esc-sucesso",
+      "ms": 17.90000000037253,
+      "entregas": 1
+    },
+    {
+      "key": "LimparJanelaTarefa",
+      "modo": "cancelar",
+      "ms": 17.09999999962747,
+      "entregas": 0
+    },
+    {
+      "key": "BateriaRoverTarefa",
+      "modo": "automatico",
+      "ms": 364.40000000037253,
+      "entregas": 1
+    },
+    {
+      "key": "BateriaRoverTarefa",
+      "modo": "esc-sucesso",
+      "ms": 21.40000000037253,
+      "entregas": 1
+    },
+    {
+      "key": "BateriaRoverTarefa",
+      "modo": "cancelar",
+      "ms": 18.09999999962747,
+      "entregas": 0
+    },
+    {
+      "key": "ParalamaTarefa",
+      "modo": "automatico",
+      "ms": 394.59999999962747,
+      "entregas": 1
+    },
+    {
+      "key": "ParalamaTarefa",
+      "modo": "esc-sucesso",
+      "ms": 19.399999998509884,
+      "entregas": 1
+    },
+    {
+      "key": "ParalamaTarefa",
+      "modo": "cancelar",
+      "ms": 18.699999999254942,
+      "entregas": 0
+    },
+    {
+      "key": "ScannerGeloTarefa",
+      "modo": "automatico",
+      "ms": 440.69999999925494,
+      "entregas": 1
+    },
+    {
+      "key": "ScannerGeloTarefa",
+      "modo": "esc-sucesso",
+      "ms": 19.199999999254942,
+      "entregas": 1
+    },
+    {
+      "key": "ScannerGeloTarefa",
+      "modo": "cancelar",
+      "ms": 14.299999998882413,
+      "entregas": 0
+    },
+    {
+      "key": "ManobraNaveTarefa",
+      "modo": "automatico",
+      "ms": 411.19999999925494,
+      "entregas": 1
+    },
+    {
+      "key": "ManobraNaveTarefa",
+      "modo": "esc-sucesso",
+      "ms": 17.600000001490116,
+      "entregas": 1
+    },
+    {
+      "key": "ManobraNaveTarefa",
+      "modo": "cancelar",
+      "ms": 17.800000000745058,
+      "entregas": 0
+    },
+    {
+      "key": "HortaTarefa",
+      "modo": "automatico",
+      "ms": 490.69999999925494,
+      "entregas": 1
+    },
+    {
+      "key": "HortaTarefa",
+      "modo": "esc-sucesso",
+      "ms": 26.5,
+      "entregas": 1
+    },
+    {
+      "key": "HortaTarefa",
+      "modo": "cancelar",
+      "ms": 22.90000000037253,
+      "entregas": 0
+    },
+    {
+      "key": "AquecimentoTarefa",
+      "modo": "automatico",
+      "ms": 427.7000000011176,
+      "entregas": 1
+    },
+    {
+      "key": "AquecimentoTarefa",
+      "modo": "esc-sucesso",
+      "ms": 29.299999998882413,
+      "entregas": 1
+    },
+    {
+      "key": "AquecimentoTarefa",
+      "modo": "cancelar",
+      "ms": 30.899999998509884,
+      "entregas": 0
+    },
+    {
+      "key": "Tarefa",
+      "modo": "automatico",
+      "ms": 389.5,
+      "entregas": 1
+    },
+    {
+      "key": "Tarefa",
+      "modo": "esc-sucesso",
+      "ms": 21.799999998882413,
+      "entregas": 1
+    },
+    {
+      "key": "Tarefa",
+      "modo": "cancelar",
+      "ms": 21.5,
+      "entregas": 1
+    }
+  ],
+  "taskIntegration": [
+    "room: one battery delivered",
+    "room: controls restored",
+    "room: no duplicate delivery",
+    "room: completion saved",
+    "rover: cancellation keeps battery and restores controls",
+    "rover: success consumes one battery",
+    "rover: completion saved and controls restored",
+    "repair: fixture available",
+    "repair: one reward, event cleared and controls restored",
+    "repair: reward saved"
+  ],
+  "completed": true
+}

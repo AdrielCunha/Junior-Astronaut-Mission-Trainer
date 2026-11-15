@@ -3,6 +3,8 @@
 // the same one as the Life Support task (cenas/Tarefa.ts), so every task feels like part of the same cockpit.
 import Phaser from 'phaser';
 import { sfxDaMensagem, tocarSfx } from '../sfx';
+import { prepararConclusaoTarefa, fecharTarefa, concluirTarefa } from './conclusaoTarefa';
+export { concluirTarefa } from './conclusaoTarefa';
 
 export const FONTE = '"Fredoka", system-ui, "Segoe UI", sans-serif';
 export const CONTORNO = 0x1e293b;   // dark outline of the Life Support look
@@ -88,8 +90,9 @@ export function barraStatus(scene: Phaser.Scene, raiz: Phaser.GameObjects.Contai
   };
 }
 
-// Red X on the top-left corner; Esc does the same. Closing never delivers anything.
+// Red X / Esc cancel an unfinished task, or confirm an already completed one.
 export function botaoFechar(scene: Phaser.Scene, raiz: Phaser.GameObjects.Container, w: number, h: number) {
+  prepararConclusaoTarefa(scene);
   const b = scene.add.container(-w / 2 + 4, -h / 2 + 4, [
     scene.add.circle(0, 0, 23, 0xef4444).setStrokeStyle(4, 0xffffff),
     scene.add.circle(0, 0, 26).setStrokeStyle(2, CONTORNO),
@@ -98,10 +101,14 @@ export function botaoFechar(scene: Phaser.Scene, raiz: Phaser.GameObjects.Contai
   b.setInteractive({ useHandCursor: true });
   b.on('pointerover', () => b.setScale(1.1));
   b.on('pointerout', () => b.setScale(1));
-  const sair = () => { tocarSfx('fechar'); scene.scene.stop(); };
+  const sair = () => { tocarSfx('fechar'); fecharTarefa(scene); };
   b.on('pointerup', sair);
   scene.input.keyboard?.once('keydown-ESC', sair);
+  scene.events.once('shutdown', () => scene.input.keyboard?.off('keydown-ESC', sair));
   raiz.add(b);
+  if ((scene.sys.settings.data as { pular?: string })?.pular) {
+    raiz.add(texto(scene,-w/2+43,-h/2+12,'Skip',17,'#ffffff').setOrigin(0,0.5));
+  }
 }
 
 // Little stars that burst out of a point (a success, or a hit).
@@ -132,6 +139,6 @@ export function vitoria(scene: Phaser.Scene, pai: Phaser.GameObjects.Container, 
   const nota = texto(scene, 0, 28, fato, 15, '#dcfce7', 0x14532d).setWordWrapWidth(bw - 50).setAlign('center');
   const bloco = scene.add.container(w / 2, h / 2, [faixa, texto(scene, 0, -20, titulo, 36, '#ffffff', 0x14532d), nota]).setScale(0).setDepth(40);
   pai.add(bloco);
-  scene.tweens.add({ targets: bloco, scale: 1, duration: 450, delay: 250, ease: 'Back.easeOut' });
-  scene.time.delayedCall(3200, () => { scene.scene.stop(); aoFim?.(); });
+  scene.tweens.add({ targets: bloco, scale: 1, duration: 200, delay: 50, ease: 'Back.easeOut' });
+  concluirTarefa(scene, aoFim);
 }

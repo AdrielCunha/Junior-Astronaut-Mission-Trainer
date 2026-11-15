@@ -12,7 +12,7 @@ import { Guia, AvisoEvento, AvisoExpedicao } from './guia';
 import { tutorialJaVisto } from './tutorial';
 import type { DadosRadar } from './Radar';
 import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, DESCANSO, type Estado } from '../regras';
-import { iniciarNave3D, iniciarMarte3D } from './irParaMarte';
+import { iniciarMundo3D, iniciarNave3D, iniciarMarte3D } from './irParaMarte';
 import { suprimentoDoDia } from '../engine/suprimentos';
 import { DOSE_ALARME } from '../engine/eventos';
 import { TIPOS } from '../engine/construcao';
@@ -49,6 +49,7 @@ export class Interface extends Phaser.Scene {
   private textos: Record<string, Phaser.GameObjects.Text> = {};
   private painel: Phaser.GameObjects.GameObject[] = [];
   private acaoPrincipal?: () => void;
+  private btPulo?: Phaser.GameObjects.Container;
   private aviso?: Phaser.GameObjects.Container;
   private alertaSolar!: Phaser.GameObjects.Container;
   private iconeSolar!: Phaser.GameObjects.Image;
@@ -127,6 +128,12 @@ export class Interface extends Phaser.Scene {
     this.events.once('shutdown', () => this.scale.off('resize', redimensionar));
 
     this.criarHUD(W, H);
+    this.btPulo=undefined;
+    if(W<680 || matchMedia('(pointer: coarse)').matches) {
+      this.btPulo=botaoVerde(this,W-64,H-112,'JUMP ↑',16,48,1,()=>{sessao.puloTouch=true;},
+        {largura:104,pulsar:false,pararPropagacao:true});
+      this.btPulo.setData('acao','jump');
+    }
     this.criarAlertaSolar();
 
     const l = this.layout, fim = l.fimDia;
@@ -183,6 +190,7 @@ export class Interface extends Phaser.Scene {
   private abrirMenu() {
     if (sessao.emTarefa || sessao.abastecendoRover || sessao.transicao || configuracoesAbertas || this.scene.isActive('MenuJogo')) return;
     this.scene.launch('MenuJogo', { aoSairTitulo: () => this.abrirTelaInicial() });
+    sessao.puloTouch=false;
   }
 
   abrirEditor(): boolean {
@@ -197,26 +205,30 @@ export class Interface extends Phaser.Scene {
     const retomar = () => { this.atualizar(); if (sessao.fase !== 'inicio') this.mostrarFase(); };
     const dados: DadosRadar = {
       continuar: sessao.fase !== 'inicio',
-      aoNovoJogo: () => {
-        this.entregaPendente?.remove();
-        this.entregaPendente = undefined;
-        this.aviso?.destroy();
-        apagarPartida();
-        this.guia?.terminar(); this.guia = undefined;
-        tutorialExibido = false; tutorialNovoJogo = true;
-        sessao.capIdx=0;sessao.pontos=[];sessao.usarMundo('lua');
-        this.ultimoDia = undefined;
-        this.scene.get('Espaco').scene.restart();
-        this.scene.get('Superficie').scene.restart();
-        this.irPara('manha');
-      },
+      aoNovoJogo: () => this.novoJogo(),
       aoComecar: () => { if (sessao.fase === 'inicio') this.irPara('manha'); else retomar(); },
-      aoExplorar: retomar,
+      aoExplorar: mundo => this.explorarBase(mundo ?? 'lua'),
     };
     this.scene.launch('Radar', dados);
   }
 
+  private novoJogo() {
+    this.entregaPendente?.remove(); this.entregaPendente=undefined;
+    this.guia?.terminar(); this.guia=undefined;
+    tutorialExibido=false; tutorialNovoJogo=true;
+    apagarPartida();
+    iniciarMundo3D(this,'lua',0,0,[]);
+  }
+
+  private explorarBase(mundo: 'lua' | 'nave' | 'marte') {
+    if (sessao.fase !== 'inicio') sessao.salvar();
+    iniciarMundo3D(this,mundo,['lua','nave','marte'].indexOf(mundo),0,[],true);
+  }
+
   update(_tempo: number, dt: number) {
+    this.btPulo?.setVisible((sessao.fase==='dia'||sessao.fase==='inicio') && sessao.vista==='chao'
+      && !sessao.rover?.dirigindo && !sessao.emTarefa && !sessao.editandoBase && !sessao.voo && !sessao.partida
+      && !sessao.transicao && !configuracoesAbertas && !this.scene.isActive('Radar') && !this.scene.isActive('MenuJogo'));
     this.btEditarBase.setVisible((sessao.fase==='inicio' || sessao.fase==='dia') && sessao.mundo!=='nave' && sessao.vista==='chao'
       && !sessao.emTarefa && !sessao.abastecendoRover && !sessao.partida && !sessao.voo && !sessao.transicao
       && !configuracoesAbertas && !this.scene.isActive('Radar') && !this.scene.isActive('MenuJogo') && !sessao.editandoBase);
@@ -466,7 +478,7 @@ export class Interface extends Phaser.Scene {
     const e = sessao.estado;
     const marte = sessao.mundo === 'marte';
     this.textos.dia.setText(sessao.fase === 'inicio'
-      ? `Exploring \u00b7 ${marte ? 'Jezero crater' : 'Shackleton rim'}`
+      ? `Exploring \u00b7 ${marte ? 'Jezero crater' : sessao.mundo==='nave' ? 'Spaceship' : 'Shackleton rim'}`
       : `${marte ? 'Mars \u00b7 ' : sessao.mundo === 'nave' ? 'Ship \u00b7 ' : ''}Day ${Math.min(e.dia, C_().dias)} of ${C_().dias} \u00b7 ${dataBonita(sessao.data)}`);
     this.tituloHud.atualizar(this.textos.dia.text);
     const valores = [e.oxigenio, e.dose, sessao.mundo==='lua'?sessao.progressoFoguete:e.meta];
@@ -547,7 +559,7 @@ export class Interface extends Phaser.Scene {
   private terminarDia() {
     if (sessao.abastecendoRover) return;
     // While exploring, this button goes back to the title screen.
-    if (sessao.fase === 'inicio') { this.mostrarFase(); return; }
+    if (sessao.fase === 'inicio') { if (sessao.explorando) this.abrirMenu(); else this.mostrarFase(); return; }
     if (sessao.fase !== 'dia') return;
     this.atualizarTempestade(0);
     if (sessao.tempestade.status === 'alerta') {
@@ -575,11 +587,12 @@ export class Interface extends Phaser.Scene {
     this.fecharPainel();
     const f = sessao.fase;
     if (f === 'inicio') {
+      if (sessao.explorando) return;
       // Title screen (Radar.ts): LAUNCH starts the first morning; "Explore" leaves the base open.
       // The title screen has its own music switch: refresh ours when it closes.
       const dados: DadosRadar = {
         aoComecar: () => this.irPara('manha'),
-        aoExplorar: () => {},
+        aoExplorar: mundo => this.explorarBase(mundo ?? 'lua'),
       };
       this.scene.launch('Radar', dados);
     } else if (f === 'manha') {
@@ -595,10 +608,8 @@ export class Interface extends Phaser.Scene {
         ...intro,
         ...(lua && dia1 ? [{ icone: 'rocket', texto: 'Our rocket broke on the trip. Build a new one to fly to Mars!', cor: '#fde047', negrito: true }] : []),
         { icone: 'sun', texto: d.curto },
-        d.nivel
-          ? { icone: 'radiation', texto: `Storm: ${NIVEIS[d.nivel]}! The Shield needs ${d.nivel} batteries.`, cor: CORES_NIVEL[d.nivel], negrito: true }
-          : { icone: 'shield', texto: 'Calm Sun. No Shield needed today.', cor: CORES_NIVEL[0], negrito: true },
-        ...(lua && d.nivel >= 3 ? [{ icone: 'timer', texto: `Hurry! ${PRAZO_TEMPESTADE_MS / 1000} seconds to power the Shield.`, cor: '#fde68a', negrito: true }] : []),
+        { icone: 'radiation', texto: `Forecast: ${NIVEIS[d.previsao[0]]}${d.previsao[0]===d.previsao[1]?'':` to ${NIVEIS[d.previsao[1]]}`}. Shield: ${d.previsao[0]}${d.previsao[0]===d.previsao[1]?'':`–${d.previsao[1]}`} batteries.`, cor: '#fde68a', negrito:true },
+        ...(lua && d.previsao[1] >= 3 ? [{ icone: 'timer', texto: `If the extreme-storm alarm sounds: ${PRAZO_TEMPESTADE_MS / 1000} seconds to deliver 3 Shield batteries.`, cor: '#fde68a', negrito: true }] : []),
         ...(marte && d.frio ? [{ icone: 'cold', texto: `Cold night: ${d.minima ?? ''} \u00b0C! Heating needs ${d.frio} batteries.`, cor: '#93c5fd', negrito: true }] : []),
         { icone: 'energy', texto: `${n} batteries today.`, cor: '#86efac', negrito: true },
         ...(enf ? [{ icone: 'heart', texto: `${enf} astronaut${enf > 1 ? 's are' : ' is'} sick: ${enf} fewer batteries.`, cor: '#fca5a5' }] : []),
@@ -653,7 +664,7 @@ export class Interface extends Phaser.Scene {
       const venceu = r === 'vitoria';
       const pontos = [...sessao.pontos, pontuacao(e)];
       const placar = [
-        { icone: venceu ? 'check' : 'cross', texto: venceu ? sessao.cap.vitoria[1] : sessao.cap.metaIncompleta, negrito: true },
+        { icone: venceu ? 'check' : 'cross', texto: venceu ? sessao.cap.vitoria[1] : r === 'sem-oxigenio' ? 'The crew ran out of oxygen. Power Life Support before ending the day.' : r === 'radiacao' ? 'Radiation became too high. Power the Shield when a storm is forecast.' : sessao.cap.metaIncompleta, negrito: true },
         { icone: 'star', texto: `${pontuacao(e)} points!`, cor: '#fde047', negrito: true, tamanho: 26 },
         { icone: 'oxygen', texto: `Oxygen  ${Math.round(e.oxigenio)}`, negrito: true },
         { icone: 'heart', texto: `Health  ${Math.round(100 - e.dose)}`, negrito: true },
@@ -665,14 +676,16 @@ export class Interface extends Phaser.Scene {
       if (sessao.mundo === 'nave') {
         // Chapter 2 ends at Mars: the arrival and landing (Viagem), then chapter 3 on Mars.
         this.abrirPainel(venceu ? sessao.cap.vitoria[0] : r === 'sem-oxigenio' ? 'Out of oxygen' : r === 'radiacao' ? 'Too much radiation' : 'The ship missed Mars', CONTROLE, placar, venceu
-          ? [{ texto: 'Build ship', acao: () => this.scene.launch('NaveTarefa', { aoConcluir: () => this.mensagem('Ship route complete', '#86efac') }) },
-             { texto: 'Land on Mars  ▶', acao: () => { this.fecharPainel(); this.scene.launch('Viagem', { etapa: 'chegada', aoTerminar: () => iniciarMarte3D(this, e.dose, pontos) }); }, principal: true }]
+          ? [{ texto: 'Land on Mars  ▶', acao: () => { this.fecharPainel(); this.scene.launch('Viagem', { etapa: 'chegada', aoTerminar: () => iniciarMarte3D(this, e.dose, pontos) }); }, principal: true }]
           // Trying again: the crew rests first (regras.ts DESCANSO).
           : [{ texto: 'Try the trip again', acao: () => iniciarNave3D(this, Math.min(e.dose, DESCANSO), sessao.pontos), principal: true }]);
         return;
       }
       if (marte) {
-        this.abrirPainel(titulo, CONTROLE, placar, [{ texto: 'PLAY AGAIN FROM THE MOON', acao: () => location.reload(), principal: true }]);
+        this.abrirPainel(titulo, CONTROLE, placar, [
+          ...(!venceu ? [{ texto: 'Try Mars again', acao: () => iniciarMarte3D(this,Math.min(e.dose,DESCANSO),sessao.pontos), principal:true }] : []),
+          { texto: 'PLAY AGAIN FROM THE MOON', acao: () => this.novoJogo(), principal:venceu },
+        ]);
         return;
       }
       const jogarDeNovo = { texto: venceu ? 'PLAY CHAPTER 1 AGAIN' : 'PLAY AGAIN', acao: () => { sessao.reiniciar(); this.scene.get('Superficie').scene.restart(); this.irPara('inicio'); } };

@@ -14,14 +14,14 @@ const LUA_COR=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
 const LUA_CRATERA=Number.parseInt(paletaLua.rocha.slice(1),16);
 import { abrirVideo, movimentoReduzido, configuracoesAbertas, video, escolherSkin } from '../video';
 import { SKINS } from '../dados/skins';
-import { sessao } from './sessao';
+import { sessao, type Mundo } from './sessao';
 import type { DadosChegada } from './Chegada';
 import { CONTORNO, botaoFechar, botaoVerde, criarIconeJogo, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { alternarMudo, estaMudo } from '../audio';
 import { definirVolumeMusica, volumeMusica } from '../audio';
 import { definirVolumeEfeitos, tocarSfx, volumeEfeitos } from '../sfx';
 
-export type DadosRadar = { aoComecar: () => void; aoExplorar: () => void; continuar?: boolean; aoNovoJogo?: () => void };
+export type DadosRadar = { aoComecar: () => void; aoExplorar: (mundo?: Mundo) => void; continuar?: boolean; aoNovoJogo?: () => void };
 
 // Edit the credits here: [section, [role, name][]]. An empty role centers the name (the team).
 const CREDITOS: [string, [string, string][]][] = [
@@ -54,7 +54,10 @@ const CREDITOS: [string, [string, string][]][] = [
     ['Code', 'TypeScript · Vite'],
     ['3D models', 'Blender'],
     ['Font', 'Fredoka · SIL OFL'],
-    ['Music', '(add the author)']
+    ['Music', 'Lunar Odyssey Theme'],
+    ['', 'Beneath the Silver Tide'],
+    ['', 'Across the Crimson Basin'],
+    ['Soundtrack files', 'AndreaAyalaa']
   ]],
   ['AI TOOLS', [
     ['Coding help', 'Claude · Anthropic']
@@ -95,7 +98,7 @@ export class Radar extends Phaser.Scene {
     });
 
     const lancar = () => { if (this.travado || this.janelaAberta) return; this.travado = true; if (d.continuar) { this.scene.stop(); d.aoComecar(); } else { tocarSfx('ligar'); this.contagem(d.aoComecar); } };
-    const explorar = () => { if (this.travado) return; this.travado = true; this.scene.stop(); d.aoExplorar(); };
+    const explorar = (mundo: Mundo = 'lua') => { if (this.travado) return; this.travado = true; this.scene.stop(); d.aoExplorar(mundo); };
 
     const j = this.pontosJornada(W, H);
     this.fundo(W, H, j.rota);
@@ -467,9 +470,9 @@ export class Radar extends Phaser.Scene {
 
   // Pick a base to walk around freely, no mission. Only the Moon base is built in the 3D engine
   // so far; the other two show what is coming.
-  private escolherBase(explorarLua: () => void) {
+  private escolherBase(explorarBase: (mundo: Mundo) => void) {
     const u = this.u;
-    const bases: [string, 'lua' | 'nave' | 'marte', boolean][] = [['MOON BASE', 'lua', true], ['SPACESHIP', 'nave', false], ['MARS BASE', 'marte', false]];
+    const bases: [string, 'lua' | 'nave' | 'marte', boolean][] = [['MOON BASE', 'lua', true], ['SPACESHIP', 'nave', true], ['MARS BASE', 'marte', true]];
     this.janela('EXPLORE A BASE', 660, 480, (tela, fechar) => {
       const gap = 18 * u, w = (tela.w - 44 * u - 2 * gap) / 3, h = tela.h - 44 * u;
       bases.forEach(([nome, qual, aberta], i) => {
@@ -480,7 +483,7 @@ export class Radar extends Phaser.Scene {
         if (qual === 'nave') icone.setAngle(-30);
         this.add.text(cx, y + h * 0.62, nome, letra(17 * u)).setOrigin(0.5);
         if (aberta) {
-          botaoVerde(this, cx, y + h * 0.82, 'GO!  ▶', 18 * u, 44 * u, u, () => { tocarSfx('ligar'); fechar(); explorarLua(); });
+          botaoVerde(this, cx, y + h * 0.82, 'GO!  ▶', 18 * u, 44 * u, u, () => { tocarSfx('ligar'); fechar(); explorarBase(qual); });
         } else {
           this.add.text(cx, y + h * 0.82, 'COMING SOON', letra(14 * u, '#fde047')).setOrigin(0.5);
           icone.setAlpha(0.45);
