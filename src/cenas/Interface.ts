@@ -12,7 +12,7 @@ import { Guia, AvisoEvento, AvisoExpedicao } from './guia';
 import { tutorialJaVisto } from './tutorial';
 import type { DadosRadar } from './Radar';
 import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, DESCANSO, type Estado } from '../regras';
-import { iniciarNave3D, iniciarMarte3D } from './irParaMarte';
+import { iniciarNave3D, iniciarMarte3D, explorarMundo3D } from './irParaMarte';
 import { suprimentoDoDia } from '../engine/suprimentos';
 import { DOSE_ALARME } from '../engine/eventos';
 import { TIPOS } from '../engine/construcao';
@@ -193,9 +193,13 @@ export class Interface extends Phaser.Scene {
   }
 
   private abrirTelaInicial() {
+    // Exploring another base: reloading brings the real game back from the save.
+    if (sessao.explorando) { location.reload(); return; }
     const retomar = () => { this.atualizar(); if (sessao.fase !== 'inicio') this.mostrarFase(); };
+    // A lost game is not continued: LAUNCH starts a new one.
+    const perdeu = sessao.perdeu;
     const dados: DadosRadar = {
-      continuar: sessao.fase !== 'inicio',
+      continuar: sessao.fase !== 'inicio' && !perdeu,
       aoNovoJogo: () => {
         this.entregaPendente?.remove();
         this.entregaPendente = undefined;
@@ -209,8 +213,8 @@ export class Interface extends Phaser.Scene {
         this.scene.get('Superficie').scene.restart();
         // The title screen now plays the countdown and the flight, then calls aoComecar (the first morning).
       },
-      aoComecar: () => { if (sessao.fase === 'inicio') this.irPara('manha'); else retomar(); },
-      aoExplorar: retomar,
+      aoComecar: () => { if (perdeu) dados.aoNovoJogo!(); else if (sessao.fase === 'inicio') this.irPara('manha'); else retomar(); },
+      aoExplorar: (mundo) => { if (mundo === sessao.mundo && !perdeu) retomar(); else explorarMundo3D(this, mundo); },
     };
     this.scene.launch('Radar', dados);
   }
@@ -574,11 +578,12 @@ export class Interface extends Phaser.Scene {
     this.fecharPainel();
     const f = sessao.fase;
     if (f === 'inicio') {
+      if (sessao.explorando) return;   // EXPLORE A BASE: free walk, no title screen
       // Title screen (Radar.ts): LAUNCH starts the first morning; "Explore" leaves the base open.
       // The title screen has its own music switch: refresh ours when it closes.
       const dados: DadosRadar = {
         aoComecar: () => this.irPara('manha'),
-        aoExplorar: () => {},
+        aoExplorar: (mundo) => { if (mundo !== sessao.mundo) explorarMundo3D(this, mundo); },
       };
       this.scene.launch('Radar', dados);
     } else if (f === 'manha') {

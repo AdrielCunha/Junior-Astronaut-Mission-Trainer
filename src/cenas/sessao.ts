@@ -3,6 +3,7 @@
 // event bus they talk through. One game = one Sessao. See ARCHITECTURE.md.
 import Phaser from 'phaser';
 import { movimentoReduzido, configuracoesAbertas } from '../video';
+import { localeData } from '../idioma';
 import terrenoJson from '../dados/terreno.json';
 import terrenoMarteJson from '../dados/terreno_marte.json';
 import terrenoNaveJson from '../dados/terreno_nave.json';
@@ -11,13 +12,13 @@ import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { EVENTOS, haEventoHoje, esperaDoEvento, esperaDoAlarme, alarmeDoDia, type EventoDef } from '../engine/eventos';
 import type { Expedicao } from '../engine/expedicao';
 import { haExploracaoHoje, esperaDaExploracao } from '../engine/exploracao';
-import { lerPartida, gravarPartida } from '../salvamento';
+import { lerPartida, gravarPartida, apagarPartida, liberarBases } from '../salvamento';
 import { LAYOUT, LAYOUT_VERSAO } from '../dados/layout';
 import { Grade, TIPOS, ROTACAO_LAYOUT, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
 import { VOO as voo, usarFilme } from './qualidade';
 import { CAPITULOS } from '../capitulos';
-import { inicioDoCapitulo, bateriasDoDia, nenhuma, type Alocacao, type Efeito, type Estado } from '../regras';
+import { inicioDoCapitulo, resultado, bateriasDoDia, nenhuma, type Alocacao, type Efeito, type Estado } from '../regras';
 
 import { TempestadeSolar } from './tempestadeSolar';
 import type { Rover } from '../engine/rover';
@@ -98,6 +99,7 @@ export type Eventos = {
 class Sessao {
   posicaoAstronauta: Corpo | null = null;
   partidaRestaurada = false;
+  explorando = false;       // EXPLORE A BASE in another world: no saving, the real game comes back on reload
   abastecendoRover = false;
   editandoBase = false;
   ultimoDia: RelatorioDia | null = null;
@@ -109,8 +111,13 @@ class Sessao {
     return Math.min(100,this.estado.meta+(this.mundo==='lua' && this.fase==='dia' ? this.entregas.meta*this.C.metaPorBateria : 0));
   }
 
+  // The chapter ended and the crew did not make it: the next game starts over.
+  get perdeu() { return this.fase === 'fim' && resultado(this.estado, this.C) !== 'vitoria'; }
+
   salvar() {
-    if (!this.grade.lista.length || this.partida || this.abastecendoRover) return false;
+    if (this.explorando || !this.grade.lista.length || this.partida || this.abastecendoRover) return false;
+    if (this.perdeu) { apagarPartida(); return false; }
+    if (this.fase !== 'inicio') liberarBases(this.capIdx);
     return gravarPartida({versao:1,salvoEm:Date.now(),layout:LAYOUT_VERSAO,mundo:this.mundo,capIdx:this.capIdx,fase:this.fase,
       estado:this.estado,entregas:this.entregas,pontos:this.pontos,carregando:this.carregando,noHabitat:this.noHabitat,
       tarefasHoje:[...this.tarefasHoje],ultimaTarefa:this.ultimaTarefa,energiaHoje:this.energiaHoje,
@@ -132,6 +139,7 @@ class Sessao {
   restaurarPartida() {
     const d=lerPartida();
     if (!d) return false;
+    if (d.fase==='fim' && resultado(d.estado,CAPITULOS[d.capIdx].config)!=='vitoria') { apagarPartida(); return false; }
     try {
       this.capIdx=d.capIdx; this.usarMundo(d.mundo);
       // A save from before the current layout: each module moves to the layout's spot for its type
@@ -545,8 +553,13 @@ export const fonte = (tamanho: number, cor = COR.texto, extra: Phaser.Types.Game
 
 // One formatter for the whole game: toLocaleDateString builds a new one on every call, which
 // cost ~7% of each frame in the solar system view (it runs every frame for the caption).
-const FORMATO_DATA = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-export const dataBonita = (t: number) => FORMATO_DATA.format(t);
+const FORMATOS_DATA = new Map<string, Intl.DateTimeFormat>();
+export const dataBonita = (t: number) => {
+  const locale = localeData();
+  let f = FORMATOS_DATA.get(locale);
+  if (!f) FORMATOS_DATA.set(locale, f = new Intl.DateTimeFormat(locale, { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }));
+  return f.format(t);
+};
 
 export const suave = (a: number, b: number, x: number) => {
   const t = Phaser.Math.Clamp((x - a) / (b - a), 0, 1);

@@ -1759,12 +1759,9 @@ export class Superficie extends Phaser.Scene {
       desenharRover(this.gRover, P, r, this.pecasRover, sessao.roverCarregado, sessao.abastecendoRover);
       const p = paraTela(P, r.corpo.x, r.corpo.y, r.corpo.z + 1.25);
       const carregado = sessao.roverCarregado;
-      const acao = r.dirigindo
-        ? carregado ? 'E / click: Exit  |  WASD / arrows: Drive' : 'E / click: Exit to pick up a battery'
-        : this.pertoRover()
-          ? carregado ? 'E / click: Drive Apollo LRV' : sessao.carregando ? 'E / click: Install 1 battery & drive' : `Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}`
-          : sessao.mundo === 'marte' ? 'APOLLO LRV (on a pretend Mars trip!) · Click to approach' : 'APOLLO LRV · Click to approach';
-      this.dicaRover.setPosition(p.x, p.y).setVisible(this.podeUsarRover())
+      // Only when standing next to it: not from afar, not while driving.
+      const acao = carregado ? 'E / click: Drive Apollo LRV' : sessao.carregando ? 'E / click: Install 1 battery & drive' : `Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}`;
+      this.dicaRover.setPosition(p.x, p.y).setVisible(this.podeUsarRover() && !r.dirigindo && this.pertoRover())
         .setText(`Battery: ${carregado ? 'charged' : 'empty'}\n${acao}`);
       fundoRotulo(this.fundoDicaRover, this.dicaRover);
     }

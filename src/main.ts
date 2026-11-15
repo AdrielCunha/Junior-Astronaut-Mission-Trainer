@@ -1,5 +1,6 @@
 // Generated with AI assistance (Claude). See README, "Use of AI tools".
 import Phaser from 'phaser';
+import { instalarIdioma } from './idiomaPhaser';
 import { CAPITULOS } from './capitulos';
 import { inicioDoCapitulo } from './regras';
 import { forcarEvento, type EstadoTeste, type ParamEvento } from './test-harness';
@@ -535,6 +536,7 @@ const jogo = new Phaser.Game({
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;
+instalarIdioma(jogo);
 // Dev server only: the DEV button that jumps to the trip and Mars scenes (not in the production build).
 if (import.meta.env.DEV) void import('./dev/painelCenas').then((m) => m.criarPainelCenas(jogo));
 if (import.meta.env.DEV || new URLSearchParams(location.search).has("dev")) instalarMenuDev(jogo);

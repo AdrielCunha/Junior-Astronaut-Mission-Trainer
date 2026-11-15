@@ -134,6 +134,8 @@ export function criarPilula(cena: Phaser.Scene, x: number, y: number, w: number,
 // The title screen's button (Radar.botao): solid colour, a soft shine on the upper half, white rim
 // and a thin dark outline, over a drop shadow. Drawn in the box (0, 0, w, h).
 export const COR_BOTAO = 0x2563eb, COR_BOTAO_HOVER = 0x3b82f6;
+// Buttons on the blue task screen (settings): darker than the screen so they stand out.
+export const COR_BOTAO_TELA = 0x1e40af;
 export function desenharBotao(g: Phaser.GameObjects.Graphics, w: number, h: number, u: number, cor = COR_BOTAO) {
   const r = Math.min(w, h) / 2, aro = Math.max(2, Math.round((h < 44 * u ? 3 : 4) * u));
   return g.clear()

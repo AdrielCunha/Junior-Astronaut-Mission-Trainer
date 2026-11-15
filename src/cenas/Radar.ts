@@ -14,14 +14,16 @@ const LUA_COR=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
 const LUA_CRATERA=Number.parseInt(paletaLua.rocha.slice(1),16);
 import { abrirVideo, movimentoReduzido, configuracoesAbertas, video, escolherSkin } from '../video';
 import { SKINS } from '../dados/skins';
-import { sessao } from './sessao';
+import { sessao, type Mundo } from './sessao';
+import { basesLiberadas } from '../salvamento';
 import type { DadosChegada } from './Chegada';
-import { CONTORNO, botaoFechar, botaoVerde, criarIconeJogo, letra, moldura, pilulaEscura } from '../tarefas/estilo';
+import { CONTORNO, COR_BOTAO_TELA, botaoFechar, botaoVerde, criarIconeJogo, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { alternarMudo, estaMudo } from '../audio';
 import { definirVolumeMusica, volumeMusica } from '../audio';
 import { definirVolumeEfeitos, tocarSfx, volumeEfeitos } from '../sfx';
+import { idioma, escolherIdioma } from '../idioma';
 
-export type DadosRadar = { aoComecar: () => void; aoExplorar: () => void; continuar?: boolean; aoNovoJogo?: () => void };
+export type DadosRadar = { aoComecar: () => void; aoExplorar: (mundo: Mundo) => void; continuar?: boolean; aoNovoJogo?: () => void };
 
 // Edit the credits here: [section, [role, name][]]. An empty role centers the name (the team).
 const CREDITOS: [string, [string, string][]][] = [
@@ -70,6 +72,7 @@ export class Radar extends Phaser.Scene {
   private u = 1;
   private travado = false;
   private janelaAberta = false;
+  private reabrirConfiguracoes = false;
   private chaves: string[] = [];
 
   constructor() {
@@ -88,16 +91,19 @@ export class Radar extends Phaser.Scene {
     const jogo = ['Espaco', 'Superficie', 'Interface'];
     for (const k of jogo) this.scene.setVisible(false, k);
     const redimensionar = () => this.scene.restart(d);
+    // A language change redraws the screen (the pills fit their texts) with the settings open.
+    this.events.once('idioma', () => { this.reabrirConfiguracoes = true; redimensionar(); });
     this.scale.on('resize', redimensionar);
     this.events.once('shutdown', () => {
       sessao.emTarefa = false;
       for (const k of jogo) this.scene.setVisible(true, k);
       this.scale.off('resize', redimensionar);
+      this.events.off('idioma');
       for (const k of this.chaves) if (this.textures.exists(k)) this.textures.remove(k);
     });
 
     const lancar = () => { if (this.travado || this.janelaAberta) return; this.travado = true; if (d.continuar) { this.scene.stop(); d.aoComecar(); } else { tocarSfx('ligar'); this.contagem(d.aoComecar); } };
-    const explorar = () => { if (this.travado) return; this.travado = true; this.scene.stop(); d.aoExplorar(); };
+    const explorar = (mundo: Mundo) => { if (this.travado) return; this.travado = true; this.scene.stop(); d.aoExplorar(mundo); };
 
     const j = this.pontosJornada(W, H);
     this.fundo(W, H, j.rota);
@@ -141,6 +147,7 @@ export class Radar extends Phaser.Scene {
     this.tweens.add({ targets: enter, alpha: 0.35, duration: 900, yoyo: true, repeat: -1 });
 
     this.input.keyboard?.on('keydown-ENTER', lancar);
+    if (this.reabrirConfiguracoes) { this.reabrirConfiguracoes = false; this.configurarAudio(true); }
   }
 
   update() {
@@ -367,21 +374,29 @@ export class Radar extends Phaser.Scene {
     c.on('pointerover', () => { c.setScale(1.1); tocarSfx('suave'); }).on('pointerout', () => c.setScale(1)).on('pointerdown', () => { tocarSfx('clique'); this.configurarAudio(); });
   }
 
-  private configurarAudio() {
+  private configurarAudio(idiomaMudou = false) {
     const u = this.u;
-    this.janela('SETTINGS', 520, 400, (tela) => {
+    this.janela('SETTINGS', 520, 470, (tela, fechar) => {
       const linhas: [string, () => number, (v: number) => void][] = [['Music', volumeMusica, definirVolumeMusica], ['Sound effects', volumeEfeitos, definirVolumeEfeitos]];
       linhas.forEach(([nome, ler, definir], i) => {
-        const y = tela.y + tela.h * (i + 0.5) / 4;                 // four evenly spaced rows
+        const y = tela.y + tela.h * (i + 0.5) / 5;                 // five evenly spaced rows
         this.add.text(tela.x + 20 * u, y, nome, letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
         const valor = this.add.text(tela.x + tela.w - 132 * u, y, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(0.5);
         const atualizar = () => valor.setText(`${Math.round(ler() * 100)}%`);
-        this.botao(tela.x + tela.w - 215 * u, y, 42 * u, 38 * u, '−', 0x475569, 20 * u, () => { definir(ler() - 0.1); atualizar(); });
-        this.botao(tela.x + tela.w - 48 * u, y, 42 * u, 38 * u, '+', 0x475569, 20 * u, () => { definir(ler() + 0.1); atualizar(); });
+        this.botao(tela.x + tela.w - 215 * u, y, 42 * u, 38 * u, '−', COR_BOTAO_TELA, 20 * u, () => { definir(ler() - 0.1); atualizar(); });
+        this.botao(tela.x + tela.w - 48 * u, y, 42 * u, 38 * u, '+', COR_BOTAO_TELA, 20 * u, () => { definir(ler() + 0.1); atualizar(); });
         atualizar();
       });
+      // Language: the window reopens so its own layout follows the new texts.
+      const yI = tela.y + tela.h * 2.5 / 5;
+      this.add.text(tela.x + 20 * u, idiomaMudou ? yI - 10 * u : yI, 'Language', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
+      this.botao(tela.x + tela.w - 100 * u, yI, 160 * u, 40 * u, idioma === 'pt' ? 'Português' : 'English', COR_BOTAO_TELA, 18 * u, () => {
+        escolherIdioma(idioma === 'pt' ? 'en' : 'pt'); fechar(); this.events.emit('idioma');
+      });
+      // Like the video quality note: texts built from other values (dates) switch on their next update.
+      if (idiomaMudou) this.add.text(tela.x + 20 * u, yI + 13 * u, 'Some texts update tomorrow.', letra(12 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
       // Astronaut suit: one swatch per skin (sheets in public/lua/astronaut_<id>.png).
-      const yS = tela.y + tela.h * 2.5 / 4;
+      const yS = tela.y + tela.h * 3.5 / 5;
       this.add.text(tela.x + 20 * u, yS, 'Astronaut suit', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
       const nome = this.add.text(tela.x + tela.w - 20 * u, yS, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(1, 0.5);
       const hex = (c: string) => Number.parseInt(c.slice(1), 16);
@@ -393,7 +408,7 @@ export class Radar extends Phaser.Scene {
       };
       SKINS.forEach((s, i) => {
         const m = 20 * u + lado / 2 + 4 * u;                        // same margin both sides, ring included
-        const x = tela.x + m + (tela.w - 2 * m) * i / (SKINS.length - 1), y = tela.y + tela.h * 3.5 / 4;
+        const x = tela.x + m + (tela.w - 2 * m) * i / (SKINS.length - 1), y = tela.y + tela.h * 4.5 / 5;
         // Selection ring, then the plain rounded square in the skin's color.
         aneis.push(this.add.graphics().lineStyle(4 * u, 0xfde047)
           .strokeRoundedRect(x - lado / 2 - 5 * u, y - lado / 2 - 5 * u, lado + 10 * u, lado + 10 * u, raio + 4 * u));
@@ -469,11 +484,10 @@ export class Radar extends Phaser.Scene {
     });
   }
 
-  // Pick a base to walk around freely, no mission. Only the Moon base is built in the 3D engine
-  // so far; the other two show what is coming.
-  private escolherBase(explorarLua: () => void) {
-    const u = this.u;
-    const bases: [string, 'lua' | 'nave' | 'marte', boolean][] = [['MOON BASE', 'lua', true], ['SPACESHIP', 'nave', false], ['MARS BASE', 'marte', false]];
+  // Pick a base to walk around freely, no mission. A base opens once a mission reaches it.
+  private escolherBase(explorar: (mundo: Mundo) => void) {
+    const u = this.u, liberadas = basesLiberadas();
+    const bases: [string, Mundo, boolean][] = ([['MOON BASE', 'lua'], ['SPACESHIP', 'nave'], ['MARS BASE', 'marte']] as const).map(([n, m]) => [n, m, liberadas.includes(m)]);
     this.janela('EXPLORE A BASE', 660, 480, (tela, fechar) => {
       const gap = 18 * u, w = (tela.w - 44 * u - 2 * gap) / 3, h = tela.h - 44 * u;
       bases.forEach(([nome, qual, aberta], i) => {
@@ -484,9 +498,9 @@ export class Radar extends Phaser.Scene {
         if (qual === 'nave') icone.setAngle(-30);
         this.add.text(cx, y + h * 0.62, nome, letra(17 * u)).setOrigin(0.5);
         if (aberta) {
-          botaoVerde(this, cx, y + h * 0.82, 'GO!  ▶', 18 * u, 44 * u, u, () => { tocarSfx('ligar'); fechar(); explorarLua(); });
+          botaoVerde(this, cx, y + h * 0.82, 'GO!  ▶', 18 * u, 44 * u, u, () => { tocarSfx('ligar'); fechar(); explorar(qual); });
         } else {
-          this.add.text(cx, y + h * 0.82, 'COMING SOON', letra(14 * u, '#fde047')).setOrigin(0.5);
+          this.add.text(cx, y + h * 0.82, 'LOCKED\nreach it in the mission', letra(14 * u, '#fde047', { align: 'center' })).setOrigin(0.5);
           icone.setAlpha(0.45);
         }
       });

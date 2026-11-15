@@ -57,3 +57,18 @@ export function gravarPartida(v: DadosPartida): boolean {
   try { localStorage.setItem(CHAVE,JSON.stringify(v)); return true; } catch { return false; }
 }
 export function apagarPartida() { try { localStorage.removeItem(CHAVE); } catch { /* optional browser storage */ } }
+
+// Bases the player has reached in a real mission (EXPLORE A BASE opens only these). Kept apart
+// from the save, so losing or starting over does not lock them again.
+const CHAVE_BASES = 'lunar-odyssey-bases-v1';
+const MUNDOS: Mundo[] = ['lua', 'nave', 'marte'];
+export function basesLiberadas(): Mundo[] {
+  try { const v: unknown = JSON.parse(localStorage.getItem(CHAVE_BASES) ?? '[]'); return Array.isArray(v) ? MUNDOS.filter(m => v.includes(m)) : []; }
+  catch { return []; }
+}
+// Reaching chapter capIdx means the earlier bases were reached too.
+export function liberarBases(capIdx: number) {
+  const atuais = basesLiberadas(), novas = MUNDOS.slice(0, capIdx + 1);
+  if (novas.every(m => atuais.includes(m))) return;
+  try { localStorage.setItem(CHAVE_BASES, JSON.stringify(MUNDOS.filter(m => atuais.includes(m) || novas.includes(m)))); } catch { /* optional browser storage */ }
+}

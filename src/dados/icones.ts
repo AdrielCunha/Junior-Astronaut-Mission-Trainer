@@ -1,5 +1,7 @@
 // User-selected lunar_icons_v6 artwork. Original PNGs and editable SVGs are kept together.
 // PNG textures are loaded once by Carregar; secondary UI meanings reuse this same set.
+import { t } from '../idioma';
+
 export const ICONES = {
   oxygen: 'icons/lunar-v6/oxygen.png',
   radiation: 'icons/lunar-v6/radiation.png',
@@ -50,9 +52,9 @@ export function resolverIcone(id: string): IconeJogo {
 
 // Pictograms are separate images, not platform-dependent characters inside sentences.
 export function textoDoJogo(texto: string) {
-  return texto.replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u,'')
-    .replace(/(\d+)\s*🔋+/gu,'$1 batteries')
-    .replace(/🔋/gu,'batteries')
+  return t(texto).replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u,'')
+    .replace(/(\d+)\s*🔋+/gu,`$1 ${t('batteries')}`)
+    .replace(/🔋/gu,t('batteries'))
     .replace(/\p{Extended_Pictographic}|\uFE0F|\u200D/gu,'')
     .replace(/ {2,}/g,' ').trim();
 }

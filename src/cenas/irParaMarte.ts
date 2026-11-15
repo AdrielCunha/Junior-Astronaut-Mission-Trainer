@@ -24,12 +24,13 @@ export function carregarImagensMundo(cena: Phaser.Scene, mundo: Mundo, pronto: (
   cena.load.once('complete',pronto);cena.load.start();
 }
 
-export function iniciarMundo3D(cena: Phaser.Scene, mundo: Mundo, capIdx: number, dose: number, pontos: number[]) {
+export function iniciarMundo3D(cena: Phaser.Scene, mundo: Mundo, capIdx: number, dose: number, pontos: number[], explorar = false) {
   const comecar = () => {
     const sm = cena.game.scene;
     sessao.usarMundo(mundo);
     sessao.comecarCapitulo(capIdx, dose, pontos);
-    sessao.fase = 'manha';                            // no title screen: the first morning (with the intro)
+    sessao.fase = explorar ? 'inicio' : 'manha';      // no title screen: the first morning (with the intro)
+    sessao.explorando = explorar;
     for (const k of OUTRAS) if (sm.getScene(k) && (sm.isActive(k) || sm.isPaused(k) || sm.isSleeping(k))) sm.stop(k);
     for (const k of ['Espaco', 'Superficie', 'Interface']) {
       if (sm.isActive(k) || sm.isPaused(k)) sm.stop(k);
@@ -43,6 +44,8 @@ export function iniciarMundo3D(cena: Phaser.Scene, mundo: Mundo, capIdx: number,
   cena.load.start();
 }
 
+// EXPLORE A BASE: walk around a world with no mission and no saving.
+export const explorarMundo3D = (cena: Phaser.Scene, mundo: Mundo) => iniciarMundo3D(cena, mundo, ['lua', 'nave', 'marte'].indexOf(mundo), 0, [], true);
 // Chapter 2, the ship, after leaving the Moon.
 export const iniciarNave3D = (cena: Phaser.Scene, dose: number, pontos: number[]) => iniciarMundo3D(cena, 'nave', 1, dose, pontos);
 // Chapter 3, Mars, after the landing.

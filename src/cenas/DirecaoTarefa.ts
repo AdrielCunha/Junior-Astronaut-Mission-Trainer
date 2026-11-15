@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import { criarRumo, apontarPara, avancarRumo, alvoAtual, rumoConcluido, rumoNoAlvo, progressoDoAlvo, type TarefaRumo } from '../direcao-tarefa';
 import { abrirPainel, moldura, faixaTitulo, barraStatus, botaoFechar, rajada, canvas, texto } from './moldura';
 import { tocarSfx } from '../sfx';
+import { idioma } from '../idioma';
 
 const QUADRO_W = 760;
 const QUADRO_H = Math.round(QUADRO_W * 480 / 660);   // same shape as the Life Support panel
@@ -37,7 +38,7 @@ export class DirecaoTarefa extends Phaser.Scene {
       c.restore();
     });
     // The compass: flat ring with ticks and the four letters (N, E, S, W).
-    canvas(this, 'direcao_bussola_v2', 280, 280, (c) => {
+    canvas(this, `direcao_bussola_v2_${idioma}`, 280, 280, (c) => {
       c.translate(140, 140);
       c.fillStyle = '#e2e8f0'; c.beginPath(); c.arc(0, 0, 130, 0, Math.PI * 2); c.fill();
       c.lineWidth = 5; c.strokeStyle = '#1e293b'; c.stroke();
@@ -51,7 +52,7 @@ export class DirecaoTarefa extends Phaser.Scene {
         c.beginPath(); c.moveTo(Math.sin(rad(a)) * r1, -Math.cos(rad(a)) * r1); c.lineTo(Math.sin(rad(a)) * r2, -Math.cos(rad(a)) * r2); c.stroke();
       }
       c.font = '600 26px "Fredoka", system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
-      const letras: [string, number, string][] = [['N', 0, '#fca5a5'], ['E', 90, '#ffffff'], ['S', 180, '#ffffff'], ['W', 270, '#ffffff']];
+      const letras: [string, number, string][] = [['N', 0, '#fca5a5'], [idioma === 'pt' ? 'L' : 'E', 90, '#ffffff'], ['S', 180, '#ffffff'], [idioma === 'pt' ? 'O' : 'W', 270, '#ffffff']];
       for (const [l, a, cor] of letras) {
         const x = Math.sin(rad(a)) * 74, y = -Math.cos(rad(a)) * 74;
         c.lineWidth = 5; c.strokeStyle = '#1e293b'; c.strokeText(l, x, y); c.fillStyle = cor; c.fillText(l, x, y);
@@ -88,7 +89,7 @@ export class DirecaoTarefa extends Phaser.Scene {
     raiz.add(janela);
     raiz.add(rim);
     janela.add(this.add.image(0, 0, 'direcao_fundo_v2').setOrigin(0));
-    janela.add(this.add.image(CX, CY, 'direcao_bussola_v2'));
+    janela.add(this.add.image(CX, CY, `direcao_bussola_v2_${idioma}`));
 
     // The lock ring (fills while the heading is held), the rocket, and the marker for the target heading.
     const anel = this.add.graphics();

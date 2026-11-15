@@ -143,7 +143,7 @@ export class DesviarEnergiaTarefa extends Phaser.Scene {
       const uso = consumoTotal(estado);
       tEvento.setText(r.evento);
       tRodada.setText(`Round ${Math.min(estado.rodada + 1, RODADAS.length)} of ${RODADAS.length}`);
-      tMeta.setText('★ Ligue: ' + r.meta.map((id) => SISTEMAS.find((s) => s.id === id)!.nome).join(' + ') + ' (a bateria aguenta ' + r.capacidade + ')');
+      tMeta.setText(`★ Turn on: ${r.meta.map((id) => SISTEMAS.find((s) => s.id === id)!.nome).join(' + ')} (battery holds ${r.capacidade})`);
       tBat.setText(`${uso} of ${r.capacidade} units`);
       celulas.clear();
       for (let k = 0; k < CAPACIDADE_MAXIMA; k++) {
