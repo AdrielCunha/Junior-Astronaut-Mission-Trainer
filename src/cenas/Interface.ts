@@ -22,6 +22,7 @@ import { alternarMudo } from '../audio';
 import { letra, criarPilula, criarCapsulaRecursos, criarCapsulaRecursosMovel, criarBotaoPilula, criarIndicador, criarIndicadorCircular, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
 import { resolverIcone, textoDoJogo, type IconeJogo } from '../dados/icones';
 import { escalaInterface, dispositivoMovel } from '../mobile';
+import { mostrarContadoresHud } from './visibilidadeHud';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 // A chat message: a custom equipment icon on the left and a short line.
@@ -134,7 +135,10 @@ export class Interface extends Phaser.Scene {
     this.criarAlertaSolar();
 
     const l = this.layout, fim = l.fimDia;
-    this.btFim = botaoVerde(this, Math.round(fim.x + fim.w / 2), Math.round(fim.y + fim.h / 2), 'END DAY  \u25b6', Math.round(17 * l.u), fim.h, l.u,
+    // On touch screens this button keeps the desktop web size even when the rest of the HUD shrinks.
+    const uFim = dispositivoMovel() ? Math.max(l.u, 1) : l.u;
+    const fonteFim = Math.round(17 * uFim);
+    this.btFim = botaoVerde(this, Math.round(fim.x + fim.w / 2), Math.round(fim.y + fim.h / 2), 'END DAY  \u25b6', fonteFim, fim.h, uFim,
       () => this.terminarDia(), { largura: fim.w, altura: fim.h, pulsar: false, pararPropagacao: true, animarHover: true });
     this.textoFim = this.btFim.getData('texto');
     this.cortina = this.add.rectangle(0, 0, W, H, 0x05070f).setOrigin(0).setDepth(10_000_000).setAlpha(0);
@@ -238,6 +242,7 @@ export class Interface extends Phaser.Scene {
   }
 
   update(_tempo: number, dt: number) {
+    this.atualizarVisibilidadeContadores();
     this.btEditarBase.setVisible((sessao.fase==='inicio' || sessao.fase==='dia') && sessao.mundo!=='nave' && sessao.vista==='chao'
       && !sessao.emTarefa && !sessao.abastecendoRover && !sessao.partida && !sessao.voo && !sessao.transicao
       && !configuracoesAbertas && !this.scene.isActive('Radar') && !this.scene.isActive('MenuJogo') && !sessao.editandoBase);
@@ -509,7 +514,7 @@ export class Interface extends Phaser.Scene {
     const d = sessao.entregas;
     // On Mars the last counter is the heating (the dome is built through construction, not powered).
     const contadores = [sessao.noHabitat, sessao.carregando, d.oxigenio, d.blindagem, marte ? d.aquecimento : d.meta];
-    this.capsula.caixa.setVisible(sessao.fase === 'dia');
+    this.atualizarVisibilidadeContadores();
     this.capsula.atualizar(contadores);
     this.objetivo.setVisible(sessao.fase === 'dia' || (sessao.fase === 'inicio' && !!sessao.rover?.dirigindo));
     // One short order at a time: where to go, what to do there.
@@ -549,6 +554,13 @@ export class Interface extends Phaser.Scene {
 
     this.textoFim.setText(sessao.fase === 'inicio' ? '◀  MENU' : 'END DAY  ▶');
     this.btFim.setVisible(sessao.fase === 'dia' || sessao.fase === 'inicio');
+  }
+
+  private atualizarVisibilidadeContadores() {
+    this.capsula.caixa.setVisible(mostrarContadoresHud(
+      dispositivoMovel() && this.scale.width > this.scale.height,
+      sessao.mundo, sessao.fase, sessao.vista, sessao.voo, sessao.transicao,
+    ));
   }
 
   // Notices: the dark pill of the task screens, above the bottom bar. Green good news, yellow careful.

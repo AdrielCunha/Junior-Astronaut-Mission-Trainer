@@ -16,8 +16,11 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
     const diametro = Math.min(px(58), Math.floor((maximoGrupo - 2 * entreCirculos) / 3));
     const larguraObjetivo = Math.min(px(320), largura - 2 * (margem + lado + espaco));
     const objetivo = { x: Math.round((largura - larguraObjetivo) / 2), y: margem, w: larguraObjetivo, h: px(38) };
-    const topo = objetivo.y + objetivo.h + espaco;
     const menu = { x: largura - margem - lado, y: margem, w: lado, h: lado };
+    // Same visual as the desktop web button: never smaller than the 116 x 38 reference.
+    const escalaFim = Math.max(u, 1), larguraFimDia = Math.round(116 * escalaFim), alturaFimDia = Math.round(38 * escalaFim);
+    const fimDia = { x: menu.x - px(20) - larguraFimDia, y: margem, w: larguraFimDia, h: alturaFimDia };
+    const topo = Math.max(objetivo.y + objetivo.h, fimDia.y + fimDia.h) + espaco;
     const titulo = { x: margem, y: topo, w: 0, h: 0 };
     const larguraGrupo = 3 * diametro + 2 * entreCirculos;
     const recursos = Array.from({ length: 3 }, (_, i) => ({ x: Math.round((largura - larguraGrupo) / 2) + i * (diametro + entreCirculos), y: topo, w: diametro, h: diametro }));
@@ -25,8 +28,6 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
     const diametroRecurso = Math.min(px(42), Math.floor((maximoGrupo - 4 * espaco) / 5));
     const larguraRecursos = 5 * diametroRecurso + 4 * espaco;
     const capsula = { x: Math.round((largura - larguraRecursos) / 2), y: altura - margem - px(24) - diametroRecurso, w: larguraRecursos, h: diametroRecurso };
-    const gapMenu = px(20), larguraFimDia = px(116);
-    const fimDia = { x: menu.x - gapMenu - larguraFimDia, y: margem, w: larguraFimDia, h: lado };
     const passo = lado + espaco;
     const zoomY = menu.y + menu.h + espaco;
     const zoom = Array.from({ length: 3 }, (_, i) => ({ x: largura - margem - lado, y: zoomY + i * passo, w: lado, h: lado }));
