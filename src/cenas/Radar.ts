@@ -12,7 +12,8 @@ import Phaser from 'phaser';
 import paletaLua from '../dados/paleta_lua.json';
 const LUA_COR=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
 const LUA_CRATERA=Number.parseInt(paletaLua.rocha.slice(1),16);
-import { abrirVideo, movimentoReduzido, configuracoesAbertas } from '../video';
+import { abrirVideo, movimentoReduzido, configuracoesAbertas, video, escolherSkin } from '../video';
+import { SKINS } from '../dados/skins';
 import { sessao } from './sessao';
 import { CONTORNO, botaoFechar, botaoVerde, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { alternarMudo, estaMudo } from '../audio';
@@ -337,10 +338,10 @@ export class Radar extends Phaser.Scene {
 
   private configurarAudio() {
     const u = this.u;
-    this.janela('SOUND SETTINGS', 520, 330, (tela) => {
+    this.janela('SETTINGS', 520, 400, (tela) => {
       const linhas: [string, () => number, (v: number) => void][] = [['Music', volumeMusica, definirVolumeMusica], ['Sound effects', volumeEfeitos, definirVolumeEfeitos]];
       linhas.forEach(([nome, ler, definir], i) => {
-        const y = tela.y + 42 * u + i * 72 * u;
+        const y = tela.y + tela.h * (i + 0.5) / 4;                 // four evenly spaced rows
         this.add.text(tela.x + 20 * u, y, nome, letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
         const valor = this.add.text(tela.x + tela.w - 132 * u, y, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(0.5);
         const atualizar = () => valor.setText(`${Math.round(ler() * 100)}%`);
@@ -348,6 +349,30 @@ export class Radar extends Phaser.Scene {
         this.botao(tela.x + tela.w - 48 * u, y, 42 * u, 38 * u, '+', 0x475569, 20 * u, () => { definir(ler() + 0.1); atualizar(); });
         atualizar();
       });
+      // Astronaut suit: one swatch per skin (sheets in public/lua/astronaut_<id>.png).
+      const yS = tela.y + tela.h * 2.5 / 4;
+      this.add.text(tela.x + 20 * u, yS, 'Astronaut suit', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
+      const nome = this.add.text(tela.x + tela.w - 20 * u, yS, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(1, 0.5);
+      const hex = (c: string) => Number.parseInt(c.slice(1), 16);
+      const lado = 42 * u, raio = 9 * u;
+      const aneis: Phaser.GameObjects.Graphics[] = [];
+      const atualizarSkin = () => {
+        aneis.forEach((a, i) => a.setAlpha(SKINS[i].id === video.skin ? 1 : 0));
+        nome.setText(SKINS.find((s) => s.id === video.skin)?.nome ?? '');
+      };
+      SKINS.forEach((s, i) => {
+        const m = 20 * u + lado / 2 + 4 * u;                        // same margin both sides, ring included
+        const x = tela.x + m + (tela.w - 2 * m) * i / (SKINS.length - 1), y = tela.y + tela.h * 3.5 / 4;
+        // Selection ring, then the plain rounded square in the skin's color.
+        aneis.push(this.add.graphics().lineStyle(4 * u, 0xfde047)
+          .strokeRoundedRect(x - lado / 2 - 5 * u, y - lado / 2 - 5 * u, lado + 10 * u, lado + 10 * u, raio + 4 * u));
+        this.add.graphics().fillStyle(hex(s.cor)).fillRoundedRect(x - lado / 2, y - lado / 2, lado, lado, raio)
+          .lineStyle(3 * u, CONTORNO).strokeRoundedRect(x - lado / 2, y - lado / 2, lado, lado, raio)
+          .setInteractive(new Phaser.Geom.Rectangle(x - lado / 2, y - lado / 2, lado, lado), Phaser.Geom.Rectangle.Contains)
+          .on('pointerover', () => tocarSfx('suave'))
+          .on('pointerdown', () => { tocarSfx('clique'); escolherSkin(s.id); atualizarSkin(); });
+      });
+      atualizarSkin();
     }, 'DONE');
   }
 

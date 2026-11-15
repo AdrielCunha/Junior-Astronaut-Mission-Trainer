@@ -8,24 +8,40 @@
 # Out: public/lua/astronaut.png  grid: one row per direction (8), columns = idle + walk frames
 #      src/dados/astronauta.json frame size, the pixel under the feet, and the scale that makes
 #      one Blender unit (= one map tile) match terrain.png
-import bpy, os, json, math
+import bpy, os, json, math, sys
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
-PNG = os.path.join(ROOT, 'public', 'lua', 'astronaut.png')
+PNG = os.path.join(ROOT, 'public', 'lua', 'astronaut.png' if os.environ.get('SKIN', 'comandante') == 'comandante' else 'astronaut_%s.png' % os.environ['SKIN'])
 JSON = os.path.join(ROOT, 'src', 'dados', 'astronauta.json')
-TMP = os.path.join(HERE, '.cache', 'astro')
+TMP = os.path.join(HERE, '.cache', 'astro_' + os.environ.get('SKIN', 'comandante'))
 LIVE = not bpy.app.background
 
 T = 30                     # terrain px per tile step (render_terrain.py)
 SUPER = 4                  # render bigger than the map, the game scales down: crisp edges
-FRAME = 160
+FRAME = 192                  # roomy: the chunky helmet and antenna need more than 160 px
 WALK = 8                   # walk frames per direction
 HEIGHT = 0.8               # tiles; drawn bigger than a real 1.8 m (= 0.5 tile), like map icons
-SUIT = '#eef2f6'; TRIM = '#94a3b8'; BOOT = '#475569'; PACK = '#cbd5e1'; VISOR = '#f59e0b'
-ACCENT = '#ef4444'         # commander color, matches the crew colors in the game
-LIGHT = [(0.0, '#3a3550'), (0.08, '#8a8fa6'), (0.35, '#d9dde6'), (0.62, '#ffffff')]
+# Same cartoon language as the modules (make_modules.py): pale blue-grey body, the workshop's
+# orange as the accent, dark glass with a sky-blue glint, and the shared toon light ramp.
+sys.path.insert(0, HERE)
+from estilo_lua import PALETA
+# Skins: same model, different colors. SKIN=<id> renders public/lua/astronaut_<id>.png; the default
+# ('comandante') renders astronaut.png and writes the json. Keep ids in sync with src/dados/skins.ts.
+SKINS = {
+    'comandante': dict(suit='#e2e8f0', pack='#cbd5e1', accent='#f97316', glint='#38bdf8', boot='#334155'),
+    'marte':      dict(suit='#fdba74', pack='#fb923c', accent='#b91c1c', glint='#fde68a', boot='#7c2d12'),
+    'floresta':   dict(suit='#bbf7d0', pack='#86efac', accent='#16a34a', glint='#bef264', boot='#14532d'),
+    'nebulosa':   dict(suit='#ddd6fe', pack='#c4b5fd', accent='#8b5cf6', glint='#f0abfc', boot='#4c1d95'),
+    'solar':      dict(suit='#fef08a', pack='#fde047', accent='#d97706', glint='#ffffff', boot='#78350f'),
+    'oceano':     dict(suit='#a5f3fc', pack='#67e8f9', accent='#0e7490', glint='#fef9c3', boot='#164e63'),
+}
+SKIN = os.environ.get('SKIN', 'comandante')
+K = SKINS[SKIN]
+SUIT = K['suit']; TRIM = '#94a3b8'; BOOT = K['boot']; PACK = K['pack']; VISOR = '#1e293b'
+ACCENT = K['accent']; GLINT = K['glint']; BEACON = '#ef4444'
+LIGHT = PALETA['luzSolo']
 OUTLINE = '#17130f'
 
 
@@ -98,7 +114,7 @@ def peca(nome, kind, size, loc, cor, pai=root, bevel=0.0, rot=(0, 0, 0)):
     bpy.ops.object.shade_smooth()
     o.data.materials.append(toon(cor)); o.data.materials.append(contorno)
     s = o.modifiers.new('contorno', 'SOLIDIFY')
-    s.thickness = 0.012; s.offset = 1; s.use_flip_normals = True; s.material_offset = 1; s.use_rim = False
+    s.thickness = 0.016; s.offset = 1; s.use_flip_normals = True; s.material_offset = 1; s.use_rim = False
     o.parent = pai
     return o
 
@@ -115,18 +131,24 @@ peca('tronco', 'box', (H * 0.24, H * 0.30, H * 0.28), (0, 0, H * 0.15), SUIT, co
 peca('faixa', 'box', (H * 0.245, H * 0.305, H * 0.04), (0, 0, H * 0.10), ACCENT, corpo, bevel=0.005)
 peca('painel', 'box', (H * 0.03, H * 0.13, H * 0.08), (H * 0.125, 0, H * 0.18), TRIM, corpo, bevel=0.005)
 peca('mochila', 'box', (H * 0.13, H * 0.26, H * 0.30), (-H * 0.18, 0, H * 0.17), PACK, corpo, bevel=0.025)
+peca('listra', 'box', (H * 0.135, H * 0.20, H * 0.05), (-H * 0.18, 0, H * 0.22), ACCENT, corpo, bevel=0.005)
 cabeca = pivo('cabeca', (0, 0, H * 0.30), corpo)
-peca('capacete', 'ball', (H * 0.36, H * 0.36, H * 0.34), (0, 0, H * 0.16), SUIT, cabeca)
-peca('viseira', 'ball', (H * 0.22, H * 0.28, H * 0.20), (H * 0.09, 0, H * 0.20), VISOR, cabeca)
+peca('capacete', 'ball', (H * 0.40, H * 0.40, H * 0.38), (0, 0, H * 0.18), SUIT, cabeca)
+peca('viseira', 'ball', (H * 0.24, H * 0.31, H * 0.23), (H * 0.10, 0, H * 0.21), VISOR, cabeca)
+peca('brilho', 'ball', (H * 0.05, H * 0.10, H * 0.06), (H * 0.205, H * 0.07, H * 0.265), GLINT, cabeca)
+peca('antena', 'cyl', (H * 0.015, H * 0.015, H * 0.09), (-H * 0.05, -H * 0.12, H * 0.37), TRIM, cabeca)
+peca('farol', 'ball', (H * 0.05, H * 0.05, H * 0.05), (-H * 0.05, -H * 0.12, H * 0.43), BEACON, cabeca)
 
 pernas, bracos = [], []
 for lado in (-1, 1):
     quadril = pivo(f'quadril{lado}', (0, lado * H * 0.075, 0), corpo)
     peca(f'perna{lado}', 'box', (H * 0.11, H * 0.11, H * 0.30), (0, 0, -H * 0.15), SUIT, quadril, bevel=0.02)
     peca(f'bota{lado}', 'box', (H * 0.17, H * 0.12, H * 0.08), (H * 0.025, 0, -H * 0.32), BOOT, quadril, bevel=0.02)
+    peca(f'canela{lado}', 'box', (H * 0.118, H * 0.118, H * 0.035), (0, 0, -H * 0.27), ACCENT, quadril, bevel=0.005)
     pernas.append(quadril)
     ombro = pivo(f'ombro{lado}', (0, lado * H * 0.19, H * 0.26), corpo)
     peca(f'braco{lado}', 'box', (H * 0.09, H * 0.09, H * 0.24), (0, 0, -H * 0.11), SUIT, ombro, bevel=0.02)
+    peca(f'manga{lado}', 'box', (H * 0.098, H * 0.098, H * 0.04), (0, 0, -H * 0.03), ACCENT, ombro, bevel=0.005)
     peca(f'luva{lado}', 'ball', (H * 0.10, H * 0.10, H * 0.10), (0, 0, -H * 0.25), TRIM, ombro)
     bracos.append(ombro)
 
@@ -151,7 +173,7 @@ to_cam = Vector((math.cos(elev) * math.sqrt(0.5), -math.cos(elev) * math.sqrt(0.
 q = (-to_cam).to_track_quat('-Z', 'Y'); m3 = q.to_matrix()
 right, up = m3.col[0], m3.col[1]
 s = SUPER * T / math.sqrt(0.5)                   # px per tile in the frames
-centro = Vector((0, 0, H * 0.5))
+centro = Vector((0, 0, H * 0.58))                 # a bit high: room for the helmet antenna
 cam = bpy.data.cameras.new('AstroCam'); cam.type = 'ORTHO'; cam.ortho_scale = FRAME / s
 cam_o = bpy.data.objects.new('AstroCam', cam); sc.collection.objects.link(cam_o); sc.camera = cam_o
 cam_o.location = centro + to_cam * 20; cam_o.rotation_mode = 'QUATERNION'; cam_o.rotation_quaternion = q
@@ -190,8 +212,13 @@ else:
             bpy.data.images.remove(im)
     img = bpy.data.images.new('astro', cols * FRAME, 8 * FRAME, alpha=True)
     img.pixels = sheet.ravel(); img.filepath_raw = PNG; img.file_format = 'PNG'; img.save()
-    subprocess.run(['magick', PNG, '-dither', 'None', '-colors', '255', 'PNG8:' + PNG], check=True)
-    with open(JSON, 'w') as f:
+    try:
+        subprocess.run(['magick', PNG, '-dither', 'None', '-colors', '255', 'PNG8:' + PNG], check=True)
+    except FileNotFoundError:
+        print('no magick: quantize', PNG, 'to 255 colors afterwards (Pillow, FASTOCTREE, no dither)')
+    if SKIN == 'comandante': f = open(JSON, 'w')
+    else: f = open(os.devnull, 'w')
+    with f:
         json.dump({'frame': FRAME, 'colunas': cols, 'andar': WALK, 'escala': 1 / SUPER,
                    'pe': [round(anchor[0], 2), round(anchor[1], 2)],
                    'nota': 'Row d faces map angle d*45 deg, where angle = atan2(-dy, dx) for a move (dx, dy) in tiles. Column 0 idle, 1.. walk.'}, f, indent=1)

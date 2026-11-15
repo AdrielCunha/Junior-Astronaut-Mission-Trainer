@@ -30,6 +30,8 @@ import modelos from '../dados/modulos.json';
 import bandeiras from '../dados/bandeiras.json';
 import sprite from '../dados/astronauta.json';
 import dadosViagem from '../dados/viagem.json';
+import { chaveSkin } from '../dados/skins';
+import { DECORACAO, comoTipo } from '../dados/decoracao';
 
 const P = dadosTerreno.imagem;
 const ALCANCE = 1.3;          // tiles from a module's edge to use it
@@ -113,7 +115,7 @@ export class Superficie extends Phaser.Scene {
     this.corpo.noChao = true;
 
     this.gAstronauta = this.add.graphics();
-    this.comandante = this.add.sprite(0, 0, 'astronauta', 0).setOrigin(sprite.pe[0] / sprite.frame, sprite.pe[1] / sprite.frame)
+    this.comandante = this.add.sprite(0, 0, chaveSkin(video.skin), 0).setOrigin(sprite.pe[0] / sprite.frame, sprite.pe[1] / sprite.frame)
       .setScale(sprite.escala);
     const bInfo = bandeiras[sessao.mundo];
     this.bandeira = this.add.image(0, 0, `bandeira_${sessao.mundo}`)
@@ -126,6 +128,7 @@ export class Superficie extends Phaser.Scene {
     this.events.once('shutdown',()=>{this.bandeira.clearMask(true);this.mascaraBandeira.destroy();});
     this.mapa.add([this.gAstronauta, this.comandante, this.sombraBandeira, this.bandeira]);
     for (const c of sessao.grade.lista) this.desenharModulo(c);
+    this.montarDeco();
     this.desenharCaminhos();
 
     const pe = paraTela(P, this.corpo.x, this.corpo.y, this.corpo.z);
@@ -660,7 +663,7 @@ export class Superficie extends Phaser.Scene {
     if (c.tipo.id === 'cupula') return 'habitat';
     const meta = sessao.estado.meta;
     if (c.tipo.id === 'plataforma' && this.foguetePartiu) return 'plataforma';
-    if (c.tipo.id === 'plataforma' && meta > 0) return `foguete${Math.min(4, Math.floor(meta / 25))}` as Modelo;
+    if (c.tipo.id === 'plataforma') return `foguete${Math.min(4, Math.floor(meta / 25))}` as Modelo;
     return c.tipo.id as Modelo;
   }
 
@@ -673,12 +676,35 @@ export class Superficie extends Phaser.Scene {
     img.setTexture(`mod_${id}`).setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala).setPosition(p.x, p.y);
   }
 
+  // Surface props (old rover, probe, beacon...): placed once on free flat ground, solid, each with its name.
+  private montarDeco() {
+    const g = sessao.grade, c0 = Math.floor(g.n / 2);
+    if (!g.deco.length) {
+      // On Mars, leave out what only exists on the Moon (Apollo's laser reflectors).
+      for (const d of DECORACAO.filter((x) => sessao.mundo !== 'marte' || x.id !== 'refletor')) {
+        const p = g.procurarComEspaco(comoTipo(d), c0 + d.dx, c0 + d.dy);
+        if (p) g.colocarDeco({ id: d.id, nome: d.nome, w: d.w, h: d.h, altura: d.altura }, p.gx, p.gy);
+      }
+    }
+    for (const d of g.deco) {
+      const m = modelos[`deco_${d.id}` as Modelo];
+      const p = paraTela(P, d.gx, d.gy, d.z);
+      const img = this.add.image(p.x, p.y, `mod_deco_${d.id}`)
+        .setOrigin(m.ancora[0] / m.w, m.ancora[1] / m.h).setScale(m.escala)
+        .setDepth(profundidade(d.gx + d.w, d.gy + d.h));
+      const topo = paraTela(P, d.gx + d.w / 2, d.gy + d.h / 2, d.z + d.altura + 0.45);
+      const rotulo = this.add.text(topo.x, topo.y, d.nome, fonte(11, '#f8fafc', { fontStyle: 'bold', stroke: '#17130f', strokeThickness: 3 }))
+        .setOrigin(0.5, 1).setDepth(1e6);
+      this.mapa.add([img, rotulo]);
+    }
+  }
+
   private desenharModulo(c: Construcao) {
     let d = this.desenhos.get(c.id);
     if (!d) {
       d = { g: this.add.graphics(), img: this.add.image(0, 0, 'mod_habitat') };
       // Rooms you use carry their name, like the first prototype.
-      if (c.tipo.sala || c.tipo.id === 'habitat') {
+      if (c.tipo.id !== 'painel') {
         d.rotulo = this.add.text(0, 0, sessao.mundo === 'marte' && c.tipo.id === 'habitat' ? 'Lander' : c.tipo.nome, fonte(13, '#f8fafc', { fontStyle: 'bold', stroke: '#17130f', strokeThickness: 4 }))
           .setOrigin(0.5, 1);
       }
@@ -785,6 +811,8 @@ export class Superficie extends Phaser.Scene {
     const v = Math.hypot(k.vx, k.vy);
     if (v > 0.3) this.direcao = (Math.round(Math.atan2(-k.vy, k.vx) / (Math.PI / 4)) + 8) % 8;
     const col = v > 0.3 && k.noChao ? 1 + (Math.floor(this.passada) % sprite.andar) : k.noChao ? 0 : 3;
+    const textura = chaveSkin(video.skin);                    // chosen in Video & comfort
+    if (this.comandante.texture.key !== textura) this.comandante.setTexture(textura);
     this.comandante.setPosition(pe.x, pe.y).setFrame(this.direcao * sprite.colunas + col);
     const d = profundidade(k.x + 0.3, k.y + 0.3);
     g.setDepth(d - 1); this.comandante.setDepth(d);
