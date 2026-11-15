@@ -72,12 +72,12 @@ export function criarPainelCenas(jogo: Phaser.Game) {
 
   // --- the scenes ---
   titulo('Leaving the Moon (chapter 1)');
-  botao('Full departure: liftoff, zoom, lunar orbit, cruise', () => {
+  botao('Full departure: liftoff, zoom, leaving the Moon, cruise', () => {
     if (!naLua()) return;
     if (!sessao.filmePronto) avisar('The zoom film is still downloading: the flight starts when it is ready.');
     (sm.getScene('Superficie') as unknown as { decolar(fim: () => void): void }).decolar(() => sessao.partir(fimPartida));
   });
-  botao('Skip to lunar orbit', () => {
+  botao('Skip to leaving the Moon', () => {
     if (!naLua()) return;
     sessao.voo = null; sessao.transicao = null;
     sessao.vista = 'lua'; sessao.u = sessao.alvo = sessao.uGlobo;

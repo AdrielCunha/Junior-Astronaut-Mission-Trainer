@@ -228,9 +228,11 @@ export class Espaco extends Phaser.Scene {
     this.brilho.setScale(movimentoReduzido() ? 1 : this.brilho.scaleX);
     this.tweens.getTweensOf(this.brilho).forEach(t=>{t.paused=movimentoReduzido() || !video.efeitos;});
     if (!movimentoReduzido() && !configuracoesAbertas) carregarFilme(this.textures);
-    // During the crossing to Mars the date runs along the real 259-day trip.
-    const sCruzeiro = P?.fase === 'cruzeiro' ? Phaser.Math.Easing.Sine.InOut(P.t) : 0;
-    const t = P?.fase === 'cruzeiro' ? PARTIDA + sCruzeiro * DIAS_REAIS * DIA_MS : sessao.data + this.relogio * 3600000;
+    // Leaving for Mars, the sky shows the real launch window (transferencia.ts) and, during the
+    // crossing, the date runs along the trip. s is the fraction of the trip's time: the path is
+    // spaced in time, so the ship keeps its real speed.
+    const sCruzeiro = P?.fase === 'cruzeiro' ? P.t : 0;
+    const t = P && P.fase !== 'filme' ? PARTIDA + sCruzeiro * DIAS_REAIS * DIA_MS : sessao.data + this.relogio * 3600000;
     this.ceu.setAlpha(0.55 + 0.45 * suave(0.6, 1.6, n));
     this.g.clear();
     for (const r of this.rotulos.values()) r.setVisible(false);
@@ -267,8 +269,8 @@ export class Espaco extends Phaser.Scene {
     const solTela = Math.atan2(-dot(vista.toSun as V3, vista.up as V3), dot(vista.toSun as V3, vista.right as V3));
     // During the crossing to Mars the drawing keeps the turn of the departure day, so the solar
     // system does not spin while the months go by.
-    const ldGiro = P?.fase === 'cruzeiro' ? lua(PARTIDA) : ld;
-    const tg = P?.fase === 'cruzeiro' ? posicao(PLANETAS[2], PARTIDA) : terraP;
+    const ldGiro = P && P.fase !== 'filme' ? lua(PARTIDA) : ld;
+    const tg = P && P.fase !== 'filme' ? posicao(PLANETAS[2], PARTIDA) : terraP;
     const th = -solTela - Math.atan2(-(tg.y * AU_KM + ldGiro.y * TERRA_LUA_KM), -(tg.x * AU_KM + ldGiro.x * TERRA_LUA_KM));
     const cs = Math.cos(th), sn = Math.sin(th);
     const tela = (p: { x: number; y: number }) => {
@@ -292,13 +294,13 @@ export class Espaco extends Phaser.Scene {
     } else {
       g.fillStyle(0xcfc4a8).fillCircle(lq.x, lq.y, 3).lineStyle(1, COR.contorno).strokeCircle(lq.x, lq.y, 3);
     }
-    // Leaving for Mars: the rocket climbs to lunar orbit and docks with the Mars ship, which goes
-    // once around the Moon and fires its engine; the zoom out to the planets follows it.
-    if (P && (P.fase === 'orbita' || P.fase === 'zoom')) {
+    // Leaving for Mars: the ship climbs straight off the Moon, engine on; the zoom out to the
+    // planets follows it.
+    if (P && (P.fase === 'saida' || P.fase === 'zoom')) {
       const pm = pontoNaLua(vista.base.lat, vista.base.lon, giro);
       const pb = naTela(pm);
-      this.orbitaLunar(P, lq.x, lq.y, RAIO_LUA_KM * kmPx, lq.x + pb.x * largura, lq.y + pb.y * largura, W, H);
-      if (P.fase === 'orbita') return;
+      this.saidaDaLua(P, lq.x + pb.x * largura, lq.y + pb.y * largura, RAIO_LUA_KM * kmPx, W, H);
+      if (P.fase === 'saida') return;
     }
     if (n < 2.08) {
       if (sessao.voo) return;
@@ -381,8 +383,9 @@ export class Espaco extends Phaser.Scene {
       const motor = s < 0.06 || s > 0.94;                 // the engine only fires to leave and to arrive
       this.desenharNave(a.x, a.y, rumo, 0.26, motor ? 1 : 0, 15);
       const dia = Math.round(s * DIAS_REAIS);
-      this.definirLegenda(`${dataBonita(t)} · day ${dia} of a real ${DIAS_REAIS}-day trip to Mars (the game shortens it to 5 days)\n` +
-        (motor ? 'Engine on, only to leave and to arrive.' : 'The ship coasts most of the way: no engine, no air to slow it down, it just keeps going.'));
+      this.definirLegenda(`${dataBonita(t)} · day ${dia} of ${Math.round(DIAS_REAIS)} · a Hohmann transfer: half an ellipse around the Sun, the path that uses the least fuel\n` +
+        (motor ? 'Engine on, only to leave and to arrive. In between the ship coasts: faster near the Sun, slower farther out.'
+          : 'Windows to Mars open every 26 months, when Mars is 44° ahead of Earth. The game skips ahead to the real one of October 2024.'));
     }
   }
 
@@ -394,9 +397,9 @@ export class Espaco extends Phaser.Scene {
     if (!P || P.acabou) return;
     const lento = movimentoReduzido();
     const quieto = !sessao.voo && !sessao.transicao;
-    if (P.fase === 'filme' && quieto && sessao.vista === 'lua') { P.fase = 'orbita'; P.t = 0; }
-    else if (P.fase === 'orbita') {
-      P.t = Math.min(1, P.t + dt / (lento ? 3 : 9));
+    if (P.fase === 'filme' && quieto && sessao.vista === 'lua') { P.fase = 'saida'; P.t = 0; }
+    else if (P.fase === 'saida') {
+      P.t = Math.min(1, P.t + dt / (lento ? 1.5 : 4));
       if (P.t >= 1 && !sessao.transicao) { P.fase = 'zoom'; sessao.voar('sistema'); }
     } else if (P.fase === 'zoom' && quieto && sessao.vista === 'sistema') { P.fase = 'cruzeiro'; P.t = 0; }
     else if (P.fase === 'cruzeiro') {
@@ -450,36 +453,17 @@ export class Espaco extends Phaser.Scene {
     this.chamas.fillStyle(0xfde68a, 0.95).fillTriangle(bx + lx * w * 0.5, by + ly * w * 0.5, bx - lx * w * 0.5, by - ly * w * 0.5, bx + (ux / L) * comp * 0.55, by + (uy / L) * comp * 0.55);
   }
 
-  // Lunar orbit: a polar orbit (the base is at the south pole), seen a little from the side.
-  // Angle a = 0 is just over the south pole; the near half (sin a > 0) is drawn over the Moon.
-  private orbitaLunar(P: NonNullable<typeof sessao.partida>, cx: number, cy: number, R: number, bx: number, by: number, W: number, H: number) {
-    const ro = 1.45 * R;
-    const ponto = (a: number) => ({ x: cx + ro * Math.sin(a) * 0.35, y: cy + ro * Math.cos(a), frente: Math.sin(a) > 0 });
-    const rumoEm = (a: number) => Math.atan2(ro * Math.sin(a), ro * Math.cos(a) * 0.35);   // screen heading, counterclockwise
-    const t = P.fase === 'orbita' ? P.t : 1;
-    const aNave = -0.9 + 2 * Math.PI * 1.05 * t;          // a little over one turn
-    // Orbit line, under the Moon.
-    const pts = Array.from({ length: 65 }, (_, i) => ponto((i / 64) * Math.PI * 2));
-    this.g.lineStyle(1.5, 0xfbbf24, 0.35).strokePoints(pts, false);
-    const escala = Phaser.Math.Clamp(R / 1100, 0.07, 0.3);
-    const n = ponto(aNave);
-    const queima = P.fase === 'zoom' || t > 0.78;
-    this.desenharNave(n.x, n.y, rumoEm(aNave), escala, queima ? 1.2 : 0, n.frente ? 15 : -1);
-    // The rocket: from where the film left it to the ship, then docked (hidden).
-    const c = Phaser.Math.Clamp(t / 0.3, 0, 1);
-    if (c < 1) {
-      const r0 = this.subida(bx, by, 1, W, H);
-      const e = Phaser.Math.Easing.Sine.InOut(c);
-      const x = Phaser.Math.Linear(r0.x, n.x, e), y = Phaser.Math.Linear(r0.y, n.y, e);
-      const dx = n.x - r0.x, dy = n.y - r0.y, l = Math.hypot(dx, dy) || 1;
-      this.desenharFoguete(x, y, Phaser.Math.Linear(r0.dx, dx / l, e), Phaser.Math.Linear(r0.dy, dy / l, e), Math.max(8, 12 - 4 * e));
-      this.chamas.setDepth(15);
-    }
-    if (P.fase !== 'orbita') return;
-    this.definirLegenda(c < 1
-      ? 'Climbing to lunar orbit. The Mars ship waits there: it is too big to land, so the crew comes up to it.\nOn the Moon a rocket only has to reach 1.7 km/s to stay in orbit. On Earth it takes 7.8 km/s.'
-      : t < 0.78
-        ? 'Docked! The crew moves into the Mars ship. A polar orbit passes over the base at the south pole.\nNASA plans the same idea for Artemis: a station in lunar orbit, called Gateway.'
-        : 'Engine on: the ship speeds up to leave the Moon and head for Mars.\nIt only needs a short push. After that it coasts for months.');
+  // Straight off the Moon: from where the film left the rocket, the ship climbs away from the
+  // Moon's center with its engine on, faster and faster; the zoom out keeps it in view.
+  private saidaDaLua(P: NonNullable<typeof sessao.partida>, bx: number, by: number, R: number, W: number, H: number) {
+    const r0 = this.subida(bx, by, 1, W, H);
+    const t = P.fase === 'saida' ? P.t : 1;
+    const d = R * (0.15 + 1.6 * t * t);                    // accelerating
+    const x = r0.x + r0.dx * d, y = r0.y + r0.dy * d;
+    const rumo = Math.atan2(-r0.dy, r0.dx);
+    this.desenharNave(x, y, rumo, Phaser.Math.Clamp(R / 1300, 0.06, 0.24), 1.3, 15);
+    if (P.fase !== 'saida') return;
+    this.definirLegenda('Straight to Mars, no stop in orbit: the Moon has no air and weak gravity, so one burn is enough to leave.\n' +
+      'Escaping the Moon takes 2.4 km/s. Escaping Earth takes 11.2 km/s. That is one reason to build a base on the Moon.');
   }
 }

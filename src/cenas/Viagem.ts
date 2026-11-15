@@ -199,7 +199,7 @@ export class Viagem extends Phaser.Scene {
 
     // Words: where we are, the date, and what is real.
     this.titulo.setText(this.d.etapa === 'partida' ? 'Off to Mars!' : t < 0.55 ? 'Almost there...' : t < 0.92 ? 'Braking into orbit around Mars' : 'Welcome to Mars');
-    this.legenda.setText(`${dataBonita(dia)} · day ${Math.round(s * DIAS_REAIS)} of a real ${DIAS_REAIS}-day trip (the game shortens it to 5 days)\n` +
+    this.legenda.setText(`${dataBonita(dia)} · day ${Math.round(s * DIAS_REAIS)} of a real ${Math.round(DIAS_REAIS)}-day trip (the game shortens it to 5 days)\n` +
       (zoom > 0 ? 'No air to slow down in space: the ship turns around and fires its engine against its motion.'
         : 'The ship coasts most of the way: its engine only fires to leave and to arrive.'));
 

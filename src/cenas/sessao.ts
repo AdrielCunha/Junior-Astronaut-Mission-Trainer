@@ -94,15 +94,15 @@ class Sessao {
   private pendente: Vista | null = null;   // next flight once the current one lands
   pulou = false;
   // Leaving for Mars after liftoff, played on the zoom itself (Espaco draws it): 'filme' the
-  // zoom out from the base to the Moon, 'orbita' the rocket meets the Mars ship in lunar orbit,
-  // 'zoom' out to the planets, 'cruzeiro' the ship crosses to Mars. The player only watches.
-  partida: { fase: 'filme' | 'orbita' | 'zoom' | 'cruzeiro'; t: number; fim: () => void; acabou: boolean } | null = null;
+  // zoom out from the base to the Moon, 'saida' the ship climbs straight off the Moon toward Mars
+  // (no stop in orbit), 'zoom' out to the planets, 'cruzeiro' the crossing. The player only watches.
+  partida: { fase: 'filme' | 'saida' | 'zoom' | 'cruzeiro'; t: number; fim: () => void; acabou: boolean } | null = null;
 
   // Starts the departure; `fim` runs when the ship reaches Mars's orbit on the map.
   partir(fim: () => void) {
     this.partida = { fase: 'filme', t: 0, fim, acabou: false };
-    this.emitir('mensagem', 'On the way to lunar orbit, where the Mars ship is waiting.', '#fde68a');
-    if (this.vista === 'lua') this.partida.fase = 'orbita';
+    this.emitir('mensagem', 'Liftoff! Next stop: Mars.', '#fde68a');
+    if (this.vista === 'lua') this.partida.fase = 'saida';
     else this.voar('lua');
   }
 

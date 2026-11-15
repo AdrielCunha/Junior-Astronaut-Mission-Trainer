@@ -365,14 +365,15 @@ locally; sky and constellation imagery are unaffected by the surface palette.
    gravity (acceleration grows as propellant burns), with dust and a flickering flame; the camera
    follows. Then `sessao.partir` plays the departure on the game's own zoom out (Espaco draws it;
    wheel and zoom buttons wait): the film from the base to the Moon with the rocket climbing off
-   the base, then the rocket reaches a polar lunar orbit and docks with the Mars ship waiting
-   there (like NASA's Gateway), the ship goes once around the Moon (hidden behind it on the far
-   side) and fires its engine, the zoom goes out to the planets, and the crew continues in
-   chapter 2 (Base prototype).
+   the base, then the ship climbs straight off the Moon with its engine on (no stop in orbit: the
+   Moon has no air and weak gravity, so one burn is enough), the zoom goes out to the planets, and
+   the crew continues in chapter 2 (Base prototype).
 2. **Cruise**, the last part of the departure: in the solar system view the date runs along a real
-   259-day transfer from May 13, 2024 (`engine/astro.ts`), so Earth and Mars move, and the ship
-   (`nave_d<k>.png`, 16 headings) follows a simplified transfer arc (`transferencia.ts`: it widens
-   from Earth's orbit to Mars's while turning around the Sun; not a computed trajectory). The view
+   Hohmann transfer (`transferencia.ts`): half an ellipse around the Sun, perihelion at Earth and
+   aphelion at Mars, the path that uses the least fuel. Its launch window is found from the same
+   orbital elements as the rest of the game (October 5, 2024, 276 days, arriving July 8, 2025),
+   since the chapters' May 2024 is not one. The path is spaced in time with Kepler's equation, so
+   the ship (`nave_d<k>.png`, 16 headings) keeps its real speed, faster near the Sun. The view
    keeps the departure day's turn so it does not spin, and constellations wait. `Viagem` keeps a
    `'partida'` mode with the same cruise as a standalone scene, no longer used by the game.
 3. **Arrival**, chapter 2 "Next chapter" (`'chegada'`): the ship finishes the arc, the wide view fades,
