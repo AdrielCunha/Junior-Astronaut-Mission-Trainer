@@ -82,7 +82,7 @@ class Sessao {
   estado: Estado = inicioDoCapitulo(CAPITULOS[0].config);
   entregas: Alocacao = nenhuma();
   carregando = 0;           // batteries in the commander's hands
-  noHabitat = 0;            // batteries still waiting at the habitat today
+  noHabitat = 0;            // daily batteries waiting at the Moon bank or Mars lander (legacy field name)
   tarefasHoje = new Set<Efeito>();                    // rooms that already had their task today
   ultimaTarefa: Partial<Record<Efeito, string>> = {}; // so the bank does not repeat itself
   emTarefa = false;         // a task overlay is open: the map and zoom wait

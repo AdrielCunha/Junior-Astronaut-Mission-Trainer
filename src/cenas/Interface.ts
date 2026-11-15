@@ -200,7 +200,7 @@ export class Interface extends Phaser.Scene {
     this.capsula.atualizar(contadores);
     this.objetivo.setVisible(sessao.fase === 'dia');
     this.textos.tarefa.setText(sessao.noHabitat
-      ? `Walk to the ${marte ? 'Lander' : 'Habitat'} to pick up today's batteries.`
+      ? `Walk to the ${marte ? 'Lander' : 'Battery Bank'} to pick up today's batteries.`
       : sessao.carregando ? 'Click a room (or press E next to it) to give it a battery.' : 'All batteries used. Press "End day".');
 
     this.textos.tarefa.setScale(1);

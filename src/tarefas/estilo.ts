@@ -257,7 +257,7 @@ export function criarBotaoPilula(cena: Phaser.Scene, b: Caixa, u: number, titulo
 // `rotulos` swaps the tooltips and icons (Mars: the lander, and heating instead of rocket parts).
 export function criarCapsulaRecursos(cena: Phaser.Scene, b: Caixa, u: number, rotulos?: { nomes: string[]; icones: string[] }) {
   const caixa = criarPilula(cena, b.x, b.y, b.w, b.h, u);
-  const nomes = rotulos?.nomes ?? ['Batteries at Habitat', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Parts: batteries delivered to the rocket workshop today'];
+  const nomes = rotulos?.nomes ?? ['Batteries at the Battery Bank', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Parts: batteries delivered to the rocket workshop today'];
   const icones = rotulos?.icones ?? ['\u{1f50b}', '\u270b', '\u2764\ufe0f', '\u{1f6e1}', '\u{1f527}'];
   const cores = ['#fde047', '#fde047', '#4ade80', '#fde047', '#60a5fa'];
   const numeros: Phaser.GameObjects.Text[] = [];
