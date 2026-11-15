@@ -128,6 +128,7 @@ export class Superficie extends Phaser.Scene {
   // The ship (chapter 2): the closed ship, roof on, over everything when zoomed out; the
   // cutaway deck when close. Names on the map fade out under the roof.
   private teto: Phaser.GameObjects.Image | null = null;
+  private plumas: Phaser.GameObjects.Graphics | null = null;   // the ship's Hall thrusters, firing
   private nomesNoMapa: Phaser.GameObjects.Text[] = [];
   private decoVisuais: { d: DecoColocada; img: Phaser.GameObjects.Image }[] = [];
   private dica?: Phaser.GameObjects.Text;                // shared prop tooltip
@@ -137,6 +138,31 @@ export class Superficie extends Phaser.Scene {
 
   constructor() {
     super({ key: 'Superficie' });   // started by Carregar
+  }
+
+  // The ship's solar electric propulsion: Hall thrusters fire for months on end with a faint
+  // blue glow (ionized xenon). Each plume points back along -gx from its exit (make_nave.py
+  // 'propulsores'): a bright core and a wide soft glow that fade with distance, gently pulsing.
+  private desenharPlumas() {
+    const g = this.plumas;
+    if (!g) return;
+    g.clear();
+    const lista = (dadosTerreno as unknown as { propulsores?: { x: number; y: number; z: number; r: number }[] }).propulsores ?? [];
+    const t = this.time.now / 1000;
+    const mexe = !movimentoReduzido() && video.efeitos;
+    const px = Math.hypot(P.ex[0], P.ex[1]);           // screen px per tile step, about 33
+    lista.forEach((m, i) => {
+      const pulso = mexe ? 0.85 + 0.15 * Math.sin(t * 9 + i * 1.7) + 0.05 * Math.sin(t * 23 + i) : 1;
+      for (let k = 14; k >= 0; k--) {
+        const d = k * 0.55;                                  // tiles back from the exit
+        const p = paraTela(P, m.x - d, m.y, m.z);
+        const f = 1 - k / 15;
+        const r = m.r * px * (1 + d * 0.22);
+        g.fillStyle(0x38bdf8, 0.10 * f * pulso).fillCircle(p.x, p.y, r * 1.9);
+        g.fillStyle(0x7dd3fc, 0.22 * f * f * pulso).fillCircle(p.x, p.y, r);
+        if (k < 6) g.fillStyle(0xe0f2fe, 0.5 * (1 - k / 6) * pulso).fillCircle(p.x, p.y, r * 0.45);
+      }
+    });
   }
 
   // The destination flag: the world's own, and on the ship Earth's (the home the crew left).
@@ -206,6 +232,9 @@ export class Superficie extends Phaser.Scene {
       ? this.add.image(0, 0, 'terreno_nave_teto').setOrigin(0).setDepth(1.5e6).setAlpha(0) : null;
     this.mapa.add(this.terreno);
     if (this.teto) this.mapa.add(this.teto);
+    // Behind the ship's picture: its structure covers the plumes where it should.
+    this.plumas = nave ? this.add.graphics().setDepth(-1.1e6).setBlendMode(Phaser.BlendModes.ADD) : null;
+    if (this.plumas) this.mapa.add(this.plumas);
     this.gCaminhos = this.add.graphics().setDepth(-900_000);
     this.mapa.add(this.gCaminhos);
     this.ambiente = new Ambiente(this,this.mapa,P,sessao.terreno,sessao.mundo);
@@ -1196,6 +1225,7 @@ export class Superficie extends Phaser.Scene {
     }
     sessao.parado = Math.hypot(this.corpo.vx, this.corpo.vy) < 0.05 && this.corpo.noChao;
     this.atualizarOclusao(dt);
+    this.desenharPlumas();
     if (this.teto) {
       // Zooming out puts the roof on: the whole closed ship; zooming in shows the deck inside.
       const a = suave(1.3, 1.75, sessao.u);

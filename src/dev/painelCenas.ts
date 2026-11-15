@@ -52,6 +52,8 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   };
 
   // --- helpers ---
+  // A running scene to load from (getScenes(true) can come back empty while the game runs).
+  const cenaRodando = () => sm.scenes.find((c) => c.sys.isActive()) ?? sm.scenes.find((c) => c.sys.settings.status === Phaser.Scenes.RUNNING);
   // The Moon scenes (chapter 1) must be running for the departure.
   const naLua = () => {
     if (!ativa('Superficie')) { avisar('The Moon scenes are not running (you are in chapter 2 or 3). Use "Reload: chapter 1".'); return false; }
@@ -63,7 +65,7 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   const fimPartida = () => { if (ativa('Interface')) paraCapitulo2(); };
   // Chapter 3 is the 3D Mars (irParaMarte.ts), loaded from whatever scene is running.
   const marte3D = () => {
-    const ativa = sm.getScenes(true)[0];
+    const ativa = cenaRodando();
     if (!ativa) { avisar('No running scene to load from.'); return; }
     iniciarMarte3D(ativa, 10, [200, 200]);
   };
@@ -97,7 +99,7 @@ export function criarPainelCenas(jogo: Phaser.Game) {
   botao('Skip to the landing', () => chegada(true));
   titulo('Chapters');
   botao('Chapter 2: the ship (3D, playable)', () => {
-    const ativa = sm.getScenes(true)[0];
+    const ativa = cenaRodando();
     if (!ativa) { avisar('No running scene to load from.'); return; }
     iniciarNave3D(ativa, 5, [200]);
   });
