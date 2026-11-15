@@ -144,9 +144,9 @@ export class Interface extends Phaser.Scene {
     const l = this.layout, fim = l.fimDia;
     // On touch screens this button keeps the desktop web size even when the rest of the HUD shrinks.
     const uFim = dispositivoMovel() ? Math.max(l.u, 1) : l.u;
-    const fonteFim = Math.round(17 * uFim);
+    const fonteFim = Math.round(21 * uFim);
     this.btFim = botaoVerde(this, Math.round(fim.x + fim.w / 2), Math.round(fim.y + fim.h / 2), 'END DAY', fonteFim, fim.h, uFim,
-      () => this.terminarDia(), { largura: fim.w, altura: fim.h, pulsar: false, pararPropagacao: true, animarHover: true });
+      () => this.terminarDia(), { largura: fim.w, altura: fim.h, pulsar: false, pararPropagacao: true, animarHover: true, cor: 0x16e05f, corHover: 0x6ef5a0 });
     this.textoFim = this.btFim.getData('texto');
     // Draw the arrow as artwork, not an emoji glyph, so it is white on every device.
     this.iconeFim = this.add.graphics();
@@ -549,7 +549,7 @@ export class Interface extends Phaser.Scene {
       this.textoFim.setFontSize(tamanho);
       while(this.textoFim.width>this.layout.fimDia.w-38 && tamanho>10)this.textoFim.setFontSize(--tamanho);
     }
-    const tamanhoIcone=14*(dispositivoMovel()?Math.max(this.layout.u,1):this.layout.u);
+    const tamanhoIcone=dispositivoMovel()?14*Math.max(this.layout.u,1):18*this.layout.u;
     const distancia=(this.textoFim.width+tamanhoIcone+8)/2;
     this.textoFim.setX(menu?6:-6);
     const x=menu?-distancia:distancia;

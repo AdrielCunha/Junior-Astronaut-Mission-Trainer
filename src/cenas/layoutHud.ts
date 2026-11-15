@@ -16,7 +16,7 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
     const diametro = Math.min(px(58), Math.floor((maximoGrupo - 2 * entreCirculos) / 3));
     const menu = { x: largura - margem - lado, y: margem, w: lado, h: lado };
     // A slightly more compact END DAY, centred on the same line as the objective.
-    const escalaFim = Math.max(u, 1), larguraFimDia = Math.round(116 * escalaFim), alturaFimDia = Math.round(34 * escalaFim);
+    const escalaFim = Math.max(u, 1), larguraFimDia = Math.round(136 * escalaFim), alturaFimDia = Math.round(40 * escalaFim);
     const fimDia = { x: menu.x - px(20) - larguraFimDia, y: margem + Math.round((diametro - alturaFimDia) / 2), w: larguraFimDia, h: alturaFimDia };
     menu.y = fimDia.y + Math.round((fimDia.h - menu.h) / 2);
     const larguraGrupo = 3 * diametro + 2 * entreCirculos;
@@ -82,13 +82,14 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
   // Touch-only Controls button: the desktop HUD never creates it, so it reuses the editor slot.
   const controles = editar;
   const nivel = caixa(largura - margem - nivelW, zoomY + zoomAltura + espaco, nivelW, nivelH);
-  const fimDia = caixa(largura - margem - px(128), altura - margem - lado, px(128), lado);
+  // END DAY: bigger than the other buttons, so the day's main action is easy to find.
+  const fimDia = caixa(largura - margem - px(176), altura - margem - px(52), px(176), px(52));
   const dicasW = px(570), dicasCompactas = dicasW + espaco > fimDia.x - margem;
   const abaW = px(24), painelW = dicasCompactas ? Math.min(px(260), util - abaW) : dicasW;
   const painelH = dicasCompactas ? px(148) : lado;
-  const dicasPainel = caixa(margem, fimDia.y + lado - painelH, painelW, painelH);
+  const dicasPainel = caixa(margem, fimDia.y + fimDia.h - painelH, painelW, painelH);
   const dicasAba = caixa(painelW - abaW, painelH - lado, abaW, lado);
-  const dicas = caixa(margem, fimDia.y, dicasCompactas ? abaW : dicasW, lado);
+  const dicas = caixa(margem, fimDia.y + fimDia.h - lado, dicasCompactas ? abaW : dicasW, lado);
   const dicasFechadasX = margem - dicasAba.x;
   return { u, margem, espaco, titulo, faixa, menu, recursos, capsula, objetivo, avisoY, zoom, controles, nivel, editar, fimDia, dicas, dicasCompactas, dicasPainel, dicasAba, dicasFechadasX };
 }
