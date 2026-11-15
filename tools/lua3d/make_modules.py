@@ -23,6 +23,11 @@ FASE = 0
 ANIMADOS = {'suporte': 3, 'oficina': 3}
 LIGHT = PALETA['luzSolo']
 OUTLINE = '#17130f'
+# ESTILO=estacao (default): the look of the solar station (tools/lua3d/make_solar_station.py, export_solar_station.py):
+# soft clay shading (Principled BSDF, AgX), a soft area light with real shadows, blue ambient, round bevels,
+# no black outline, and decks on an orange plinth. ESTILO=toon renders the old flat toon look with outlines.
+ESTILO = os.environ.get('ESTILO', 'estacao')
+NOVO = ESTILO != 'toon'
 # Footprints in tiles, as in src/engine/construcao.ts.
 TIPOS = {
     'habitat': (3, 3), 'suporte': (3, 2), 'blindagem': (2, 2),
@@ -53,11 +58,25 @@ else:
     bpy.ops.wm.read_factory_settings(use_empty=True); sc = bpy.context.scene
 sc.render.engine = 'BLENDER_EEVEE'; sc.render.film_transparent = True
 sc.render.image_settings.file_format = 'PNG'; sc.render.image_settings.color_mode = 'RGBA'
-sc.view_settings.view_transform = 'Standard'; sc.view_settings.look = 'None'; sc.render.filter_size = 1.0
+sc.view_settings.view_transform = 'AgX' if NOVO else 'Standard'; sc.view_settings.look = 'None'; sc.render.filter_size = 1.0
+if NOVO:
+    # Same blue night ambient as the solar station scene.
+    mundo = bpy.data.worlds.new('Modulos | ambiente azul'); mundo.use_nodes = True
+    fundo = mundo.node_tree.nodes['Background']
+    fundo.inputs[0].default_value = (0.16, 0.21, 0.32, 1); fundo.inputs[1].default_value = 0.5
+    sc.world = mundo
 
 _mats = {}
 def toon(cor):
     if cor in _mats: return _mats[cor]
+    if NOVO:
+        # Clay look of the solar station: soft Principled surface, a hint of metal.
+        m = bpy.data.materials.new('mod' + cor); m.use_nodes = True
+        bs = m.node_tree.nodes.get('Principled BSDF')
+        bs.inputs['Base Color'].default_value = rgb(cor); bs.inputs['Roughness'].default_value = 0.5
+        bs.inputs['Metallic'].default_value = 0.12
+        _mats[cor] = m
+        return m
     m = bpy.data.materials.new('mod' + cor); m.use_nodes = True
     N = m.node_tree.nodes; L = m.node_tree.links; N.clear()
     dif = N.new('ShaderNodeBsdfDiffuse'); s2r = N.new('ShaderNodeShaderToRGB'); L.new(dif.outputs['BSDF'], s2r.inputs['Shader'])
@@ -85,8 +104,18 @@ def _fim(o, cor, bevel, linha):
         for c in o.users_collection: c.objects.unlink(o)
         sc.collection.objects.link(o)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    if NOVO and bevel:
+        bevel = max(bevel, 0.025) * 1.4      # rounder edges catch the light like the station's parts
     if bevel:
-        b = o.modifiers.new('bevel', 'BEVEL'); b.width = bevel; b.segments = 3; b.limit_method = 'ANGLE'
+        b = o.modifiers.new('bevel', 'BEVEL'); b.width = bevel; b.segments = 4 if NOVO else 3; b.limit_method = 'ANGLE'
+    if NOVO:
+        o.data.materials.append(toon(cor))
+        for p in o.data.polygons: p.use_smooth = True
+        o.data.shade_smooth() if hasattr(o.data, 'shade_smooth') else None
+        mod = o.modifiers.new('suave', 'WEIGHTED_NORMAL') if hasattr(bpy.types, 'WeightedNormalModifier') else None
+        if mod: mod.keep_sharp = True
+        grupo.append(o)
+        return o
     o.data.materials.append(toon(cor)); o.data.materials.append(contorno)
     s = o.modifiers.new('contorno', 'SOLIDIFY')
     s.thickness = linha; s.offset = 1; s.use_flip_normals = True; s.material_offset = 1; s.use_rim = False
@@ -135,6 +164,11 @@ def haste(a, b, r, cor, linha=0.012):
 
 
 def piso(w, h, cor=PALETA['fundacao'][2], z=0.12):
+    if NOVO:
+        # The solar station's base: a rounded orange plinth under a light deck.
+        caixa(0.02, 0.02, w - 0.02, h - 0.02, 0, z * 0.55, '#e8894a', bevel=0.05)
+        caixa(0.1, 0.1, w - 0.1, h - 0.1, z * 0.4, z, '#d9dee6', bevel=0.04)
+        return
     caixa(0.04, 0.04, w - 0.04, h - 0.04, 0, z, cor, bevel=0.045, linha=0.018)
     deck=grupo[-1]
     mat=bpy.data.materials.get('Regolith landing deck')
@@ -631,14 +665,16 @@ def estufa():
     m2.surface_render_method = 'BLENDED'
     nt = m2.node_tree; N = nt.nodes
     tr = N.new('ShaderNodeBsdfTransparent'); mx = N.new('ShaderNodeMixShader'); mx.inputs['Fac'].default_value = 0.55
-    out = [n for n in N if n.type == 'OUTPUT_MATERIAL'][0]; em = [n for n in N if n.type == 'EMISSION'][0]
+    out = [n for n in N if n.type == 'OUTPUT_MATERIAL'][0]; em = [n for n in N if n.type in ('EMISSION', 'BSDF_PRINCIPLED')][0]   # toon: emission; estacao: Principled
     nt.links.new(em.outputs[0], mx.inputs[1]); nt.links.new(tr.outputs[0], mx.inputs[2]); nt.links.new(mx.outputs[0], out.inputs['Surface'])
     if o.users_collection and sc.collection not in o.users_collection:
         for c in o.users_collection: c.objects.unlink(o)
         sc.collection.objects.link(o)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    o.data.materials.append(m2); o.data.materials.append(contorno)
-    sl = o.modifiers.new('contorno', 'SOLIDIFY'); sl.thickness = 0.02; sl.offset = 1; sl.use_flip_normals = True; sl.material_offset = 1; sl.use_rim = False
+    o.data.materials.append(m2)
+    if not NOVO:
+        o.data.materials.append(contorno)
+        sl = o.modifiers.new('contorno', 'SOLIDIFY'); sl.thickness = 0.02; sl.offset = 1; sl.use_flip_normals = True; sl.material_offset = 1; sl.use_rim = False
     grupo.append(o)
     for x in (0.4, 1.5, 2.6):                                                 # ribs: arches over the tube
         for k in range(12):
@@ -1260,6 +1296,148 @@ def agua(n):
 
 for n in range(4): MODELOS[f'blindagem_agua{n}'] = agua(n)
 
+
+# ---------- detail kit (the solar station's level of detail) ----------
+# Every main module gets, on top of its own shape: a name plate on the front of its base (like the panel's
+# "SOL 01"), orange corner guards with bolts, bolts along the visible deck edges, and a small control
+# pedestal (screen with text lines, three status LEDs) standing in a free spot of the deck, with a cable
+# running to the module. The free spot is found from the model itself, so nothing goes through a wall.
+CODIGOS = {
+    'habitat': 'HAB-01', 'suporte': 'LIFE SUPPORT', 'blindagem': 'RAD SHIELD', 'oficina': 'ROCKET WORKSHOP',
+    'plataforma': 'PAD-1', 'antena': 'COMMS', 'estufa': 'GREENHOUSE', 'perfuratriz': 'ICE DRILL',
+    'usina': 'O2 PLANT', 'reciclador': 'RECYCLER', 'eclusa': 'AIRLOCK', 'impressora': '3D PRINTER',
+    'radiotelescopio': 'RADIO SCOPE',
+}
+
+def texto3d(corpo, x, y, z, tam, cor, face='frente'):
+    """Raised lettering on a vertical face the camera sees: 'frente' (+gy) or 'direita' (+gx). (x, y, z) is its center."""
+    bpy.ops.object.text_add()
+    o = bpy.context.active_object
+    o.data.body = corpo; o.data.size = tam; o.data.extrude = 0.003
+    o.data.align_x = 'CENTER'; o.data.align_y = 'CENTER'
+    o.rotation_euler = (math.radians(90), 0, 0) if face == 'frente' else (math.radians(90), 0, math.radians(90))
+    o.location = (x, -y, z)
+    bpy.ops.object.convert(target='MESH')
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    return _fim(o, cor, 0, 0.002)
+
+def _ocupado(deck_z):
+    """Footprint boxes (gx0, gy0, gx1, gy1) of everything standing on the deck."""
+    caixas = []
+    for o in grupo:
+        if o.type != 'MESH': continue
+        pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
+        if max(p.z for p in pts) <= deck_z + 0.012: continue        # the deck itself and flat markings
+        xs = [p.x for p in pts]; ys = [-p.y for p in pts]
+        caixas.append((min(xs), min(ys), max(xs), max(ys)))
+    return caixas
+
+def _livre(caixas, x0, y0, x1, y1, folga=0.05):
+    return all(x1 + folga <= a or x0 - folga >= c or y1 + folga <= b or y0 - folga >= d for a, b, c, d in caixas)
+
+def cabo(pontos, cor='#334155', r=0.016):
+    """A cable lying on the deck through (gx, gy, z) points."""
+    cd = bpy.data.curves.new('cabo', 'CURVE'); cd.dimensions = '3D'; cd.bevel_depth = r; cd.bevel_resolution = 3
+    sp = cd.splines.new('BEZIER'); sp.bezier_points.add(len(pontos) - 1)
+    for bp, (x, y, z) in zip(sp.bezier_points, pontos):
+        bp.co = (x, -y, z); bp.handle_left_type = bp.handle_right_type = 'AUTO'
+    o = bpy.data.objects.new('cabo', cd); sc.collection.objects.link(o)
+    for x in bpy.context.selected_objects: x.select_set(False)
+    bpy.context.view_layer.objects.active = o
+    o.select_set(True)
+    bpy.ops.object.convert(target='MESH')
+    return _fim(bpy.context.active_object, cor, 0, 0.004)
+
+def detalhar(base, w, h, deck=(0.1, 0.1), z=0.12):
+    if base not in CODIGOS: return
+    x0, y0 = deck; x1, y1 = w - deck[0], h - deck[1]
+    caixas = _ocupado(z)
+    # Name plate on the front of the base, centered, dark with light letters.
+    pw = min(w - 0.5, 0.075 * len(CODIGOS[base]) + 0.2)
+    caixa(w / 2 - pw / 2, h - 0.035, w / 2 + pw / 2, h + 0.004, z * 0.12, z * 0.92, '#1e293b', bevel=0.008)
+    texto3d(CODIGOS[base], w / 2, h + 0.006, z * 0.52, 0.07, '#e2e8f0')
+    # Corner guards with a bolt, where the corner is free.
+    for cx, cy in ((x0, y0), (x1 - 0.16, y0), (x0, y1 - 0.16), (x1 - 0.16, y1 - 0.16)):
+        if not _livre(caixas, cx, cy, cx + 0.16, cy + 0.16, 0.01): continue
+        caixa(cx, cy, cx + 0.16, cy + 0.16, z, z + 0.03, '#e8894a', bevel=0.012)
+        cilindro(cx + 0.08, cy + 0.08, 0.026, z + 0.03, z + 0.05, '#94a3b8', v=12)
+    # Bolts along the two deck edges the camera sees.
+    n = int(w / 0.45)
+    for i in range(1, n):
+        bx = x0 + (x1 - x0) * i / n
+        if _livre(caixas, bx - 0.03, y1 - 0.09, bx + 0.03, y1 - 0.03, 0.0): cilindro(bx, y1 - 0.06, 0.022, z, z + 0.02, '#94a3b8', v=10)
+    n = int(h / 0.45)
+    for i in range(1, n):
+        by = y0 + (y1 - y0) * i / n
+        if _livre(caixas, x1 - 0.09, by - 0.03, x1 - 0.03, by + 0.03, 0.0): cilindro(x1 - 0.06, by, 0.022, z, z + 0.02, '#94a3b8', v=10)
+    # Control pedestal in the free spot nearest the front-right corner (the side the camera sees best).
+    def lugar(pw, ph, nota):
+        melhor = None
+        gy = y1 - ph - 0.05
+        while gy >= y0 + 0.05:
+            gx = x1 - pw - 0.05
+            while gx >= x0 + 0.05:
+                if _livre(caixas, gx, gy, gx + pw, gy + ph):
+                    v = nota(gx, gy)
+                    if melhor is None or v > melhor[0]: melhor = (v, gx, gy)
+                gx -= 0.05
+            gy -= 0.05
+        if melhor: caixas.append((melhor[1], melhor[2], melhor[1] + pw, melhor[2] + ph))
+        return melhor and melhor[1:]
+    pw, ph, alto = 0.38, 0.26, 0.46
+    ponto = lugar(pw, ph, lambda gx, gy: gx + gy)
+    if ponto:
+        px, py = ponto
+        caixa(px + 0.05, py + 0.05, px + pw - 0.05, py + ph - 0.05, z, z + 0.06, '#64748b', bevel=0.012)       # foot
+        caixa(px, py, px + pw, py + ph, z + 0.06, z + alto, '#d9dee6', bevel=0.03)                              # body
+        caixa(px - 0.015, py - 0.015, px + pw + 0.015, py + ph + 0.015, z + alto, z + alto + 0.04, '#e8894a', bevel=0.015)
+        # Screen on the front face with lines of "text", then the status LEDs and a little antenna.
+        caixa(px + 0.035, py + ph - 0.01, px + pw - 0.035, py + ph + 0.01, z + 0.17, z + alto - 0.035, '#1e293b', bevel=0.008)
+        visor(px + 0.055, py + ph + 0.006, px + pw - 0.055, py + ph + 0.016, z + 0.19, z + alto - 0.055, '#8ae8ff')
+        for k in range(3):
+            zz = z + alto - 0.095 - k * 0.055
+            caixa(px + 0.085, py + ph + 0.016, px + 0.085 + (0.2, 0.13, 0.16)[k], py + ph + 0.022, zz, zz + 0.016, '#1e3a5f', bevel=0)
+        for k, cor in enumerate(('#4ade80', '#fbbf24', '#ef4444')):
+            emissivo(esfera(px + 0.09 + k * 0.09, py + ph + 0.008, z + 0.11, 0.024, 0.016, 0.024, cor, linha=0.002), cor, 2.4)
+        cilindro(px + pw - 0.06, py + 0.06, 0.012, z + alto + 0.04, z + alto + 0.2, '#94a3b8', v=8)
+        emissivo(esfera(px + pw - 0.06, py + 0.06, z + alto + 0.21, 0.025, 0.025, 0.025, '#ef4444', linha=0.002), '#ef4444', 2.0)
+        # Cable from the pedestal's back to the nearest thing standing on the deck.
+        outros = caixas[:-1]
+        if outros:
+            cxp, cyp = px + pw / 2, py
+            def perto(b):
+                qx = min(max(cxp, b[0]), b[2]); qy = min(max(cyp, b[1]), b[3])
+                return (qx - cxp) ** 2 + (qy - cyp) ** 2, qx, qy
+            d2, qx, qy = min(perto(b) for b in outros)
+            if d2 > 0.02:
+                cabo([(cxp, cyp - 0.01, z + 0.07), ((cxp + qx) / 2, (cyp + qy) / 2, z + 0.022), (qx, qy, z + 0.07)], r=0.02)
+    # A spare battery cartridge, the same as the Battery Bank's: green body, light lid, orange handle,
+    # standing on a round charging pad, in a free spot toward the front-left.
+    cw = 0.24
+    ponto = lugar(cw + 0.08, cw + 0.08, lambda gx, gy: gy - gx * 0.6)
+    if ponto:
+        bx, by = ponto[0] + 0.04, ponto[1] + 0.04
+        cilindro(bx + cw / 2, by + cw / 2, cw * 0.72, z, z + 0.018, '#cfe8dc', v=24)
+        caixa(bx, by, bx + cw, by + cw, z + 0.018, z + 0.3, '#5fa883', bevel=0.025)
+        caixa(bx - 0.012, by - 0.012, bx + cw + 0.012, by + cw + 0.012, z + 0.3, z + 0.36, '#d9dee6', bevel=0.02)
+        visor(bx + 0.05, by + cw - 0.002, bx + cw - 0.05, by + cw + 0.008, z + 0.17, z + 0.25, '#eafff4')
+        for k in range(3):
+            caixa(bx + 0.06, by + cw, bx + cw - 0.06, by + cw + 0.01, z + 0.06 + k * 0.03, z + 0.07 + k * 0.03, '#2f6b52', bevel=0)
+        haste((bx + 0.05, by + cw / 2, z + 0.36), (bx + 0.05, by + cw / 2, z + 0.42), 0.014, '#e8894a')
+        haste((bx + cw - 0.05, by + cw / 2, z + 0.36), (bx + cw - 0.05, by + cw / 2, z + 0.42), 0.014, '#e8894a')
+        haste((bx + 0.05, by + cw / 2, z + 0.42), (bx + cw - 0.05, by + cw / 2, z + 0.42), 0.016, '#e8894a')
+
+def com_detalhes(nome, fn):
+    import re
+    base = 'plataforma' if nome.startswith('foguete') else re.sub(r'_(anim\d|agua\d)$', '', nome)
+    def build():
+        fn()
+        if NOVO and base in CODIGOS:
+            w, h = TIPOS[base]
+            if base == 'plataforma': detalhar(base, w, h, deck=(0.1, 0.1), z=0.2)
+            else: detalhar(base, w, h)
+    return build
+
 def animado(fn,frame):
     def build():
         global FASE
@@ -1271,6 +1449,8 @@ def animado(fn,frame):
 for nome,count in ANIMADOS.items():
     for frame in range(1,count): MODELOS[f'{nome}_anim{frame}']=animado(MODELOS[nome],frame)
 
+for _n in list(MODELOS): MODELOS[_n] = com_detalhes(_n, MODELOS[_n])
+
 # ---------- camera: render_terrain.py's 2:1 isometric camera ----------
 elev = math.radians(30)
 to_cam = Vector((math.cos(elev) * math.sqrt(0.5), -math.cos(elev) * math.sqrt(0.5), math.sin(elev)))
@@ -1280,9 +1460,21 @@ cam = bpy.data.cameras.new('ModCam'); cam.type = 'ORTHO'; cam.clip_end = 200
 cam_o = bpy.data.objects.new('ModCam', cam); sc.collection.objects.link(cam_o); sc.camera = cam_o
 cam_o.rotation_mode = 'QUATERNION'; cam_o.rotation_quaternion = q
 sun = bpy.data.lights.new('Sol', 'SUN'); sun.energy = 4.0; sun.use_shadow = False
+if NOVO: sun.energy = 0.0   # the soft area light (luz_estacao) lights each model instead
 sun_o = bpy.data.objects.new('Sol', sun); sc.collection.objects.link(sun_o)
 to_sun = (to_cam * 0.5 - right * 1.0 + Vector((0, 0, 0.45))).normalized()
 sun_o.rotation_euler = (-to_sun).to_track_quat('-Z', 'Y').to_euler()
+
+def luz_estacao():
+    """The solar station's key light: a big warm disk above the front-left, aimed at the model, with soft shadows."""
+    if not NOVO: return
+    pts = [o.matrix_world @ Vector(c) for o in grupo for c in o.bound_box]
+    if not pts: return
+    centro = sum(pts, Vector()) / len(pts)
+    luz = bpy.data.lights.new('Sol de exportacao', 'AREA'); luz.energy = 1500; luz.shape = 'DISK'; luz.size = 7
+    o = bpy.data.objects.new('Sol de exportacao', luz); sc.collection.objects.link(o)
+    o.location = centro + Vector((2, -5, 9))
+    o.rotation_euler = (centro - o.location).to_track_quat('-Z', 'Y').to_euler()
 
 def enquadrar(zoom=1):
     """Frames the camera on the current model, like the export does; returns (W, H, cx, cy, s)."""
@@ -1330,6 +1522,7 @@ else:
         for o in list(sc.objects):
             if o.type == 'MESH' or (o.type == 'LIGHT' and o.data.type != 'SUN'): bpy.data.objects.remove(o)
         grupo.clear(); fn()
+        luz_estacao()
         W, H, cx, cy = enquadrar()
         png = os.path.join(OUT, f'{nome}.png')
         sc.render.filepath = png

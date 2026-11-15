@@ -1,42 +1,42 @@
 {
  "habitat": {
   "arquivo": "lua/modulos/habitat.png",
-  "w": 391,
-  "h": 301,
+  "w": 392,
+  "h": 295,
   "escala": 0.5,
   "ancora": [
-   195.5,
-   102.55
+   196.0,
+   98.14
   ]
  },
  "suporte": {
   "arquivo": "lua/modulos/suporte.png",
-  "w": 331,
-  "h": 244,
+  "w": 332,
+  "h": 242,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   75.72
+   136.0,
+   74.91
   ]
  },
  "blindagem": {
   "arquivo": "lua/modulos/blindagem.png",
-  "w": 271,
-  "h": 260,
+  "w": 272,
+  "h": 258,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   121.85
+   136.0,
+   120.89
   ]
  },
  "oficina": {
   "arquivo": "lua/modulos/oficina.png",
-  "w": 391,
-  "h": 355,
+  "w": 392,
+  "h": 350,
   "escala": 0.5,
   "ancora": [
-   195.5,
-   156.55
+   196.0,
+   153.08
   ]
  },
  "painel": {
@@ -51,62 +51,62 @@
  },
  "plataforma": {
   "arquivo": "lua/modulos/plataforma.png",
-  "w": 377,
-  "h": 416,
+  "w": 372,
+  "h": 412,
   "escala": 0.5,
   "ancora": [
-   188.5,
-   221.15
+   186.0,
+   219.66
   ]
  },
  "antena": {
   "arquivo": "lua/modulos/antena.png",
-  "w": 271,
-  "h": 241,
+  "w": 272,
+  "h": 238,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   102.93
+   136.0,
+   101.01
   ]
  },
  "estufa": {
   "arquivo": "lua/modulos/estufa.png",
-  "w": 331,
-  "h": 263,
+  "w": 332,
+  "h": 259,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   94.62
+   136.0,
+   92.16
   ]
  },
  "perfuratriz": {
   "arquivo": "lua/modulos/perfuratriz.png",
-  "w": 271,
-  "h": 269,
+  "w": 272,
+  "h": 265,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   130.66
+   136.0,
+   127.92
   ]
  },
  "rover": {
   "arquivo": "lua/modulos/rover.png",
-  "w": 196,
-  "h": 197,
+  "w": 193,
+  "h": 194,
   "escala": 0.5,
   "ancora": [
-   68.0,
-   92.91
+   66.5,
+   91.58
   ]
  },
  "pouso": {
   "arquivo": "lua/modulos/pouso.png",
-  "w": 276,
-  "h": 251,
+  "w": 274,
+  "h": 245,
   "escala": 0.5,
   "ancora": [
-   138.0,
-   112.01
+   137.0,
+   107.6
   ]
  },
  "chama": {
@@ -121,122 +121,122 @@
  },
  "foguete0": {
   "arquivo": "lua/modulos/foguete0.png",
-  "w": 377,
-  "h": 416,
+  "w": 372,
+  "h": 412,
   "escala": 0.5,
   "ancora": [
-   188.5,
-   221.15
+   186.0,
+   219.66
   ]
  },
  "foguete1": {
   "arquivo": "lua/modulos/foguete1.png",
-  "w": 377,
-  "h": 416,
+  "w": 372,
+  "h": 412,
   "escala": 0.5,
   "ancora": [
-   188.5,
-   221.15
+   186.0,
+   219.66
   ]
  },
  "foguete2": {
   "arquivo": "lua/modulos/foguete2.png",
-  "w": 377,
-  "h": 416,
+  "w": 372,
+  "h": 412,
   "escala": 0.5,
   "ancora": [
-   188.5,
-   221.15
+   186.0,
+   219.66
   ]
  },
  "foguete3": {
   "arquivo": "lua/modulos/foguete3.png",
-  "w": 377,
-  "h": 416,
+  "w": 372,
+  "h": 412,
   "escala": 0.5,
   "ancora": [
-   188.5,
-   221.15
+   186.0,
+   219.66
   ]
  },
  "foguete4": {
   "arquivo": "lua/modulos/foguete4.png",
-  "w": 377,
-  "h": 465,
+  "w": 372,
+  "h": 458,
   "escala": 0.5,
   "ancora": [
-   188.5,
-   270.11
+   186.0,
+   265.8
   ]
  },
  "suporte_anim1": {
   "arquivo": "lua/modulos/suporte_anim1.png",
-  "w": 331,
-  "h": 244,
+  "w": 332,
+  "h": 242,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   75.72
+   136.0,
+   74.91
   ]
  },
  "suporte_anim2": {
   "arquivo": "lua/modulos/suporte_anim2.png",
-  "w": 331,
-  "h": 244,
+  "w": 332,
+  "h": 242,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   75.72
+   136.0,
+   74.91
   ]
  },
  "oficina_anim1": {
   "arquivo": "lua/modulos/oficina_anim1.png",
-  "w": 391,
-  "h": 355,
+  "w": 392,
+  "h": 350,
   "escala": 0.5,
   "ancora": [
-   195.5,
-   156.55
+   196.0,
+   153.08
   ]
  },
  "oficina_anim2": {
   "arquivo": "lua/modulos/oficina_anim2.png",
-  "w": 391,
-  "h": 355,
+  "w": 392,
+  "h": 350,
   "escala": 0.5,
   "ancora": [
-   195.5,
-   156.55
+   196.0,
+   153.08
   ]
  },
  "usina": {
   "arquivo": "lua/modulos/usina.png",
-  "w": 331,
-  "h": 267,
+  "w": 332,
+  "h": 264,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   98.81
+   136.0,
+   97.19
   ]
  },
  "reciclador": {
   "arquivo": "lua/modulos/reciclador.png",
-  "w": 271,
-  "h": 266,
+  "w": 272,
+  "h": 263,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   127.8
+   136.0,
+   126.08
   ]
  },
  "eclusa": {
   "arquivo": "lua/modulos/eclusa.png",
-  "w": 211,
-  "h": 211,
+  "w": 212,
+  "h": 208,
   "escala": 0.5,
   "ancora": [
-   75.5,
-   102.78
+   76.0,
+   101.06
   ]
  },
  "bateria": {
@@ -251,222 +251,222 @@
  },
  "impressora": {
   "arquivo": "lua/modulos/impressora.png",
-  "w": 331,
-  "h": 295,
+  "w": 332,
+  "h": 290,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   126.81
+   136.0,
+   122.92
   ]
  },
  "radiotelescopio": {
   "arquivo": "lua/modulos/radiotelescopio.png",
-  "w": 391,
-  "h": 352,
+  "w": 392,
+  "h": 350,
   "escala": 0.5,
   "ancora": [
-   195.5,
-   153.94
+   196.0,
+   152.72
   ]
  },
  "deco_rover_velho": {
   "arquivo": "lua/modulos/deco_rover_velho.png",
-  "w": 192,
-  "h": 185,
+  "w": 189,
+  "h": 182,
   "escala": 0.5,
   "ancora": [
-   66.0,
-   73.6
+   64.5,
+   72.37
   ]
  },
  "deco_modulo_descida": {
   "arquivo": "lua/modulos/deco_modulo_descida.png",
-  "w": 286,
-  "h": 211,
+  "w": 284,
+  "h": 208,
   "escala": 0.5,
   "ancora": [
-   143.0,
-   69.65
+   142.0,
+   67.78
   ]
  },
  "deco_sonda": {
   "arquivo": "lua/modulos/deco_sonda.png",
-  "w": 148,
-  "h": 147,
+  "w": 144,
+  "h": 145,
   "escala": 0.5,
   "ancora": [
-   74.0,
-   67.67
+   72.0,
+   66.51
   ]
  },
  "deco_caixas": {
   "arquivo": "lua/modulos/deco_caixas.png",
-  "w": 143,
-  "h": 140,
+  "w": 136,
+  "h": 132,
   "escala": 0.5,
   "ancora": [
-   69.06,
-   70.04
+   65.43,
+   66.07
   ]
  },
  "deco_sismografo": {
   "arquivo": "lua/modulos/deco_sismografo.png",
-  "w": 121,
-  "h": 139,
+  "w": 118,
+  "h": 136,
   "escala": 0.5,
   "ancora": [
-   60.5,
-   68.94
+   59.0,
+   67.48
   ]
  },
  "deco_refletor": {
   "arquivo": "lua/modulos/deco_refletor.png",
-  "w": 136,
-  "h": 120,
+  "w": 132,
+  "h": 116,
   "escala": 0.5,
   "ancora": [
-   68.0,
-   46.74
+   66.0,
+   43.88
   ]
  },
  "deco_baliza": {
   "arquivo": "lua/modulos/deco_baliza.png",
-  "w": 87,
-  "h": 157,
+  "w": 84,
+  "h": 154,
   "escala": 0.5,
   "ancora": [
-   43.5,
-   95.57
+   42.0,
+   93.97
   ]
  },
  "deco_barris": {
   "arquivo": "lua/modulos/deco_barris.png",
-  "w": 130,
-  "h": 122,
+  "w": 128,
+  "h": 118,
   "escala": 0.5,
   "ancora": [
-   61.8,
-   50.84
+   60.4,
+   48.87
   ]
  },
  "deco_bandeira": {
   "arquivo": "lua/modulos/deco_bandeira.png",
-  "w": 94,
-  "h": 144,
+  "w": 91,
+  "h": 143,
   "escala": 0.5,
   "ancora": [
-   44.52,
-   81.09
+   43.25,
+   80.29
   ]
  },
  "deco_pedras": {
   "arquivo": "lua/modulos/deco_pedras.png",
-  "w": 131,
-  "h": 104,
+  "w": 126,
+  "h": 100,
   "escala": 0.5,
   "ancora": [
-   66.07,
-   31.1
+   63.57,
+   28.37
   ]
  },
  "deco_camera": {
   "arquivo": "lua/modulos/deco_camera.png",
-  "w": 81,
-  "h": 129,
+  "w": 79,
+  "h": 127,
   "escala": 0.5,
   "ancora": [
-   36.41,
-   69.68
+   35.14,
+   68.5
   ]
  },
  "deco_amostras": {
   "arquivo": "lua/modulos/deco_amostras.png",
-  "w": 133,
-  "h": 98,
+  "w": 130,
+  "h": 92,
   "escala": 0.5,
   "ancora": [
-   70.15,
-   30.72
+   69.13,
+   28.7
   ]
  },
  "deco_lanterna": {
   "arquivo": "lua/modulos/deco_lanterna.png",
-  "w": 84,
-  "h": 136,
+  "w": 81,
+  "h": 134,
   "escala": 0.5,
   "ancora": [
-   38.79,
-   78.45
+   37.2,
+   77.46
   ]
  },
  "deco_ferramentas": {
   "arquivo": "lua/modulos/deco_ferramentas.png",
-  "w": 95,
-  "h": 123,
+  "w": 93,
+  "h": 120,
   "escala": 0.5,
   "ancora": [
-   48.94,
-   57.79
+   47.7,
+   56.81
   ]
  },
  "deco_carretel": {
   "arquivo": "lua/modulos/deco_carretel.png",
-  "w": 118,
-  "h": 143,
+  "w": 116,
+  "h": 140,
   "escala": 0.5,
   "ancora": [
-   59.0,
-   71.29
+   58.0,
+   69.7
   ]
  },
  "deco_mochila": {
   "arquivo": "lua/modulos/deco_mochila.png",
-  "w": 103,
-  "h": 103,
+  "w": 98,
+  "h": 96,
   "escala": 0.5,
   "ancora": [
-   53.98,
-   27.94
+   52.9,
+   23.67
   ]
  },
  "blindagem_agua0": {
   "arquivo": "lua/modulos/blindagem_agua0.png",
-  "w": 271,
-  "h": 260,
+  "w": 272,
+  "h": 258,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   121.85
+   136.0,
+   120.89
   ]
  },
  "blindagem_agua1": {
   "arquivo": "lua/modulos/blindagem_agua1.png",
-  "w": 271,
-  "h": 260,
+  "w": 272,
+  "h": 258,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   121.85
+   136.0,
+   120.89
   ]
  },
  "blindagem_agua2": {
   "arquivo": "lua/modulos/blindagem_agua2.png",
-  "w": 271,
-  "h": 260,
+  "w": 272,
+  "h": 258,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   121.85
+   136.0,
+   120.89
   ]
  },
  "blindagem_agua3": {
   "arquivo": "lua/modulos/blindagem_agua3.png",
-  "w": 271,
-  "h": 260,
+  "w": 272,
+  "h": 258,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   121.85
+   136.0,
+   120.89
   ]
  },
  "bateria_carga0": {

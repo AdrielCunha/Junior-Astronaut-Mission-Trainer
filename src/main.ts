@@ -11,6 +11,7 @@ import { CenaTarefa } from './cenas/Tarefa';
 import { Radar } from './cenas/Radar';
 import { MenuJogo } from './cenas/MenuJogo';
 import { Carregar } from './cenas/Carregar';
+import { Chegada } from './cenas/Chegada';
 import { Viagem } from './cenas/Viagem';
 import { MarteVista } from './cenas/MarteVista';
 import { iniciarAudio } from './audio';
@@ -472,9 +473,9 @@ const jogo = new Phaser.Game({
   // launched individually while the player is exploring the base. Radar is also kept available for the
   // title screen flow added on main.
   scene: classico
-    ? [Carregar, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
+    ? [Carregar, Chegada, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
       TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo]
-    : [Carregar, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
+    : [Carregar, Chegada, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
       TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo],
 });
 
