@@ -9,7 +9,10 @@ import { Interface } from './cenas/Interface';
 import { Base } from './cenas/Base';
 import { CenaTarefa } from './cenas/Tarefa';
 import { Radar } from './cenas/Radar';
+import { MenuJogo } from './cenas/MenuJogo';
 import { Carregar } from './cenas/Carregar';
+import { Viagem } from './cenas/Viagem';
+import { MarteVista } from './cenas/MarteVista';
 import { iniciarAudio } from './audio';
 import { NaveTarefa } from './cenas/NaveTarefa';
 import { FiltroO2Tarefa } from './cenas/FiltroO2Tarefa';
@@ -470,12 +473,14 @@ const jogo = new Phaser.Game({
   // title screen flow added on main.
   scene: classico
     ? [Carregar, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar]
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo]
     : [Carregar, Espaco, Superficie, Interface, Base, NaveTarefa, FiltroO2Tarefa, OxigenioFaixaTarefa, ReatorTarefa, DesviarEnergiaTarefa, FiacaoTarefa, PotenciaMotorTarefa, DirecaoTarefa, MapearRotaTarefa, TransferirDadosTarefa, ComunicacoesTarefa, IluminacaoTarefa, ColapsoReatorTarefa,
-      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar],
+      TrocarFiltroCo2Tarefa, EquilibrarValvulasTarefa, TaparTempestadeTarefa, FecharEscotilhasTarefa, PaineisSolaresTarefa, CenaTarefa, Radar, Viagem, MarteVista, MenuJogo],
 });
 
 (window as typeof window & { __JOGO__?: Phaser.Game }).__JOGO__ = jogo;
+// Dev server only: the DEV button that jumps to the trip and Mars scenes (not in the production build).
+if (import.meta.env.DEV) void import('./dev/painelCenas').then((m) => m.criarPainelCenas(jogo));
 
 // The classic prototype has no music control, so it stays silent.
 if (!classico) iniciarAudio();

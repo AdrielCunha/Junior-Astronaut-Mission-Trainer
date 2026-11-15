@@ -20,7 +20,7 @@ import { alternarMudo, estaMudo } from '../audio';
 import { definirVolumeMusica, volumeMusica } from '../audio';
 import { definirVolumeEfeitos, tocarSfx, volumeEfeitos } from '../sfx';
 
-export type DadosRadar = { aoComecar: () => void; aoExplorar: () => void };
+export type DadosRadar = { aoComecar: () => void; aoExplorar: () => void; continuar?: boolean; aoNovoJogo?: () => void };
 
 // Edit the credits here: [section, [role, name][]]. An empty role centers the name (the team).
 const CREDITOS: [string, [string, string][]][] = [
@@ -45,6 +45,7 @@ const CIANO = 0x7dd3fc;
 export class Radar extends Phaser.Scene {
   private u = 1;
   private travado = false;
+  private janelaAberta = false;
   private chaves: string[] = [];
 
   constructor() {
@@ -55,6 +56,7 @@ export class Radar extends Phaser.Scene {
     const W = this.scale.width, H = this.scale.height;
     const u = (this.u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.5, 1.4));
     this.travado = false;
+    this.janelaAberta = false;
     this.chaves = [];
     // The map, the zoom and the keys wait under the title screen, as under a task. The game is
     // fully covered, so it is not drawn until the title screen closes.
@@ -70,7 +72,7 @@ export class Radar extends Phaser.Scene {
       for (const k of this.chaves) if (this.textures.exists(k)) this.textures.remove(k);
     });
 
-    const lancar = () => { if (this.travado) return; this.travado = true; tocarSfx('ligar'); this.contagem(d.aoComecar); };
+    const lancar = () => { if (this.travado || this.janelaAberta) return; this.travado = true; if (d.continuar) { this.scene.stop(); d.aoComecar(); } else { tocarSfx('ligar'); this.contagem(d.aoComecar); } };
     const explorar = () => { if (this.travado) return; this.travado = true; this.scene.stop(); d.aoExplorar(); };
 
     const j = this.pontosJornada(W, H);
@@ -94,11 +96,16 @@ export class Radar extends Phaser.Scene {
     // LAUNCH and EXPLORE full width; HOW TO PLAY and CREDITS share the last row.
     const bw = Math.min(340 * u, W - 60 * u), bh = 58 * u, gap = 16 * u;
     const y1 = Math.max(fita.y + fh / 2 + 54 * u, H * 0.5);
-    const play = this.botao(cx, y1, bw, bh + 8 * u, 'LAUNCH MISSION  ▶', 0x22c55e, 24 * u, lancar);
+    const play = this.botao(cx, y1, bw, bh + 8 * u, d.continuar ? 'CONTINUE MISSION  \u25b6' : 'LAUNCH MISSION  \u25b6', 0x22c55e, 24 * u, lancar);
     this.tweens.add({ targets: play, scale: 1.05, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    const y2 = y1 + (bh + 8 * u) / 2 + gap + bh / 2;
-    this.botao(cx, y2, bw, bh, 'EXPLORE A BASE', 0x2563eb, 20 * u, () => this.escolherBase(explorar));
-    const y3 = y2 + bh + gap, meia = (bw - gap) / 2;
+    play.setData('acao', d.continuar ? 'continue' : 'launch');
+    let proximaLinha = y1 + (bh + 8 * u) / 2 + gap + bh / 2;
+    if (d.continuar && d.aoNovoJogo) {
+      this.botao(cx, proximaLinha, bw, bh, 'NEW GAME', 0x2563eb, 20 * u, () => this.confirmarNovoJogo(d.aoNovoJogo!)).setData('acao', 'new-game');
+      proximaLinha += bh + gap;
+    }
+    this.botao(cx, proximaLinha, bw, bh, 'EXPLORE A BASE', 0x2563eb, 20 * u, () => this.escolherBase(explorar));
+    const y3 = proximaLinha + bh + gap, meia = (bw - gap) / 2;
     this.botao(cx - (meia + gap) / 2, y3, meia, bh, 'HOW TO PLAY', 0x475569, 18 * u, () => this.comoJogar());
     this.botao(cx + (meia + gap) / 2, y3, meia, bh, 'CREDITS', 0x475569, 18 * u, () => this.creditos());
 
@@ -106,7 +113,7 @@ export class Radar extends Phaser.Scene {
     this.botaoConfiguracoes(W - 40 * u, 40 * u);
     const rodape = H - 22 * u;
     this.add.text(24 * u, rodape, 'Real NASA data · the May 2024 solar storm', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
-    const enter = this.add.text(W - 24 * u, rodape, 'Press ENTER to launch', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(1, 0.5);
+    const enter = this.add.text(W - 24 * u, rodape, d.continuar ? 'Press ENTER to continue' : 'Press ENTER to launch', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(1, 0.5);
     this.tweens.add({ targets: enter, alpha: 0.35, duration: 900, yoyo: true, repeat: -1 });
 
     this.input.keyboard?.on('keydown-ENTER', lancar);
@@ -379,12 +386,24 @@ export class Radar extends Phaser.Scene {
   // ---------- windows in the task frame ----------
   // Opens a framed window; everything added until it closes belongs to it.
   // The content may return a cleanup for timers and input it added.
+  private confirmarNovoJogo(comecar: () => void) {
+    this.janela('NEW GAME', 600, 340, (tela, fechar) => {
+      const u = this.u, cx = tela.x + tela.w / 2;
+      this.add.text(cx, tela.y + tela.h * 0.25, 'Start a new mission?\nYour current mission will be reset.',
+        letra(18 * u, '#ffffff', { align: 'center', wordWrap: { width: tela.w - 24 * u } })).setOrigin(0.5);
+      botaoVerde(this, cx, tela.y + tela.h * 0.77, 'START NEW GAME', 19 * u, 44 * u, u, () => {
+        fechar(); this.travado = true; this.scene.stop(); comecar();
+      }).setData('acao', 'confirm-new-game');
+    }, 'CANCEL');
+  }
+
   private janela(titulo: string, largura: number, altura: number, conteudo: (tela: { x: number; y: number; w: number; h: number }, fechar: () => void) => void | (() => void), rodapeOk = 'GOT IT!  ▶') {
     const u = this.u;
     const W = this.scale.width, H = this.scale.height;
     const antes = this.children.list.length;
+    this.janelaAberta = true;
     let limpar: void | (() => void);
-    const fechar = () => { limpar?.(); for (const o of this.children.list.slice(antes)) o.destroy(); };
+    const fechar = () => { this.janelaAberta = false; limpar?.(); for (const o of this.children.list.slice(antes)) o.destroy(); };
     this.add.rectangle(0, 0, W, H, 0x020617, 0.6).setOrigin(0).setInteractive();
     largura = Math.min(W - 40 * u, largura * u); altura = Math.min(H - 40 * u, altura * u);
     const x0 = (W - largura) / 2, y0 = (H - altura) / 2 - 8 * u;
@@ -393,7 +412,7 @@ export class Radar extends Phaser.Scene {
     // A resize restarts the scene with the window open: clean up then too.
     this.events.once('shutdown', () => limpar?.());
     borda();
-    botaoVerde(this, x0 + largura / 2, rodape.y + rodape.h / 2, rodapeOk, 20 * u, Math.min(rodape.h, 50 * u), u, () => { tocarSfx('clique'); fechar(); });
+    botaoVerde(this, x0 + largura / 2, rodape.y + rodape.h / 2, rodapeOk, 20 * u, Math.min(rodape.h, 50 * u), u, () => { tocarSfx('clique'); fechar(); }).setData('acao', 'close-window');
     botaoFechar(this, x0 + 4 * u, y0 + 4 * u, u, () => { tocarSfx('fechar'); fechar(); });
   }
 

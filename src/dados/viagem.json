@@ -1,0 +1,166 @@
+{
+ "nave": {
+  "direcoes": [
+   {
+    "arquivo": "lua/viagem/nave_d0.png",
+    "w": 276,
+    "h": 195,
+    "centro": [
+     138.99,
+     97.5
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d1.png",
+    "w": 267,
+    "h": 192,
+    "centro": [
+     136.24,
+     88.93
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d2.png",
+    "w": 261,
+    "h": 186,
+    "centro": [
+     149.15,
+     91.04
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d3.png",
+    "w": 303,
+    "h": 203,
+    "centro": [
+     163.29,
+     101.68
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d4.png",
+    "w": 308,
+    "h": 204,
+    "centro": [
+     154.0,
+     101.31
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d5.png",
+    "w": 303,
+    "h": 203,
+    "centro": [
+     139.71,
+     101.68
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d6.png",
+    "w": 261,
+    "h": 186,
+    "centro": [
+     111.85,
+     91.04
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d7.png",
+    "w": 267,
+    "h": 192,
+    "centro": [
+     130.76,
+     88.93
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d8.png",
+    "w": 276,
+    "h": 195,
+    "centro": [
+     137.01,
+     97.5
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d9.png",
+    "w": 267,
+    "h": 192,
+    "centro": [
+     130.76,
+     103.07
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d10.png",
+    "w": 261,
+    "h": 186,
+    "centro": [
+     111.85,
+     94.96
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d11.png",
+    "w": 303,
+    "h": 203,
+    "centro": [
+     139.71,
+     101.32
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d12.png",
+    "w": 308,
+    "h": 204,
+    "centro": [
+     154.0,
+     102.69
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d13.png",
+    "w": 303,
+    "h": 203,
+    "centro": [
+     163.29,
+     101.32
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d14.png",
+    "w": 261,
+    "h": 186,
+    "centro": [
+     149.15,
+     94.96
+    ]
+   },
+   {
+    "arquivo": "lua/viagem/nave_d15.png",
+    "w": 267,
+    "h": 192,
+    "centro": [
+     136.24,
+     103.07
+    ]
+   }
+  ],
+  "passoGraus": 22.5,
+  "motorUnidades": 2.3,
+  "pxPorUnidade": 56,
+  "nota": "Picture k points at heading k * passoGraus, counterclockwise from screen right, in the tilted solar view. centro = pixel of the ship center; the engine is motorUnidades behind it."
+ },
+ "foguete": {
+  "arquivo": "lua/viagem/foguete.png",
+  "w": 127,
+  "h": 355,
+  "ancora": [
+   63.5,
+   310.35
+  ],
+  "escala": 0.5,
+  "alturaTiles": 3.7,
+  "nota": "ancora = pixel of the rocket base center; draw at escala on the map (tiles: 30 px per step)."
+ }
+}

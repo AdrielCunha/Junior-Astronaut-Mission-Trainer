@@ -7,7 +7,8 @@ import type { DecoColocada } from '../dados/decoracao.ts';
 
 export type TipoId = 'habitat' | 'suporte' | 'blindagem' | 'oficina' | 'painel' | 'plataforma'
   | 'antena' | 'estufa' | 'perfuratriz' | 'rover'
-  | 'usina' | 'reciclador' | 'eclusa' | 'bateria' | 'impressora' | 'radiotelescopio';
+  | 'usina' | 'reciclador' | 'eclusa' | 'bateria' | 'impressora' | 'radiotelescopio'
+  | 'aquecedor' | 'cupula';
 
 export type Tipo = {
   id: TipoId;
@@ -22,15 +23,15 @@ export type Tipo = {
 
 export const TIPOS: Record<TipoId, Tipo> = {
   habitat:    { id: 'habitat', nome: 'Habitat', w: 3, h: 3, altura: 1.4, cor: 0x94a3b8, unico: true,
-                papel: 'Where the crew lives. Batteries charge here every morning.' },
+                papel: 'Where the crew lives. Collect solar-charged batteries at the Battery Bank.' },
   suporte:    { id: 'suporte', nome: 'Life Support', w: 3, h: 2, altura: 1.4, cor: 0x3b82f6, sala: 'oxigenio', unico: true,
                 papel: 'Makes oxygen. Each battery gives oxygen for the night.' },
-  blindagem:  { id: 'blindagem', nome: 'Radiation Shield', w: 2, h: 2, altura: 1.3, cor: 0xeab308, sala: 'blindagem', unico: true,
-                papel: 'Protects the crew from solar storms.' },
+  blindagem:  { id: 'blindagem', nome: 'Radiation Shield', w: 2, h: 2, altura: 1.6, cor: 0xeab308, sala: 'blindagem', unico: true,
+                papel: 'A shelter with walls of water. Batteries pump the water up before a storm: water stops radiation.' },
   oficina:    { id: 'oficina', nome: 'Rocket Workshop', w: 3, h: 3, altura: 2.0, cor: 0xf97316, sala: 'meta', unico: true,
                 papel: 'Builds the rocket to Mars.' },
-  painel:     { id: 'painel', nome: 'Solar Panel', w: 2, h: 1, altura: 1.65, cor: 0x1e3a8a, unico: false,
-                papel: 'Catches sunlight. At the pole the Sun is always low, so panels stand tall.' },
+  painel:     { id: 'painel', nome: 'Solar Panel', w: 2, h: 2, altura: 1.4, cor: 0x1e3a8a, unico: false,
+                papel: 'Catches sunlight and charges the batteries at the nearby Battery Bank.' },
   plataforma: { id: 'plataforma', nome: 'Launch Pad', w: 3, h: 3, altura: 0.25, cor: 0x64748b, unico: true,
                 papel: 'Where the rocket will lift off.' },
   // Equipment that arrives by cargo lander during the chapter (engine/suprimentos.ts).
@@ -49,12 +50,17 @@ export const TIPOS: Record<TipoId, Tipo> = {
                 papel: "Cleans the crew's water and removes CO2 from the air, so nothing is wasted." },
   eclusa:     { id: 'eclusa', nome: 'Airlock', w: 2, h: 1, altura: 1.0, cor: 0xf97316, unico: true,
                 papel: "A double door that lets astronauts go outside without losing the base's air." },
-  bateria:    { id: 'bateria', nome: 'Battery Bank', w: 2, h: 2, altura: 1.1, cor: 0xfacc15, unico: true,
-                papel: 'Stores solar power for the lunar night, which lasts about 14 Earth days.' },
+  bateria:    { id: 'bateria', nome: 'Battery Bank', w: 2, h: 5, altura: 1.4, cor: 0xfacc15, unico: true,
+                papel: 'Five removable batteries store solar power. Pick up today\'s charged batteries here.' },
   impressora: { id: 'impressora', nome: 'Regolith 3D Printer', w: 3, h: 2, altura: 1.8, cor: 0xe7d3b0, unico: true,
                 papel: 'Builds walls and landing pads by melting lunar dust, so we ship less from Earth.' },
   radiotelescopio: { id: 'radiotelescopio', nome: 'Radio Telescope', w: 3, h: 3, altura: 2.2, cor: 0xcbd5e1, unico: true,
                 papel: "Listens to the universe. The Moon's far side is shielded from Earth's radio noise." },
+  // Mars (chapter 3): built from batteries first (regras.ts, obras), then powered.
+  aquecedor:  { id: 'aquecedor', nome: 'Heating', w: 3, h: 3, altura: 2.0, cor: 0xef4444, sala: 'aquecimento', unico: true,
+                papel: 'Keeps the machines warm on cold Mars nights.' },
+  cupula:     { id: 'cupula', nome: 'Habitat Dome', w: 3, h: 3, altura: 1.4, cor: 0xf97316, sala: 'meta', unico: true,
+                papel: "The crew's new home on Mars." },
 };
 
 export type Construcao = { id: number; tipo: Tipo; gx: number; gy: number; z: number };
@@ -174,34 +180,72 @@ export class Grade {
 // Offsets in tiles from the map center; each module goes to the nearest flat, free spot, so the
 // layout follows the real ground. The rooms ring the habitat: short walks with the batteries.
 // Habitation at the center, a solar field behind it, operations to the right and launch farther out.
+// Relative offsets preserve two straight rows and the adjacent bank on uneven ground.
+export const ESTACAO_SOLAR: [TipoId, number, number][] = [
+  ['painel', 0, 0], ['painel', 3, 0], ['painel', 6, 0],
+  ['painel', 0, 3], ['painel', 3, 3], ['painel', 6, 3],
+  ['bateria', 9, 0],
+];
+
 export const BASE_PADRAO: [TipoId, number, number][] = [
   ['habitat', -2, -4],
   ['suporte', 4, -3],
   ['blindagem', -6, -1],
   ['oficina', 7, 0],
   ['plataforma', 13, 6],
-  ['painel', -6, -8],
-  ['painel', -3, -8],
-  ['painel', 0, -8],
   ['usina', -12, -3],
   ['reciclador', -11, 3],
   ['eclusa', -2, 3],
-  ['bateria', 3, -8],
   ['impressora', 9, -8],
   ['radiotelescopio', -10, -9],
+  ...ESTACAO_SOLAR.map(([id, x, y]): [TipoId, number, number] => [id, x - 6, y - 11]),
 ];
 
 export const SETORES_SUPRIMENTOS: Partial<Record<TipoId, [number, number]>> = {
   antena: [-7, -6], estufa: [-6, 4], perfuratriz: [7, -7], rover: [5, 6],
 };
 
-export function montarBasePadrao(g: Grade): Construcao[] {
+// Mars, chapter 3: the crew landed with only its lander (it plays the Habitat: batteries charge
+// there), solar panels, and four construction sites (regras.ts obras).
+export const BASE_MARTE: [TipoId, number, number][] = [
+  ['habitat', -2, -2],
+  ['suporte', 4, -3],
+  ['blindagem', -6, 1],
+  ['aquecedor', 4, 3],
+  ['cupula', -3, 5],
+  ['painel', -6, -6],
+  ['painel', -3, -6],
+];
+
+export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BASE_PADRAO): Construcao[] {
   const c0 = Math.floor(g.n / 2);
   const feitas: Construcao[] = [];
-  for (const [id, dx, dy] of BASE_PADRAO) {
+  for (const [id, dx, dy] of base) {
+    if (base === BASE_PADRAO && (id === 'painel' || id === 'bateria')) continue;
     const p = g.procurarComEspaco(TIPOS[id], c0 + dx, c0 + dy);
     const c = p && g.construir(TIPOS[id], p.gx, p.gy);
     if (c) feitas.push(c);
   }
+  if (base === BASE_PADRAO) feitas.push(...montarEstacaoSolar(g, c0 - 6, c0 - 11));
   return feitas;
+}
+
+function montarEstacaoSolar(g: Grade, desejadoX: number, desejadoY: number): Construcao[] {
+  let melhor: { x: number; y: number; custo: number } | undefined;
+  for (let y = 1; y < g.n - 5; y++) for (let x = 1; x < g.n - 11; x++) {
+    const custo = (x - desejadoX) ** 2 + (y - desejadoY) ** 2;
+    if (melhor && custo >= melhor.custo) continue;
+    const cabe = ESTACAO_SOLAR.every(([id, dx, dy]) => {
+      const t = TIPOS[id], px = x + dx, py = y + dy;
+      if (g.pode(t, px, py).motivo !== 'ok') return false;
+      // Same circulation margin as the rest of the colony; keep the service court free.
+      const centro = g.n / 2;
+      if (px < centro + 3 && px + t.w > centro - 1 && py < centro + 5 && py + t.h > centro) return false;
+      return !g.lista.some(c => px < c.gx + c.tipo.w + 1 && px + t.w + 1 > c.gx &&
+        py < c.gy + c.tipo.h + 1 && py + t.h + 1 > c.gy);
+    });
+    if (cabe) melhor = { x, y, custo };
+  }
+  if (!melhor) throw new Error('No walkable location for the complete solar station.');
+  return ESTACAO_SOLAR.map(([id, dx, dy]) => g.construir(TIPOS[id], melhor.x + dx, melhor.y + dy)!);
 }

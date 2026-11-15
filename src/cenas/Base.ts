@@ -2,6 +2,8 @@
 // The game scene: isometric base, HUD and the morning / night / end panels, for all three chapters.
 // Rules live in ../regras.ts, chapter settings in ../capitulos.ts, real NASA data in ../dados/.
 import Phaser from 'phaser';
+import { desenharPaisagemMarte } from './marte';
+import { iniciarMarte3D } from './irParaMarte';
 import { CAPITULOS, type Dia, type Equipamento, type Lugar } from '../capitulos';
 import {
   COMUM, DESCANSO, inicioDoCapitulo, fimDoDia, resultado, bateriasDoDia, naEnfermaria, pontuacao, nenhuma, entregar, pronto, custo,
@@ -136,6 +138,7 @@ export class Base extends Phaser.Scene {
     this.sys.settings.data = {};
     const idx = Phaser.Math.Clamp(Math.floor(data.capitulo), 0, CAPITULOS.length - 1);
     this.capIdx = idx;
+    this.indoParaMarte = false;
     this.pontos = data.pontos ? [...data.pontos] : [];
     this.doseNoInicio = data.dose ?? 0;
     this.estado = inicioDoCapitulo(CAPITULOS[idx].config, this.doseNoInicio);
@@ -254,12 +257,37 @@ export class Base extends Phaser.Scene {
     this.criarTripulacao();
     this.criarRadiacao(W);
     this.criarHud(W, H);
+    if (this.cap.tema === 'marte') this.criarZoomMarte(W);
 
     this.input.keyboard?.on('keydown-ENTER', () => this.acaoPrincipal?.());
     this.input.keyboard?.on('keydown-SPACE', () => this.acaoPrincipal?.());
 
     this.mostrarFase();
     this.mostrarAnuncio();
+  }
+
+  // Chapter 3: zoom out from the base to Mars from orbit and the solar system (MarteVista.ts),
+  // with the mouse wheel or the button, like the zoom out from the Moon base.
+  private criarZoomMarte(W: number) {
+    const u = this.u;
+    const abrir = () => {
+      if (!this.scene.isActive()) return;
+      this.scene.pause();
+      this.scene.launch('MarteVista', { data: Date.parse(this.dia.data), aoVoltar: () => this.scene.resume() });
+    };
+    this.texto(W - 16 * u, this.layout.topo + 14 * u, '−  Mars from space', 14, '#ffffff', { backgroundColor: '#334155', padding: { x: 10 * u, y: 6 * u } })
+      .setOrigin(1, 0).setDepth(1e5 + 1).setInteractive({ useHandCursor: true }).on('pointerdown', abrir);
+    this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => { if (dy > 0) abrir(); });
+  }
+
+  // From the ship to Mars: the arrival and landing (Viagem), then the 3D chapter 3. Once.
+  private indoParaMarte = false;
+  private paraMarte(dose: number) {
+    if (this.indoParaMarte) return;
+    this.indoParaMarte = true;
+    this.pontos[this.capIdx] = pontuacao(this.estado);
+    const pontos = [...this.pontos];
+    this.scene.launch('Viagem', { etapa: 'chegada', aoTerminar: () => iniciarMarte3D(this, dose, pontos) });
   }
 
   // ---------- Drawing the world ----------
@@ -296,8 +324,9 @@ export class Base extends Phaser.Scene {
     const g = this.estatico();
     const rnd = new Phaser.Math.RandomDataGenerator(['lunar-odyssey']);
     const tema = this.cap.tema;
-    if (tema === 'marte') g.fillStyle(0x3b1d12, 0.5).fillRect(0, 0, W, H); // dusty sky
-    for (let i = 0; i < (tema === 'marte' ? 120 : 220); i++) {
+    // Mars: daytime sky, the rim of Jezero crater and the ground around the base (marte.ts).
+    if (tema === 'marte') desenharPaisagemMarte(g, W, H, this.layout.topo + (H - this.layout.topo - this.layout.base) * 0.3, this.u);
+    for (let i = 0; i < (tema === 'marte' ? 0 : 220); i++) {
       g.fillStyle(0xffffff, rnd.realInRange(0.15, 0.9));
       g.fillCircle(rnd.between(0, W), rnd.between(0, H), rnd.realInRange(0.4, 1.5) * this.u);
     }
@@ -305,9 +334,9 @@ export class Base extends Phaser.Scene {
     const y = this.layout.topo + 52 * this.u;
     if (tema === 'marte') {
       const r = 9 * this.u;
-      g.fillStyle(0x9ca3af).fillEllipse(x, y, r * 2.4, r * 1.8);
-      g.fillStyle(0x6b7280).fillCircle(x - r * 0.3, y, r * 0.35);
-      this.texto(x, y + r + 6 * this.u, 'Phobos, a moon of Mars', 12, '#e2e8f0').setOrigin(0.5, 0);
+      g.fillStyle(0xe7d3c0, 0.8).fillEllipse(x, y, r * 2.4, r * 1.8);
+      g.fillStyle(0xc4a68e, 0.8).fillCircle(x - r * 0.3, y, r * 0.35);
+      this.texto(x, y + r + 6 * this.u, 'Phobos, a moon of Mars', 12, '#fff7ed', { stroke: '#5b2e17', strokeThickness: 3 }).setOrigin(0.5, 0);
       return;
     }
     // Earth: big from the Moon, a small dot from the ship.
@@ -1539,7 +1568,11 @@ export class Base extends Phaser.Scene {
         if (cap.tema === 'nave') {
           botoes.push({ texto: 'Build ship', acao: () => { this.construirNaveEAtivarTask(); }, principal: true });
         }
-        botoes.push({ texto: 'Next chapter', acao: () => this.comecarCapitulo(this.capIdx + 1, e.dose), principal: cap.tema !== 'nave' });
+        botoes.push({ texto: 'Next chapter', acao: () => {
+          // After the ship: it arrives, enters orbit and lands (Viagem.ts), then chapter 3 runs on
+          // the 3D engine on the Mars map (irParaMarte.ts).
+          if (cap.tema === 'nave') this.paraMarte(e.dose); else this.comecarCapitulo(this.capIdx + 1, e.dose);
+        }, principal: cap.tema !== 'nave' });
 
         this.abrirPainel(cap.vitoria[0], [
           cap.vitoria[1],
@@ -1550,9 +1583,7 @@ export class Base extends Phaser.Scene {
 
         if (cap.tema === 'nave') {
           this.time.delayedCall(1800, () => {
-            if (this.fase === 'fim' && this.res === 'vitoria') {
-              this.comecarCapitulo(this.capIdx + 1, e.dose);
-            }
+            if (this.fase === 'fim' && this.res === 'vitoria') this.paraMarte(e.dose);
           });
         }
       };

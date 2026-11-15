@@ -9,9 +9,9 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
   const estreito = util < px(960);
   const tituloH = px(60);
   const titulo = caixa(margem, margem + (h1 - tituloH) / 2, px(300), tituloH);
-  const musica = caixa(largura - margem - lado, margem + Math.round((h1 - lado) / 2), lado, lado);
+  const menu = caixa(largura - margem - lado, margem + Math.round((h1 - lado) / 2), lado, lado);
   const inicio = estreito ? margem : titulo.x + titulo.w + espaco;
-  const fim = estreito ? largura - margem : musica.x - espaco;
+  const fim = estreito ? largura - margem : menu.x - espaco;
   const topo = estreito ? margem + h1 + espaco : margem;
   const recursos = Array.from({ length: 3 }, (_, i) => {
     const x = Math.round(inicio + i * (fim - inicio + espaco) / 3);
@@ -23,9 +23,6 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
   const capsulaW = estreito ? Math.round((util - espaco) * 0.53) : px(300);
   const capsula = caixa(largura - margem - capsulaW, linha2, capsulaW, h2);
   const objetivo = caixa(margem, linha2, Math.min(px(360), Math.round(largura * 0.35), capsula.x - margem - espaco), h2);
-  const configuracoesY = capsula.y + capsula.h + espaco;
-  const video = caixa(largura - margem - px(140), configuracoesY, px(140), px(28));
-  const efeitos = caixa(video.x - espaco - px(110), configuracoesY, px(110), px(28));
   const zoomAltura = 3 * lado + 2 * espaco;
   const zoomY = Math.round((altura - zoomAltura) / 2);
   const nivelW = px(64), nivelH = px(28);
@@ -40,6 +37,6 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
   const dicasAba = caixa(painelW - abaW, painelH - lado, abaW, lado);
   const dicas = caixa(margem, fimDia.y, dicasCompactas ? abaW : dicasW, lado);
   const dicasFechadasX = margem - dicasAba.x;
-  return { u, margem, espaco, titulo, faixa, musica, recursos, capsula, objetivo, efeitos, video, zoom, nivel, fimDia, dicas, dicasCompactas, dicasPainel, dicasAba, dicasFechadasX };
+  return { u, margem, espaco, titulo, faixa, menu, recursos, capsula, objetivo, zoom, nivel, fimDia, dicas, dicasCompactas, dicasPainel, dicasAba, dicasFechadasX };
 
 }

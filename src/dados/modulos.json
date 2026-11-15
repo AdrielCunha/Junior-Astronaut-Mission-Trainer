@@ -21,12 +21,12 @@
  },
  "blindagem": {
   "arquivo": "lua/modulos/blindagem.png",
-  "w": 279,
-  "h": 230,
+  "w": 271,
+  "h": 260,
   "escala": 0.5,
   "ancora": [
-   139.5,
-   91.01
+   135.5,
+   121.85
   ]
  },
  "oficina": {
@@ -41,12 +41,12 @@
  },
  "painel": {
   "arquivo": "lua/modulos/painel.png",
-  "w": 178,
-  "h": 220,
+  "w": 228,
+  "h": 215,
   "escala": 0.5,
   "ancora": [
-   61.4,
-   124.66
+   110.53,
+   100.54
   ]
  },
  "plataforma": {
@@ -241,12 +241,12 @@
  },
  "bateria": {
   "arquivo": "lua/modulos/bateria.png",
-  "w": 271,
-  "h": 228,
+  "w": 427,
+  "h": 289,
   "escala": 0.5,
   "ancora": [
-   135.5,
-   89.94
+   294.77,
+   78.36
   ]
  },
  "impressora": {
@@ -427,6 +427,106 @@
   "ancora": [
    53.98,
    27.94
+  ]
+ },
+ "blindagem_agua0": {
+  "arquivo": "lua/modulos/blindagem_agua0.png",
+  "w": 271,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   135.5,
+   121.85
+  ]
+ },
+ "blindagem_agua1": {
+  "arquivo": "lua/modulos/blindagem_agua1.png",
+  "w": 271,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   135.5,
+   121.85
+  ]
+ },
+ "blindagem_agua2": {
+  "arquivo": "lua/modulos/blindagem_agua2.png",
+  "w": 271,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   135.5,
+   121.85
+  ]
+ },
+ "blindagem_agua3": {
+  "arquivo": "lua/modulos/blindagem_agua3.png",
+  "w": 271,
+  "h": 260,
+  "escala": 0.5,
+  "ancora": [
+   135.5,
+   121.85
+  ]
+ },
+ "bateria_carga0": {
+  "arquivo": "lua/modulos/bateria_carga0.png",
+  "w": 427,
+  "h": 289,
+  "escala": 0.5,
+  "ancora": [
+   294.77,
+   78.36
+  ]
+ },
+ "bateria_carga1": {
+  "arquivo": "lua/modulos/bateria_carga1.png",
+  "w": 427,
+  "h": 289,
+  "escala": 0.5,
+  "ancora": [
+   294.77,
+   78.36
+  ]
+ },
+ "bateria_carga2": {
+  "arquivo": "lua/modulos/bateria_carga2.png",
+  "w": 427,
+  "h": 289,
+  "escala": 0.5,
+  "ancora": [
+   294.77,
+   78.36
+  ]
+ },
+ "bateria_carga3": {
+  "arquivo": "lua/modulos/bateria_carga3.png",
+  "w": 427,
+  "h": 289,
+  "escala": 0.5,
+  "ancora": [
+   294.77,
+   78.36
+  ]
+ },
+ "bateria_carga4": {
+  "arquivo": "lua/modulos/bateria_carga4.png",
+  "w": 427,
+  "h": 289,
+  "escala": 0.5,
+  "ancora": [
+   294.77,
+   78.36
+  ]
+ },
+ "bateria_carga5": {
+  "arquivo": "lua/modulos/bateria_carga5.png",
+  "w": 427,
+  "h": 289,
+  "escala": 0.5,
+  "ancora": [
+   294.77,
+   78.36
   ]
  }
 }

@@ -21,6 +21,18 @@ export const movimentoReduzido = () => video.movimento === 'reduzido' || (video.
 export let configuracoesAbertas = false;
 let dialog: HTMLDialogElement | undefined;
 
+// Shared by the title-screen dialog and the in-game settings menu.
+export function atualizarVideo(alteracoes: Partial<Video>) {
+  const qualidadeAnterior = video.qualidade;
+  Object.assign(video, alteracoes);
+  if (qualidadeAnterior !== video.qualidade) {
+    const url = new URL(location.href);
+    url.searchParams.delete('leve'); url.searchParams.delete('hd');
+    history.replaceState(history.state, '', url);
+  }
+  try { localStorage.setItem(KEY, JSON.stringify(video)); } catch { /* Storage is optional. */ }
+}
+
 export function abrirVideo() {
   if (!dialog) {
     const style = document.createElement('style');
@@ -32,14 +44,13 @@ export function abrirVideo() {
     document.body.append(dialog);
     dialog.querySelector('form')!.addEventListener('submit', () => {
       const form = dialog!.querySelector('form')!;
-      const oldQuality = video.qualidade;
-      video.skin = (form.elements.namedItem('skin') as HTMLSelectElement).value;
-      video.qualidade = (form.elements.namedItem('qualidade') as HTMLSelectElement).value as Video['qualidade'];
-      video.movimento = (form.elements.namedItem('movimento') as HTMLSelectElement).value as Video['movimento'];
-      video.efeitos = (form.elements.namedItem('efeitos') as HTMLInputElement).checked;
-      video.pegadas = (form.elements.namedItem('pegadas') as HTMLInputElement).checked;
-      if (oldQuality !== video.qualidade) {const url = new URL(location.href);url.searchParams.delete('leve');url.searchParams.delete('hd');history.replaceState(history.state,'',url);}
-      try { localStorage.setItem(KEY,JSON.stringify(video)); } catch { /* Storage is optional. */ }
+      atualizarVideo({
+        skin: (form.elements.namedItem('skin') as HTMLSelectElement).value,
+        qualidade: (form.elements.namedItem('qualidade') as HTMLSelectElement).value as Video['qualidade'],
+        movimento: (form.elements.namedItem('movimento') as HTMLSelectElement).value as Video['movimento'],
+        efeitos: (form.elements.namedItem('efeitos') as HTMLInputElement).checked,
+        pegadas: (form.elements.namedItem('pegadas') as HTMLInputElement).checked,
+      });
     });
     dialog.addEventListener('close',()=>{configuracoesAbertas=false;});
     // Phaser listens to keys at window level; modal keys must not reach the game.
