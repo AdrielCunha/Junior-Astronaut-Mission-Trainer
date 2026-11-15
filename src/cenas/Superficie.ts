@@ -937,7 +937,7 @@ export class Superficie extends Phaser.Scene {
   // explore the map.
   private iniciarCorrida() {
     const r = sessao.rover;
-    if (!r?.dirigindo || sessao.mundo === 'nave' || sessao.fase !== 'dia' || !sessao.roverCarregado || sessao.corridaHoje || sessao.expedicao) return;
+    if (!r?.dirigindo || sessao.mundo === 'nave' || sessao.fase !== 'dia' || !sessao.roverCarregado || sessao.corridaHoje || !sessao.podeMissaoSecundaria) return;
     sessao.corridaHoje = true;
     const caixas = sessao.grade.caixas();
     const livre = (x: number, y: number) => pontoLivre(sessao.terreno, caixas, x, y, RAIO_ROVER + 0.2);
@@ -954,13 +954,13 @@ export class Superficie extends Phaser.Scene {
     if (!exp) return;
     sessao.expedicao = exp;
     tocarSfx('ok');
-    sessao.emitir('mensagem', `🚩 Delivery run! Drive through the flags to bring parts to the ${exp.destino}.`, '#93c5fd');
+    sessao.emitir('mensagem', `Side mission: 🚩 Delivery run! Drive through the flags to bring parts to the ${exp.destino}.`, '#93c5fd');
   }
 
   // Exploration events: a little while after the morning (from day 2), something sends the commander out of
   // the base. It waits if another expedition or a task is open.
   private passarExploracao(dt: number) {
-    if (sessao.exploracaoEm === null || sessao.fase !== 'dia' || sessao.emTarefa || sessao.transicao || this.pouso || sessao.vista !== 'chao' || sessao.expedicao) return;
+    if (sessao.exploracaoEm === null || sessao.fase !== 'dia' || sessao.emTarefa || sessao.transicao || this.pouso || sessao.vista !== 'chao' || !sessao.podeMissaoSecundaria) return;
     sessao.exploracaoEm = Math.max(0, sessao.exploracaoEm - dt);
     if (sessao.exploracaoEm > 0) return;
     sessao.exploracaoEm = null;
@@ -977,7 +977,7 @@ export class Superficie extends Phaser.Scene {
     sessao.ultimaExploracao = t;
     this.bloqueioExp = 0;
     tocarSfx('aviso');
-    sessao.emitir('mensagem', AVISOS[t], '#93c5fd');
+    sessao.emitir('mensagem', `Side mission: ${AVISOS[t]}`, '#93c5fd');
     return true;
   }
 
@@ -1282,10 +1282,12 @@ export class Superficie extends Phaser.Scene {
     }
     sessao.eventoEm -= dt;
     if (sessao.eventoEm > 0) return;
-    sessao.eventoEm = null;
     const presentes = sessao.grade.lista.map((c) => c.tipo.id);
     const alarme = sessao.alarmeHoje && presentes.includes(sessao.alarmeHoje.modulo) ? sessao.alarmeHoje : null;
-    sessao.alarmeHoje = null;
+    sessao.alarmeHoje = null;   // also drops an alarm whose module is gone, so it cannot block side missions
+    // A side breakdown waits (countdown held at 0) while a side mission runs or the storm alert is on. The alarm never waits.
+    if (!alarme && (sessao.expedicao || sessao.tempestade.status === 'alerta')) { sessao.eventoEm = 0; return; }
+    sessao.eventoEm = null;
     const def = alarme ?? sortearEvento(presentes, sessao.ultimoEvento);
     const modulos = def ? sessao.grade.lista.filter((c) => c.tipo.id === def.modulo) : [];
     if (!def || !modulos.length) return;
@@ -1293,7 +1295,8 @@ export class Superficie extends Phaser.Scene {
     sessao.ultimoEvento = def.id;
     sessao.diasCalmos = 0;
     sessao.tempoCalmo = 0;
-    sessao.emitir('mensagem', def.aviso.replace('{nasa}', sessao.dia.curto), def.alarme ? '#fca5a5' : '#fde68a');
+    const aviso = def.aviso.replace('{nasa}', sessao.dia.curto);
+    sessao.emitir('mensagem', def.alarme ? aviso : `Side mission: ${aviso}`, def.alarme ? '#fca5a5' : '#fde68a');
     if (def.alarme) for (let k = 0; k < 3; k++) this.time.delayedCall(k * 380, () => tocarSfx('aviso'));
   }
 

@@ -17,6 +17,7 @@ export type DadosPartida = {
   desfechoPendente: {tipo: 'protegida' | 'atingida'; baterias: number} | null;
   ultimoDia: RelatorioDia | null; evento: {id: string; construcaoId: number} | null;
   eventoEm: number | null; ultimoEvento?: string; diasCalmos: number; tempoCalmo?: number; pulou: boolean;
+  condicoes?: ('sol'|'sinal'|'estufa'|null)[]; alarmePendente?: boolean;
 };
 const objeto = (v: unknown): v is Record<string,unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const numero = (v: unknown, min = 0, max = 100) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
@@ -47,7 +48,8 @@ function valido(v: unknown): v is DadosPartida {
   if (v.fase==='noite' && (!objeto(v.ultimoDia) || !objeto(v.ultimoDia.antes) || !objeto(v.ultimoDia.entregas) || typeof v.ultimoDia.fato!=='string')) return false;
   return numero(v.danoTempestade) && numero(v.bateriasTempestade,0,100)
     && (v.diaCargaRover===null || numero(v.diaCargaRover,1,9))
-    && (v.eventoEm===null || numero(v.eventoEm,0,3600)) && numero(v.diasCalmos,0,100) && (v.tempoCalmo===undefined || numero(v.tempoCalmo,0,1e6));
+    && (v.eventoEm===null || numero(v.eventoEm,0,3600)) && (v.alarmePendente===undefined || typeof v.alarmePendente==='boolean') && numero(v.diasCalmos,0,100) && (v.tempoCalmo===undefined || numero(v.tempoCalmo,0,1e6))
+    && (v.condicoes===undefined || (Array.isArray(v.condicoes) && v.condicoes.length<=20 && v.condicoes.every(c=>c===null || ['sol','sinal','estufa'].includes(String(c)))));
 }
 export function lerPartida(): DadosPartida | null {
   try { const v: unknown = JSON.parse(localStorage.getItem(CHAVE) ?? 'null'); return valido(v) ? v : null; }

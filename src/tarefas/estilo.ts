@@ -261,12 +261,12 @@ export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: I
     .lineStyle(px(2), 0xffffff).strokeRoundedRect(coluna, trilhoY - trilhoH / 2, trilhoW, trilhoH, trilhoH / 2);
   const preenchimento = cena.add.graphics();
   caixa.add([fundo, simbolo, label, selo.caixa, trilho, preenchimento]);
-  return { caixa, atualizar: (valor: number) => {
+  return { caixa, atualizar: (valor: number, corAtual = cor) => {
     const fracao = Math.max(0, Math.min(100, valor)) / 100;
     const borda = px(2), a = trilhoH - 2 * borda, util = trilhoW - 2 * borda;
     const cheio = fracao > 0 ? Math.min(util, Math.max(a, Math.round(util * fracao))) : 0;
     preenchimento.clear();
-    if (cheio) preenchimento.fillStyle(cor).fillRoundedRect(coluna + borda, trilhoY - a / 2, cheio, a, a / 2)
+    if (cheio) preenchimento.fillStyle(corAtual).fillRoundedRect(coluna + borda, trilhoY - a / 2, cheio, a, a / 2)
       .fillStyle(0xffffff, 0.3).fillRoundedRect(coluna + borda + a / 3, trilhoY - a / 2 + 1, Math.max(0, cheio - a * 2 / 3), a * 0.3, a * 0.15);
     selo.texto.setText(`${Math.round(valor)}%`);
   } };

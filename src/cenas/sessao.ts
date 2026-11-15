@@ -10,6 +10,7 @@ import terrenoNaveJson from '../dados/terreno_nave.json';
 import { definirGravidade, G_LUA, G_MARTE, G_TERRA, type Corpo } from '../engine/fisica';
 import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { EVENTOS, haEventoHoje, esperaDoEvento, esperaDoAlarme, alarmeDoDia, type EventoDef } from '../engine/eventos';
+import { sortearCondicoes, type Condicao } from '../engine/condicoes';
 import type { Expedicao } from '../engine/expedicao';
 import { haExploracaoHoje, esperaDaExploracao } from '../engine/exploracao';
 import { lerPartida, gravarPartida, apagarPartida, liberarBases } from '../salvamento';
@@ -126,7 +127,8 @@ class Sessao {
       tempestade:{restante:this.tempestade.restante,status:this.tempestade.status},danoTempestade:this.danoTempestade,
       bateriasTempestade:this.bateriasTempestade,desfechoPendente:this.desfechoPendente,ultimoDia:this.ultimoDia,
       evento:this.evento ? {id:this.evento.def.id,construcaoId:this.evento.construcaoId}:null,
-      eventoEm:this.eventoEm,ultimoEvento:this.ultimoEvento,diasCalmos:this.diasCalmos,tempoCalmo:this.tempoCalmo,pulou:this.pulou});
+      eventoEm:this.eventoEm,ultimoEvento:this.ultimoEvento,diasCalmos:this.diasCalmos,tempoCalmo:this.tempoCalmo,pulou:this.pulou,
+      condicoes:this.condicoes,alarmePendente:!!this.alarmeHoje});
   }
 
   atualizarSalvamento(dt: number) {
@@ -166,8 +168,11 @@ class Sessao {
       this.tempestade.restante=d.tempestade.restante; this.tempestade.status=d.tempestade.status;
       this.danoTempestade=d.danoTempestade; this.bateriasTempestade=d.bateriasTempestade;
       this.desfechoPendente=d.desfechoPendente; this.ultimoDia=d.ultimoDia;
-      this.alarmeHoje=d.mundo==='lua'?alarmeDoDia(d.estado.dia)??null:null;
-      const def=d.evento ? EVENTOS.find(e=>e.id===d.evento!.id) ?? (this.alarmeHoje?.id===d.evento.id?this.alarmeHoje:null) : null;
+      this.condicoes=d.condicoes ?? sortearCondicoes(this.C.dias);
+      const alarmeDia=d.mundo==='lua'?alarmeDoDia(d.estado.dia)??null:null;
+      // Still pending only if it had not fired yet (older saves: while its countdown runs).
+      this.alarmeHoje=alarmeDia&&(d.alarmePendente ?? d.eventoEm!==null)?alarmeDia:null;
+      const def=d.evento ? EVENTOS.find(e=>e.id===d.evento!.id) ?? (alarmeDia?.id===d.evento.id?alarmeDia:null) : null;
       this.evento=def && d.evento && this.grade.lista.some(c=>c.id===d.evento!.construcaoId) ? {def,construcaoId:d.evento.construcaoId}:null;
       this.eventoEm=d.eventoEm; this.ultimoEvento=d.ultimoEvento; this.diasCalmos=d.diasCalmos; this.tempoCalmo=d.tempoCalmo??0; this.pulou=d.pulou;
       this.partidaRestaurada=true;
@@ -201,11 +206,17 @@ class Sessao {
   evento: { def: EventoDef; construcaoId: number } | null = null;
   eventoEm: number | null = null;   // seconds of play until today's event happens (null: none today)
   alarmeHoje: EventoDef | null = null;   // today's real NASA event, if the Sun did something
+  condicoes: (Condicao | null)[] = [];   // random condition of each chapter day (engine/condicoes.ts), index 0 = day 1
+  get condicaoHoje(): Condicao | null { return this.condicoes[this.estado.dia - 1] ?? null; }
+  get bateriasHoje() { return Math.max(1, bateriasDoDia(this.estado, this.C) - (this.condicaoHoje === 'sol' ? 1 : 0)); }
   energiaHoje = false;      // the energy task of picking up the batteries was already played today
   odometroRover = 0;        // tiles driven today (paralama-tarefa.ts: the fender breaks after a while)
   paralamaHoje = false;     // the fender already broke (and was fixed) today
   expedicao: Expedicao | null = null;   // flags to drive or walk through (engine/expedicao.ts)
   corridaHoje = false;      // the rover delivery run was already offered today
+  // Side missions (breakdowns, expeditions, the delivery run) wait while a main real-data event is pending or
+  // open, and only one mission at a time.
+  get podeMissaoSecundaria() { return !this.evento && !this.expedicao && this.tempestade.status !== 'alerta' && !this.alarmeHoje; }
   estacoesHoje = new Set<string>();   // ship stations already used today (engine/estacoes.ts)
   exploracaoEm: number | null = null;   // seconds of play until today's exploration event (null: none today)
   ultimaExploracao?: string;
@@ -298,6 +309,7 @@ class Sessao {
     this.tarefasHoje.clear(); this.estacoesHoje.clear();
     this.ultimaTarefa = {};
     this.evento = null; this.eventoEm = null; this.alarmeHoje = null; this.energiaHoje = false; this.ultimoEvento = undefined; this.diasCalmos = 0; this.tempoCalmo = 0;
+    this.condicoes = sortearCondicoes(this.C.dias);
     this.odometroRover = 0; this.paralamaHoje = false; this.expedicao = null; this.corridaHoje = false; this.exploracaoEm = null;
     this.emTarefa = false;
     this.vista = 'chao';
@@ -505,7 +517,7 @@ class Sessao {
     this.tempestade.iniciar(this.mundo === 'lua' ? this.dia.nivel : 0);
     this.entregas = nenhuma();
     this.carregando = 0;
-    this.noHabitat = bateriasDoDia(this.estado, this.C);
+    this.noHabitat = this.bateriasHoje;
     this.tarefasHoje.clear(); this.estacoesHoje.clear();
     // Maybe something breaks today; it happens a little while after the morning.
     this.evento = null;

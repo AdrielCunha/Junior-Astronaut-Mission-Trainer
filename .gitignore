@@ -27,3 +27,7 @@ __pycache__/
 
 # Blender backup copies
 *.blend1
+
+# Concept images kept locally, not used by the game
+/habitat_conceitos.png
+/paineis.png
