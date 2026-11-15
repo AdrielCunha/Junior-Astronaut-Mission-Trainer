@@ -80,7 +80,24 @@ try {
   if(windows.length)result.windows=windows;
   report.stages.push(result);console.log(JSON.stringify(result));
  };
- if(!process.argv.includes('--somente-tarefas')) {
+ if(process.argv.includes('--somente-nave')) {
+  await js("(async()=>{const {iniciarNave3D}=await import('/src/cenas/irParaMarte.ts');iniciarNave3D(superficie.scene.get('Interface'),0,[200]);})()");
+  await until("sessao.mundo==='nave'&&!!superficie.corpo&&superficie.scene.isActive('Superficie')&&sessao.fase==='manha'");
+  await js("(()=>{const ui=superficie.scene.get('Interface');ui.fecharPainel();sessao.fase='dia';superficie.scene.stop('Radar');return true;})()");
+  await sleep(3000);
+  await sample('ship idle',5000);
+  await sample('ship walking',5000,walk);
+  await js('superficie.rota=[];superficie.corpo.vx=superficie.corpo.vy=0;');
+  await sample('ship without streaming sky',5000,"(()=>{const e=superficie.scene.get('Espaco');window.__viajar=e.viajar;e.viajar=()=>{};e.viagem?.setVisible(false);return true;})()");
+  await js("(()=>{const e=superficie.scene.get('Espaco');e.viajar=window.__viajar;e.viagem?.setVisible(true);window.__plumas=superficie.desenharPlumas;superficie.desenharPlumas=()=>{};superficie.plumas?.setVisible(false);return true;})()");
+  await sample('ship without thruster graphics',5000);
+  await js('(()=>{superficie.desenharPlumas=window.__plumas;superficie.plumas?.setVisible(true);return true;})()');
+  if(process.argv.includes('--capturar')) {
+   const shot=await cdp('Page.captureScreenshot',{format:'png'});
+   await writeFile(output.replace(/\.json$/,'.png'),Buffer.from(shot.data,'base64'));
+  }
+ }
+ if(!process.argv.includes('--somente-tarefas')&&!process.argv.includes('--somente-nave')) {
  if(motion!=='reduced'){
   report.early={filmReadyAtStart:await js('sessao.filmePronto'),flightTexturesAtStart:await js(flightFrames)};
   await sample('early surface idle',3000);
