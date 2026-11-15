@@ -19,7 +19,7 @@ import { basesLiberadas } from '../salvamento';
 import type { DadosChegada } from './Chegada';
 import { CONTORNO, COR_BOTAO_TELA, botaoFechar, botaoVerde, criarIconeJogo, letra, moldura, pilulaEscura, type Caixa } from '../tarefas/estilo';
 import { WIKI, type CategoriaWiki, type EntradaWiki, type ImagemWiki } from '../dados/wiki';
-import { alternarMudo, estaMudo, definirAmbienteMusica } from '../audio';
+import { alternarMudo, estaMudo, definirAmbienteMusica, ativarSom, aoMudarAudio, estadoAudio } from '../audio';
 import { definirVolumeMusica, volumeMusica } from '../audio';
 import { definirVolumeEfeitos, tocarSfx, volumeEfeitos } from '../sfx';
 import { idioma, escolherIdioma } from '../idioma';
@@ -419,16 +419,36 @@ export class Radar extends Phaser.Scene {
       g.fillStyle(0xffffff).fillPoints(dentes, true).lineStyle(1.5 * u, CONTORNO).strokePoints(dentes, true);
       g.fillStyle(0x2563eb).fillCircle(0, 0, 7 * u).lineStyle(2 * u, CONTORNO).strokeCircle(0, 0, 7 * u);
     }));
-    const c = this.add.container(x, y, [imagem]).setSize(52 * u, 52 * u).setInteractive({ useHandCursor: true });
+    // While the browser still holds the sound back, a pulsing badge on the gear says where to turn it on.
+    const selo = this.add.container(17 * u, -17 * u, [
+      this.add.circle(0, 0, 11 * u, 0xf97316).setStrokeStyle(2.5 * u, 0xffffff),
+      this.add.text(0, 0, '!', letra(15 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0.5),
+    ]);
+    const pulso = this.tweens.add({ targets: selo, scale: 1.25, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const mostrarSelo = () => { const b = estadoAudio() === 'bloqueado'; selo.setVisible(b); if (b) pulso.resume(); else pulso.pause(); };
+    mostrarSelo();
+    this.events.once('shutdown', aoMudarAudio(mostrarSelo));
+    const c = this.add.container(x, y, [imagem, selo]).setSize(52 * u, 52 * u).setInteractive({ useHandCursor: true });
     c.on('pointerover', () => { c.setScale(1.1); tocarSfx('suave'); }).on('pointerout', () => c.setScale(1)).on('pointerdown', () => { tocarSfx('clique'); this.configurarAudio(); });
   }
 
   private configurarAudio(idiomaMudou = false) {
     const u = this.u;
-    this.janela('SETTINGS', 520, 300, (tela, fechar) => {
+    this.janela('SETTINGS', 520, 380, (tela, fechar) => {
+      // Row 0: does the browser let us play? A real button press is what unlocks it, so the
+      // button acts on pointerup (a touch pointerdown does not count as a gesture in Chrome).
+      const y0 = tela.y + tela.h * 0.5 / 4;
+      this.add.text(tela.x + 20 * u, y0, 'Sound', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
+      const status = this.add.text(tela.x + tela.w - 20 * u, y0, '\u2713 Sound is on', letra(16 * u, '#86efac', { fontStyle: 'bold' })).setOrigin(1, 0.5);
+      const bw = 190 * u, bh = 40 * u;
+      const ligar = botaoVerde(this, tela.x + tela.w - 20 * u - bw / 2, y0, 'TURN SOUND ON', 16 * u, bh, u, () => {}, { largura: bw, altura: bh, pulsar: true });
+      ligar.on('pointerup', () => { ativarSom(); tocarSfx('ok'); });
+      const atualizarSom = () => { const e = estadoAudio(); ligar.setVisible(e !== 'tocando'); status.setVisible(e === 'tocando'); };
+      atualizarSom();
+      const pararSom = aoMudarAudio(atualizarSom);
       const linhas: [string, () => number, (v: number) => void][] = [['Music', volumeMusica, definirVolumeMusica], ['Sound effects', volumeEfeitos, definirVolumeEfeitos]];
       linhas.forEach(([nome, ler, definir], i) => {
-        const y = tela.y + tela.h * (i + 0.5) / 3;                 // three evenly spaced rows
+        const y = tela.y + tela.h * (i + 1.5) / 4;                 // four evenly spaced rows
         this.add.text(tela.x + 20 * u, y, nome, letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
         const valor = this.add.text(tela.x + tela.w - 132 * u, y, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(0.5);
         const atualizar = () => valor.setText(`${Math.round(ler() * 100)}%`);
@@ -437,13 +457,14 @@ export class Radar extends Phaser.Scene {
         atualizar();
       });
       // Language: the window reopens so its own layout follows the new texts.
-      const yI = tela.y + tela.h * 2.5 / 3;
+      const yI = tela.y + tela.h * 3.5 / 4;
       this.add.text(tela.x + 20 * u, idiomaMudou ? yI - 10 * u : yI, 'Language', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
       this.botao(tela.x + tela.w - 100 * u, yI, 160 * u, 40 * u, idioma === 'pt' ? 'Português' : 'English', COR_BOTAO_TELA, 18 * u, () => {
         escolherIdioma(idioma === 'pt' ? 'en' : 'pt'); fechar(); this.events.emit('idioma');
       });
       // Like the video quality note: texts built from other values (dates) switch on their next update.
       if (idiomaMudou) this.add.text(tela.x + 20 * u, yI + 13 * u, 'Some texts update tomorrow.', letra(12 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
+      return pararSom;
     }, 'DONE');
   }
 

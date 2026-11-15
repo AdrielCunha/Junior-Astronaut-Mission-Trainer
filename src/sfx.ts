@@ -198,7 +198,7 @@ function puloAstronauta(c: AudioContext, solo: 'lua' | 'nave' | 'marte') {
  * volume. Returns a function that fades it out early (e.g. when the scene is skipped).
  */
 export function tocarMotor(dur: number, forte = 1, ataque = 0.6): () => void {
-  if (mudo) return () => {};
+  if (mudo || !audioLiberado) return () => {};
   const c = contexto();
   if (!c) return () => {};
   const g = ruido(c, 0, dur, 0.9 * forte, 500, 140, ataque);
@@ -224,21 +224,29 @@ export function tocarMotor(dur: number, forte = 1, ataque = 0.6): () => void {
   };
 }
 
-// Browsers keep sound locked until the first click or key. Unlock it on that first gesture, so even the very first hover afterwards has sound.
+// Browsers keep sound locked until the first click or key. Chrome only counts keydown, mousedown,
+// pointerup, touchend and click (a touch pointerdown does not), so listen to all of them and keep
+// listening until the context is really running.
+const EVENTOS_GESTO = ['pointerup', 'touchend', 'mousedown', 'click', 'keydown'] as const;
 function destravar() {
+  const c = contexto();
+  if (!c) return;
+  // These are all activation events, so the resume below is allowed: sounds asked for right now
+  // (the click of this very press) are scheduled and play as soon as the context runs.
   audioLiberado = true;
-  window.removeEventListener('pointerdown', destravar);
-  window.removeEventListener('keydown', destravar);
-  contexto();
+  const pronto = () => {
+    if (c.state !== 'running') return;
+    for (const ev of EVENTOS_GESTO) window.removeEventListener(ev, destravar, { capture: true });
+  };
+  if (c.state === 'running') pronto(); else void c.resume().then(pronto, () => {});
 }
 if (typeof window !== 'undefined') {
-  window.addEventListener('pointerdown', destravar);
-  window.addEventListener('keydown', destravar);
+  for (const ev of EVENTOS_GESTO) window.addEventListener(ev, destravar, { capture: true });
 }
 
 /** Plays a sound effect. Silent when muted; the same sound is not repeated within 90 ms. */
 export function tocarSfx(nome: NomeSfx) {
-  if (mudo || volume <= 0) return;
+  if (mudo || volume <= 0 || !audioLiberado) return;
   const agora = performance.now();
   if (agora - (ultimo[nome] ?? -1e9) < 90) return;
   ultimo[nome] = agora;
