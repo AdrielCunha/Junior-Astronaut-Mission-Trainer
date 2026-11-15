@@ -163,6 +163,8 @@ export class Superficie extends Phaser.Scene {
     this.input.mouse?.disableContextMenu();
 
     sessao.ouvir(this, 'estado', () => { for (const c of sessao.grade.lista) this.desenharModulo(c); });
+    // A new phase can change a picture too: the shield's water walls drain for the next morning.
+    sessao.ouvir(this, 'fase', () => { for (const c of sessao.grade.lista) this.desenharModulo(c); });
     sessao.ouvir(this, 'suprimento', (tipo) => this.chegar(tipo));
   }
 
@@ -454,7 +456,10 @@ export class Superficie extends Phaser.Scene {
     const obra = this.emObra(c);
     sessao.carregando--;
     [sessao.estado, sessao.entregas] = entregarRegra(sessao.estado, sessao.entregas, sala, C);
-    if (!obra) sessao.emitir('mensagem', `+1 battery to ${c.tipo.nome}.`, '#86efac');
+    const n = sessao.entregas[sala];
+    if (!obra) sessao.emitir('mensagem', sala === 'blindagem'
+      ? `+1 battery: the pump fills the water walls${n >= 3 ? ' to the top!' : '.'} Water stops radiation.`
+      : `+1 battery to ${c.tipo.nome}.`, '#86efac');
     else if (pronto(sessao.estado, sala, C)) sessao.emitir('mensagem', `${c.tipo.nome} is built! From now on its batteries make it work.`, '#86efac');
     else sessao.emitir('mensagem', `+1 battery to build the ${c.tipo.nome}: ${sessao.estado.obras[sala] ?? 0} of ${custo(sala, C)}.`, '#fde68a');
     sessao.emitir('estado');
@@ -659,7 +664,9 @@ export class Superficie extends Phaser.Scene {
   }
 
   // ---------- drawing ----------
-  // Which Blender picture a module shows: the launch pad carries the rocket in 5 build stages.
+  // Which Blender picture a module shows: the launch pad carries the rocket in 5 build stages, and
+  // the shield tower's water walls fill with each battery given to it today (the pump runs on
+  // them). While just exploring, the walls are shown full.
   private modelo(c: Construcao): Modelo {
     // Mars: the lander is the crew's home until the dome is built. The heater and the dome
     // borrow the workshop and habitat pictures until they get their own models.
@@ -673,6 +680,7 @@ export class Superficie extends Phaser.Scene {
     const meta = sessao.estado.meta;
     if (c.tipo.id === 'plataforma' && this.foguetePartiu) return 'plataforma';
     if (c.tipo.id === 'plataforma') return `foguete${Math.min(4, Math.floor(meta / 25))}` as Modelo;
+    if (c.tipo.id === 'blindagem' && sessao.fase !== 'inicio') return `blindagem_agua${Math.min(3, sessao.entregas.blindagem)}` as Modelo;
     return c.tipo.id as Modelo;
   }
 

@@ -8,7 +8,7 @@
 # Out: public/lua/modulos/<id>.png, src/dados/modulos.json
 #      { id: { arquivo, w, h, ancora: [x, y], escala } }: ancora = pixel of the footprint's
 #      corner (gx, gy) at floor height; draw the picture there at `escala`.
-import bpy, bmesh, os, json, math, subprocess, sys
+import bpy, bmesh, os, json, math, shutil, subprocess, sys
 from mathutils import Vector, Euler
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -224,24 +224,193 @@ def suporte():
     lampada(0.9,1.69,0.96,0.76,'#b9eeff')
 
 
+def bloco(cx, cy, cz, sx, sy, sz, cor, rot=0.0, bevel=0.012, linha=0.01):
+    """A box centered on map point (cx, cy, cz), turned `rot` radians around Z (map angle)."""
+    bpy.ops.mesh.primitive_cube_add(size=1)
+    o = bpy.context.active_object
+    o.scale = (sx, sy, sz); o.location = (cx, -cy, cz); o.rotation_euler = (0, 0, -rot)
+    return _fim(o, cor, bevel, linha)
+
+
+def placa(pontos, y, espessura, cor, linha=0.006):
+    """A flat shape facing the camera's +gy side: pontos are (gx, z) in a plane at map gy = y."""
+    n = len(pontos)
+    verts = [(px, -y, pz) for px, pz in pontos] + [(px, -(y + espessura), pz) for px, pz in pontos]
+    faces = [list(range(n))[::-1], list(range(n, 2 * n))] + [[k, (k + 1) % n, n + (k + 1) % n, n + k] for k in range(n)]
+    me = bpy.data.meshes.new('placa'); me.from_pydata(verts, [], faces); me.update()
+    o = bpy.data.objects.new('placa', me); sc.collection.objects.link(o)
+    bpy.context.view_layer.objects.active = o; o.select_set(True)
+    return _fim(o, cor, 0, linha)
+
+
+def raio(x, y, z, alt, cor='#fde047'):
+    """A lightning bolt (the battery sign) standing on map plane gy = y, centered on (x, z)."""
+    a = alt
+    pts = [(0.10, 0.50), (-0.22, -0.02), (0.0, -0.02), (-0.12, -0.50), (0.22, 0.06), (0.0, 0.06)]
+    return placa([(x + px * a, z + pz * a) for px, pz in pts], y, 0.012, cor, linha=0.004)
+
+
+def entrada_blindada(y1=2.0, y0=1.42):
+    """Armored yellow entrance facing the viewer (+gy), from y0 back to its door at y1."""
+    caixa(0.62, y0, 1.38, y1, 0.12, 0.74, '#facc15', bevel=0.04, linha=0.03)
+    caixa(0.56, y0, 1.44, y1 + 0.04, 0.70, 0.80, '#eab308', bevel=0.02, linha=0.02)            # roof lip
+    caixa(0.72, y1 - 0.02, 1.28, y1 + 0.03, 0.13, 0.62, '#334155', bevel=0.012, linha=0.012)   # door frame
+    caixa(0.77, y1 + 0.02, 0.995, y1 + 0.05, 0.15, 0.58, '#475569', bevel=0.008, linha=0.006)  # two door leaves
+    caixa(1.005, y1 + 0.02, 1.23, y1 + 0.05, 0.15, 0.58, '#475569', bevel=0.008, linha=0.006)
+    for x in (0.885, 1.115):                                                                   # portholes
+        bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.06, depth=0.03)
+        o = bpy.context.active_object; o.location = (x, -(y1 + 0.055), 0.44); o.rotation_euler = (math.radians(90), 0, 0)
+        bpy.ops.object.shade_smooth(); emissivo(_fim(o, '#7dd3fc', 0, 0.008), '#bae6fd', 1.2)
+    for k in range(8):                                                                         # zebra band above the door
+        x = 0.74 + k * 0.065
+        caixa(x, y1 + 0.03, x + 0.065, y1 + 0.045, 0.635, 0.68, '#1c1917' if k % 2 else '#facc15', bevel=0, linha=0.003)
+    visor(1.30, y1, 1.36, y1 + 0.02, 0.48, 0.54, '#86efac')                                    # "open" light
+    for x in (0.60, 1.40):                                                                     # amber corner beacons
+        cilindro(x, y1, 0.045, 0.80, 0.86, '#334155', v=12, linha=0.006)
+        emissivo(esfera(x, y1, 0.89, 0.045, 0.045, 0.05, '#fbbf24', linha=0.006), '#fbbf24', 2.0)
+
+
+def placa_radiacao(x, z, y, r=0.2):
+    """Yellow round sign with the radiation trefoil, facing the viewer, centered on (x, z) at gy = y."""
+    circulo = lambda rr, n: [(x + rr * math.cos(t), z + rr * math.sin(t)) for t in [math.tau * i / n for i in range(n)]]
+    placa(circulo(r, 32), y, 0.03, '#fde047', linha=0.01)
+    for k in range(3):
+        a0 = math.radians(90 + k * 120) - math.radians(30)
+        arco = [a0 + math.radians(60) * i / 10 for i in range(11)]
+        lamina = [(x + r * 0.275 * math.cos(t), z + r * 0.275 * math.sin(t)) for t in arco] + \
+                 [(x + r * 0.775 * math.cos(t), z + r * 0.775 * math.sin(t)) for t in reversed(arco)]
+        placa(lamina, y + 0.03, 0.01, '#1c1917', linha=0.002)
+    placa(circulo(r * 0.16, 16), y + 0.03, 0.01, '#1c1917', linha=0.002)
+
+
+def parabolica(px, py, z0, alt, eixo, R=0.24, fundo=0.085):
+    """A dish antenna on a post at map point (px, py), standing on z0 with its pivot `alt` above.
+    eixo: world direction the dish faces. The bowl is a true paraboloid with real thickness, a rim,
+    three struts and the receiver at the focus."""
+    eixo = eixo.normalized()
+    rot = eixo.to_track_quat('Z', 'Y')
+    pivo = Vector((px, -py, z0 + alt))
+    base = pivo - eixo * 0.07                       # the dish's back sits a little behind the pivot
+    # Post and fork.
+    haste((px, py, z0), (px, py, z0 + alt), 0.028, '#94a3b8', linha=0.006)
+    cilindro(px, py, 0.06, z0, z0 + 0.05, '#64748b', v=16, linha=0.008)
+    haste((px, py, z0 + alt), (base.x, -base.y, base.z), 0.03, '#64748b', linha=0.006)
+    # Bowl: rings of a paraboloid z = fundo * (r / R)^2 around its local Z axis.
+    aneis, lados = 9, 32
+    verts = [(0, 0, 0)]
+    for i in range(1, aneis + 1):
+        r = R * i / aneis
+        for k in range(lados):
+            t = math.tau * k / lados
+            verts.append((r * math.cos(t), r * math.sin(t), fundo * (r / R) ** 2))
+    faces = [(0, 1 + (k + 1) % lados, 1 + k) for k in range(lados)]
+    for i in range(aneis - 1):
+        a, b = 1 + i * lados, 1 + (i + 1) * lados
+        faces += [(a + k, a + (k + 1) % lados, b + (k + 1) % lados, b + k) for k in range(lados)]
+    me = bpy.data.meshes.new('parabolica'); me.from_pydata(verts, [], faces); me.update()
+    o = bpy.data.objects.new('parabolica', me); sc.collection.objects.link(o)
+    o.rotation_mode = 'QUATERNION'; o.rotation_quaternion = rot; o.location = base
+    bpy.context.view_layer.objects.active = o; o.select_set(True)
+    for p in me.polygons: p.use_smooth = True
+    esp = o.modifiers.new('espessura', 'SOLIDIFY'); esp.thickness = 0.018; esp.offset = -1
+    _fim(o, '#f1f5f9', 0, 0.012)
+    # Rim.
+    bpy.ops.mesh.primitive_torus_add(major_radius=R, minor_radius=0.014, major_segments=40, minor_segments=8)
+    o = bpy.context.active_object
+    o.rotation_mode = 'QUATERNION'; o.rotation_quaternion = rot; o.location = base + eixo * fundo
+    bpy.ops.object.shade_smooth(); _fim(o, '#94a3b8', 0, 0.006)
+    # Receiver at the focus, held by three struts from the rim.
+    foco = base + eixo * (R * R / (4 * fundo))
+    para_mapa = lambda v: (v.x, -v.y, v.z)
+    for k in range(3):
+        t = math.tau * k / 3 + 0.5
+        borda = base + rot @ Vector((R * math.cos(t), R * math.sin(t), fundo))
+        haste(para_mapa(borda), para_mapa(foco), 0.008, '#64748b', linha=0.003)
+    esfera(foco.x, -foco.y, foco.z, 0.035, 0.035, 0.035, '#334155', linha=0.006)
+
+
+AGUA = 3   # how full the water walls are: 0..3, the batteries given to the shield today
+
+
 def blindagem():
-    w, h = TIPOS['blindagem']
-    # Regolith berm: the shield is Moon dust piled on a bunker, as real designs plan.
-    esfera(1.0, 1.0, 0.0, 0.98, 0.98, 0.95, PALETA['solo'][1][1], metade=True)
-    # Entrance in the shared language: pale slate body, the shield's yellow as accent, dark bay.
-    caixa(0.5, 1.5, 1.5, 2.0, 0.0, 0.7, '#cbd5e1', bevel=0.03, linha=0.025)
-    caixa(0.47, 1.47, 1.53, 2.03, 0.0, 0.18, '#facc15', bevel=0.02, linha=0.02)       # yellow skirt
-    caixa(0.47, 1.47, 1.53, 2.03, 0.62, 0.74, '#fde047', bevel=0.02, linha=0.02)      # yellow roof edge
-    caixa(0.62, 1.97, 1.38, 2.03, 0.18, 0.58, '#1e293b', bevel=0.005, linha=0.015)    # door bay
-    for x in (0.80, 1.00, 1.20):
-        caixa(x, 2.03, x + 0.04, 2.05, 0.18, 0.58, '#94a3b8', bevel=0, linha=0.005)
-    visor(0.7, 2.06, 1.3, 2.075, 0.62, 0.68, '#8ae8ff')
-    cilindro(1.0, 1.0, 0.07, 0.9, 1.35, '#94a3b8', v=12, linha=0.015)       # sensor mast
-    esfera(1.0, 1.0, 1.38, 0.1, 0.1, 0.1, '#ef4444', linha=0.015)
-    esfera(1.0, 1.0, 0.93, 0.18, 0.18, 0.07, '#38bdf8', linha=0.02)           # skylight
-    for x in (0.62, 1.28):
-        caixa(x, 2.07, x + 0.10, 2.10, 0.22, 0.34, '#fde047', linha=0.005)
-    lampada(1, 1.84, 0.72, 0.60)
+    # Storm shelter tower. Its walls are water tanks: water stops the radiation of a solar storm (a
+    # real NASA idea, "water walls"; on the ISS crews have stacked water packs around their beds).
+    # The water is kept below and pumped up into the walls before a storm: that is what the
+    # batteries power. The more batteries, the fuller the walls (AGUA), the better the crew is
+    # protected. On top, an antenna gets the storm warnings from Earth and a sensor measures the
+    # radiation: neither makes a shield, they tell the crew when to hide.
+    w, h = TIPOS['blindagem']; piso(w, h)
+    cx, cy = 1.0, 0.92
+    alto = 1.22                      # top of the tanks
+    porta = math.radians(90)
+
+    cilindro(cx, cy, 0.58, 0.12, alto + 0.02, '#64748b', v=24, bevel=0.02)          # steel core
+    # Water-tank wall. Each tank has a level window on its outer side showing the water inside.
+    z0, z1 = 0.26, alto - 0.16
+    nivel = z0 + (z1 - z0) * (0.12 + 0.88 * AGUA / 3)
+    n = 14
+    for k in range(n):
+        a = math.tau * (k + 0.5) / n
+        if abs((a - porta + math.pi) % math.tau - math.pi) < math.radians(24): continue
+        tx, ty = cx + 0.66 * math.cos(a), cy + 0.66 * math.sin(a)
+        cilindro(tx, ty, 0.135, 0.12, alto - 0.06, '#e2e8f0', v=18, bevel=0.012)
+        esfera(tx, ty, alto - 0.06, 0.135, 0.135, 0.07, '#e2e8f0', linha=0.014, metade=True)
+        cilindro(tx, ty, 0.142, 0.15, 0.2, '#94a3b8', v=18, linha=0.006)
+        rx, ry = math.cos(a), math.sin(a)
+        r = 0.133
+        bloco(tx + rx * r, ty + ry * r, (z0 + z1) / 2, 0.02, 0.15, z1 - z0 + 0.05, '#1e293b', rot=a, bevel=0.01, linha=0.006)
+        if nivel > z0 + 0.01:
+            agua = bloco(tx + rx * (r + 0.008), ty + ry * (r + 0.008), (z0 + nivel) / 2, 0.012, 0.11, nivel - z0, '#38bdf8', rot=a, bevel=0.005, linha=0.002)
+            emissivo(agua, '#38bdf8', 1.0)
+            emissivo(bloco(tx + rx * (r + 0.012), ty + ry * (r + 0.012), nivel - 0.012, 0.01, 0.114, 0.026, '#bae6fd', rot=a, bevel=0.002, linha=0.001), '#e0f2fe', 1.2)
+    # Feed ring at the foot: one pipe that fills every tank.
+    for k in range(28):
+        a0, a1 = math.tau * k / 28, math.tau * (k + 1) / 28
+        haste((cx + 0.8 * math.cos(a0), cy + 0.8 * math.sin(a0), 0.2), (cx + 0.8 * math.cos(a1), cy + 0.8 * math.sin(a1), 0.2), 0.03, '#0ea5e9', linha=0.006)
+
+    # Top collar with a hazard band, then the deck with windows.
+    cilindro(cx, cy, 0.79, alto, alto + 0.09, '#94a3b8', v=32, bevel=0.02)
+    for k in range(28):
+        a = math.tau * (k + 0.5) / 28
+        bloco(cx + 0.795 * math.cos(a), cy + 0.795 * math.sin(a), alto + 0.045, 0.03, 0.178, 0.055,
+              '#facc15' if k % 2 else '#1c1917', rot=a, bevel=0.004, linha=0.003)
+    cilindro(cx, cy, 0.46, alto + 0.09, alto + 0.33, '#cbd5e1', v=24, bevel=0.02)
+    for k in range(5):
+        a = math.radians(30 + k * 30)
+        bloco(cx + 0.465 * math.cos(a), cy + 0.465 * math.sin(a), alto + 0.21, 0.02, 0.13, 0.08, '#7dd3fc', rot=a, bevel=0.004, linha=0.004)
+
+    # Mast with the radiation sensor and the red light, and beside it the dish that gets the storm
+    # warnings from Earth.
+    zt = alto + 0.33
+    haste((cx - 0.08, cy + 0.06, zt), (cx - 0.08, cy + 0.06, zt + 0.5), 0.028, '#94a3b8', linha=0.006)
+    esfera(cx - 0.08, cy + 0.06, zt + 0.3, 0.07, 0.07, 0.07, '#f8fafc', linha=0.01)              # radiation sensor
+    emissivo(esfera(cx - 0.08, cy + 0.06, zt + 0.54, 0.045, 0.045, 0.045, '#ef4444', linha=0.008), '#ef4444', 1.1)
+    parabolica(cx + 0.2, cy - 0.06, zt, 0.22, Vector((0.95, 0.05, 0.75)))
+
+    # Batteries power the pump that sends the stored water up into the walls.
+    for i, bx in enumerate((1.56, 1.74, 1.92)):
+        caixa(bx - 0.075, 1.66, bx + 0.075, 1.86, 0.12, 0.62, '#22c55e', bevel=0.03, linha=0.016)
+        caixa(bx - 0.08, 1.65, bx + 0.08, 1.87, 0.62, 0.68, '#f8fafc', bevel=0.012, linha=0.01)     # cap
+        cilindro(bx, 1.76, 0.03, 0.68, 0.72, '#94a3b8', v=12, linha=0.006)                            # terminal
+        raio(bx, 1.86, 0.40, 0.3)
+        haste((bx, 1.76, 0.72), (bx, 1.62, 0.84), 0.02, ['#ef4444', '#1e293b', '#ef4444'][i], linha=0.005)
+        haste((bx, 1.62, 0.84), (1.72, 1.40, 0.84), 0.02, ['#ef4444', '#1e293b', '#ef4444'][i], linha=0.005)
+    caixa(1.47, 1.62, 2.0, 1.66, 0.12, 0.70, '#64748b', bevel=0.01, linha=0.008)                      # rack back
+    # Pump: a box with a round motor and a red valve wheel, piped into the feed ring.
+    caixa(1.52, 1.22, 1.92, 1.52, 0.12, 0.62, '#3b82f6', bevel=0.03, linha=0.016)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.12, depth=0.22)
+    o = bpy.context.active_object; o.location = (1.72, -1.37, 0.74); o.rotation_euler = (0, math.radians(90), 0)
+    bpy.ops.object.shade_smooth(); _fim(o, '#94a3b8', 0.01, 0.012)
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.08, minor_radius=0.018, major_segments=20, minor_segments=8)
+    o = bpy.context.active_object; o.location = (1.94, -1.37, 0.40); o.rotation_euler = (0, math.radians(90), 0)
+    bpy.ops.object.shade_smooth(); _fim(o, '#ef4444', 0, 0.006)
+    haste((1.92, 1.37, 0.40), (1.95, 1.37, 0.40), 0.015, '#ef4444', linha=0.004)
+    haste((1.60, 1.30, 0.26), (cx + 0.8 * math.cos(math.radians(40)), cy + 0.8 * math.sin(math.radians(40)), 0.2), 0.035, '#0ea5e9', linha=0.006)
+    visor(1.55, 1.52, 1.64, 1.54, 0.46, 0.52, '#86efac')
+
+    entrada_blindada(y1=1.9, y0=1.36)
+    placa_radiacao(1.0, 1.06, 1.74, r=0.17)                      # hung in front of the tanks, over the door
+    caixa(0.97, 1.6, 1.03, 1.74, 0.80, 0.9, '#64748b', bevel=0.005, linha=0.005)
 
 
 def oficina():
@@ -1081,6 +1250,16 @@ MODELOS['deco_carretel'] = deco_carretel
 MODELOS['deco_mochila'] = deco_mochila
 for i in range(5): MODELOS[f'foguete{i}'] = (lambda i=i: foguete(i))
 
+def agua(n):
+    def build():
+        global AGUA
+        AGUA = n
+        blindagem()
+        AGUA = 3
+    return build
+
+for n in range(4): MODELOS[f'blindagem_agua{n}'] = agua(n)
+
 def animado(fn,frame):
     def build():
         global FASE
@@ -1105,7 +1284,36 @@ sun_o = bpy.data.objects.new('Sol', sun); sc.collection.objects.link(sun_o)
 to_sun = (to_cam * 0.5 - right * 1.0 + Vector((0, 0, 0.45))).normalized()
 sun_o.rotation_euler = (-to_sun).to_track_quat('-Z', 'Y').to_euler()
 
-if LIVE and not globals().get('EXPORTAR_MODULOS',False):
+def enquadrar(zoom=1):
+    """Frames the camera on the current model, like the export does; returns (W, H, cx, cy, s)."""
+    bpy.context.view_layer.update()
+    pts = []
+    for o in grupo:
+        for c in o.bound_box: pts.append(o.matrix_world @ Vector(c))
+    xs = [p.dot(right) for p in pts]; ys = [p.dot(up) for p in pts]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    sz = s * zoom
+    W = math.ceil((x1 - x0) * sz) + 2 * PAD; H = math.ceil((y1 - y0) * sz) + 2 * PAD
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    cam.ortho_scale = max(W, H) / sz
+    cam_o.location = right * cx + up * cy + to_cam * 50
+    sc.render.resolution_x, sc.render.resolution_y = W, H
+    return W, H, cx, cy
+
+
+# Live preview of one model: in Blender, set SO = 'blindagem' (and PREVIEW = 'out.png') before
+# running this file; it builds only that model and, with PREVIEW, renders it zoomed in.
+if LIVE and globals().get('SO'):
+    # SO may also be a list: the models are built side by side, 3 tiles apart, to compare them.
+    for i, nome in enumerate(SO if isinstance(SO, (list, tuple)) else [SO]):
+        antes = len(grupo); MODELOS[nome]()
+        for o in grupo[antes:]: o.location.x += 3 * i
+    if globals().get('PREVIEW'):
+        enquadrar(globals().get('ZOOM', 3))
+        sc.render.filepath = PREVIEW
+        bpy.ops.render.render(write_still=True)
+    print('model', SO, 'ready')
+elif LIVE and not globals().get('EXPORTAR_MODULOS',False):
     x = 0
     for nome in ('habitat', 'suporte', 'blindagem', 'oficina', 'painel', 'plataforma', 'foguete4'):
         grupo.clear(); MODELOS[nome]()
@@ -1116,23 +1324,13 @@ else:
     os.makedirs(OUT, exist_ok=True)
     saida = json.load(open(JSON)) if os.path.exists(JSON) else {}
     # MODULOS=oficina,oficina_anim1 renders only those and keeps the other entries of modulos.json.
-    so = [n for n in os.environ.get('MODULOS', '').split(',') if n]
+    so = globals().get('APENAS') or [n for n in os.environ.get('MODULOS', '').split(',') if n]
     for nome, fn in MODELOS.items():
         if so and nome not in so: continue
         for o in list(sc.objects):
             if o.type == 'MESH' or (o.type == 'LIGHT' and o.data.type != 'SUN'): bpy.data.objects.remove(o)
         grupo.clear(); fn()
-        bpy.context.view_layer.update()
-        pts = []
-        for o in grupo:
-            for c in o.bound_box: pts.append(o.matrix_world @ Vector(c))
-        xs = [p.dot(right) for p in pts]; ys = [p.dot(up) for p in pts]
-        x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
-        W = math.ceil((x1 - x0) * s) + 2 * PAD; H = math.ceil((y1 - y0) * s) + 2 * PAD
-        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-        cam.ortho_scale = max(W, H) / s
-        cam_o.location = right * cx + up * cy + to_cam * 50
-        sc.render.resolution_x, sc.render.resolution_y = W, H
+        W, H, cx, cy = enquadrar()
         png = os.path.join(OUT, f'{nome}.png')
         sc.render.filepath = png
         bpy.ops.render.render(write_still=True)
