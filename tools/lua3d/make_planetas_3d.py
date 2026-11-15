@@ -28,9 +28,11 @@ OUT = os.path.join(ROOT, 'public', 'lua', 'planetas', '3d')
 MERCURIO = 'https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia15/pia15063/PIA15063.jpg'
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 SO = argv[argv.index('--so') + 1].split(',') if '--so' in argv else None
+SO_PEQUENO = '--so-pequeno' in argv      # only the small sheets (the big ones are kept)
 
 QP, QG = 96, 384                         # frame sizes: small (solar system), big (full screen)
-DIRS, GIROS, GIROS_G = 16, 16, 48
+DIRS, GIROS, GIROS_G = 16, 48, 48
+COLS_P = 32                              # small sheet: 32 frames a row keeps it under 4096 px (old GPUs)
 RAIO = 0.80                              # body radius as a share of half the frame (room for the glow)
 # name: (map, atmosphere color, atmosphere strength, axial tilt deg)
 CORPOS = {
@@ -194,13 +196,13 @@ for nome, (arq, cor, forca, incl) in CORPOS.items():
         for k in range(1 if eh_sol else DIRS):
             if not eh_sol: apontar_luz(2 * math.pi * k / DIRS)
             f = os.path.join(tmp, f'{nome}_p{j:02d}_{k:02d}.png'); render(QP, f); peq.append(f)
-    folha(peq, 1 if eh_sol else DIRS, QP, os.path.join(OUT, f'{nome}_p.png'))
+    folha(peq, 8 if eh_sol else COLS_P, QP, os.path.join(OUT, f'{nome}_p.png'))   # frame j * direcoes + k, row by row
     apontar_luz(math.radians(150))                      # the full-screen view: lit from the front left
     grd = []
-    for j in range(GIROS_G):
+    for j in range(0 if SO_PEQUENO else GIROS_G):
         girar(j / GIROS_G)
         f = os.path.join(tmp, f'{nome}_g{j:02d}.png'); render(QG, f); grd.append(f)
-    folha(grd, 8, QG, os.path.join(OUT, f'{nome}_g.png'))
+    if grd: folha(grd, 8, QG, os.path.join(OUT, f'{nome}_g.png'))
     saida[nome] = {'pequeno': {'arquivo': f'lua/planetas/3d/{nome}_p.png', 'quadro': QP, 'giros': GIROS, 'direcoes': 1 if eh_sol else DIRS, 'raio': round(QP / 2 * RAIO, 1)},
                    'grande': {'arquivo': f'lua/planetas/3d/{nome}_g.png', 'quadro': QG, 'quadros': GIROS_G, 'raio': round(QG / 2 * RAIO, 1)}}
     print('body', nome, flush=True)

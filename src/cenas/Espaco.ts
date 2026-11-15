@@ -41,6 +41,7 @@ export class Espaco extends Phaser.Scene {
   private cintila!: Phaser.GameObjects.Graphics;     // the brightest stars twinkling
   private corpos = new Map<string, Phaser.GameObjects.Sprite>();   // Blender planets, lit from 16 sides
   private solBrilho!: Phaser.GameObjects.Image;
+  private corposProx = new Map<string, Phaser.GameObjects.Sprite>();   // the next turn frame, faded in over it: a smooth turn
   private escalaCeu = 1;
   private lua!: ReturnType<typeof criarLua>;        // live GPU Moon (luaShader.ts)
   private marte: ReturnType<typeof criarPlaneta> | null = null;   // live GPU Mars (planetaShader.ts)
@@ -78,7 +79,7 @@ export class Espaco extends Phaser.Scene {
     this.cintila = this.add.graphics().setDepth(-97).setBlendMode(Phaser.BlendModes.ADD);
 
     this.g = this.add.graphics();
-    this.corpos.clear();
+    this.corpos.clear(); this.corposProx.clear();
     // The Sun's own light: a soft additive glow behind its ball (no rays), breathing in update.
     if (!this.textures.exists('brilho_sol')) {
       const c = this.textures.createCanvas('brilho_sol', 256, 256)!, x = c.getContext();
@@ -96,6 +97,7 @@ export class Espaco extends Phaser.Scene {
       s.setInteractive({ hitArea: new Phaser.Geom.Circle(0, 0, 1), hitAreaCallback: Phaser.Geom.Circle.Contains, useHandCursor: true })
         .on('pointerdown', () => this.abrirAstro(nome));
       this.corpos.set(nome, s);
+      this.corposProx.set(nome, this.add.sprite(0, 0, `pl3d_${nome}`, 0).setVisible(false).setDepth(1.01));
     }
     this.lua = criarLua(this, W / 2, H / 2);
     this.lua.setVisible(false);
@@ -194,8 +196,14 @@ export class Espaco extends Phaser.Scene {
     const info = (planetas3d as unknown as Record<string, { pequeno: { raio: number; giros: number; direcoes: number } }>)[nome].pequeno;
     const n = info.direcoes;
     const k = ((Math.round(luz / (2 * Math.PI / n)) % n) + n) % n;
-    const j = movimentoReduzido() ? 0 : Math.floor((this.time.now / 1000 / (GIRO_S[nome] ?? 12)) * info.giros) % info.giros;
+    // Where it is in its turn, in frames: the frame below and the next one over it, faded in by
+    // the fraction, so the turn is continuous instead of stepping from frame to frame.
+    const f = movimentoReduzido() ? 0 : ((this.time.now / 1000 / (GIRO_S[nome] ?? 12)) * info.giros) % info.giros;
+    const j = Math.floor(f), frac = f - j;
     s.setVisible(alfa > 0).setFrame(j * n + k).setPosition(x, y).setScale(r / info.raio).setAlpha(alfa);
+    const prox = this.corposProx.get(nome)!;
+    prox.setVisible(alfa > 0 && frac > 0.01).setFrame(((j + 1) % info.giros) * n + k).setPosition(x, y).setScale(r / info.raio)
+      .setAlpha(alfa * frac).setDepth(s.depth + 0.01);
     // The click target: the disc, at least 16 px across on screen for the small ones.
     const alvo = s.input?.hitArea as Phaser.Geom.Circle | undefined;
     if (alvo) alvo.setTo(s.width / 2, s.height / 2, Math.max(info.raio, (16 * info.raio) / r));
@@ -203,7 +211,8 @@ export class Espaco extends Phaser.Scene {
 
   private abrirAstro(nome: string) {
     if (sessao.vista !== 'sistema' || sessao.voo || this.scene.isActive('Astro')) return;
-    this.scene.launch('Astro', { nome });
+    const c = this.corpos.get(nome)!;
+    this.scene.launch('Astro', { nome, x: c.x, y: c.y, r: (c.displayWidth / 2) * 0.8 });
     this.scene.bringToTop('Astro');
   }
 
@@ -242,6 +251,7 @@ export class Espaco extends Phaser.Scene {
     this.ceuMarte.setVisible(emMarte);
     this.ceu.setVisible(!emMarte);
     for (const c of this.corpos.values()) c.setVisible(false);
+    for (const c of this.corposProx.values()) c.setVisible(false);
     this.solBrilho.setVisible(false);
     if (sessao.mundo !== 'lua') {
       // The ship looks down on the planets' plane like the solar system view: same real sky.
@@ -471,8 +481,8 @@ export class Espaco extends Phaser.Scene {
           const am = Math.atan2(ld.y, ld.x) + th + relogio * (2 * Math.PI / 30), dm = r + 16 * kc;
           const mx = q.x + Math.cos(am) * dm, my = q.y - Math.sin(am) * dm * ACHATAR;
           g.lineStyle(1, 0x94a3b8, 0.25 * rotulos).strokeEllipse(q.x, q.y, dm * 2, dm * 2 * ACHATAR);
-          this.mostrarCorpo('lua', mx, my, 6 * kc, Math.atan2(-(sp.y - my), sp.x - mx), rotulos);
           this.corpos.get('lua')!.setDepth(Math.sin(am) > 0 ? 0.9 : 1.1);
+          this.mostrarCorpo('lua', mx, my, 6 * kc, Math.atan2(-(sp.y - my), sp.x - mx), rotulos);
         }
       } else if (p.nome === 'Mars') {
         // Chapter 3's destination: shown, locked until the rocket gets there.
