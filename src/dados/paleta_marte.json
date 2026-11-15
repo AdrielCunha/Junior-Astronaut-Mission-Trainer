@@ -1,0 +1,16 @@
+{
+  "nome": "Marte caricato (proposta)",
+  "nota": "Same keys and stop positions as paleta_lua.json, so the Blender scripts use it unchanged (comum.usar_corpo). Hues from NASA's Viking map of Mars, pushed toward rust like the Moon palette is pushed toward a bright cartoon gray. Shadows are warm (dust in the air lights them), not blue. albedoLua / luzLua keep their names: they are the globe's albedo and light.",
+  "solo": [[0, "#a9552f"], [0.42, "#c26a3b"], [0.6, "#d98a57"], [0.75, "#eab07e"]],
+  "rocha": "#6b3a2a",
+  "estratos": [[0, "#3e2219"], [0.5, "#6e3b27"], [0.8, "#a2603d"]],
+  "luzSolo": [[0, "#4a3036"], [0.1, "#9a7a76"], [0.35, "#dcc4b6"], [0.55, "#f6e6d8"], [0.75, "#ffffff"]],
+  "contorno": "#3b2420",
+  "realceCratera": "#f8e2c8",
+  "pedras": ["#9a5a3c", "#d9a47a", "#6e3d2a"],
+  "sombraSolo": "#5a3428",
+  "albedoLua": [[0, "#5e3b2c"], [0.15, "#87503a"], [0.22, "#a8643f"], [0.3, "#c98450"], [0.4, "#e3a771"]],
+  "luzLua": [[0, "#4a3036"], [0.05, "#9a7a76"], [0.25, "#f6e6d8"], [0.6, "#ffffff"]],
+  "fundacao": ["#b9805e", "#8a5640", "#d4a07c"],
+  "ceu": [[0, "#d9ab80"], [0.35, "#c08d68"], [0.7, "#6e4c48"], [1, "#0b0f1e"]]
+}
