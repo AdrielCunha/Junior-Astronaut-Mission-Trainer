@@ -35,6 +35,13 @@ test('each step points at the right place: batteries at the Battery Bank, not th
   assert.equal(descrever('fim', base)!.alvo, 'fim');
 });
 
+test('mobile guide shows touch controls without desktop keyboard hints', () => {
+  assert.deepEqual(descrever('mover', base, true)!.teclas, ['MOVE']);
+  assert.deepEqual(descrever('pular', base, true)!.teclas, ['JUMP']);
+  assert.deepEqual(descrever('banco', base, true)!.teclas, ['USE']);
+  assert.deepEqual(descrever('fim', { ...base, noHabitat: 0 }, true)!.teclas, ['END DAY']);
+});
+
 test('the guide is unseen at first and remembered once finished', () => {
   const storage = memoria();
   assert.equal(tutorialJaVisto(storage), false);

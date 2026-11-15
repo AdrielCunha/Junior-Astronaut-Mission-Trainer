@@ -48,6 +48,7 @@ import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto, al
 import { criarExploracao, sortearTipo, AVISOS, type Contexto } from '../engine/exploracao';
 import { ESTACOES, estacaoDisponivel, textoEstacao, estacaoDoModulo, chaveModulo, type Estacao } from '../engine/estacoes';
 import { desenharRover, esconderRover, LINHA_QUADRIL_SENTADO, type PecasRover } from './desenharRover';
+import { controleMovel, consumirPuloMovel, dispositivoMovel } from '../mobile';
 
 const P = dadosTerreno.imagem;
 // Mars: warm light on the props and modules (they are rendered under the Moon's light), and the props that make sense in Jezero crater, with
@@ -670,7 +671,7 @@ export class Superficie extends Phaser.Scene {
   private entrada(): Entrada {
     const t = this.teclas;
     // Screen directions to map axes: up-screen = -gx -gy, right-screen = +gx -gy.
-    let sx = 0, sy = 0;
+    let sx = controleMovel.x, sy = controleMovel.y;
     if (t.W.isDown || t.UP.isDown) sy -= 1;
     if (t.S.isDown || t.DOWN.isDown) sy += 1;
     if (t.A.isDown || t.LEFT.isDown) sx -= 1;
@@ -709,7 +710,8 @@ export class Superficie extends Phaser.Scene {
         }
       }
     }
-    return { dx, dy, pular: Phaser.Input.Keyboard.JustDown(t.SPACE) };
+    const pular = Phaser.Input.Keyboard.JustDown(t.SPACE) || consumirPuloMovel();
+    return { dx, dy, pular };
   }
 
   // ---------- batteries ----------
@@ -807,6 +809,9 @@ export class Superficie extends Phaser.Scene {
     }
   }
 
+  // The USE button of the touch controls (mobile.ts): the same as E.
+  interagirPerto() { this.usarPerto(); }
+
   private usar(c: Construcao) {
     if (sessao.rover?.dirigindo) return;
     if (sessao.emTarefa) return;
@@ -897,7 +902,7 @@ export class Superficie extends Phaser.Scene {
       this.plantarBandeira(gx, gy);
       return;
     }
-    sessao.emitir('mensagem', '🚙 Walk to the rover, then press E.', '#fde68a');
+    sessao.emitir('mensagem', dispositivoMovel() ? '🚙 Walk to the rover, then tap USE.' : '🚙 Walk to the rover, then press E.', '#fde68a');
   }
 
   private alternarRover() {
@@ -924,7 +929,7 @@ export class Superficie extends Phaser.Scene {
     }
     this.rota = []; this.alvoUsar = null; this.alvoRover = false;
     this.recolherBandeira(); this.seguir = true;
-    sessao.emitir('mensagem', r.dirigindo ? '🚙 WASD to drive. E to get out.' : '🧑 On foot! E near the rover to drive.', '#93c5fd');
+    sessao.emitir('mensagem', r.dirigindo ? (dispositivoMovel() ? '🚙 Joystick to drive. USE to get out.' : '🚙 WASD to drive. E to get out.') : (dispositivoMovel() ? '🧑 On foot! USE near the rover to drive.' : '🧑 On foot! E near the rover to drive.'), '#93c5fd');
     sessao.emitir('estado');
     const vista = sessao.mundo === 'marte' ? sessao.curiosidadeRoverMarteVista : sessao.curiosidadeRoverVista;
     if (r.dirigindo && !vista) this.scene.launch('CuriosidadeRover');
@@ -1763,7 +1768,8 @@ export class Superficie extends Phaser.Scene {
       const p = paraTela(P, r.corpo.x, r.corpo.y, r.corpo.z + 1.25);
       const carregado = sessao.roverCarregado;
       // Only when standing next to it: not from afar, not while driving.
-      const acao = carregado ? 'E / click: Drive Apollo LRV' : sessao.carregando ? 'E / click: Install 1 battery & drive' : `Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}`;
+      const tecla = dispositivoMovel() ? 'USE' : 'E / click';
+      const acao = carregado ? `${tecla}: Drive Apollo LRV` : sessao.carregando ? `${tecla}: Install 1 battery & drive` : `Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}`;
       this.dicaRover.setPosition(p.x, p.y).setVisible(this.podeUsarRover() && !r.dirigindo && this.pertoRover())
         .setText(`Battery: ${carregado ? 'charged' : 'empty'}\n${acao}`);
       fundoRotulo(this.fundoDicaRover, this.dicaRover);

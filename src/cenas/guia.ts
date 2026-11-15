@@ -11,6 +11,7 @@ import { descrever, passoAtual, marcarTutorialVisto, type Descricao } from './tu
 import type { Construcao } from '../engine/construcao';
 import { linha, OBJETIVOS, COMO } from '../engine/expedicao';
 import type { calcularLayoutHud } from './layoutHud';
+import { dispositivoMovel } from '../mobile';
 
 type Layout = ReturnType<typeof calcularLayoutHud>;
 
@@ -38,7 +39,7 @@ export class Guia {
     };
     const passo = passoAtual(ctx);
     if (passo === 'pronto') { this.terminar(); return; }
-    const d = descrever(passo, ctx)!;
+    const d = descrever(passo, ctx, dispositivoMovel())!;
     this.g.clear();
     this.pilula?.setVisible(!pausado);
     if (pausado) return;
@@ -121,8 +122,12 @@ export function pontoDoMundo(cena: Phaser.Scene, l: Layout, gx: number, gy: numb
   const dentro = x > m && x < W - m && y > topo && y < H - m;
   // Out of view: held inside the free middle of the screen, clear of the counters (left), the bars and
   // zoom buttons (right) and END DAY (bottom), so the arrow is never hidden under the HUD.
-  const x0 = l.capsula.x + l.capsula.w + m / 2, x1 = l.menu.x - m / 2;
-  const y0 = l.recursos[2].y + l.recursos[2].h + m / 2, y1 = l.fimDia.y - m / 2;
+  // Computer HUD: counters in a left column, END DAY at the bottom. Phone HUD (wider than tall
+  // counters): counters along the bottom, END DAY at the top, round meters in the header.
+  const telefone = l.capsula.w > l.capsula.h;
+  const x0 = telefone ? m : l.capsula.x + l.capsula.w + m / 2, x1 = l.zoom[0].x - m / 2;
+  const y0 = telefone ? l.faixa.h + m / 2 : l.recursos[2].y + l.recursos[2].h + m / 2;
+  const y1 = (telefone ? l.capsula.y : l.fimDia.y) - m / 2;
   return dentro ? { x, y: y - Math.round(8 * l.u), fora: false, ang: Math.PI / 2 } : {
     x: Phaser.Math.Clamp(x, x0, x1), y: Phaser.Math.Clamp(y, y0, y1), fora: true, ang: Math.atan2(y - H / 2, x - W / 2),
   };

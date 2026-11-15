@@ -1,9 +1,45 @@
 // Shared pixel-rounded HUD grid, Roblox style: no top bar. The title at the top left, the
 // resource bars stacked at the top right, the objective centred on top, the battery counters in a
-// column down the left side and the menu + zoom buttons down the right side.
+// column down the left side and the menu + zoom buttons down the right side. Phones in landscape get
+// their own compact grid (round meters on top, counters at the bottom, joystick and buttons: mobile.ts).
+import { dispositivoMovel } from '../mobile';
+
 export function calcularLayoutHud(largura: number, altura: number, escala: number) {
+  const movel = dispositivoMovel() && largura > altura;
   const u = Math.min(escala, largura / 560);
   const px = (n: number) => Math.round(n * u);
+  if (movel) {
+    const margem = px(10), espaco = px(6);
+    const lado = px(38), entreCirculos = px(14);
+    // Keep the main meters centered while leaving room for the menu and END DAY on the right.
+    const maximoGrupo = largura - 2 * (margem + lado + espaco);
+    const diametro = Math.min(px(58), Math.floor((maximoGrupo - 2 * entreCirculos) / 3));
+    const larguraObjetivo = Math.min(px(320), largura - 2 * (margem + lado + espaco));
+    const objetivo = { x: Math.round((largura - larguraObjetivo) / 2), y: margem, w: larguraObjetivo, h: px(38) };
+    const topo = objetivo.y + objetivo.h + espaco;
+    const menu = { x: largura - margem - lado, y: margem, w: lado, h: lado };
+    const titulo = { x: margem, y: topo, w: 0, h: 0 };
+    const larguraGrupo = 3 * diametro + 2 * entreCirculos;
+    const recursos = Array.from({ length: 3 }, (_, i) => ({ x: Math.round((largura - larguraGrupo) / 2) + i * (diametro + entreCirculos), y: topo, w: diametro, h: diametro }));
+    const faixa = { x: 0, y: 0, w: largura, h: topo + diametro + px(22) };
+    const diametroRecurso = Math.min(px(42), Math.floor((maximoGrupo - 4 * espaco) / 5));
+    const larguraRecursos = 5 * diametroRecurso + 4 * espaco;
+    const capsula = { x: Math.round((largura - larguraRecursos) / 2), y: altura - margem - px(24) - diametroRecurso, w: larguraRecursos, h: diametroRecurso };
+    const gapMenu = px(20), larguraFimDia = px(116);
+    const fimDia = { x: menu.x - gapMenu - larguraFimDia, y: margem, w: larguraFimDia, h: lado };
+    const passo = lado + espaco;
+    const zoomY = menu.y + menu.h + espaco;
+    const zoom = Array.from({ length: 3 }, (_, i) => ({ x: largura - margem - lado, y: zoomY + i * passo, w: lado, h: lado }));
+    const controles = { x: largura - margem - lado, y: zoomY + 3 * passo, w: lado, h: lado };
+    const editar = { x: largura - margem - lado, y: zoomY + 4 * passo, w: lado, h: lado };
+    const nivel = { x: editar.x - px(12), y: editar.y + editar.h + espaco, w: lado + px(12), h: px(28) };
+    const avisoY = faixa.h + espaco;   // notices and the guide pill go under the round meters
+    const dicasCompactas = true, painelW = Math.min(px(260), largura - 2 * margem), abaW = px(24), painelH = px(148);
+    const dicasPainel = { x: margem, y: Math.max(objetivo.y + objetivo.h + espaco, Math.round(altura * 0.5)), w: painelW, h: painelH };
+    const dicasAba = { x: painelW - abaW, y: painelH - lado, w: abaW, h: lado };
+    const dicas = { x: margem, y: dicasPainel.y, w: abaW, h: lado };
+    return { u, margem, espaco, titulo, faixa, menu, recursos, capsula, objetivo, avisoY, zoom, controles, nivel, editar, fimDia, dicas, dicasCompactas, dicasPainel, dicasAba, dicasFechadasX: margem - dicasAba.x };
+  }
   const margem = px(12), espaco = px(8), h1 = px(52), h2 = px(34);
   const caixa = (x: number, y: number, w: number, h: number) => ({ x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) });
   const lado = px(38), passo = lado + espaco;
@@ -37,6 +73,7 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
   const zoom = Array.from({ length: 3 }, (_, i) => caixa(centroZoom - lado / 2, zoomY + (i + 1) * passo, lado, lado));
   const editar = caixa(centroZoom - lado / 2, zoomY + 4 * passo, lado, lado);
   const nivel = caixa(largura - margem - nivelW, zoomY + zoomAltura + espaco, nivelW, nivelH);
+  const controles = editar;   // the instructions button only exists on phones (see the phone grid above)
   const fimDia = caixa(largura - margem - px(128), altura - margem - lado, px(128), lado);
   const dicasW = px(570), dicasCompactas = dicasW + espaco > fimDia.x - margem;
   const abaW = px(24), painelW = dicasCompactas ? Math.min(px(260), util - abaW) : dicasW;
@@ -45,5 +82,5 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
   const dicasAba = caixa(painelW - abaW, painelH - lado, abaW, lado);
   const dicas = caixa(margem, fimDia.y, dicasCompactas ? abaW : dicasW, lado);
   const dicasFechadasX = margem - dicasAba.x;
-  return { u, margem, espaco, titulo, faixa, menu, recursos, capsula, objetivo, avisoY, zoom, nivel, editar, fimDia, dicas, dicasCompactas, dicasPainel, dicasAba, dicasFechadasX };
+  return { u, margem, espaco, titulo, faixa, menu, recursos, capsula, objetivo, avisoY, zoom, controles, nivel, editar, fimDia, dicas, dicasCompactas, dicasPainel, dicasAba, dicasFechadasX };
 }

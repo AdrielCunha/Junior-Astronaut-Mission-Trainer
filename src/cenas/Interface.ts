@@ -19,8 +19,9 @@ import { CONDICOES, ESTUFA_OXIGENIO, type Condicao } from '../engine/condicoes';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase, type RelatorioDia } from './sessao';
 import { apagarPartida } from '../salvamento';
 import { alternarMudo } from '../audio';
-import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndicador, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
+import { letra, criarPilula, criarCapsulaRecursos, criarCapsulaRecursosMovel, criarBotaoPilula, criarIndicador, criarIndicadorCircular, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
 import { resolverIcone, textoDoJogo, type IconeJogo } from '../dados/icones';
+import { escalaInterface, dispositivoMovel } from '../mobile';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 // A chat message: a custom equipment icon on the left and a short line.
@@ -43,10 +44,10 @@ const C_ = () => sessao.C;
 
 export class Interface extends Phaser.Scene {
   private u = 1;
-  private tituloHud!: ReturnType<typeof criarTituloHud>;
-  private recursos: ReturnType<typeof criarIndicador>[] = [];
+  private tituloHud?: ReturnType<typeof criarTituloHud>;   // none on phones (the round meters take the top)
+  private recursos: { caixa: Phaser.GameObjects.Container; atualizar: (valor: number, cor?: number) => void }[] = [];
   private eventoPerdido?: EventoDef;
-  private capsula!: ReturnType<typeof criarCapsulaRecursos>;
+  private capsula!: { caixa: Phaser.GameObjects.Container; atualizar: (valores: number[]) => void };
   private layout!: ReturnType<typeof calcularLayoutHud>;
   private objetivo!: Phaser.GameObjects.Container;
   private textos: Record<string, Phaser.GameObjects.Text> = {};
@@ -103,7 +104,7 @@ export class Interface extends Phaser.Scene {
 
   create() {
     const W = this.scale.width, H = this.scale.height;
-    this.u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.62, 1.4);
+    this.u = escalaInterface(W, H);
     sessao.tela = { w: W, h: H };
     this.textos = {};
     this.painel = [];
@@ -139,6 +140,8 @@ export class Interface extends Phaser.Scene {
     this.cortina = this.add.rectangle(0, 0, W, H, 0x05070f).setOrigin(0).setDepth(10_000_000).setAlpha(0);
     this.dicas = criarDicasRecolhiveis(this, l.dicasPainel, l.dicasAba, l.dicasFechadasX, l.u, l.dicasCompactas,
       this.preferenciaDicas.inicial(l.dicasCompactas), (recolhido) => this.preferenciaDicas.definir(recolhido));
+    // On phones the right-column button replaces the drawer tab.
+    if (dispositivoMovel() && W > H) { this.dicas.aba.setVisible(false); this.dicas.areaAba.disableInteractive(); }
     sessao.ouvir(this, 'controleUsado', (controle) => {
       if (this.preferenciaDicas.usar(controle)) this.dicas.definir(true);
     });
@@ -185,6 +188,18 @@ export class Interface extends Phaser.Scene {
   private abrirMenu() {
     if (sessao.emTarefa || sessao.abastecendoRover || sessao.transicao || configuracoesAbertas || this.scene.isActive('MenuJogo')) return;
     this.scene.launch('MenuJogo', { aoSairTitulo: () => this.abrirTelaInicial() });
+  }
+
+  // The keyboard button on the mobile HUD: the game instructions in a centered panel, all at once.
+  private abrirInstrucoes() {
+    if (sessao.emTarefa || sessao.abastecendoRover || sessao.transicao || configuracoesAbertas ||
+        this.scene.isActive('MenuJogo') || this.scene.isActive('Radar') || this.scene.isActive('EditorBase') ||
+        this.painel.length) return;
+    this.abrirPainel('HOW TO PLAY', CONTROLE, [
+      'MOVE: drag the joystick on the left. JUMP: tap JUMP. USE: tap USE next to a room, the Battery Bank or the rover.',
+      'Pinch with two fingers to zoom the map.',
+      'Pick up batteries, deliver them to the rooms, and press END DAY.',
+    ], [{ texto: 'GOT IT  \u25b6', acao: () => this.fecharPainel(), principal: true }], { imediato: true });
   }
 
   abrirEditor(): boolean {
@@ -405,12 +420,18 @@ export class Interface extends Phaser.Scene {
   private criarHUD(W: number, H: number) {
     const l = this.layout = calcularLayoutHud(W, H, this.u), u = l.u;
     const px = (v: number) => Math.round(v * u);
+    const movel = dispositivoMovel() && W > H;
     const pad = px(8);
-    this.tituloHud = criarTituloHud(this, l.titulo, u);
-    this.textos.dia = this.tituloHud.data;
+    if (movel) {
+      this.tituloHud = undefined;
+      this.textos.dia = this.add.text(0, 0, '', letra(px(12), '#dbeafe')).setVisible(false);
+    } else {
+      this.tituloHud = criarTituloHud(this, l.titulo, u);
+      this.textos.dia = this.tituloHud.data;
+    }
     const marte = sessao.mundo === 'marte';
     const descricoes: [IconeJogo, string, number][] = [['oxygen', 'Oxygen', 0x4ade80], ['radiation', 'Radiation', 0xfde047], [marte ? 'wrench' : 'rocket', sessao.cap.nomeMeta, 0x60a5fa]];
-    this.recursos = l.recursos.map((r, i) => criarIndicador(this, r, u, ...descricoes[i]));
+    this.recursos = l.recursos.map((r, i) => movel ? criarIndicadorCircular(this, r, u, ...descricoes[i]) : criarIndicador(this, r, u, ...descricoes[i]));
     const menu = criarBotaoPilula(this, l.menu, u, '', () => this.abrirMenu());
     const simbolo = this.add.graphics().lineStyle(Math.max(2, px(2.5)), 0xffffff);
     const cx = Math.round(l.menu.w / 2), cy = Math.round(l.menu.h / 2);
@@ -418,24 +439,28 @@ export class Interface extends Phaser.Scene {
     menu.caixa.add(simbolo).setDepth(10).setData('acao', 'menu');
     this.btMenu = menu.caixa;
     const nave = sessao.mundo === 'nave';
-    this.capsula = criarCapsulaRecursos(this, l.capsula, u, nave ? {
+    const rotulosRecursos = nave ? {
       nomes: ['Batteries at the Power Room', 'Carrying batteries', 'Air recycler: batteries delivered today', 'Storm shelter: batteries delivered today', 'Engines: batteries delivered today'],
       icones: ['energy', 'backpack', 'heart', 'shield', 'rocket'],
     } : marte ? {
       nomes: ['Batteries at the lander', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Heating: batteries delivered today'],
       icones: ['energy', 'backpack', 'heart', 'shield', 'energy'],
-    } : undefined);
+    } : undefined;
+    this.capsula = movel ? criarCapsulaRecursosMovel(this, l.capsula, u, rotulosRecursos) : criarCapsulaRecursos(this, l.capsula, u, rotulosRecursos);
     const o = l.objetivo;
     this.objetivo = criarPilula(this, o.x, o.y, o.w, o.h, u, 0xfde047);
     const estrela = criarIconeJogo(this, pad + px(10), Math.round(o.h / 2), 'star', px(24));
-    this.textos.tarefa = this.add.text(px(30), Math.round(o.h / 2), '', letra(px(12), '#0b1a4a', {
-      wordWrap: { width: o.w - px(30) - pad }, lineSpacing: 0,
+    const tamanhoObjetivo = movel ? 15 : 12;
+    this.textos.tarefa = this.add.text(px(30), Math.round(o.h / 2), '', letra(px(tamanhoObjetivo), '#0b1a4a', {
+      fontStyle: '700', wordWrap: { width: o.w - px(30) - pad }, lineSpacing: 0,
     })).setOrigin(0, 0.5);
     this.objetivo.add([estrela, this.textos.tarefa]);
     // Pulse only the star; the second-row elements stay on the same baseline.
     if (!movimentoReduzido()) this.tweens.add({ targets: estrela, alpha: 0.45, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     (['mais', 'menos', 'mira'] as const).forEach((icone, i) => criarBotaoZoom(this, l.zoom[i], u, icone,
       () => i === 2 ? sessao.irPara(U_INICIAL) : sessao.zoom(i === 0 ? -0.5 : 0.5)));
+    // The Controls button opens the instructions in a panel centered on screen.
+    if (movel) criarBotaoZoom(this, l.controles, u, 'controles', () => this.abrirInstrucoes()).setData('acao', 'controles');
     const nivel = criarPilula(this, l.nivel.x, l.nivel.y, l.nivel.w, l.nivel.h, u);
     this.textos.altitude = this.add.text(Math.round(l.nivel.w / 2), Math.round(l.nivel.h / 2), '', letra(px(12), '#ffffff')).setOrigin(0.5);
     nivel.add(this.textos.altitude);
@@ -474,7 +499,7 @@ export class Interface extends Phaser.Scene {
     this.textos.dia.setText(sessao.fase === 'inicio'
       ? `Exploring \u00b7 ${marte ? 'Jezero crater' : 'Shackleton rim'}`
       : `${marte ? 'Mars \u00b7 ' : sessao.mundo === 'nave' ? 'Ship \u00b7 ' : ''}Day ${Math.min(e.dia, C_().dias)} of ${C_().dias} \u00b7 ${dataBonita(sessao.data)}`);
-    this.tituloHud.atualizar(this.textos.dia.text);
+    this.tituloHud?.atualizar(this.textos.dia.text);
     const valores = [e.oxigenio, e.dose, sessao.mundo==='lua'?sessao.progressoFoguete:e.meta];
     // Oxygen and crew health (100 - dose) warn by color: green above 70, yellow 30 to 70, red below 30.
     const alerta = (v: number) => v > 70 ? 0x4ade80 : v >= 30 ? 0xfde047 : 0xef4444;
@@ -504,10 +529,19 @@ export class Interface extends Phaser.Scene {
     if (sessao.rover?.dirigindo) objetivo = sessao.roverCarregado
       ? 'WASD to drive  ·  E to get out'
       : 'Rover needs 1 battery. E to get out';
+    // Touch screens: the joystick and the USE button instead of the keys.
+    if (dispositivoMovel()) objetivo = objetivo.replace('WASD to drive', 'Joystick to drive').replace('E to get out', 'USE to get out').replace('(E)', '(USE)');
     this.textos.tarefa.setText(objetivo);
 
     this.textos.tarefa.setScale(1);
-    this.textos.tarefa.setScale(Math.min(1, (this.layout.objetivo.h - Math.round(6 * this.layout.u)) / this.textos.tarefa.height));
+    const alturaDisponivel = this.layout.objetivo.h - Math.round(6 * this.layout.u);
+    if (dispositivoMovel()) {
+      // Shrink the font before scaling its texture: downscaled canvas text looks blurry.
+      let tamanho = Math.round(15 * this.layout.u);
+      this.textos.tarefa.setFontSize(tamanho);
+      while (this.textos.tarefa.height > alturaDisponivel && tamanho > 11) this.textos.tarefa.setFontSize(--tamanho);
+    }
+    this.textos.tarefa.setScale(Math.min(1, alturaDisponivel / this.textos.tarefa.height));
 
     this.textoFim.setText(sessao.fase === 'inicio' ? '◀  MENU' : 'END DAY  ▶');
     this.btFim.setVisible(sessao.fase === 'dia' || sessao.fase === 'inicio');
@@ -798,7 +832,7 @@ export class Interface extends Phaser.Scene {
   // chat. The messages arrive one by one, each after a moment of "typing...". When they do not all fit,
   // they go on pages: NEXT shows the following page, the real buttons wait on the last one. A click or
   // ENTER first shows the whole page at once.
-  private abrirPainel(titulo: string, quem: Remetente, partes: Parte[], botoes: Botao[]) {
+  private abrirPainel(titulo: string, quem: Remetente, partes: Parte[], botoes: Botao[], opcoes: { imediato?: boolean } = {}) {
     this.fecharPainel();
     if (quem===CONTROLE) tocarSfx('radio');
     this.aviso?.destroy();   // an old notice would sit on top of the panel
@@ -936,7 +970,7 @@ export class Interface extends Phaser.Scene {
       bolhas.forEach((b, i) => { if (!paginas[n].includes(i)) b.c.setVisible(false); });
       [...btsSeguinte, ...btsFinais].forEach((b) => b.setVisible(false));
       bolinhas.forEach((b, i) => b.setFillStyle(i === n ? 0xfde047 : 0xffffff, i === n ? 1 : 0.4));
-      if (reduzido) { terminar(); return; }
+      if (reduzido || opcoes.imediato) { terminar(); return; }
       this.acaoPrincipal = terminar;     // ENTER first shows the whole page
       fundo.off('pointerdown').on('pointerdown', terminar);
       this.timersChat.push(this.time.delayedCall(n === 0 ? 300 : 150, proxima));

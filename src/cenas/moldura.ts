@@ -3,6 +3,7 @@
 // the same one as the Life Support task (cenas/Tarefa.ts), so every task feels like part of the same cockpit.
 import Phaser from 'phaser';
 import { sfxDaMensagem, tocarSfx } from '../sfx';
+import { escalaInterface } from '../mobile';
 
 export const FONTE = '"Fredoka", system-ui, "Segoe UI", sans-serif';
 export const CONTORNO = 0x1e293b;   // dark outline of the Life Support look
@@ -27,7 +28,7 @@ export function canvas(scene: Phaser.Scene, chave: string, w: number, h: number,
 // UI scale u (1 at 1100x650). `totalW` x `totalH` is the panel we draw (frame + title + status), so the frame is totalW-60 x totalH-80.
 export function escalaPainel(scene: Phaser.Scene, totalW: number, totalH: number) {
   const W = scene.scale.width, H = scene.scale.height;
-  const u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.62, 1.4);
+  const u = escalaInterface(W, H);
   const alvoW = Math.min(W - 40 * u, 660 * u), alvoH = Math.min(H - 40 * u, 480 * u);
   return Math.min(alvoW / (totalW - 60), alvoH / (totalH - 80));
 }
