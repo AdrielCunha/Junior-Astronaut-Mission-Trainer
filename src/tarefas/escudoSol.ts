@@ -5,6 +5,7 @@
 import type Phaser from 'phaser';
 import type { Tarefa } from './index';
 import { CONTORNO, criarBarra, letra } from './estilo';
+import { tocarSfx } from '../sfx';
 
 const MEIO = 0.6;          // half the shield's arc, rad
 const ALINHADO = 0.35;     // how close to the Sun counts as facing it, rad
@@ -115,13 +116,17 @@ export const escudoSol: Tarefa = {
 
     const encher = criarBarra(cena, cx, y + h - alturaBarra / 2, Math.min(w * 0.62, 360 * u), u, 'SAFE');
     let progresso = 0, acabou = false;
+    let ultimoTick = 0;
+    let ultimoZap = 0;
     let tocou = false;   // the drifting Sun can pass in front of an untouched shield: that must not count
 
     const girar = (p: Phaser.Input.Pointer) => {
       if (!p.isDown || acabou || p.x < x || p.x > x + w || p.y < y || p.y > y + h) return;
+      if (!tocou) tocarSfx('pegar');
       tocou = true;
       if (dica.active) dica.destroy();
       aEsc = Math.atan2(p.y - cy, p.x - cx);
+      if (Math.abs(dif(aEsc, ultimoTick)) > 0.3) { ultimoTick = aEsc; tocarSfx('girar'); }
       braco.setRotation(aEsc);
     };
     cena.input.on('pointerdown', girar);
@@ -142,6 +147,7 @@ export const escudoSol: Tarefa = {
       cena.tweens.add({ targets: s, scale: 1.7, alpha: 0, angle: 45, duration: 300, onComplete: () => s.destroy() });
     };
 
+    let estavaAlinhado = false;
     let antes = cena.time.now;
     cena.time.addEvent({
       delay: 16, loop: true, callback: () => {
@@ -157,13 +163,15 @@ export const escudoSol: Tarefa = {
           const atingiu = r < Rm + 6 * u;
           if (!bloqueada && !atingiu) continue;
           if (bloqueada) faisca(q.c.x, q.c.y);
-          else { cena.tweens.killTweensOf(dano); dano.setAlpha(0.45); cena.tweens.add({ targets: dano, alpha: 0, duration: 260 }); }
+          else { if (cena.time.now - ultimoZap > 350) { ultimoZap = cena.time.now; tocarSfx('zap'); } cena.tweens.killTweensOf(dano); dano.setAlpha(0.45); cena.tweens.add({ targets: dano, alpha: 0, duration: 260 }); }
           q.c.destroy();
           particulas.splice(i, 1);
         }
 
         if (acabou) return;
         const alinhado = tocou && Math.abs(dif(aEsc, direcaoSol())) < ALINHADO;
+        if (alinhado && !estavaAlinhado) tocarSfx('bip');
+        estavaAlinhado = alinhado;
         brilho.setVisible(alinhado);
         luz.setFillStyle(alinhado ? 0x22c55e : 0xef4444);
         progresso = Math.max(0, progresso + (alinhado ? dt / TEMPO : -dt * 0.35));

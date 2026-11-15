@@ -45,6 +45,7 @@ export function carregarFilme(texturas: Phaser.Textures.TextureManager) {
       img.onerror = () => {
         if (feito) return;
         feito = true;
+        console.error(`Failed to load flight frame ${i}: ${quadroVoo(i)}`);
         ativos--;
         const n = (tentativas.get(i) ?? 0) + 1;
         tentativas.set(i, n);

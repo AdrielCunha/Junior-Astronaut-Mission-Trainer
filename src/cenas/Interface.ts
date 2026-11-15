@@ -11,6 +11,7 @@ import { TIPOS } from '../engine/construcao';
 import { suprimentoDoDia } from '../engine/suprimentos';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, dadosTerreno, type Fase } from './sessao';
 import { alternarMudo, estaMudo } from '../audio';
+import { alternarEfeitos, efeitosEstaoMudos } from '../sfx';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 const NIVEIS = ['CALM', 'RISING', 'HIGH', 'EXTREME'];
@@ -32,6 +33,7 @@ export class Interface extends Phaser.Scene {
   private cortina!: Phaser.GameObjects.Rectangle;
   private btVideo!: Phaser.GameObjects.Text;
   private btSom!: Phaser.GameObjects.Text;
+  private btEfeitos!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: 'Interface' });   // started by Carregar
@@ -84,6 +86,7 @@ export class Interface extends Phaser.Scene {
     const yb = H - 16 * u;
     this.btFim = this.botao(W - 16 * u, yb, 'End day  ▶', () => this.terminarDia(), COR.azul, 16).setOrigin(1, 1);
     this.btSom = this.botao(W - 16 * u, 62 * u, estaMudo() ? 'Music off' : 'Music on', () => this.atualizarSom(alternarMudo()), '#334155', 12).setOrigin(1, 0).setDepth(10);
+    this.btEfeitos = this.botao(W - 16 * u, 94 * u, efeitosEstaoMudos() ? 'Effects off' : 'Effects on', () => this.atualizarEfeitos(alternarEfeitos()), '#334155', 12).setOrigin(1, 0).setDepth(10);
 
     this.btVideo = this.botao(W-16*u,98*u,'Video & comfort',()=>abrirVideo(),'#334155',12).setFontSize(Math.max(12,12*u)).setPadding(10,8,10,8).setOrigin(1,0).setDepth(10);
     this.cortina = this.add.rectangle(0,0,W,H,0x05070f).setOrigin(0).setDepth(10_000_000).setAlpha(0);
@@ -135,6 +138,10 @@ export class Interface extends Phaser.Scene {
 
   private atualizarSom(mudo: boolean) {
     this.btSom.setText(mudo ? 'Music off' : 'Music on');
+  }
+
+  private atualizarEfeitos(mudo: boolean) {
+    this.btEfeitos.setText(mudo ? 'Effects off' : 'Effects on');
   }
 
   update() {

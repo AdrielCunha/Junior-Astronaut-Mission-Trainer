@@ -93,7 +93,7 @@ export class Base extends Phaser.Scene {
   private animouFim = false;
   private inicioDoDia: Estado = this.estado; // state when the day started, for the night summary
   private anuncio: string | null = null; // shown once after the scene redraws, e.g. "Heating is built!"
-
+  private naveDeSaida: Phaser.GameObjects.Container | null = null;
 
   // Rebuilt by every create().
   private T = 20;
@@ -193,7 +193,10 @@ export class Base extends Phaser.Scene {
     const W = this.scale.width;
     const H = this.scale.height;
     // Dev server only: lets browser tests read the scene. Removed from the production build.
-    if (import.meta.env.DEV) (window as unknown as { cena: Base }).cena = this;
+    if (import.meta.env.DEV) {
+      (window as unknown as { cena: Base }).cena = this;
+      (window as typeof window & { __BUILD_SHIP__?: () => void }).__BUILD_SHIP__ = () => this.construirNaveEAtivarTask();
+    }
     // Redraw at the new size. Debounced, because resize fires many times while dragging.
     let espera: Phaser.Time.TimerEvent | undefined;
     const aoRedimensionar = () => {
@@ -1101,6 +1104,34 @@ export class Base extends Phaser.Scene {
     this.tweens.add({ targets: t, alpha: 0, delay: 1400, duration: 600, onComplete: () => t.destroy() });
   }
 
+  private construirNaveEAtivarTask() {
+    this.scene.launch('NaveTarefa', { aoConcluir: () => { this.anuncio = 'Ship route complete'; this.mostrarAnuncio(); } });
+  }
+
+  private montarNaveDeSaida() {
+    if (this.naveDeSaida) return;
+    const nave = this.add.container(this.scale.width - 140, this.scale.height - 200).setDepth(1100);
+    const casco = this.add.circle(0, 0, 28, 0x93c5fd).setStrokeStyle(3, 0xffffff);
+    const asa = this.add.triangle(0, 0, -34, 0, 0, 20, -10, 8, 0x60a5fa).setRotation(0.1);
+    const cauda = this.add.triangle(0, 0, 18, 0, 28, 14, 14, 8, 0xbfdbfe).setRotation(-0.7);
+    const glow = this.add.circle(0, 0, 48, 0x7dd3fc, 0.1).setDepth(-1);
+    const botaoBuild = this.add.text(0, 50, 'Build ship', {
+      fontFamily: 'system-ui, "Segoe UI", sans-serif',
+      fontSize: '16px',
+      color: '#f8fafc',
+      backgroundColor: '#2563eb',
+      padding: { x: 12, y: 8 },
+      fontStyle: 'bold',
+      resolution: window.devicePixelRatio || 1,
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(1);
+    botaoBuild.on('pointerdown', () => this.construirNaveEAtivarTask());
+    nave.add([glow, casco, asa, cauda, botaoBuild]);
+    nave.setSize(80, 80);
+    nave.setInteractive({ useHandCursor: true });
+    nave.on('pointerdown', () => this.construirNaveEAtivarTask());
+    this.naveDeSaida = nave;
+  }
+
   private terminarDia() {
     if (this.fase !== 'dia' || this.andando) return;
     const antes = this.estado;
@@ -1503,12 +1534,28 @@ export class Base extends Phaser.Scene {
         ...licoes(CAPITULOS.flatMap((k) => k.licoes)),
       ], [dados, { texto: 'Play again', acao: () => this.comecarCapitulo(0, 0), principal: true }], '#86efac');
     } else if (this.res === 'vitoria') {
-      mostrar = () => this.abrirPainel(cap.vitoria[0], [
-        cap.vitoria[1],
-        placar,
-        ...licoes(cap.licoes),
-        { texto: `Next: chapter ${cap.numero + 1}, ${CAPITULOS[this.capIdx + 1].titulo.toLowerCase()}. The crew keeps its radiation dose.`, cor: '#94a3b8', tamanho: 14 },
-      ], [dados, { texto: 'Next chapter', acao: () => this.comecarCapitulo(this.capIdx + 1, e.dose), principal: true }], '#86efac');
+      mostrar = () => {
+        const botoes: Botao[] = [dados];
+        if (cap.tema === 'nave') {
+          botoes.push({ texto: 'Build ship', acao: () => { this.construirNaveEAtivarTask(); }, principal: true });
+        }
+        botoes.push({ texto: 'Next chapter', acao: () => this.comecarCapitulo(this.capIdx + 1, e.dose), principal: cap.tema !== 'nave' });
+
+        this.abrirPainel(cap.vitoria[0], [
+          cap.vitoria[1],
+          placar,
+          ...licoes(cap.licoes),
+          { texto: `Next: chapter ${cap.numero + 1}, ${CAPITULOS[this.capIdx + 1].titulo.toLowerCase()}. The crew keeps its radiation dose.`, cor: '#94a3b8', tamanho: 14 },
+        ], botoes, '#86efac');
+
+        if (cap.tema === 'nave') {
+          this.time.delayedCall(1800, () => {
+            if (this.fase === 'fim' && this.res === 'vitoria') {
+              this.comecarCapitulo(this.capIdx + 1, e.dose);
+            }
+          });
+        }
+      };
     } else {
       const motivo: Record<Exclude<Resultado, 'vitoria' | null>, [string, string]> = {
         'sem-oxigenio': ['Out of oxygen', 'The crew ran out of oxygen. Mission Control called them back to Earth.'],
@@ -1548,6 +1595,9 @@ export class Base extends Phaser.Scene {
       return;
     }
     if (this.animouFim && this.estrutura) this.estrutura.setVisible(false);
+    if (this.res === 'vitoria' && cap.tema === 'nave') {
+      this.montarNaveDeSaida();
+    }
     mostrar();
   }
 

@@ -11,6 +11,10 @@ dist/
 GDD.md
 guia-dados-nasa.pdf
 
+# Local project context files and generated working docs
+claude/
+contexto-versao-1.md
+
 # Tool and OS leftovers
 .playwright-mcp/
 .DS_Store

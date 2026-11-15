@@ -1,20 +1,21 @@
 // Generated with AI assistance (Claude). See README, "Use of AI tools".
-// Life Support task: scrub the Moon dust off the air duct filter so the fan can push air again.
-// Different every time: the number, size and place of the dust clumps are random.
-import type Phaser from 'phaser';
+// Life Support task: Moon rocks are stuck in the air duct. Drag each one out of the housing so the fan can push air again.
+// Different every time: the number, size and place of the rocks are random.
+import Phaser from 'phaser';
 import type { Tarefa } from './index';
 import { CONTORNO, criarBarra, letra } from './estilo';
+import { tocarSfx } from '../sfx';
 
 const PO = [0xa8a29e, 0x8f8983, 0xc2bdb7];   // lunar regolith greys, a bit lighter for the cartoon look
 
-type Torrao = { g: Phaser.GameObjects.Graphics; x: number; y: number; r: number; vida: number; total: number };
+type Pedra = { g: Phaser.GameObjects.Graphics; r: number; x0: number; y0: number; fora: boolean };
 
 export const poeiraDuto: Tarefa = {
   id: 'poeira-duto',
   sala: 'oxigenio',
   titulo: 'Life Support · Air Duct',
-  instrucao: 'Moon dust is blocking the air! Scrub it away.',
-  fato: 'Moon dust is sharp, like tiny bits of glass, and it sticks to everything. Apollo astronauts found it on their suits, their tools and inside their lander.',
+  instrucao: 'Rocks are blocking the air! Drag them out of the duct.',
+  fato: 'The Apollo astronauts brought back 382 kilograms of Moon rocks. Scientists are still studying them today.',
 
   montar(cena, { x, y, w, h, u }, feito) {
     const alturaBarra = 34 * u;
@@ -55,31 +56,36 @@ export const poeiraDuto: Tarefa = {
     let velocidade = 0.4;   // rad/s
     cena.time.addEvent({ delay: 16, loop: true, callback: () => { ventoinha.rotation += velocidade * 0.016; } });
 
-    // Filter mesh over the opening, then the rim.
-    const malha = cena.add.graphics().lineStyle(2 * u, 0x334155, 0.95);
-    const passo = 15 * u;
-    for (let d = -R + passo / 2; d < R; d += passo) {
-      const meia = Math.sqrt(R * R - d * d);
-      malha.lineBetween(cx - meia, cy + d, cx + meia, cy + d).lineBetween(cx + d, cy - meia, cx + d, cy + meia);
-    }
-    malha.lineStyle(9 * u, 0x64748b).strokeCircle(cx, cy, R).lineStyle(3 * u, CONTORNO).strokeCircle(cx, cy, R + 4.5 * u).strokeCircle(cx, cy, R - 4.5 * u);
+    // Rim of the opening (no mesh any more: the rocks sit right in the way of the fan).
+    const aro = cena.add.graphics();
+    aro.lineStyle(9 * u, 0x64748b).strokeCircle(cx, cy, R).lineStyle(3 * u, CONTORNO).strokeCircle(cx, cy, R + 4.5 * u).strokeCircle(cx, cy, R - 4.5 * u);
 
-    // Dust clumps with a cartoon outline: dark circles first, colored ones on top.
-    const sujeira: Torrao[] = [];
-    const n = 12 + Math.floor(Math.random() * 6);
+    // Moon rocks stuck in the duct: lumpy grey stones with a cartoon outline. Drag each one out of the housing.
+    const pedras: Pedra[] = [];
+    const n = 5 + Math.floor(Math.random() * 3);
     for (let i = 0; i < n; i++) {
-      const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * R * 0.8;
-      const r = (11 + Math.random() * 12) * u;
-      const g = cena.add.graphics({ x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d });
-      const bolas = Array.from({ length: 4 }, () => ({ x: (Math.random() - 0.5) * r, y: (Math.random() - 0.5) * r, r: r * (0.45 + Math.random() * 0.3) }));
-      for (const b of bolas) g.fillStyle(CONTORNO).fillCircle(b.x, b.y, b.r + 2.5 * u);
-      bolas.forEach((b, k) => g.fillStyle(PO[k % PO.length]).fillCircle(b.x, b.y, b.r));
-      g.fillStyle(0x78716c).fillCircle(bolas[0].x + r * 0.15, bolas[0].y, r * 0.13).fillCircle(bolas[1].x - r * 0.1, bolas[1].y + r * 0.1, r * 0.09);
-      g.fillStyle(0xffffff, 0.35).fillCircle(bolas[2].x - r * 0.15, bolas[2].y - r * 0.18, r * 0.12);
+      let px = 0, py = 0, r = 0;
+      for (let tentativa = 0; tentativa < 30; tentativa++) {
+        const ang = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * R * 0.62;
+        r = (17 + Math.random() * 9) * u;
+        px = cx + Math.cos(ang) * d; py = cy + Math.sin(ang) * d;
+        if (pedras.every((o) => Math.hypot(o.g.x - px, o.g.y - py) > o.r + r + 4 * u)) break;
+      }
+      const g = cena.add.graphics({ x: px, y: py }).setDepth(5);
+      const pontos = Array.from({ length: 9 }, (_v, k) => {
+        const ang = (k / 9) * Math.PI * 2, rr = r * (0.8 + Math.random() * 0.3);
+        return new Phaser.Math.Vector2(Math.cos(ang) * rr, Math.sin(ang) * rr);
+      });
+      const cor = PO[i % PO.length];
+      g.fillStyle(cor).fillPoints(pontos, true).lineStyle(3.5 * u, CONTORNO).strokePoints(pontos, true);
+      g.fillStyle(0x78716c).fillCircle(r * 0.25, r * 0.2, r * 0.16).fillCircle(-r * 0.3, r * 0.3, r * 0.1);
+      g.fillStyle(0xffffff, 0.35).fillCircle(-r * 0.3, -r * 0.3, r * 0.17);
       g.setScale(0);
-      cena.tweens.add({ targets: g, scale: 1, duration: 300, delay: 60 + i * 25, ease: 'Back.easeOut' });
-      const vida = 3 + r / u / 3;
-      sujeira.push({ g, x: g.x, y: g.y, r, vida, total: vida });
+      cena.tweens.add({ targets: g, scale: 1, duration: 300, delay: 60 + i * 60, ease: 'Back.easeOut' });
+      g.setInteractive(new Phaser.Geom.Circle(0, 0, r + 8 * u), Phaser.Geom.Circle.Contains);
+      if (g.input) g.input.cursor = 'grab';
+      cena.input.setDraggable(g);
+      pedras.push({ g, r, x0: px, y0: py, fora: false });
     }
 
     // Airflow bar: a chunky pill that fills green.
@@ -88,62 +94,46 @@ export const poeiraDuto: Tarefa = {
     const barra = { p: 0 };
     const desenharBarra = () => encher(barra.p);
 
-    let limpos = 0, acabou = false;
+    let fora = 0, acabou = false;
     const progresso = () => {
-      const p = limpos / n;
+      const p = fora / n;
       velocidade = 0.4 + 13 * p;
       cena.tweens.add({ targets: barra, p, duration: 200, onUpdate: desenharBarra });
     };
 
-    const sumir = (t: Torrao) => {
-      limpos++;
+    const naCaixa = (px: number, py: number) => Math.abs(px - cx) < L && Math.abs(py - cy) < L;
+    const limiteY = y + h - alturaBarra - 8 * u;
+    cena.input.on('dragstart', (_p: Phaser.Input.Pointer, g: Phaser.GameObjects.Graphics) => { tocarSfx('pegar'); g.setDepth(8); g.setScale(1.12); });
+    cena.input.on('drag', (_p: Phaser.Input.Pointer, g: Phaser.GameObjects.Graphics, dx: number, dy: number) => {
+      if (acabou) return;
+      g.setPosition(Phaser.Math.Clamp(dx, x + 20 * u, x + w - 20 * u), Phaser.Math.Clamp(dy, y + 20 * u, limiteY));
+    });
+    cena.input.on('dragend', (_p: Phaser.Input.Pointer, g: Phaser.GameObjects.Graphics) => {
+      const pedra = pedras.find((q) => q.g === g);
+      if (!pedra || pedra.fora) return;
+      g.setDepth(5).setScale(1);
+      if (naCaixa(g.x, g.y)) {   // still in the housing: it rolls back into the duct
+        tocarSfx('soltar');
+        cena.tweens.add({ targets: g, x: pedra.x0, y: pedra.y0, duration: 260, ease: 'Back.easeOut' });
+        return;
+      }
+      pedra.fora = true;
+      tocarSfx('ok');
+      g.disableInteractive();
+      g.setDepth(2);
+      const sinal = g.x < cx ? -1 : 1;
+      cena.tweens.add({ targets: g, scale: 0.85, duration: 120, yoyo: true });
       for (let k = 0; k < 6; k++) {
-        const c = cena.add.circle(t.x, t.y, (2.5 + Math.random() * 3) * u, PO[k % PO.length]).setStrokeStyle(1.5 * u, CONTORNO);
-        cena.tweens.add({
-          targets: c, x: t.x + (Math.random() - 0.5) * t.r * 3.2, y: t.y + (Math.random() - 0.5) * t.r * 3.2, alpha: 0, scale: 0.4,
-          duration: 500, ease: 'Quad.easeOut', onComplete: () => c.destroy(),
-        });
+        const c = cena.add.circle(g.x, g.y, (2.5 + Math.random() * 3) * u, PO[k % PO.length]).setStrokeStyle(1.5 * u, CONTORNO);
+        cena.tweens.add({ targets: c, x: g.x + sinal * Math.random() * 30 * u, y: g.y + (Math.random() - 0.5) * 40 * u, alpha: 0, duration: 450, onComplete: () => c.destroy() });
       }
-      const brilho = cena.add.star(t.x, t.y, 4, 3 * u, 11 * u, 0xffffff).setAngle(15);
-      cena.tweens.add({ targets: brilho, scale: 1.6, alpha: 0, angle: 60, duration: 420, onComplete: () => brilho.destroy() });
-      cena.tweens.add({ targets: t.g, scale: 1.35, alpha: 0, duration: 180, onComplete: () => t.g.destroy() });
+      fora++;
       progresso();
-      if (limpos === n) acabar();
-    };
-
-    // The scrub brush follows the finger / mouse over the duct and wiggles while scrubbing.
-    const escova = cena.add.container(0, 0).setVisible(false).setDepth(6);
-    const eg = cena.add.graphics();
-    eg.fillStyle(0xf97316).fillRoundedRect(-7 * u, -46 * u, 14 * u, 30 * u, 6 * u).lineStyle(2.5 * u, CONTORNO).strokeRoundedRect(-7 * u, -46 * u, 14 * u, 30 * u, 6 * u);
-    eg.fillStyle(0x60a5fa).fillRoundedRect(-17 * u, -18 * u, 34 * u, 12 * u, 4 * u).lineStyle(2.5 * u, CONTORNO).strokeRoundedRect(-17 * u, -18 * u, 34 * u, 12 * u, 4 * u);
-    eg.fillStyle(0xfde047);
-    for (let k = -3; k <= 3; k++) eg.fillRect(k * 4.4 * u - 1.6 * u, -6 * u, 3.2 * u, 8 * u);
-    eg.lineStyle(1.5 * u, CONTORNO).strokeRect(-16 * u, -6 * u, 32 * u, 8 * u);
-    escova.add(eg);
-    const dentro = (p: Phaser.Input.Pointer) => Math.hypot(p.x - cx, p.y - cy) < L * 1.15;
-
-    const esfregar = (p: Phaser.Input.Pointer) => {
-      const sobre = !acabou && dentro(p);
-      escova.setVisible(sobre).setPosition(p.x, p.y);
-      cena.input.setDefaultCursor(sobre ? 'none' : 'default');
-      if (!p.isDown || acabou) return;
-      escova.setAngle(Math.sin(cena.time.now / 40) * 14);
-      const forca = Math.max(0.6, Math.hypot(p.x - p.prevPosition.x, p.y - p.prevPosition.y) / (8 * u));
-      for (const t of sujeira) {
-        if (t.vida <= 0 || Math.hypot(p.x - t.x, p.y - t.y) > t.r + 18 * u) continue;
-        t.vida -= forca;
-        t.g.setAlpha(0.35 + (0.65 * Math.max(0, t.vida)) / t.total);
-        if (t.vida <= 0) sumir(t);
-      }
-    };
-    cena.input.on('pointerdown', esfregar);
-    cena.input.on('pointermove', esfregar);
-    cena.input.on('pointerup', () => escova.setAngle(0));
+      if (fora === n) acabar();
+    });
 
     function acabar() {
       acabou = true;
-      escova.setVisible(false);
-      cena.input.setDefaultCursor('default');
       cena.tweens.killTweensOf(luz);
       luz.setAlpha(1).setFillStyle(0x22c55e);
       // Clean air blows out of both sides.

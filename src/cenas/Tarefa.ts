@@ -6,6 +6,7 @@
 import Phaser from 'phaser';
 import type { Tarefa } from '../tarefas';
 import { CORES_FESTA, botaoFechar, botaoVerde, letra, moldura, pilulaEscura } from '../tarefas/estilo';
+import { tocarSfx } from '../sfx';
 
 export type DadosTarefa = { tarefa: Tarefa; aoTerminar: () => void };
 
@@ -44,7 +45,7 @@ export class CenaTarefa extends Phaser.Scene {
     };
 
     // Red close button on the top-left corner (closing still delivers the battery).
-    botaoFechar(this, x0 + 4 * u, y0 + 4 * u, u, fechar);
+    botaoFechar(this, x0 + 4 * u, y0 + 4 * u, u, () => { tocarSfx('fechar'); fechar(); });
     this.input.keyboard?.once('keydown-ESC', fechar);
 
     let terminou = false;
@@ -53,6 +54,7 @@ export class CenaTarefa extends Phaser.Scene {
       terminou = true;
       const cx = tela.x + tela.w / 2, cy = tela.y + tela.h / 2;
 
+      tocarSfx('sucesso');
       // Confetti.
       for (let i = 0; i < 36; i++) {
         const c = this.add.rectangle(cx, cy, (5 + Math.random() * 5) * u, (8 + Math.random() * 6) * u, CORES_FESTA[i % CORES_FESTA.length]).setDepth(4);
@@ -67,13 +69,15 @@ export class CenaTarefa extends Phaser.Scene {
       this.tweens.add({ targets: selo, angle: 6, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 450 });
 
       // The fact replaces the instruction; a green button closes.
-      const ok = botaoVerde(this, 0, py + pAlt / 2, 'OK!  ▶', 20 * u, Math.min(pAlt, 50 * u), u, fechar);
+      const ok = botaoVerde(this, 0, py + pAlt / 2, 'OK!  ▶', 20 * u, Math.min(pAlt, 50 * u), u, () => { tocarSfx('clique'); fechar(); });
       ok.setX(x0 + largura - 60 * u - ok.width / 2);
       const pw1 = ok.x - ok.width / 2 - 12 * u - (x0 + 60 * u);
       pilulaEscura(pill, x0 + 60 * u, py, pw1, pAlt, u);
       tInstr.setPosition(x0 + 60 * u + pw1 / 2, py + pAlt / 2)
         .setStyle(letra(13.5 * u, '#e2e8f0', { align: 'center', fontStyle: '500', wordWrap: { width: pw1 - 28 * u } }))
+
         .setText(`Did you know? ${d.tarefa.fato}`);
+      this.time.delayedCall(3500, fechar);
       this.input.keyboard?.once('keydown-ENTER', fechar);
     };
 

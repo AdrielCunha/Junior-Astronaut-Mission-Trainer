@@ -16,6 +16,8 @@ import { abrirVideo, movimentoReduzido, configuracoesAbertas } from '../video';
 import { sessao } from './sessao';
 import { CONTORNO, botaoFechar, botaoVerde, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { alternarMudo, estaMudo } from '../audio';
+import { definirVolumeMusica, volumeMusica } from '../audio';
+import { definirVolumeEfeitos, tocarSfx, volumeEfeitos } from '../sfx';
 
 export type DadosRadar = { aoComecar: () => void; aoExplorar: () => void };
 
@@ -67,7 +69,7 @@ export class Radar extends Phaser.Scene {
       for (const k of this.chaves) if (this.textures.exists(k)) this.textures.remove(k);
     });
 
-    const lancar = () => { if (this.travado || configuracoesAbertas) return; this.travado = true; this.contagem(d.aoComecar); };
+    const lancar = () => { if (this.travado) return; this.travado = true; tocarSfx('ligar'); this.contagem(d.aoComecar); };
     const explorar = () => { if (this.travado) return; this.travado = true; this.scene.stop(); d.aoExplorar(); };
 
     const j = this.pontosJornada(W, H);
@@ -100,9 +102,7 @@ export class Radar extends Phaser.Scene {
     this.botao(cx + (meia + gap) / 2, y3, meia, bh, 'CREDITS', 0x475569, 18 * u, () => this.creditos());
 
     // ----- corners -----
-    this.botaoMusica(W - 40 * u, 40 * u);
-    const vw=Math.max(140*u,132);
-    this.botao(W-80*u-vw/2,40*u,vw,Math.max(30,34*u),'VIDEO & COMFORT',0x334155,Math.max(11,12*u),()=>abrirVideo());
+    this.botaoConfiguracoes(W - 40 * u, 40 * u);
     const rodape = H - 22 * u;
     this.add.text(24 * u, rodape, 'Real NASA data · the May 2024 solar storm', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
     const enter = this.add.text(W - 24 * u, rodape, 'Press ENTER to launch', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(1, 0.5);
@@ -287,9 +287,17 @@ export class Radar extends Phaser.Scene {
       .lineStyle(4 * u, 0xffffff).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2)
       .lineStyle(2 * u, CONTORNO).strokeRoundedRect(-w / 2 - 3 * u, -h / 2 - 3 * u, w + 6 * u, h + 6 * u, h / 2 + 3 * u),
     { x: w / 2 + 5 * u, y: h / 2 + 5 * u }));
-    const t = this.add.text(0, 0, texto, letra(tamanho, '#ffffff', { stroke: '#1e293b', strokeThickness: 4 * u })).setOrigin(0.5);
-    const c = this.add.container(x, y, [fundo, t]).setSize(w, h).setInteractive({ useHandCursor: true });
-    c.on('pointerover', () => t.setScale(1.06)).on('pointerout', () => t.setScale(1)).on('pointerdown', () => { if (!this.travado) acao(); });
+    const volumeControl = w === 42 * u && h === 38 * u;
+    const conteudo: Phaser.GameObjects.GameObject[] = [fundo];
+    if (volumeControl) {
+      const simbolo = this.add.graphics().lineStyle(3 * u, 0xffffff, 1).lineBetween(-6 * u, 0, 6 * u, 0);
+      if (texto.includes('+')) simbolo.lineBetween(0, -6 * u, 0, 6 * u);
+      conteudo.push(simbolo);
+    } else {
+      conteudo.push(this.add.text(0, 0, texto, letra(tamanho, '#ffffff', { stroke: '#1e293b', strokeThickness: 4 * u })).setOrigin(0.5));
+    }
+    const c = this.add.container(x, y, conteudo).setSize(w, h).setInteractive({ useHandCursor: true });
+    c.on('pointerover', () => { c.setScale(1.06); tocarSfx('suave'); }).on('pointerout', () => c.setScale(1)).on('pointerdown', () => { if (!this.travado) { if (!texto.startsWith('LAUNCH')) tocarSfx('clique'); acao(); } });
     return c;
   }
 
@@ -305,8 +313,42 @@ export class Radar extends Phaser.Scene {
     const fundo = this.add.image(0, 0, estaMudo() ? desligada : ligada);
     const t = this.add.text(0, 1 * u, '♪', letra(24 * u)).setOrigin(0.5);
     const c = this.add.container(x, y, [fundo, t]).setSize(52 * u, 52 * u).setInteractive({ useHandCursor: true });
-    c.on('pointerover', () => c.setScale(1.1)).on('pointerout', () => c.setScale(1))
-      .on('pointerdown', () => fundo.setTexture(alternarMudo() ? desligada : ligada));
+    c.on('pointerover', () => { c.setScale(1.1); tocarSfx('suave'); }).on('pointerout', () => c.setScale(1))
+      .on('pointerdown', () => { const mudo = alternarMudo(); fundo.setTexture(mudo ? desligada : ligada); tocarSfx('clique'); });
+  }
+
+  private botaoConfiguracoes(x: number, y: number) {
+    const u = this.u, lado = 58 * u;
+    const imagem = this.add.image(0, 0, this.textura(lado, lado, (g) => {
+      g.fillStyle(0x2563eb).fillCircle(0, 0, 23 * u).lineStyle(4 * u, 0xffffff).strokeCircle(0, 0, 23 * u).lineStyle(2 * u, CONTORNO).strokeCircle(0, 0, 26 * u);
+      const dentes: Phaser.Geom.Point[] = [];
+      for (let i = 0; i < 32; i++) {
+        const angulo = -Math.PI / 2 + i * Math.PI / 16;
+        const fase = i % 4;
+        const raio = (fase === 1 || fase === 2 ? 20 : 15) * u;
+        dentes.push(new Phaser.Geom.Point(Math.cos(angulo) * raio, Math.sin(angulo) * raio));
+      }
+      g.fillStyle(0xffffff).fillPoints(dentes, true).lineStyle(1.5 * u, CONTORNO).strokePoints(dentes, true);
+      g.fillStyle(0x2563eb).fillCircle(0, 0, 7 * u).lineStyle(2 * u, CONTORNO).strokeCircle(0, 0, 7 * u);
+    }));
+    const c = this.add.container(x, y, [imagem]).setSize(52 * u, 52 * u).setInteractive({ useHandCursor: true });
+    c.on('pointerover', () => { c.setScale(1.1); tocarSfx('suave'); }).on('pointerout', () => c.setScale(1)).on('pointerdown', () => { tocarSfx('clique'); this.configurarAudio(); });
+  }
+
+  private configurarAudio() {
+    const u = this.u;
+    this.janela('SOUND SETTINGS', 520, 330, (tela) => {
+      const linhas: [string, () => number, (v: number) => void][] = [['Music', volumeMusica, definirVolumeMusica], ['Sound effects', volumeEfeitos, definirVolumeEfeitos]];
+      linhas.forEach(([nome, ler, definir], i) => {
+        const y = tela.y + 42 * u + i * 72 * u;
+        this.add.text(tela.x + 20 * u, y, nome, letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0.5);
+        const valor = this.add.text(tela.x + tela.w - 132 * u, y, '', letra(16 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(0.5);
+        const atualizar = () => valor.setText(`${Math.round(ler() * 100)}%`);
+        this.botao(tela.x + tela.w - 215 * u, y, 42 * u, 38 * u, '−', 0x475569, 20 * u, () => { definir(ler() - 0.1); atualizar(); });
+        this.botao(tela.x + tela.w - 48 * u, y, 42 * u, 38 * u, '+', 0x475569, 20 * u, () => { definir(ler() + 0.1); atualizar(); });
+        atualizar();
+      });
+    }, 'DONE');
   }
 
   // ---------- windows in the task frame ----------
@@ -320,14 +362,14 @@ export class Radar extends Phaser.Scene {
     const fechar = () => { limpar?.(); for (const o of this.children.list.slice(antes)) o.destroy(); };
     this.add.rectangle(0, 0, W, H, 0x020617, 0.6).setOrigin(0).setInteractive();
     largura = Math.min(W - 40 * u, largura * u); altura = Math.min(H - 40 * u, altura * u);
-    const x0 = (W - largura) / 2, y0 = (H - altura) / 2 + 8 * u;
+    const x0 = (W - largura) / 2, y0 = (H - altura) / 2 - 8 * u;
     const { tela, rodape, borda } = moldura(this, { x: x0, y: y0, w: largura, h: altura }, u, titulo);
     limpar = conteudo(tela, fechar);
     // A resize restarts the scene with the window open: clean up then too.
     this.events.once('shutdown', () => limpar?.());
     borda();
-    botaoVerde(this, x0 + largura / 2, rodape.y + rodape.h / 2, rodapeOk, 20 * u, Math.min(rodape.h, 50 * u), u, fechar);
-    botaoFechar(this, x0 + 4 * u, y0 + 4 * u, u, fechar);
+    botaoVerde(this, x0 + largura / 2, rodape.y + rodape.h / 2, rodapeOk, 20 * u, Math.min(rodape.h, 50 * u), u, () => { tocarSfx('clique'); fechar(); });
+    botaoFechar(this, x0 + 4 * u, y0 + 4 * u, u, () => { tocarSfx('fechar'); fechar(); });
   }
 
   private comoJogar() {
@@ -369,7 +411,7 @@ export class Radar extends Phaser.Scene {
         if (qual === 'nave') icone.setAngle(-30);
         this.add.text(cx, y + h * 0.62, nome, letra(17 * u)).setOrigin(0.5);
         if (aberta) {
-          botaoVerde(this, cx, y + h * 0.82, 'GO!  ▶', 18 * u, 44 * u, u, () => { fechar(); explorarLua(); });
+          botaoVerde(this, cx, y + h * 0.82, 'GO!  ▶', 18 * u, 44 * u, u, () => { tocarSfx('ligar'); fechar(); explorarLua(); });
         } else {
           this.add.text(cx, y + h * 0.82, 'COMING SOON', letra(14 * u, '#fde047')).setOrigin(0.5);
           icone.setAlpha(0.45);
@@ -450,6 +492,7 @@ export class Radar extends Phaser.Scene {
     const passos = ['3', '2', '1', 'LIFT OFF!'];
     passos.forEach((s, i) => {
       this.time.delayedCall(i * 650, () => {
+        tocarSfx(i < 3 ? 'bip' : 'whoosh');
         const t = this.add.text(W / 2, H / 2, s, letra((i < 3 ? 140 : 80) * u, i < 3 ? '#ffffff' : '#fde047', { stroke: '#1e293b', strokeThickness: 14 * u }))
           .setOrigin(0.5).setDepth(11).setScale(0.2);
         this.tweens.add({ targets: t, scale: 1, duration: 300, ease: 'Back.easeOut' });
