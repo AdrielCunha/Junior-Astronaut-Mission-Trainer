@@ -9,6 +9,7 @@ const BASE = import.meta.env.BASE_URL;
 const FAIXAS = [
   'lunar-odyssey-theme',
   'Beneath_the_Silver_Tide',
+  'Across_the_Crimson_Basin-aero',
 ];
 
 let audio: HTMLAudioElement | null = null;
