@@ -64,8 +64,8 @@ export class Espaco extends Phaser.Scene {
   private solBrilho!: Phaser.GameObjects.Image;
   private corposProx = new Map<string, Phaser.GameObjects.Sprite>();   // the next turn frame, faded in over it: a smooth turn
   // Chapter 2, the ship: stars and stellar dust streaming past, in parallax layers.
-  private viagem: Phaser.GameObjects.Graphics | null = null;
-  private estrelas: { x: number; y: number; c: number; r: number }[] = [];
+  private viagem: Phaser.GameObjects.Container | null = null;
+  private estrelas: { x: number; y: number; c: number; r: number; img: Phaser.GameObjects.Image }[] = [];
   private escalaCeu = 1;
   private lua!: ReturnType<typeof criarLua>;        // live GPU Moon (luaShader.ts)
   private marte: ReturnType<typeof criarPlaneta> | null = null;   // live GPU Mars (planetaShader.ts)
@@ -104,10 +104,35 @@ export class Espaco extends Phaser.Scene {
     this.ceuMarte = this.add.rectangle(0, 0, W, H, 0xc99a72).setOrigin(0).setDepth(-99).setVisible(false);
     this.viagem = null; this.estrelas = [];
     if (sessao.mundo === 'nave') {
-      this.viagem = this.add.graphics().setDepth(-98);
-      for (let c = 0; c < CAMADAS.length; c++)
-        for (let i = 0; i < CAMADAS[c].n; i++)
-          this.estrelas.push({ x: Math.random() * W, y: Math.random() * H, c, r: CAMADAS[c].r * (0.6 + Math.random() * 0.8) });
+      this.viagem = this.add.container(0, 0).setDepth(-98);
+      for (let c = 0; c < CAMADAS.length; c++) {
+        const camada = CAMADAS[c], chave = `estrela_viagem_${c}`;
+        // Bake circles and trails once; moving images batch without tessellating paths per frame.
+        if (!this.textures.exists(chave)) {
+          const lado = camada.poeira ? 128 : camada.rastro ? 40 : 8;
+          const textura = this.textures.createCanvas(chave, lado, lado)!, ctx = textura.getContext();
+          ctx.fillStyle = '#ffffff';
+          ctx.globalAlpha = camada.poeira ? camada.a : 1;
+          for (const k of camada.poeira ? [1, 0.7, 0.45] : [1]) {
+            ctx.beginPath(); ctx.arc(lado / 2, lado / 2, camada.r * k, 0, Math.PI * 2); ctx.fill();
+          }
+          textura.refresh();
+        }
+        const chaveRastro = `${chave}_rastro`;
+        if (camada.rastro && !this.textures.exists(chaveRastro)) {
+          const textura = this.textures.createCanvas(chaveRastro, 40, 40)!, ctx = textura.getContext();
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = camada.r;
+          ctx.beginPath(); ctx.moveTo(20, 20); ctx.lineTo(20 - RUMO.x * camada.rastro, 20 - RUMO.y * camada.rastro); ctx.stroke();
+          ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(20, 20, camada.r, 0, Math.PI * 2); ctx.fill();
+          textura.refresh();
+        }
+        for (let i = 0; i < camada.n; i++) {
+          const x = Math.random() * W, y = Math.random() * H, r = camada.r * (0.6 + Math.random() * 0.8);
+          const img = this.add.image(x, y, chave).setTint(camada.cor).setAlpha(camada.poeira ? 1 : camada.a).setScale(r / camada.r);
+          this.viagem.add(img);
+          this.estrelas.push({ x, y, c, r, img });
+        }
+      }
     }
     this.escalaCeu = Math.max(W / this.ceu.width, H / this.ceu.height);
     this.ceu.setScale(this.escalaCeu);
@@ -357,8 +382,6 @@ export class Espaco extends Phaser.Scene {
 
   // Moves and draws the streaming sky (chapter 2). Still with reduced motion or effects off.
   private viajar(dt: number, W: number, H: number) {
-    const g = this.viagem!;
-    g.clear();
     const anda = !movimentoReduzido() && video.efeitos && !configuracoesAbertas;
     for (const e of this.estrelas) {
       const c = CAMADAS[e.c];
@@ -368,14 +391,9 @@ export class Espaco extends Phaser.Scene {
         if (e.x < -m) e.x += W + 2 * m; if (e.y < -m) e.y += H + 2 * m;
         if (e.x > W + m) e.x -= W + 2 * m; if (e.y > H + m) e.y -= H + 2 * m;
       }
-      if (c.poeira) {
-        for (const k of [1, 0.7, 0.45]) g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r * k);
-      } else if (c.rastro && anda) {
-        g.lineStyle(e.r, c.cor, c.a * 0.5).lineBetween(e.x, e.y, e.x - RUMO.x * c.rastro, e.y - RUMO.y * c.rastro);
-        g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r);
-      } else {
-        g.fillStyle(c.cor, c.a).fillCircle(e.x, e.y, e.r);
-      }
+      const chave = `estrela_viagem_${e.c}${c.rastro && anda ? '_rastro' : ''}`;
+      if (e.img.texture.key !== chave) e.img.setTexture(chave);
+      e.img.setPosition(e.x, e.y);
     }
   }
 

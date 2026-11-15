@@ -177,7 +177,7 @@ export class Superficie extends Phaser.Scene {
   // The ship (chapter 2): the closed ship, roof on, over everything when zoomed out; the
   // cutaway deck when close. Names on the map fade out under the roof.
   private teto: Phaser.GameObjects.Image | null = null;
-  private plumas: Phaser.GameObjects.Graphics | null = null;   // the ship's Hall thrusters, firing
+  private plumas: Phaser.GameObjects.Container | null = null;   // cached Hall-thruster images
   private nomesNoMapa: Phaser.GameObjects.Text[] = [];
   private decoVisuais: { d: DecoColocada; img: Phaser.GameObjects.Image }[] = [];
   private marcasEstacao: { d: DecoColocada; c: Phaser.GameObjects.Container }[] = [];   // "!" over ship stations
@@ -197,22 +197,38 @@ export class Superficie extends Phaser.Scene {
   private desenharPlumas() {
     const g = this.plumas;
     if (!g) return;
-    g.clear();
     const lista = (dadosTerreno as unknown as { propulsores?: { x: number; y: number; z: number; r: number }[] }).propulsores ?? [];
     const t = this.time.now / 1000;
     const mexe = !movimentoReduzido() && video.efeitos;
     const px = Math.hypot(P.ex[0], P.ex[1]);           // screen px per tile step, about 33
     lista.forEach((m, i) => {
       const pulso = mexe ? 0.85 + 0.15 * Math.sin(t * 9 + i * 1.7) + 0.05 * Math.sin(t * 23 + i) : 1;
-      for (let k = 14; k >= 0; k--) {
-        const d = k * 0.55;                                  // tiles back from the exit
-        const p = paraTela(P, m.x - d, m.y, m.z);
-        const f = 1 - k / 15;
-        const r = m.r * px * (1 + d * 0.22);
-        g.fillStyle(0x38bdf8, 0.10 * f * pulso).fillCircle(p.x, p.y, r * 1.9);
-        g.fillStyle(0x7dd3fc, 0.22 * f * f * pulso).fillCircle(p.x, p.y, r);
-        if (k < 6) g.fillStyle(0xe0f2fe, 0.5 * (1 - k / 6) * pulso).fillCircle(p.x, p.y, r * 0.45);
+      let img = g.list[i] as Phaser.GameObjects.Image | undefined;
+      if (!img) {
+        const chave = `pluma_nave_${m.r}`;
+        if (!this.textures.exists(chave)) {
+          const textura = this.textures.createCanvas(chave, 320, 208)!, ctx = textura.getContext();
+          // Additive blending also inside the baked texture preserves overlapping light.
+          ctx.globalCompositeOperation = 'lighter';
+          for (let k = 14; k >= 0; k--) {
+            const d = k * 0.55;                                  // tiles back from the exit
+            const x = 288 - d * P.ex[0], y = 176 - d * P.ex[1];
+            const f = 1 - k / 15;
+            const r = m.r * px * (1 + d * 0.22);
+            const circulo = (raio: number, cor: string, alpha: number) => {
+              ctx.globalAlpha = alpha; ctx.fillStyle = cor; ctx.beginPath(); ctx.arc(x, y, raio, 0, Math.PI * 2); ctx.fill();
+            };
+            circulo(r * 1.9, '#38bdf8', 0.10 * f);
+            circulo(r, '#7dd3fc', 0.22 * f * f);
+            if (k < 6) circulo(r * 0.45, '#e0f2fe', 0.5 * (1 - k / 6));
+          }
+          textura.refresh();
+        }
+        const p = paraTela(P, m.x, m.y, m.z);
+        img = this.add.image(p.x - 288, p.y - 176, chave).setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
+        g.add(img);
       }
+      img.setAlpha(pulso);
     });
   }
 
@@ -330,7 +346,7 @@ export class Superficie extends Phaser.Scene {
     this.mapa.add(this.terreno);
     if (this.teto) this.mapa.add(this.teto);
     // Behind the ship's picture: its structure covers the plumes where it should.
-    this.plumas = nave ? this.add.graphics().setDepth(-1.1e6).setBlendMode(Phaser.BlendModes.ADD) : null;
+    this.plumas = nave ? this.add.container(0, 0).setDepth(-1.1e6) : null;
     if (this.plumas) this.mapa.add(this.plumas);
     this.gCaminhos = this.add.graphics().setDepth(-900_000);
     this.mapa.add(this.gCaminhos);
@@ -1659,7 +1675,11 @@ export class Superficie extends Phaser.Scene {
 
   // ---------- loop ----------
   update(_t: number, dtMs: number) {
-    const dt = Math.min(0.05, dtMs / 1000);
+    // The ship must not lose elapsed time on 50–100 ms frames. Physics subdivides them.
+    // Keep the other worlds' existing timing, and bound recovery after a suspended tab.
+    const dt = sessao.mundo === 'nave'
+      ? Math.max(0, Math.min(0.1, this.game.loop.rawDelta / 1000))
+      : Math.min(0.05, dtMs / 1000);
     this.aplicarZoom();
     const escudo = sessao.grade.lista.find(c => c.tipo.id === 'blindagem');
     const emergencia = sessao.fase === 'dia' && sessao.tempestade.status === 'alerta';
