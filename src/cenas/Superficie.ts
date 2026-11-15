@@ -6,6 +6,7 @@
 // glides to the framing of the flight's first frame and the terrain dissolves into it (Espaco
 // plays the frames) while the base stays visible, live.
 import Phaser from 'phaser';
+import { t } from '../idioma';
 import paletaLua from '../dados/paleta_lua.json';
 import paletaMarte from '../dados/paleta_marte.json';
 // Ground colors for dust, paths and the flag's shadow: set in create() for the current world.
