@@ -42,6 +42,9 @@ export class Guia {
     this.g.clear();
     this.pilula?.setVisible(!pausado);
     if (pausado) return;
+    // The quest arrows are projected through the ground camera. In the flight and in the space
+    // views they would float at stale screen positions, so only the guide pill stays.
+    if (sessao.vista !== 'chao' || sessao.voo) return;
     const chave = `${d.teclas.join('+')}|${d.texto}`;
     if (chave !== this.chave) { this.chave = chave; this.montar(d); }
     for (const p of this.alvos(d)) this.seta(p.x, p.y, p.fora, p.ang);
@@ -156,6 +159,9 @@ export class AvisoEvento {
     }
     const c = ev && sessao.grade.lista.find((m) => m.id === ev.construcaoId);
     if (!c || pausado || sessao.fase !== 'dia') return;
+    // The arrow is projected through the ground camera, so it only makes sense on the surface.
+    // During the flight and on the globe it would float at a stale screen position.
+    if (sessao.vista !== 'chao' || sessao.voo) return;
     const p = pontoDoModulo(this.cena, this.layout, c);
     desenharSeta(this.g, this.layout.u, this.t, p.x, p.y, p.fora, p.ang, 0xfb923c);
   }
@@ -222,7 +228,7 @@ export class AvisoExpedicao {
       this.fecharCartao(true);
       if (exp) { this.cartaoT = 0; this.abrirCartao(); }
     }
-    const visivel = !!exp && !pausado && sessao.fase === 'dia' && sessao.vista === 'chao';
+    const visivel = !!exp && !pausado && sessao.fase === 'dia' && sessao.vista === 'chao' && !sessao.voo;
     // The start card waits while a task is open, then counts down.
     if (this.cartao) {
       this.cartao.setVisible(visivel);
