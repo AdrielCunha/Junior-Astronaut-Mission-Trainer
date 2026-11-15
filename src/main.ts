@@ -427,6 +427,10 @@ const createDebugHarness = () => {
   taskButtons.filter(({ key }) => tasksRefeitas.has(key)).forEach(({ label, trigger }) => {
     tarefasTab.appendChild(criarBotaoPadrao(label, '#1e293b', () => dispararTask(label, trigger), 'rgba(96, 165, 250, 0.8)'));
   });
+  // The exploration events also go on the Events tab (the one open first), in green.
+  taskButtons.filter(({ key }) => key.startsWith('explorar-')).forEach(({ label, trigger }) => {
+    eventosTab.appendChild(criarBotaoPadrao(`Explore: ${label}`, '#064e3b', () => dispararTask(label, trigger), 'rgba(52, 211, 153, 0.8)'));
+  });
 
   // Rocket tab: the launch pad shows one of 5 build stages from the chapter goal (meta 0-100, 25 per stage).
   // These buttons set the goal directly so the stages can be checked on the surface.
