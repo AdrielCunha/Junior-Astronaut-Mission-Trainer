@@ -119,7 +119,25 @@ CENTRO = tuple(C.polar_para_3d(x0k, y0k, alt[n // 2, n // 2]))
 # coordinates), so the pattern runs on across their edge; the finer one sits a few meters higher
 # and wins the depth test. Only the 800 km patch fades (into the globe): blended surfaces are not
 # sorted against each other, so there is just one.
-mat_mapa = C.toon(bpy, 'mapa', C.albedo_chao(RUIDO))
+# Detail smaller than a few pixels crawls and flickers from one frame to the next as the camera
+# backs away (it made players queasy). The regolith's patches (1 km, and 0.5 km in its finer
+# octave) fade to the middle tone between 16 and 5 px wide, and the illustrated crater rims (about 8 m wide lines) fade out
+# from the first frame on, before they are thinner than a pixel. Distances from the frame's
+# width and the lens, so the light set (half the pixels) fades sooner.
+PX_POR_KM_A_1KM = round(args.w * 1.12) / (2 * math.tan(math.radians(10) / 2))   # px per km at 1 km away
+# The noise has a second octave half the size (Detail 1): the limits are set on that one.
+LOD_CHAO = (RUIDO / 2 * PX_POR_KM_A_1KM / 16, RUIDO / 2 * PX_POR_KM_A_1KM / 5)
+def sumir_aros(perto, longe):
+    for nome in ('Crater illustrated outline', 'Crater chalk edge'):
+        m = bpy.data.materials.get(nome)
+        if not m: continue
+        N, L = m.node_tree.nodes, m.node_tree.links
+        em = next(n for n in N if n.type == 'EMISSION'); out = next(n for n in N if n.type == 'OUTPUT_MATERIAL')
+        tr = N.new('ShaderNodeBsdfTransparent'); mx = N.new('ShaderNodeMixShader')
+        L.new(C.sumir_longe(N, L, perto, longe), mx.inputs['Fac'])
+        L.new(em.outputs[0], mx.inputs[1]); L.new(tr.outputs[0], mx.inputs[2]); L.new(mx.outputs[0], out.inputs['Surface'])
+        m.surface_render_method = 'BLENDED'
+mat_mapa = C.toon(bpy, 'mapa', C.albedo_chao(RUIDO, lod=LOD_CHAO))
 # The playable patch shares its bowl heights and illustrated rim geometry with terrain.png.
 crateras=[(c['x'],c['y'],c['raio'],c['profundidade']) for c in T.get('relevo',{}).get('crateras',[])]
 def altura_mapa(x,y):
@@ -138,14 +156,15 @@ v=[ponto_mapa(i/sub,j/sub) for j in range(grid+1) for i in range(grid+1)]
 f=[(j*(grid+1)+i,(j+1)*(grid+1)+i,(j+1)*(grid+1)+i+1,j*(grid+1)+i+1) for j in range(grid) for i in range(grid)]
 malha('mapa',v,f,mat_mapa)
 contornos_crateras(bpy,sc,crateras,lambda x,y:ponto_mapa(x,y,.022*.08))
+sumir_aros(0.0084 * PX_POR_KM_A_1KM / 1.6, 0.0084 * PX_POR_KM_A_1KM / 0.5)
 
 # ---------- 64 km and 800 km patches, each with a hole where the finer one sits ----------
 a, xa, ya = C.janela('80m', 32, 4)
 v, f = grade_polar(a, xa, ya, lambda x, y: disco(31.5)(x, y) and not quad(2.45)(x, y), sobe=0.35)
-malha('regiao64', v, f, C.toon(bpy, 'r64', C.albedo_chao(RUIDO)))
+malha('regiao64', v, f, C.toon(bpy, 'r64', C.albedo_chao(RUIDO, lod=LOD_CHAO)))
 b, xb, yb = C.janela('240m', 400, 16)
 v, f = grade_polar(b, xb, yb, lambda x, y: disco(398)(x, y) and not disco(29)(x, y), sobe=0.30)
-malha('regiao800', v, f, C.toon(bpy, 'r800', C.albedo_chao(RUIDO), borda=(CENTRO, 300, 395)))
+malha('regiao800', v, f, C.toon(bpy, 'r800', C.albedo_chao(RUIDO, lod=LOD_CHAO), borda=(CENTRO, 300, 395)))
 
 # ---------- the globe: NASA CGI Moon Kit color + relief (real height), hole over the pole patch ----------
 # UV sphere built with numpy (fast): rows of latitude from the hole edge to the north pole,

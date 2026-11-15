@@ -26,8 +26,12 @@ OUTLINE = '#17130f'
 # ESTILO=estacao (default): the look of the solar station (tools/lua3d/make_solar_station.py, export_solar_station.py):
 # soft clay shading (Principled BSDF, AgX), a soft area light with real shadows, blue ambient, round bevels,
 # no black outline, and decks on an orange plinth. ESTILO=toon renders the old flat toon look with outlines.
+# ESTILO=cartoon is the exported solar station's own toon look (the approved panel/battery sprites):
+# the station's geometry and palette with a toon light ramp and the dark inverted-hull outline,
+# drawn with the same recipe as export_solar_station.py's cartoon().
 ESTILO = os.environ.get('ESTILO', 'estacao')
 NOVO = ESTILO != 'toon'
+CARTOON = ESTILO == 'cartoon'
 # Footprints in tiles, as in src/engine/construcao.ts.
 TIPOS = {
     'habitat': (3, 3), 'suporte': (3, 2), 'blindagem': (2, 2),
@@ -58,7 +62,7 @@ else:
     bpy.ops.wm.read_factory_settings(use_empty=True); sc = bpy.context.scene
 sc.render.engine = 'BLENDER_EEVEE'; sc.render.film_transparent = True
 sc.render.image_settings.file_format = 'PNG'; sc.render.image_settings.color_mode = 'RGBA'
-sc.view_settings.view_transform = 'AgX' if NOVO else 'Standard'; sc.view_settings.look = 'None'; sc.render.filter_size = 1.0
+sc.view_settings.view_transform = 'AgX' if (NOVO and not CARTOON) else 'Standard'; sc.view_settings.look = 'None'; sc.render.filter_size = 1.0
 if NOVO:
     # Same blue night ambient as the solar station scene.
     mundo = bpy.data.worlds.new('Modulos | ambiente azul'); mundo.use_nodes = True
@@ -67,9 +71,15 @@ if NOVO:
     sc.world = mundo
 
 _mats = {}
+def viva(cor, k=1.7):
+    """Cartoon: push the pastel palette out to the vivid flat colors of the battery/panel sprites."""
+    r, g, b = rgb(cor)[:3]
+    l = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return (*[min(1.0, l + (c - l) * k) for c in (r, g, b)], 1.0)
+
 def toon(cor):
     if cor in _mats: return _mats[cor]
-    if NOVO:
+    if NOVO and not CARTOON:
         # Clay look of the solar station: soft Principled surface, a hint of metal.
         m = bpy.data.materials.new('mod' + cor); m.use_nodes = True
         bs = m.node_tree.nodes.get('Principled BSDF')
@@ -85,7 +95,7 @@ def toon(cor):
     for e, (p, c) in zip(cr.elements, LIGHT): e.position = p; e.color = rgb(c)
     L.new(s2r.outputs['Color'], r.inputs['Fac'])
     mix = N.new('ShaderNodeMix'); mix.data_type = 'RGBA'; mix.blend_type = 'MULTIPLY'
-    mix.inputs['Factor'].default_value = 1; mix.inputs[6].default_value = rgb(cor); L.new(r.outputs['Color'], mix.inputs[7])
+    mix.inputs['Factor'].default_value = 1; mix.inputs[6].default_value = viva(cor) if CARTOON else rgb(cor); L.new(r.outputs['Color'], mix.inputs[7])
     em = N.new('ShaderNodeEmission'); L.new(mix.outputs[2], em.inputs['Color'])
     out = N.new('ShaderNodeOutputMaterial'); L.new(em.outputs[0], out.inputs['Surface'])
     _mats[cor] = m
@@ -109,14 +119,23 @@ def _fim(o, cor, bevel, linha):
     if bevel:
         b = o.modifiers.new('bevel', 'BEVEL'); b.width = bevel; b.segments = 4 if NOVO else 3; b.limit_method = 'ANGLE'
     if NOVO:
-        o.data.materials.append(toon(cor))
         for p in o.data.polygons: p.use_smooth = True
         o.data.shade_smooth() if hasattr(o.data, 'shade_smooth') else None
         mod = o.modifiers.new('suave', 'WEIGHTED_NORMAL') if hasattr(bpy.types, 'WeightedNormalModifier') else None
         if mod: mod.keep_sharp = True
+    o.data.materials.append(toon(cor))
+    if NOVO and not CARTOON:
         grupo.append(o)
         return o
-    o.data.materials.append(toon(cor)); o.data.materials.append(contorno)
+    if CARTOON:
+        # The exported station's adaptive line (export_solar_station.py cartoon()): thin parts
+        # (cells, cables, decals) get a thinner hull so the detail grid does not turn black.
+        menor = min(o.dimensions)
+        if menor < 0.005:                    # flat decals: a hull would cover them
+            grupo.append(o)
+            return o
+        linha = min(0.05, 0.3 * menor)       # stronger line than the station export: reads at game scale
+    o.data.materials.append(contorno)
     s = o.modifiers.new('contorno', 'SOLIDIFY')
     s.thickness = linha; s.offset = 1; s.use_flip_normals = True; s.material_offset = 1; s.use_rim = False
     grupo.append(o)
@@ -206,28 +225,84 @@ def visor(x0,y0,x1,y1,z0,z1,cor):
 
 # ---------- models ----------
 def habitat():
+    # The crew's home: a wide smooth cream dome on a cylindrical base wall with an orange trim
+    # ring, a glazed skylight over the sleeping deck (a warm night lamp shows through), a big
+    # double-glazed bubble window with a small companion, a boxy airlock with an orange lintel,
+    # two roof vents and a beacon antenna.
     w, h = TIPOS['habitat']; piso(w, h)
-    cilindro(1.5, 1.5, 1.25, 0.12, 0.62, '#94a3b8', v=8, bevel=0.03)          # octagonal ring
-    esfera(1.5, 1.5, 0.62, 1.12, 1.12, 0.78, '#cbd5e1', metade=True)          # dome
-    # Structural seams follow the dome instead of appearing as disconnected cubes.
-    for angle in range(0,360,60):
-        az=math.radians(angle)
-        for segment in range(8):
+    cilindro(1.5, 1.5, 1.32, 0.12, 0.66, '#eef2f7', v=32, linha=0.028)           # base wall
+    cilindro(1.5, 1.5, 1.37, 0.52, 0.66, '#f97316', v=32, linha=0.02)            # orange trim ring
+    esfera(1.5, 1.5, 0.62, 1.30, 1.30, 1.02, '#f8fafc', metade=True, linha=0.03)  # the dome
+    cilindro(1.5, 1.5, 0.56, 1.5, 1.66, '#f97316', v=32, linha=0.018)             # skylight collar
+    vidro_metade(1.5, 1.5, 1.62, 0.52, 0.52, 0.4, 'vidro claraboia')              # the glass top:
+    for angle in range(0, 360, 90):                                              # four slim ribs
+        az = math.radians(angle + 45)
+        for segment in range(4):
             def pt(k):
-                phi=math.pi*0.5*k/8
-                return (1.5+1.13*math.cos(phi)*math.cos(az),1.5+1.13*math.cos(phi)*math.sin(az),0.62+0.79*math.sin(phi))
-            haste(pt(segment),pt(segment+1),0.018,'#94a3b8',linha=0.004)
-    esfera(1.95, 2.15, 1.05, 0.32, 0.32, 0.16, '#38bdf8', linha=0.02)          # skylight
-    caixa(1.15, 2.55, 1.85, 3.0, 0.12, 0.62, '#e2e8f0')                       # airlock
-    caixa(1.3, 2.97, 1.7, 3.01, 0.15, 0.52, '#1e293b', bevel=0.005, linha=0.01)
-    for x in (0.72,2.28):
-        esfera(x,2.43,0.48,0.20,0.08,0.15,'#334155',linha=0.012)
-        emissivo(esfera(x,2.49,0.49,0.14,0.035,0.10,'#ffe1a3',linha=0.004),'#ffe1a3',1.6)
-    caixa(1.19,2.72,1.81,2.96,0.13,0.18,'#94a3b8',linha=0.01)
-    visor(1.26,3.0,1.74,3.02,0.55,0.60,'#8ae8ff')
-    lampada(1.5,2.84,0.66,0.56)
-    visor(1.35,3.012,1.65,3.026,0.27,0.45,'#ffd89a')
-    caixa(2.62, 1.1, 2.98, 1.9, 0.3, 0.45, '#f59e0b', bevel=0.01, linha=0.015)  # window strip
+                phi = math.pi * 0.5 * k / 4
+                return (1.5 + 0.54 * math.cos(phi) * math.cos(az), 1.5 + 0.54 * math.cos(phi) * math.sin(az), 1.64 + 0.42 * math.sin(phi))
+            haste(pt(segment), pt(segment + 1), 0.016, '#f97316', linha=0.005)
+    esfera(1.5, 1.5, 2.06, 0.07, 0.07, 0.07, '#f97316', linha=0.008)               # hub cap
+    haste((1.5, 1.5, 1.58), (1.5, 1.5, 1.74), 0.012, '#94a3b8', linha=0.006)       # a night lamp inside
+    emissivo(esfera(1.5, 1.5, 1.78, 0.1, 0.1, 0.1, '#ffe2a6', linha=0.008), '#ffe2a6', 2.0)
+    def domo(t, a):                                                              # a point on the shell
+        return (1.5 + 1.30 * math.cos(t) * math.cos(a), 1.5 + 1.30 * math.cos(t) * math.sin(a),
+                0.62 + 1.02 * math.sin(t))
+    def olho(t, a, rim, vidro):                                                  # rim + glass porthole
+        px, py, pz = domo(t, a)
+        dx, dy, dz = math.cos(t) * math.cos(a), math.cos(t) * math.sin(a), math.sin(t)
+        esfera(px, py, pz, rim, rim, rim, '#1e293b', linha=0.022)
+        emissivo(esfera(px + 0.45 * rim * dx, py + 0.45 * rim * dy, pz + 0.45 * rim * dz,
+                        0.72 * rim, 0.72 * rim, 0.72 * rim, vidro, linha=0.012), vidro, 1.5)
+        esfera(px + 0.9 * rim * dx, py + 0.9 * rim * dy, pz + 0.9 * rim * dz + 0.1 * rim,
+               0.2 * rim, 0.2 * rim, 0.2 * rim, '#ffffff', linha=0.004)          # the shine
+    olho(math.radians(22), math.radians(38), 0.30, '#7dd3fc')                    # the bubble window
+    olho(math.radians(14), math.radians(118), 0.15, '#7dd3fc')                   # small companion
+    caixa(1.18, 2.2, 1.82, 2.95, 0.12, 0.84, '#eef2f7', bevel=0.03)              # airlock tower, centered
+    caixa(1.3, 2.93, 1.7, 3.0, 0.18, 0.7, '#1e293b', bevel=0.01, linha=0.014)    # dark door
+    caixa(1.24, 2.93, 1.76, 3.0, 0.7, 0.8, '#f97316', bevel=0.012, linha=0.01)   # orange lintel
+    visor(1.41, 3.0, 1.59, 3.02, 0.5, 0.62, '#8ae8ff')                           # cyan status strip
+    for (vx, vy) in ((0.95, 1.85), (2.1, 1.1)):                                  # two roof vents
+        rv = math.hypot(vx - 1.5, vy - 1.5)
+        zv = 0.62 + 1.02 * math.sqrt(1 - (rv / 1.30) ** 2)
+        cilindro(vx, vy, 0.09, zv - 0.02, zv + 0.13, '#94a3b8', v=12, linha=0.012)
+        cilindro(vx, vy, 0.10, zv + 0.13, zv + 0.17, '#334155', v=12, linha=0.01)
+    ax, ay = 2.35, 0.95                                                          # beacon antenna
+    ra = math.hypot(ax - 1.5, ay - 1.5)
+    za = 0.62 + 1.02 * math.sqrt(1 - (ra / 1.30) ** 2)
+    haste((ax, ay, za - 0.05), (ax, ay, za + 0.72), 0.026, '#94a3b8', linha=0.008)
+    haste((ax - 0.08, ay, za + 0.62), (ax + 0.08, ay, za + 0.62), 0.014, '#f97316', linha=0.006)
+    esfera(ax, ay, za + 0.75, 0.07, 0.07, 0.07, '#ef4444', linha=0.01)
+
+
+def vidro_metade(x, y, z, rx, ry, rz, nome='vidro'):
+    """A glassy upper half-sphere (the greenhouse's toon glass), for skylights and atriums."""
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=24, radius=1)
+    o = bpy.context.active_object
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < -1e-4], context='VERTS')
+    bm.to_mesh(o.data); bm.free()
+    o.scale = (rx, ry, rz); o.location = (x, -y, z)
+    bpy.ops.object.shade_smooth()
+    m = toon('#bae6fd'); m2 = m.copy(); m2.name = nome
+    m2.surface_render_method = 'BLENDED'
+    nt = m2.node_tree; N = nt.nodes
+    tr = N.new('ShaderNodeBsdfTransparent'); mx = N.new('ShaderNodeMixShader'); mx.inputs['Fac'].default_value = 0.5
+    out = [n for n in N if n.type == 'OUTPUT_MATERIAL'][0]
+    em = [n for n in N if n.type in ('EMISSION', 'BSDF_PRINCIPLED')][0]
+    nt.links.new(em.outputs[0], mx.inputs[1]); nt.links.new(tr.outputs[0], mx.inputs[2]); nt.links.new(mx.outputs[0], out.inputs['Surface'])
+    if o.users_collection and sc.collection not in o.users_collection:
+        for c in o.users_collection: c.objects.unlink(o)
+        sc.collection.objects.link(o)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    o.data.materials.append(m2)
+    if not NOVO or CARTOON:
+        o.data.materials.append(contorno)
+        sl = o.modifiers.new('contorno', 'SOLIDIFY')
+        sl.thickness = min(0.05, 0.3 * min(o.dimensions)) if CARTOON else 0.02
+        sl.offset = 1; sl.use_flip_normals = True; sl.material_offset = 1; sl.use_rim = False
+    grupo.append(o)
+    return o
 
 
 def suporte():
@@ -587,10 +662,12 @@ def ogiva(z0, R, L, cor, seg=36, aneis=14):
     return _fim(o, cor, 0, 0.035)
 
 
-def foguete(etapa):
+def foguete(etapa, sozinho=False):
     # etapa 0..4: 0 = base only, 4 = finished. Chubby toy rocket: pointed orange nose cone, pale body,
     # orange lower section, huge porthole with a dark rim and bright glass, sky-blue fins.
-    plataforma()
+    # sozinho: the finished rocket alone for the launch film (foguete_voo), base on z=0, no pad.
+    antes = len(grupo)
+    if not sozinho: plataforma()
     alt = [0.35, 0.8, 1.3, 1.7, 2.0][etapa]
     R = 0.72
     BODY = '#f1f5f9'; ACC = '#f97316'; ACC2 = '#fb923c'; ARO = '#1e293b'; VIDRO = '#38bdf8'; ALETA = '#38bdf8'
@@ -617,6 +694,11 @@ def foguete(etapa):
         for z in [0.25 + i * 0.45 for i in range(int(alt / 0.45) + 2)]:
             for (x0, y0, x1, y1) in ((0.55, 0.55, 2.45, 0.61), (0.55, 2.39, 2.45, 2.45), (0.55, 0.61, 0.61, 2.39), (2.39, 0.61, 2.45, 2.39)):
                 caixa(x0, y0, x1, y1, z, z + 0.04, ACC2, bevel=0, linha=0.01)
+    if sozinho:
+        # Drop the pad parts and set the engine bell on z=0, so the flying rocket never carries
+        # pad pixels (the old color-diff cut-out ate its skirt where the colors matched the pad).
+        del grupo[:antes]
+        for o in grupo: o.location.z -= 0.2
 
 
 def antena():
@@ -672,9 +754,11 @@ def estufa():
         sc.collection.objects.link(o)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     o.data.materials.append(m2)
-    if not NOVO:
+    if not NOVO or CARTOON:
         o.data.materials.append(contorno)
-        sl = o.modifiers.new('contorno', 'SOLIDIFY'); sl.thickness = 0.02; sl.offset = 1; sl.use_flip_normals = True; sl.material_offset = 1; sl.use_rim = False
+        sl = o.modifiers.new('contorno', 'SOLIDIFY')
+        sl.thickness = min(0.05, 0.3 * min(o.dimensions)) if CARTOON else 0.02
+        sl.offset = 1; sl.use_flip_normals = True; sl.material_offset = 1; sl.use_rim = False
     grupo.append(o)
     for x in (0.4, 1.5, 2.6):                                                 # ribs: arches over the tube
         for k in range(12):
@@ -1450,6 +1534,7 @@ for nome,count in ANIMADOS.items():
     for frame in range(1,count): MODELOS[f'{nome}_anim{frame}']=animado(MODELOS[nome],frame)
 
 for _n in list(MODELOS): MODELOS[_n] = com_detalhes(_n, MODELOS[_n])
+MODELOS['foguete_voo'] = (lambda: foguete(4, sozinho=True))   # the launch film's rocket: no pad, no detail kit
 
 # ---------- camera: render_terrain.py's 2:1 isometric camera ----------
 elev = math.radians(30)
@@ -1460,14 +1545,14 @@ cam = bpy.data.cameras.new('ModCam'); cam.type = 'ORTHO'; cam.clip_end = 200
 cam_o = bpy.data.objects.new('ModCam', cam); sc.collection.objects.link(cam_o); sc.camera = cam_o
 cam_o.rotation_mode = 'QUATERNION'; cam_o.rotation_quaternion = q
 sun = bpy.data.lights.new('Sol', 'SUN'); sun.energy = 4.0; sun.use_shadow = False
-if NOVO: sun.energy = 0.0   # the soft area light (luz_estacao) lights each model instead
+if NOVO and not CARTOON: sun.energy = 0.0   # the soft area light (luz_estacao) lights each model instead
 sun_o = bpy.data.objects.new('Sol', sun); sc.collection.objects.link(sun_o)
 to_sun = (to_cam * 0.5 - right * 1.0 + Vector((0, 0, 0.45))).normalized()
 sun_o.rotation_euler = (-to_sun).to_track_quat('-Z', 'Y').to_euler()
 
 def luz_estacao():
     """The solar station's key light: a big warm disk above the front-left, aimed at the model, with soft shadows."""
-    if not NOVO: return
+    if not NOVO or CARTOON: return
     pts = [o.matrix_world @ Vector(c) for o in grupo for c in o.bound_box]
     if not pts: return
     centro = sum(pts, Vector()) / len(pts)
@@ -1535,6 +1620,28 @@ else:
                 Image.open(png).quantize(255, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(png)
             except ImportError:
                 print('no magick or Pillow in Blender: quantize', png, 'to 255 colors by hand')
+        if nome == 'foguete_voo':
+            # The flying rocket has its own json (Chegada.ts and Superficie.pousarFoguete read
+            # src/dados/foguete_voo.json, not modulos.json). peNoPad = where the rocket's lowest
+            # point and axis sit inside foguete4.png (same camera), so the landed film rocket
+            # swaps into the standing one pixel for pixel; make_flying_rocket.py crops the picture.
+            a4 = saida.get('foguete4')
+            if a4 is None: a4 = json.load(open(JSON))['foguete4']
+            d = Vector((-up.x, -up.y, 0))
+            if d.length: d = d / d.length
+            pts = [Vector((1.5, -1.5, 0.2)) + d * (0.72 * 0.56)]   # the yellow engine lip, the widest at the bottom
+            for a in (0, 90, 180, 270):                            # the fins' bottom edges may dip lower on screen
+                r = math.radians(a); c_, sn_ = math.cos(r), math.sin(r)
+                for u in (0.72 - 0.05, 0.72 + 0.5):
+                    for t in (0.08, -0.08):
+                        pts.append(Vector((1.5 + c_ * u + sn_ * t, -1.5 - sn_ * u + c_ * t, 0.25)))
+            b = min(pts, key=lambda p: p.dot(up))
+            voo = {'w': W, 'h': H, 'pe': [round(W / 2, 2), round(H - PAD, 2)],
+                   'peNoPad': [round(a4['ancora'][0] + (1.5 * right.x - 1.5 * right.y) * s, 2),
+                               round(a4['ancora'][1] - b.dot(up) * s, 2)]}
+            json.dump(voo, open(os.path.join(ROOT, 'src', 'dados', 'foguete_voo.json'), 'w', encoding='utf8'), indent=1)
+            print('module', nome, W, H)
+            continue
         o0 = Vector((0, 0, 0))
         saida[nome] = {'arquivo': f'lua/modulos/{nome}.png', 'w': W, 'h': H, 'escala': 1 / SUPER,
                        'ancora': [round((o0.dot(right) - cx) * s + W / 2, 2), round(H / 2 - (o0.dot(up) - cy) * s, 2)]}
