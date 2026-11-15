@@ -115,8 +115,12 @@ the game's map framing and pulls back to the Moon view of day 1. In the game
   hard bands, outline. Crisp at any size, it turns smoothly (time runs on, no wrap).
 
 The frames cover the screen (`escalaFilme`), so the ground framing (`uFilme`) and the globe size
-(`uGlobo`) follow from them. Flight frames load in the background and are drawn once off screen
-before the first flight (a first draw uploads to the GPU and would stutter).
+(`uGlobo`) follow from them. Flight frames (`filme.ts`) download in the background and are
+decoded off the main thread into premultiplied `ImageBitmap`s. They reach the GPU one at a time
+while the player is on the ground (one every 200 ms), and just in time during a flight. Uploading
+`<img>` frames as they arrived made the browser convert each one on the main thread (about 100 ms
+per HD frame) and cost most of the frame time while walking; see `tools/dev/medir_desempenho.mjs`
+(`GPU=1` for the real GPU, `PERFIL=dir` for CPU profiles, `resumir_cpuprofile.py` to read them).
 
 **Moon ⇄ planets** is drawn live (Espaco): `u` eases with the same iOS-like curve
 (`curva`, cubic-bezier 0.7, 0, 0.2, 1), positions from `engine/astro.ts`. The view stops at
