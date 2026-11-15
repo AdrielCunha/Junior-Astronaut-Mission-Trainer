@@ -1,4 +1,5 @@
 // Touch-capable phones and tablets only; a mouse/trackpad does not enable game controls.
+import { t } from './idioma';
 export const dispositivoMovel = () => window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
 export function escalaInterface(largura: number, altura: number, minimo = 0.62, maximo = 1.4) {
@@ -103,7 +104,7 @@ export function instalarOrientacaoMovel() {
   if (!dispositivoMovel()) return;
   const aviso = document.createElement('div');
   aviso.id = 'aviso-orientacao';
-  aviso.innerHTML = '<div><span aria-hidden="true">↻</span><h1>Turn your device sideways</h1><p>Play Lunar Odyssey in landscape mode.</p><button type="button">PLAY IN LANDSCAPE</button></div>';
+  aviso.innerHTML = `<div><span aria-hidden="true">↻</span><h1>${t('Turn your device sideways')}</h1><p>${t('Play Lunar Odyssey in landscape mode.')}</p><button type="button">${t('PLAY IN LANDSCAPE')}</button></div>`;
   document.body.appendChild(aviso);
   const atualizar = () => aviso.classList.toggle('visivel', window.innerHeight > window.innerWidth);
   window.addEventListener('resize', atualizar);

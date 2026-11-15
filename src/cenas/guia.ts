@@ -92,7 +92,12 @@ export class Guia {
       : d.alvo === 'suporte' ? c.tipo.sala === 'oxigenio'
       : d.alvo === 'oficina' ? c.tipo.sala === 'meta'
       : !!c.tipo.sala;
-    return sessao.grade.lista.filter(quais).map((c) => pontoDoModulo(cena, l, c));
+    const lista = sessao.grade.lista.filter(quais);
+    // 'salas' (any room): only the room nearest to the commander, so the arrows do not cover every room at once.
+    const ap = sessao.posicaoAstronauta;
+    const perto = (c: Construcao) => ap ? Math.hypot(c.gx + c.tipo.w / 2 - ap.x, c.gy + c.tipo.h / 2 - ap.y) : 0;
+    const escolhidos = d.alvo === 'salas' && lista.length ? [lista.reduce((a, b) => (perto(b) < perto(a) ? b : a))] : lista;
+    return escolhidos.map((c) => pontoDoModulo(cena, l, c));
   }
 
   private seta(x: number, y: number, fora: boolean, ang: number) {
@@ -115,14 +120,22 @@ export function pontoDoMundo(cena: Phaser.Scene, l: Layout, gx: number, gy: numb
   const p = paraTela(dadosTerreno.imagem, gx, gy, z);
   const x = (p.x - cam.worldView.x) * cam.zoom, y = (p.y - cam.worldView.y) * cam.zoom;
   const dentro = x > m && x < W - m && y > topo && y < H - m;
+  // Out of view: held inside the free middle of the screen, clear of the counters (left), the bars and
+  // zoom buttons (right) and END DAY (bottom), so the arrow is never hidden under the HUD.
+  // Computer HUD: counters in a left column, END DAY at the bottom. Phone HUD (wider than tall
+  // counters): counters along the bottom, END DAY at the top, round meters in the header.
+  const telefone = l.capsula.w > l.capsula.h;
+  const x0 = telefone ? m : l.capsula.x + l.capsula.w + m / 2, x1 = l.zoom[0].x - m / 2;
+  const y0 = telefone ? l.faixa.h + m / 2 : l.recursos[2].y + l.recursos[2].h + m / 2;
+  const y1 = (telefone ? l.capsula.y : l.fimDia.y) - m / 2;
   return dentro ? { x, y: y - Math.round(8 * l.u), fora: false, ang: Math.PI / 2 } : {
-    x: Phaser.Math.Clamp(x, m, W - m), y: Phaser.Math.Clamp(y, topo, H - m), fora: true, ang: Math.atan2(y - H / 2, x - W / 2),
+    x: Phaser.Math.Clamp(x, x0, x1), y: Phaser.Math.Clamp(y, y0, y1), fora: true, ang: Math.atan2(y - H / 2, x - W / 2),
   };
 }
 
 // Arrow whose tip is at (x, y). Pointing down over a target, or along `ang` at the screen edge.
 export function desenharSeta(g: Phaser.GameObjects.Graphics, u: number, t: number, x: number, y: number, fora: boolean, ang: number, cor = 0xfde047) {
-  const s = 11 * u, c = fora ? ang : Math.PI / 2;
+  const s = 15 * u, c = fora ? ang : Math.PI / 2;
   const bob = movimentoReduzido() ? 0 : Math.sin(t * 6) * s * 0.35;
   const cos = Math.cos(c), sin = Math.sin(c);
   const tx = x - cos * bob, ty = y - sin * bob;
@@ -170,8 +183,11 @@ export class AvisoEvento {
     const W = cena.scale.width, pad = px(14);
     const nome = sessao.grade.lista.find((m) => m.id === ev.construcaoId)?.tipo.nome ?? '';
     const tecla = criarTecla(cena, 0, 0, 'E', u);
-    const texto = cena.add.text(0, 0, `Fix the ${nome}`, letra(px(15), '#fed7aa')).setOrigin(0, 0.5);
-    const w = Math.round(pad + px(30) + tecla.width + px(8) + texto.width + pad), h = px(40);
+    // The alarm is the real main event; a breakdown is an optional side mission.
+    const texto = cena.add.text(0, 0, ev.def.alarme ? `Fix the ${nome} now!` : `Side mission (optional): fix the ${nome}`, letra(px(15), '#fed7aa')).setOrigin(0, 0.5);
+    const maxTexto = W - 2 * l.margem - 2 * pad - px(30) - tecla.width - px(8);
+    if (texto.width > maxTexto) texto.setWordWrapWidth(maxTexto);
+    const w = Math.round(pad + px(30) + tecla.width + px(8) + texto.width + pad), h = Math.max(px(40), Math.round(texto.height + px(16)));
     const caixa = criarPilula(cena, (W - w) / 2, l.avisoY, w, h, u, CONTORNO, 0xfb923c).setDepth(40);
     const icone = criarIconeJogo(cena,pad+px(12),h/2,'warning',px(27));
     tecla.setPosition(pad+px(30), h / 2);
@@ -186,7 +202,7 @@ export class AvisoEvento {
 }
 
 // The current expedition (engine/expedicao.ts), made impossible to miss for a child who does not read fast:
-// - when it starts, a big "NEW MISSION!" card in the middle of the screen with the item's picture, what to find
+// - when it starts, a big "SIDE MISSION · optional" card in the middle of the screen with the item's picture, what to find
 //   and how (it shrinks away after a few seconds, or on a tap);
 // - then a box under the top bar: the goal on top (a verb + the thing) and how it is going below. Hot/cold
 //   searches show a 5-step thermometer (blue to red) next to the word, so it can be followed without reading;
@@ -275,7 +291,7 @@ export class AvisoExpedicao {
     this.caixa = caixa;
   }
 
-  // "NEW MISSION!" card in the middle: big picture, what to find, how to find it. Tap to close.
+  // Side-mission card in the middle: big picture, what to find, how to find it. Tap to close.
   private abrirCartao() {
     const exp = sessao.expedicao;
     if (!exp) return;
@@ -287,7 +303,7 @@ export class AvisoExpedicao {
     const icone = px(92);
     const img = criarIconeJogo(cena, px(26) + icone / 2, h / 2, ICONES_EXP[exp.tipo] ?? 'goal', icone);
     const tx = px(26) + icone + px(18), largura = w - tx - px(22);
-    const novo = cena.add.text(tx, px(30), 'NEW MISSION!', letra(px(16), '#fde047')).setOrigin(0, 0.5);
+    const novo = cena.add.text(tx, px(30), 'SIDE MISSION · optional', letra(px(16), '#fde047')).setOrigin(0, 0.5);
     const objetivo = cena.add.text(tx, px(72), OBJETIVOS[exp.tipo] + '!', letra(px(30), '#ffffff', { stroke: '#1e293b', strokeThickness: px(6), wordWrap: { width: largura } })).setOrigin(0, 0.5);
     const como = cena.add.text(tx, px(128), COMO[exp.tipo], letra(px(17), '#bae6fd', { wordWrap: { width: largura } })).setOrigin(0, 0.5);
     const toque = cena.add.text(w - px(18), h - px(14), 'tap to close', letra(px(11), '#94a3b8')).setOrigin(1, 1);

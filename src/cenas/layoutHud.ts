@@ -1,8 +1,9 @@
-// Shared pixel-rounded HUD grid. Desktop, Roblox style: no top bar. The title at the top left, the
+// Shared pixel-rounded HUD grid, Roblox style: no top bar. The title at the top left, the
 // resource bars stacked at the top right, the objective centred on top, the battery counters in a
-// column down the left side and the menu + zoom buttons down the right side. On a phone in landscape
-// it switches to the compact mobile grid, including the wrapped header on narrow screens.
+// column down the left side and the menu + zoom buttons down the right side. Phones in landscape get
+// their own compact grid (round meters on top, counters at the bottom, joystick and buttons: mobile.ts).
 import { dispositivoMovel } from '../mobile';
+
 export function calcularLayoutHud(largura: number, altura: number, escala: number) {
   const movel = dispositivoMovel() && largura > altura;
   const u = Math.min(escala, largura / 560);
@@ -30,13 +31,13 @@ export function calcularLayoutHud(largura: number, altura: number, escala: numbe
     const zoomY = menu.y + menu.h + espaco;
     const zoom = Array.from({ length: 3 }, (_, i) => ({ x: largura - margem - lado, y: zoomY + i * passo, w: lado, h: lado }));
     const controles = { x: largura - margem - lado, y: zoomY + 3 * passo, w: lado, h: lado };
-    const editar = { x: largura - margem - lado, y: controles.y + passo, w: lado, h: lado };
+    const editar = { x: largura - margem - lado, y: zoomY + 4 * passo, w: lado, h: lado };
     const nivel = { x: editar.x - px(12), y: editar.y + editar.h + espaco, w: lado + px(12), h: px(28) };
+    const avisoY = faixa.y + faixa.h + espaco;   // notices and the guide pill go under the round meters
     const dicasCompactas = true, painelW = Math.min(px(260), largura - 2 * margem), abaW = px(24), painelH = px(148);
     const dicasPainel = { x: margem, y: Math.max(objetivo.y + objetivo.h + espaco, Math.round(altura * 0.5)), w: painelW, h: painelH };
     const dicasAba = { x: painelW - abaW, y: painelH - lado, w: abaW, h: lado };
     const dicas = { x: margem, y: dicasPainel.y, w: abaW, h: lado };
-    const avisoY = faixa.y + faixa.h + espaco;
     return { u, margem, espaco, titulo, faixa, menu, recursos, capsula, objetivo, avisoY, zoom, controles, nivel, editar, fimDia, dicas, dicasCompactas, dicasPainel, dicasAba, dicasFechadasX: margem - dicasAba.x };
   }
   const margem = px(12), espaco = px(8), h1 = px(52), h2 = px(34);

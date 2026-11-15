@@ -29,11 +29,12 @@ export function passoAtual(c: ContextoGuia): Passo {
 }
 
 export function descrever(passo: Passo, c?: ContextoGuia, movel = false): Descricao | null {
+  // Touch screens: the joystick and the USE / JUMP buttons instead of the keys.
   if (movel) {
     switch (passo) {
       case 'mover': return { teclas: ['MOVE'], texto: 'Move with the joystick', alvo: null };
-      case 'pular': return { teclas: ['JUMP'], texto: 'Tap JUMP to leap on the Moon', alvo: null };
-      case 'banco': return { teclas: ['USE'], texto: 'Reach the Battery Bank and tap USE', alvo: 'banco' };
+      case 'pular': return { teclas: ['JUMP'], texto: 'Tap JUMP! Moon gravity is weak', alvo: null };
+      case 'banco': return { teclas: ['USE'], texto: 'Get batteries at the Battery Bank', alvo: 'banco' };
       case 'suporte': return { teclas: ['USE'], texto: 'Give 1 battery to Life Support', alvo: 'suporte' };
       case 'oficina': return { teclas: ['USE'], texto: 'Now 1 to the Rocket Workshop', alvo: 'oficina' };
       case 'resto': return { teclas: ['USE'], texto: 'Give the rest to any room', alvo: 'salas' };

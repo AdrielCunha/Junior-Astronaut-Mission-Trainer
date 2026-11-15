@@ -52,17 +52,21 @@ const CREDITOS: [string, [string, string][]][] = [
     ['Moon colors', 'SVS CGI Moon Kit · LROC'],
     ['Stars', 'SVS Deep Star Maps · ESA/Gaia/DPAC'],
     ['Planet positions', 'JPL'],
+    ['Earth', 'Blue Marble'],
+    ['Mercury', 'MESSENGER'],
+    ['Mars', 'Viking · USGS'],
   ]],
   ['MADE WITH', [
     ['Game engine', 'Phaser 3'],
     ['Code', 'TypeScript · Vite'],
     ['3D models', 'Blender'],
     ['Font', 'Fredoka · SIL OFL'],
-    ['Music', 'Beneath the Silver Tide'],
-    ['', 'Lunar Odyssey Theme'],
+    ['Music', 'AI-generated (Google Gemini, Flow Music)'],
   ]],
   ['AI TOOLS', [
-    ['Coding help', 'Claude · Anthropic']
+    ['Coding help', 'Claude · Anthropic'],
+    ['Images', 'OpenAI Codex'],
+    ['Music', 'Google Gemini · Flow Music']
   ]],
 ];
 

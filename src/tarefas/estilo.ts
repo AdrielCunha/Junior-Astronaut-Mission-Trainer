@@ -149,13 +149,14 @@ export function desenharBotao(g: Phaser.GameObjects.Graphics, w: number, h: numb
 
 // Dark rounded label behind a text that floats over the map (prop and rover tooltips).
 // Redraw it whenever the text changes, moves or is scaled; it follows the text's visibility.
-export function fundoRotulo(g: Phaser.GameObjects.Graphics, t: Phaser.GameObjects.Text) {
+// opacidade: the pill's fill (a little see-through for labels that sit over the map).
+export function fundoRotulo(g: Phaser.GameObjects.Graphics, t: Phaser.GameObjects.Text, opacidade = 0.96) {
   const s = t.scaleX, w = t.width * s, h = t.height * s;
   const x = t.x - w * t.originX, y = t.y - h * t.originY, r = Math.min(h / 2, 16 * s);
   g.clear().setDepth(t.depth - 0.001).setVisible(t.visible).setAlpha(t.alpha);
   if (!t.visible || !t.text) return g;
   return g.fillStyle(0x000000, 0.3).fillRoundedRect(x + 2 * s, y + 4 * s, w, h, r)
-    .fillStyle(CONTORNO, 0.96).fillRoundedRect(x, y, w, h, r)
+    .fillStyle(CONTORNO, opacidade).fillRoundedRect(x, y, w, h, r)
     .lineStyle(2.5 * s, 0xffffff).strokeRoundedRect(x, y, w, h, r);
 }
 
@@ -262,12 +263,12 @@ export function criarIndicador(cena: Phaser.Scene, b: Caixa, u: number, icone: I
     .lineStyle(px(2), 0xffffff).strokeRoundedRect(coluna, trilhoY - trilhoH / 2, trilhoW, trilhoH, trilhoH / 2);
   const preenchimento = cena.add.graphics();
   caixa.add([fundo, simbolo, label, selo.caixa, trilho, preenchimento]);
-  return { caixa, atualizar: (valor: number) => {
+  return { caixa, atualizar: (valor: number, corAtual = cor) => {
     const fracao = Math.max(0, Math.min(100, valor)) / 100;
     const borda = px(2), a = trilhoH - 2 * borda, util = trilhoW - 2 * borda;
     const cheio = fracao > 0 ? Math.min(util, Math.max(a, Math.round(util * fracao))) : 0;
     preenchimento.clear();
-    if (cheio) preenchimento.fillStyle(cor).fillRoundedRect(coluna + borda, trilhoY - a / 2, cheio, a, a / 2)
+    if (cheio) preenchimento.fillStyle(corAtual).fillRoundedRect(coluna + borda, trilhoY - a / 2, cheio, a, a / 2)
       .fillStyle(0xffffff, 0.3).fillRoundedRect(coluna + borda + a / 3, trilhoY - a / 2 + 1, Math.max(0, cheio - a * 2 / 3), a * 0.3, a * 0.15);
     selo.texto.setText(`${Math.round(valor)}%`);
   } };
@@ -286,12 +287,12 @@ export function criarIndicadorCircular(cena: Phaser.Scene, b: Caixa, u: number, 
     fontStyle: '700', stroke: '#0b1a4a', strokeThickness: 2,
   })).setOrigin(0.5);
   caixa.add([anel, simbolo, numero, legenda]);
-  return { caixa, atualizar: (valor: number) => {
+  return { caixa, atualizar: (valor: number, corAtual = cor) => {
     const fracao = Math.max(0, Math.min(100, valor)) / 100;
     anel.clear().fillStyle(0x0b1a4a, 0.96).fillCircle(0, 0, raio)
       .lineStyle(Math.max(3, 4 * u), 0xcbd5e1, 0.85).strokeCircle(0, 0, raio);
     if (fracao > 0) {
-      anel.lineStyle(Math.max(3, 4 * u), cor).beginPath().arc(0, 0, raio, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * fracao).strokePath();
+      anel.lineStyle(Math.max(3, 4 * u), corAtual).beginPath().arc(0, 0, raio, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * fracao).strokePath();
     }
     numero.setText(`${Math.round(valor)}%`);
   } };
@@ -415,7 +416,7 @@ export function criarPilulaDicas(cena: Phaser.Scene, b: Caixa, u: number, vertic
   const grupos = dispositivoMovel()
     ? [['MOVE', 'Walk'], ['JUMP', 'Jump'], ['USE', 'Use room'], ['Pinch', 'Zoom']]
     : [['WASD', 'Walk'], ['Space', 'Jump'], ['E', 'Use room'], ['Scroll', 'Zoom']];
-  const g = cena.add.graphics().lineStyle(Math.max(1, px(1)), 0x7dd3fc, 0.45);
+  const g = cena.add.graphics().lineStyle(Math.max(1, px(1)), 0xffffff, 0.3);
   caixa.add(g);
   const pad = px(12), util = (vertical ? b.h : b.w - reservaDireita) - 2 * pad;
   grupos.forEach(([tecla, descricao], i) => {
