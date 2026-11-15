@@ -174,6 +174,9 @@ export class Carregar extends Phaser.Scene {
       const q = (p as { pequeno: { arquivo: string; quadro: number } }).pequeno;
       this.load.spritesheet(`pl3d_${nome}`, q.arquivo, { frameWidth: q.quadro, frameHeight: q.quadro });
     }
+    // The big Sun of the farther zoom stops (make_planetas_3d.py, 288 px frames).
+    const solMedio = (planetas3d as unknown as { sol: { medio: { arquivo: string; quadro: number } } }).sol.medio;
+    this.load.spritesheet('pl3d_sol_m', solMedio.arquivo, { frameWidth: solMedio.quadro, frameHeight: solMedio.quadro });
     constelacoes.forEach((c, k) => this.load.image(`const${k}`, c.arquivo));
     for (const [id, arquivo] of Object.entries(ICONES)) this.load.image(chaveIcone(id as keyof typeof ICONES), arquivo);
 

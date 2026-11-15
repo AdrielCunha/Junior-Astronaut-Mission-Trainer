@@ -1775,7 +1775,7 @@ export class Superficie extends Phaser.Scene {
       const acao = carregado ? 'E / click: Drive Apollo LRV' : sessao.carregando ? 'E / click: Install 1 battery & drive' : `Bring 1 battery from the ${sessao.mundo === 'marte' ? 'Lander' : 'Battery Bank'}`;
       this.dicaRover.setPosition(p.x, p.y).setVisible(this.podeUsarRover() && !r.dirigindo && this.pertoRover())
         .setText(`Battery: ${carregado ? 'charged' : 'empty'}\n${acao}`);
-      fundoRotulo(this.fundoDicaRover, this.dicaRover);
+      fundoRotulo(this.fundoDicaRover, this.dicaRover, 0.72);
     }
     sessao.parado = Math.hypot(this.corpo.vx, this.corpo.vy) < 0.05 && this.corpo.noChao;
     this.atualizarOclusao(dt);

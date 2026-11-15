@@ -15,6 +15,13 @@
    "atmosForca": 0.0,
    "sol": true,
    "aneis": false
+  },
+  "medio": {
+   "arquivo": "lua/planetas/3d/sol_m.webp",
+   "quadro": 288,
+   "giros": 48,
+   "direcoes": 1,
+   "raio": 115.2
   }
  },
  "mercurio": {
