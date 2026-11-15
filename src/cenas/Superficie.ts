@@ -19,7 +19,7 @@ import { paraTela, paraChao, profundidade } from '../engine/iso';
 import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, type Corpo, type Caixa, type Entrada } from '../engine/fisica';
 import { encontrarCaminho, type Ponto } from '../engine/caminho';
 import naveProps from '../dados/nave_props.json';
-import { TIPOS, tipoOrientado, montarBasePadrao, montarLayout, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
+import { TIPOS, tipoOrientado, montarBasePadrao, montarLayout, ROTACAO_LAYOUT, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
 import { entregar as entregarRegra, custo, pronto } from '../regras';
 import { empuxoDePouso, suprimentoDoDia, SUPRIMENTOS } from '../engine/suprimentos';
 import { sortearEvento, eventoPorDemora, DOSE_ALARME, DEMORA_PASSO } from '../engine/eventos';
@@ -1795,7 +1795,7 @@ export class Superficie extends Phaser.Scene {
         const tipo = comoTipo({ ...d, w, h }), x = l ? l[1] : c0 + d.dx, y = l ? l[2] : c0 + d.dy;
         const p = g.pode(tipo, x, y).motivo === 'ok' && (l || sessao.mundo === 'nave') ? { gx: x, gy: y }
           : sessao.mundo !== 'nave' ? g.procurarDeco(tipo, x, y) : g.procurarComEspaco(tipo, x, y);
-        if (p) g.colocarDeco({ id: d.id, nome: d.nome, info: d.info, w, h, altura: d.altura, ...(girado ? { rotacao: 1 } : {}) }, p.gx, p.gy);
+        if (p) g.colocarDeco({ id: d.id, nome: d.nome, info: d.info, w, h, altura: d.altura, ...(girado ? { rotacao: ROTACAO_LAYOUT } : {}) }, p.gx, p.gy);
       });
     }
     for (const d of g.deco) {

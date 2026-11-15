@@ -10,7 +10,8 @@ export const LAYOUT = layoutJson as unknown as Record<'lua' | 'nave' | 'marte', 
 // A short fingerprint of the layout. Saved games keep it: when the layout changes, a saved base is
 // moved to the new spots on load (sessao.restaurarPartida), so nobody keeps the old arrangement.
 export const LAYOUT_VERSAO = (() => {
-  const s = JSON.stringify(layoutJson);
+  // "r3": turned spots became three quarter turns; saves made before are placed again.
+  const s = JSON.stringify(layoutJson) + 'r3';
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);

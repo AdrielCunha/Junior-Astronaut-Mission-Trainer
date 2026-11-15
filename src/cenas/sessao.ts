@@ -13,7 +13,7 @@ import type { Expedicao } from '../engine/expedicao';
 import { haExploracaoHoje, esperaDaExploracao } from '../engine/exploracao';
 import { lerPartida, gravarPartida } from '../salvamento';
 import { LAYOUT, LAYOUT_VERSAO } from '../dados/layout';
-import { Grade, TIPOS, type Construcao, type TipoId } from '../engine/construcao';
+import { Grade, TIPOS, ROTACAO_LAYOUT, type Construcao, type TipoId } from '../engine/construcao';
 import type { Projecao } from '../engine/iso';
 import { VOO as voo } from './qualidade';
 import { CAPITULOS } from '../capitulos';
@@ -144,7 +144,7 @@ class Sessao {
           if (k < 0) return m;
           usados.add(k);
           const [, gx, gy, rot] = plano[k];
-          return { id: m.id, tipo: m.tipo, gx, gy, ...(rot ? { rotacao: 1 } : {}) };
+          return { id: m.id, tipo: m.tipo, gx, gy, ...(rot ? { rotacao: ROTACAO_LAYOUT } : {}) };
         });
         this.grade.restaurar(modulos,[],true);
       } else this.grade.restaurar(d.modulos,d.decoracao);

@@ -362,15 +362,18 @@ export const BASE_NAVE: [TipoId, number, number][] = [
 // The base drawn in the layout editor (src/dados/layout.json): each module at its own tile, turned
 // or not. A spot that does not fit any more (the ground changed) falls back to the nearest free one.
 export type LayoutModulo = [TipoId, number, number, number];
+export const ROTACAO_LAYOUT = 3;
 export function montarLayout(g: Grade, modulos: LayoutModulo[]): Construcao[] {
   const feitas: Construcao[] = [];
   for (const [id, gx, gy, rot] of modulos) {
     if (!Object.prototype.hasOwnProperty.call(TIPOS, id)) continue;
-    const t = tipoOrientado(TIPOS[id], rot ? 1 : 0);   // turned in the editor: a quarter turn
+    // Turned in the layout editor (the old mirrored picture): three quarter turns keep the door on the side the
+    // camera sees, like the mirror did (one quarter turn would show the back).
+    const t = tipoOrientado(TIPOS[id], rot ? ROTACAO_LAYOUT : 0);
     const p = g.pode(t, gx, gy).motivo === 'ok' ? { gx, gy } : g.procurarComEspaco(t, gx, gy);
     const c = p && g.construir(t, p.gx, p.gy);
     if (!c) continue;
-    if (rot) c.rotacao = 1;
+    if (rot) c.rotacao = ROTACAO_LAYOUT;
     feitas.push(c);
   }
   return feitas;
