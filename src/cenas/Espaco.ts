@@ -36,6 +36,7 @@ export class Espaco extends Phaser.Scene {
   private lua!: ReturnType<typeof criarLua>;        // live GPU Moon (luaShader.ts)
   private marte: ReturnType<typeof criarPlaneta> | null = null;   // live GPU Mars (planetaShader.ts)
   private quadro!: Phaser.GameObjects.Image;          // current flight frame
+  private quadro2!: Phaser.GameObjects.Image;         // the next one, fading in over it
   private pino!: Phaser.GameObjects.Container;
   private brilho!: Phaser.GameObjects.Arc;            // the colony's lights during the flight
   private g!: Phaser.GameObjects.Graphics;
@@ -90,6 +91,7 @@ export class Espaco extends Phaser.Scene {
     // The Blender flight (ground <-> Moon): downloaded in the background by filme.ts, which lives
     // outside the scene, so a resize (it restarts this scene) cannot load a frame twice.
     this.quadro = this.add.image(W / 2, H / 2, '__DEFAULT').setDepth(10).setVisible(false);
+    this.quadro2 = this.add.image(W / 2, H / 2, '__DEFAULT').setDepth(10.5).setVisible(false);
     this.foguete = this.add.image(0, 0, 'viagem_foguete').setDepth(15).setVisible(false)
       .setOrigin(0.5, dadosViagem.foguete.ancora[1] / dadosViagem.foguete.h);
     this.nave = this.add.image(0, 0, 'nave_d0').setDepth(15).setVisible(false);
@@ -198,6 +200,7 @@ export class Espaco extends Phaser.Scene {
     // live Moon, drawn underneath at the same size.
     const q = sessao.quadroFilme;
     this.quadro.setVisible(false);
+    this.quadro2.setVisible(false);
     if (q !== null) {
       let i = 0;
       while (i < voo.p.length - 1 && voo.p[i + 1] <= q) i++;
@@ -208,13 +211,23 @@ export class Espaco extends Phaser.Scene {
       const temQuadro = this.textures.exists(`voo${i}`);
       // Fades in under the map picture at the start (and out at the end of the way back), so the
       // space around the map's cut edges turns into ground gradually instead of in one frame.
-      const fim = suave(0, 0.08, q) * (1 - suave(0.975, 1, q));
+      const fim = suave(0, 0.03, q) * (1 - suave(0.975, 1, q));
       if (temQuadro) {
         // Never smaller than the screen: when this frame is not on the GPU yet an older one stands
         // in, and shrinking it to this frame's distance left a dark rim that flickered at the edges.
         const cobre = Math.max(W / (voo.w * voo.margem), H / (voo.h * voo.margem));
         this.quadro.setTexture(`voo${i}`).setScale(Math.max(cobre, sessao.escalaFilme * Math.pow(voo.razao, -(q - voo.p[i]))))
           .setPosition(W / 2, H / 2).setAlpha(fim).setVisible(fim > 0);
+        // The next frame fades in over this one as the flight moves between them, each at its own
+        // distance. Without it the picture held still and then jumped to the next frame (the
+        // camera turns a little between frames): a stepped motion that made some players queasy.
+        // Neighbouring frames are this close that the blend shows no ghost.
+        const n = i + 1;
+        if (n < voo.quadros && this.textures.exists(`voo${n}`) && q > voo.p[i]) {
+          const f = Phaser.Math.Clamp((q - voo.p[i]) / (voo.p[n] - voo.p[i]), 0, 1);
+          this.quadro2.setTexture(`voo${n}`).setScale(Math.max(cobre, sessao.escalaFilme * Math.pow(voo.razao, -(q - voo.p[n]))))
+            .setPosition(W / 2, H / 2).setAlpha(fim * f).setVisible(fim * f > 0.01);
+        }
       }
       // The colony on the moving planet: the base's pixel in this frame and the next (from
       // Blender), each at the scale it has now, blended by how far we are between them.

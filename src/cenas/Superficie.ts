@@ -313,12 +313,16 @@ export class Superficie extends Phaser.Scene {
     this.terreno.setAlpha(1);
     if (v?.tipo === 'filme') {
       if (!this.inicioVoo) this.inicioVoo = { x: cam.midPoint.x, y: cam.midPoint.y };
-      const k = v.fase === 'prep' && v.sentido > 0 ? suave(0, 1, v.t) : 1;
+      // The glide to the map center follows the zoom of the same motion (already eased as a whole).
+      const k = v.fase === 'prep' && v.sentido > 0 ? v.t : 1;
       cam.centerOn(Phaser.Math.Linear(this.inicioVoo.x, mc.x, k), Phaser.Math.Linear(this.inicioVoo.y, mc.y, k));
       const q = sessao.quadroFilme;
       if (q !== null) {
         cam.setZoom((sDeU(sessao.uFilme) * Math.pow(voo.razao, -q)) / S_MAPA);
-        this.terreno.setAlpha(1 - suave(0.05, 0.1, q));   // gone only once the film covers the screen
+        // The map picture (the cut-out piece with its edges) fades out early and slowly, while the
+        // film fades in under it. Kept opaque longer it sat over the film's ground not quite in
+        // step with it, and seemed to pulse a few times before vanishing at once.
+        this.terreno.setAlpha(1 - suave(0.004, 0.05, q));
       }
       this.mapa.setAlpha(q === null ? 1 : 1 - suave(0.22, 0.32, q));
     } else {
