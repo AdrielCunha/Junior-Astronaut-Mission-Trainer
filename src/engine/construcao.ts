@@ -179,7 +179,7 @@ export class Grade {
 // The base the crew already has when the game starts (players do not build; they run it).
 // Offsets in tiles from the map center; each module goes to the nearest flat, free spot, so the
 // layout follows the real ground. The rooms ring the habitat: short walks with the batteries.
-// Habitation at the center, a solar field behind it, operations to the right and launch farther out.
+// Habitation at the center, the solar station in front, fabrication behind and to the right.
 // Relative offsets preserve two straight rows and the adjacent bank on uneven ground.
 export const ESTACAO_SOLAR: [TipoId, number, number][] = [
   ['painel', 0, 0], ['painel', 3, 0], ['painel', 6, 0],
@@ -196,9 +196,9 @@ export const BASE_PADRAO: [TipoId, number, number][] = [
   ['usina', -12, -3],
   ['reciclador', -11, 3],
   ['eclusa', -2, 3],
-  ['impressora', 9, -8],
+  ['impressora', 9, -18],
   ['radiotelescopio', -10, -9],
-  ...ESTACAO_SOLAR.map(([id, x, y]): [TipoId, number, number] => [id, x - 6, y - 11]),
+  ...ESTACAO_SOLAR.map(([id, x, y]): [TipoId, number, number] => [id, x + 6, y - 7]),
 ];
 
 export const SETORES_SUPRIMENTOS: Partial<Record<TipoId, [number, number]>> = {
@@ -226,7 +226,7 @@ export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BA
     const c = p && g.construir(TIPOS[id], p.gx, p.gy);
     if (c) feitas.push(c);
   }
-  if (base === BASE_PADRAO) feitas.push(...montarEstacaoSolar(g, c0 - 6, c0 - 11));
+  if (base === BASE_PADRAO) feitas.push(...montarEstacaoSolar(g, c0 + 6, c0 - 7));
   return feitas;
 }
 
