@@ -31,6 +31,13 @@ test('each step points at something useful', () => {
   assert.equal(descrever('fim', { ...base, carregando: 0, noHabitat: 0 })!.alvo, 'fim');
 });
 
+test('mobile guide shows touch controls without desktop keyboard hints', () => {
+  assert.deepEqual(descrever('mover', base, true)!.teclas, ['MOVE']);
+  assert.deepEqual(descrever('pular', base, true)!.teclas, ['JUMP']);
+  assert.deepEqual(descrever('habitat', base, true)!.teclas, ['USE']);
+  assert.deepEqual(descrever('fim', { ...base, noHabitat: 0 }, true)!.teclas, ['END DAY']);
+});
+
 test('the guide is unseen at first and remembered once finished', () => {
   const storage = memoria();
   assert.equal(tutorialJaVisto(storage), false);

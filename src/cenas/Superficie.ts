@@ -42,6 +42,7 @@ import foguetevoo from '../dados/foguete_voo.json';
 import { tocarMotor, tocarSfx, criarAmbienteSonoro } from '../sfx';
 import { dirigirRover, estacionarRover, desembarcar, pontoLivre } from '../engine/rover';
 import { desenharRover, LINHA_QUADRIL_SENTADO } from './desenharRover';
+import { controleMovel, consumirPuloMovel, dispositivoMovel } from '../mobile';
 
 const P = dadosTerreno.imagem;
 // Mars: warm light on the props and modules (they are rendered under the Moon's light), and the props that make sense in Jezero crater, with
@@ -588,7 +589,7 @@ export class Superficie extends Phaser.Scene {
   private entrada(): Entrada {
     const t = this.teclas;
     // Screen directions to map axes: up-screen = -gx -gy, right-screen = +gx -gy.
-    let sx = 0, sy = 0;
+    let sx = controleMovel.x, sy = controleMovel.y;
     if (t.W.isDown || t.UP.isDown) sy -= 1;
     if (t.S.isDown || t.DOWN.isDown) sy += 1;
     if (t.A.isDown || t.LEFT.isDown) sx -= 1;
@@ -627,7 +628,8 @@ export class Superficie extends Phaser.Scene {
         }
       }
     }
-    return { dx, dy, pular: Phaser.Input.Keyboard.JustDown(t.SPACE) };
+    const pular = Phaser.Input.Keyboard.JustDown(t.SPACE) || consumirPuloMovel();
+    return { dx, dy, pular };
   }
 
   // ---------- batteries ----------
@@ -648,6 +650,8 @@ export class Superficie extends Phaser.Scene {
     const c = sessao.grade.lista.find((m) => this.perto(m) && this.usavel(m));
     if (c) this.usar(c);
   }
+
+  interagirPerto() { this.usarPerto(); }
 
   private usar(c: Construcao) {
     if (sessao.rover?.dirigindo) return;
@@ -737,7 +741,7 @@ export class Superficie extends Phaser.Scene {
       this.plantarBandeira(gx, gy);
       return;
     }
-    sessao.emitir('mensagem', 'Walk closer to the rover and press E to drive.', '#fde68a');
+    sessao.emitir('mensagem', dispositivoMovel() ? 'Move closer to the rover and tap USE to drive.' : 'Walk closer to the rover and press E to drive.', '#fde68a');
   }
 
   private alternarRover() {
@@ -752,7 +756,7 @@ export class Superficie extends Phaser.Scene {
       if (!sessao.roverCarregado) {
         this.rota = []; this.alvoRover = false; this.alvoUsar = null; this.recolherBandeira();
         if (sessao.carregando < 1) {
-          sessao.emitir('mensagem', 'Rover battery empty. Bring 1 battery from the Battery Bank, then press E or click the rover to install it. One battery lasts all day.', '#fde68a');
+          sessao.emitir('mensagem', dispositivoMovel() ? 'Rover battery empty. Bring 1 battery from the Battery Bank, then tap USE to install it. One battery lasts all day.' : 'Rover battery empty. Bring 1 battery from the Battery Bank, then press E or click the rover to install it. One battery lasts all day.', '#fde68a');
           return;
         }
         this.abastecerRover();
@@ -764,7 +768,9 @@ export class Superficie extends Phaser.Scene {
     }
     this.rota = []; this.alvoUsar = null; this.alvoRover = false;
     this.recolherBandeira(); this.seguir = true;
-    sessao.emitir('mensagem', r.dirigindo ? 'Rover: WASD / arrows to drive, E or click the rover to get out. Click the ground to drive there.' : 'Back on foot! Press E near the rover to drive again.', '#93c5fd');
+    sessao.emitir('mensagem', dispositivoMovel()
+      ? r.dirigindo ? 'Rover: use the joystick to drive and tap USE to get out.' : 'Back on foot! Tap USE near the rover to drive again.'
+      : r.dirigindo ? 'Rover: WASD / arrows to drive, E or click the rover to get out. Click the ground to drive there.' : 'Back on foot! Press E near the rover to drive again.', '#93c5fd');
     sessao.emitir('estado');
     if (r.dirigindo && !sessao.curiosidadeRoverVista) this.scene.launch('CuriosidadeRover');
   }
@@ -1250,11 +1256,15 @@ export class Superficie extends Phaser.Scene {
       desenharRover(this.gRover, P, r, _t, this.gRoverFrente, sessao.roverCarregado, sessao.abastecendoRover);
       const p = paraTela(P, r.corpo.x, r.corpo.y, r.corpo.z + 1.25);
       const carregado = sessao.roverCarregado;
-      const acao = r.dirigindo
-        ? carregado ? 'E / click: Exit  |  WASD / arrows: Drive' : 'E / click: Exit to pick up a battery'
-        : this.pertoRover()
-          ? carregado ? 'E / click: Drive Apollo LRV' : sessao.carregando ? 'E / click: Install 1 battery & drive' : 'Bring 1 battery from the Battery Bank'
-          : 'APOLLO LRV · Click to approach';
+      const acao = dispositivoMovel()
+        ? r.dirigindo ? 'USE: Exit  |  Joystick: Drive' : this.pertoRover()
+          ? carregado ? 'USE: Drive Apollo LRV' : sessao.carregando ? 'USE: Install battery & drive' : 'Bring a battery from the Battery Bank'
+          : 'APOLLO LRV · Tap to approach'
+        : r.dirigindo
+          ? carregado ? 'E / click: Exit  |  WASD / arrows: Drive' : 'E / click: Exit to pick up a battery'
+          : this.pertoRover()
+            ? carregado ? 'E / click: Drive Apollo LRV' : sessao.carregando ? 'E / click: Install 1 battery & drive' : 'Bring 1 battery from the Battery Bank'
+            : 'APOLLO LRV · Click to approach';
       this.dicaRover.setPosition(p.x, p.y).setVisible(this.podeUsarRover())
         .setText(`Battery: ${carregado ? 'charged' : 'empty'}\n${acao}`);
     }

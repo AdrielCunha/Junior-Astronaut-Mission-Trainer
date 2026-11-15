@@ -22,7 +22,19 @@ export function passoAtual(c: ContextoGuia): Passo {
   return 'fim';
 }
 
-export function descrever(passo: Passo, c: ContextoGuia): Descricao | null {
+export function descrever(passo: Passo, c: ContextoGuia, movel = false): Descricao | null {
+  if (movel) {
+    switch (passo) {
+      case 'mover': return { teclas: ['MOVE'], texto: 'Move with the joystick', alvo: null };
+      case 'pular': return { teclas: ['JUMP'], texto: 'Tap JUMP to leap on the Moon', alvo: null };
+      case 'habitat': return { teclas: ['USE'], texto: 'Reach the Battery Bank and tap USE', alvo: 'habitat' };
+      case 'salas': return { teclas: ['USE'], texto: 'Reach a room and tap USE to deliver a battery', alvo: 'salas' };
+      case 'fim': return c.carregando > 0 || c.noHabitat > 0
+        ? { teclas: ['USE'], texto: 'Deliver the remaining batteries', alvo: 'salas' }
+        : { teclas: ['END DAY'], texto: 'All used! Tap END DAY', alvo: 'fim' };
+      default: return null;
+    }
+  }
   switch (passo) {
     case 'mover': return { teclas: ['W', 'A', 'S', 'D'], texto: 'Walk around, or click the ground', alvo: null };
     case 'pular': return { teclas: ['SPACE'], texto: 'Jump! Gravity is weak on the Moon', alvo: null };

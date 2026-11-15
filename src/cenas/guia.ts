@@ -9,6 +9,7 @@ import { CONTORNO, criarPilula, criarTecla, criarIconeJogo, letra } from '../tar
 import { descrever, passoAtual, marcarTutorialVisto, type Descricao } from './tutorial';
 import type { Construcao } from '../engine/construcao';
 import type { calcularLayoutHud } from './layoutHud';
+import { dispositivoMovel } from '../mobile';
 
 type Layout = ReturnType<typeof calcularLayoutHud>;
 
@@ -36,7 +37,7 @@ export class Guia {
     };
     const passo = passoAtual(ctx);
     if (passo === 'pronto') { this.terminar(); return; }
-    const d = descrever(passo, ctx)!;
+    const d = descrever(passo, ctx, dispositivoMovel())!;
     this.g.clear();
     this.pilula?.setVisible(!pausado);
     if (pausado) return;

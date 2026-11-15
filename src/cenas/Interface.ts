@@ -10,7 +10,7 @@ import { calcularLayoutHud } from './layoutHud';
 import { PreferenciaDicas } from './dicasControles';
 import { Guia, AvisoEvento } from './guia';
 import { tutorialJaVisto } from './tutorial';
-import type { DadosRadar } from './Radar';
+import type { DadosRadar, Radar } from './Radar';
 import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, DESCANSO, type Estado } from '../regras';
 import { iniciarNave3D, iniciarMarte3D } from './irParaMarte';
 import { suprimentoDoDia } from '../engine/suprimentos';
@@ -18,8 +18,9 @@ import { DOSE_ALARME } from '../engine/eventos';
 import { sessao, fonte, dataBonita, U_INICIAL, COR, type Fase, type RelatorioDia } from './sessao';
 import { apagarPartida } from '../salvamento';
 import { alternarMudo } from '../audio';
-import { letra, criarPilula, criarCapsulaRecursos, criarBotaoPilula, criarIndicador, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
+import { letra, criarPilula, criarCapsulaRecursos, criarCapsulaRecursosMovel, criarBotaoPilula, criarIndicador, criarIndicadorCircular, criarIconeJogo, botaoVerde, criarDicasRecolhiveis, criarFaixaHud, criarTituloHud, criarBotaoZoom, moldura, discoAzul, CONTORNO } from '../tarefas/estilo';
 import { resolverIcone, textoDoJogo, type IconeJogo } from '../dados/icones';
+import { escalaInterface, dispositivoMovel } from '../mobile';
 
 type Botao = { texto: string; acao: () => void; principal?: boolean };
 // A chat message: a custom equipment icon on the left and a short line.
@@ -38,9 +39,9 @@ const C_ = () => sessao.C;
 
 export class Interface extends Phaser.Scene {
   private u = 1;
-  private tituloHud!: ReturnType<typeof criarTituloHud>;
-  private recursos: ReturnType<typeof criarIndicador>[] = [];
-  private capsula!: ReturnType<typeof criarCapsulaRecursos>;
+  private tituloHud?: ReturnType<typeof criarTituloHud>;
+  private recursos: { caixa: Phaser.GameObjects.Container; atualizar: (valor: number) => void }[] = [];
+  private capsula!: { caixa: Phaser.GameObjects.Container; atualizar: (valores: number[]) => void };
   private layout!: ReturnType<typeof calcularLayoutHud>;
   private objetivo!: Phaser.GameObjects.Container;
   private textos: Record<string, Phaser.GameObjects.Text> = {};
@@ -94,7 +95,7 @@ export class Interface extends Phaser.Scene {
 
   create() {
     const W = this.scale.width, H = this.scale.height;
-    this.u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.62, 1.4);
+    this.u = escalaInterface(W, H);
     sessao.tela = { w: W, h: H };
     this.textos = {};
     this.painel = [];
@@ -127,6 +128,8 @@ export class Interface extends Phaser.Scene {
     this.cortina = this.add.rectangle(0, 0, W, H, 0x05070f).setOrigin(0).setDepth(10_000_000).setAlpha(0);
     this.dicas = criarDicasRecolhiveis(this, l.dicasPainel, l.dicasAba, l.dicasFechadasX, l.u, l.dicasCompactas,
       this.preferenciaDicas.inicial(l.dicasCompactas), (recolhido) => this.preferenciaDicas.definir(recolhido));
+    // On phones the right-column button replaces the drawer tab.
+    if (dispositivoMovel() && W > H) { this.dicas.aba.setVisible(false); this.dicas.areaAba.disableInteractive(); }
     sessao.ouvir(this, 'controleUsado', (controle) => {
       if (this.preferenciaDicas.usar(controle)) this.dicas.definir(true);
     });
@@ -176,6 +179,18 @@ export class Interface extends Phaser.Scene {
     this.scene.launch('MenuJogo', { aoSairTitulo: () => this.abrirTelaInicial() });
   }
 
+  // The keyboard button on the mobile HUD: the game instructions in a centered panel, all at once.
+  private abrirInstrucoes() {
+    if (sessao.emTarefa || sessao.abastecendoRover || sessao.transicao || configuracoesAbertas ||
+        this.scene.isActive('MenuJogo') || this.scene.isActive('Radar') || this.scene.isActive('EditorBase') ||
+        this.painel.length) return;
+    this.abrirPainel('HOW TO PLAY', CONTROLE, [
+      'MOVE: drag the joystick on the left. JUMP: tap JUMP. USE: tap USE next to a room, the Battery Bank or the rover.',
+      'Pinch with two fingers to zoom the map.',
+      'Pick up batteries, deliver them to the rooms, and press END DAY.',
+    ], [{ texto: 'GOT IT  \u25b6', acao: () => this.fecharPainel(), principal: true }], { imediato: true });
+  }
+
   abrirEditor(): boolean {
     if(sessao.emTarefa || sessao.abastecendoRover || sessao.editandoBase || sessao.partida || sessao.voo || sessao.transicao
       || configuracoesAbertas || this.scene.isActive('MenuJogo') || this.scene.isActive('EditorBase'))return false;
@@ -197,7 +212,9 @@ export class Interface extends Phaser.Scene {
         this.ultimoDia = undefined;
         this.scene.get('Espaco').scene.restart();
         this.scene.get('Superficie').scene.restart();
-        this.irPara('manha');
+        // Keep the title screen alive for the countdown and the flight to the Moon, exactly like
+        // LAUNCH MISSION. The first morning opens only after the rocket lands on the pad.
+        (this.scene.get('Radar') as Radar).lancarNovoJogo(() => this.irPara('manha'));
       },
       aoComecar: () => { if (sessao.fase === 'inicio') this.irPara('manha'); else retomar(); },
       aoExplorar: retomar,
@@ -386,13 +403,19 @@ export class Interface extends Phaser.Scene {
   private criarHUD(W: number, H: number) {
     const l = this.layout = calcularLayoutHud(W, H, this.u), u = l.u;
     const px = (v: number) => Math.round(v * u);
-    criarFaixaHud(this, l.faixa, u);
+    const movel = dispositivoMovel() && W > H;
+    if (!movel) criarFaixaHud(this, l.faixa, u);
     const pad = px(8);
-    this.tituloHud = criarTituloHud(this, l.titulo, u);
-    this.textos.dia = this.tituloHud.data;
+    if (movel) {
+      this.tituloHud = undefined;
+      this.textos.dia = this.add.text(0, 0, '', letra(px(12), '#dbeafe')).setVisible(false);
+    } else {
+      this.tituloHud = criarTituloHud(this, l.titulo, u);
+      this.textos.dia = this.tituloHud.data;
+    }
     const marte = sessao.mundo === 'marte';
     const descricoes: [IconeJogo, string, number][] = [['oxygen', 'Oxygen', 0x4ade80], ['radiation', 'Radiation', 0xfde047], [marte ? 'wrench' : 'rocket', sessao.cap.nomeMeta, 0x60a5fa]];
-    this.recursos = l.recursos.map((r, i) => criarIndicador(this, r, u, ...descricoes[i]));
+    this.recursos = l.recursos.map((r, i) => movel ? criarIndicadorCircular(this, r, u, ...descricoes[i]) : criarIndicador(this, r, u, ...descricoes[i]));
     const menu = criarBotaoPilula(this, l.menu, u, '', () => this.abrirMenu());
     const simbolo = this.add.graphics().lineStyle(Math.max(2, px(2.5)), 0xffffff);
     const cx = Math.round(l.menu.w / 2), cy = Math.round(l.menu.h / 2);
@@ -400,24 +423,28 @@ export class Interface extends Phaser.Scene {
     menu.caixa.add(simbolo).setDepth(10).setData('acao', 'menu');
     this.btMenu = menu.caixa;
     const nave = sessao.mundo === 'nave';
-    this.capsula = criarCapsulaRecursos(this, l.capsula, u, nave ? {
+    const rotulosRecursos = nave ? {
       nomes: ['Batteries at the Power Room', 'Carrying batteries', 'Air recycler: batteries delivered today', 'Storm shelter: batteries delivered today', 'Engines: batteries delivered today'],
       icones: ['energy', 'backpack', 'heart', 'shield', 'rocket'],
     } : marte ? {
       nomes: ['Batteries at the lander', 'Carrying batteries', 'Life support: batteries delivered today', 'Shield: batteries delivered today', 'Heating: batteries delivered today'],
       icones: ['energy', 'backpack', 'heart', 'shield', 'energy'],
-    } : undefined);
+    } : undefined;
+    this.capsula = movel ? criarCapsulaRecursosMovel(this, l.capsula, u, rotulosRecursos) : criarCapsulaRecursos(this, l.capsula, u, rotulosRecursos);
     const o = l.objetivo;
     this.objetivo = criarPilula(this, o.x, o.y, o.w, o.h, u, 0xffd93b);
     const estrela = criarIconeJogo(this, pad + px(10), Math.round(o.h / 2), 'star', px(24));
-    this.textos.tarefa = this.add.text(px(30), Math.round(o.h / 2), '', letra(px(12), '#0b1a4a', {
-      wordWrap: { width: o.w - px(30) - pad }, lineSpacing: 0,
+    const tamanhoObjetivo = movel ? 15 : 12;
+    this.textos.tarefa = this.add.text(px(30), Math.round(o.h / 2), '', letra(px(tamanhoObjetivo), '#0b1a4a', {
+      fontStyle: '700', wordWrap: { width: o.w - px(30) - pad }, lineSpacing: 0,
     })).setOrigin(0, 0.5);
     this.objetivo.add([estrela, this.textos.tarefa]);
     // Pulse only the star; the second-row elements stay on the same baseline.
     if (!movimentoReduzido()) this.tweens.add({ targets: estrela, alpha: 0.45, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     (['mais', 'menos', 'casa'] as const).forEach((icone, i) => criarBotaoZoom(this, l.zoom[i], u, icone,
       () => i === 2 ? sessao.irPara(U_INICIAL) : sessao.zoom(i === 0 ? -0.5 : 0.5)));
+    // The Controls button opens the instructions in a panel centered on screen.
+    if (movel) criarBotaoZoom(this, l.controles, u, 'controles', () => this.abrirInstrucoes()).setData('acao', 'controles');
     const nivel = criarPilula(this, l.nivel.x, l.nivel.y, l.nivel.w, l.nivel.h, u);
     this.textos.altitude = this.add.text(Math.round(l.nivel.w / 2), Math.round(l.nivel.h / 2), '', letra(px(12), '#bfdbfe')).setOrigin(0.5);
     nivel.add(this.textos.altitude);
@@ -430,7 +457,7 @@ export class Interface extends Phaser.Scene {
     this.textos.dia.setText(sessao.fase === 'inicio'
       ? `Exploring \u00b7 ${marte ? 'Jezero crater' : 'Shackleton rim'}`
       : `${marte ? 'Mars \u00b7 ' : sessao.mundo === 'nave' ? 'Ship \u00b7 ' : ''}Day ${Math.min(e.dia, C_().dias)} of ${C_().dias} \u00b7 ${dataBonita(sessao.data)}`);
-    this.tituloHud.atualizar(this.textos.dia.text);
+    this.tituloHud?.atualizar(this.textos.dia.text);
     const valores = [e.oxigenio, e.dose, sessao.mundo==='lua'?sessao.progressoFoguete:e.meta];
     this.recursos.forEach((r, i) => { r.caixa.setVisible(sessao.fase !== 'inicio'); r.atualizar(valores[i]); });
     const d = sessao.entregas;
@@ -457,10 +484,27 @@ export class Interface extends Phaser.Scene {
       ? 'Rover battery charged. WASD / arrows to drive. E to get out.'
       : 'Rover battery empty. Press E to get out and bring 1 battery from the Battery Bank.';
     if (sessao.mundo !== 'lua') objetivo = sessao.noHabitat ? `Walk to the ${marte ? 'Lander' : 'Power Room'} to pick up today's batteries.` : sessao.carregando ? 'Click a room (or press E next to it) to give it a battery.' : 'All batteries used. Press END DAY.';
+    if (dispositivoMovel()) objetivo = objetivo
+      .replaceAll('Click a room (or press E next to it)', 'Tap a room or use USE nearby')
+      .replaceAll('Click it or press E nearby', 'Tap it or use USE nearby')
+      .replaceAll('WASD / arrows to drive. E to get out.', 'Use the joystick to drive and USE to get out.')
+      .replaceAll('Press E to get out', 'Tap USE to get out');
+    if (dispositivoMovel()) objetivo = objetivo
+      .replace('1/4: Walk to the Battery Bank. Tap it or use USE nearby to pick up batteries.', '1/4: Reach the Battery Bank and tap USE.')
+      .replace('2/4: Take a battery to Life Support. Complete its task to deliver it.', '2/4: Deliver to Life Support with USE.')
+      .replace('3/4: Take a battery to the Rocket Workshop. Complete its task.', '3/4: Deliver to the Rocket Workshop with USE.')
+      .replace('4/4: Batteries allocated! Press "End day" to see the results.', '4/4: Tap END DAY for the results.');
     this.textos.tarefa.setText(objetivo);
 
     this.textos.tarefa.setScale(1);
-    this.textos.tarefa.setScale(Math.min(1, (this.layout.objetivo.h - Math.round(6 * this.layout.u)) / this.textos.tarefa.height));
+    const alturaDisponivel = this.layout.objetivo.h - Math.round(6 * this.layout.u);
+    if (dispositivoMovel()) {
+      // Shrink the font before scaling its texture: downscaled canvas text looks blurry.
+      let tamanho = Math.round(15 * this.layout.u);
+      this.textos.tarefa.setFontSize(tamanho);
+      while (this.textos.tarefa.height > alturaDisponivel && tamanho > 11) this.textos.tarefa.setFontSize(--tamanho);
+    }
+    this.textos.tarefa.setScale(Math.min(1, alturaDisponivel / this.textos.tarefa.height));
 
     this.textoFim.setText(sessao.fase === 'inicio' ? '◀  MENU' : 'END DAY  ▶');
     this.btFim.setVisible(sessao.fase === 'dia' || sessao.fase === 'inicio');
@@ -564,7 +608,9 @@ export class Interface extends Phaser.Scene {
         ...(enf ? [{ icone: 'medical', texto: `${enf} astronaut${enf > 1 ? 's are' : ' is'} in the infirmary, so you have ${enf} fewer batteries.`, cor: '#fca5a5' }] : []),
         ...(sessao.mundo === 'lua' ? ['Optional rover: bring 1 battery from the Battery Bank to drive all day. A new day needs a new battery.'] : []),
         ...(sessao.mundo === 'lua' && sessao.estado.dia === 1 ? [
-          'First mission: pick up batteries at the Battery Bank, then take one to Life Support and one to the Rocket Workshop. Click a building or press E nearby.',
+          dispositivoMovel()
+            ? 'First mission: pick up batteries at the Battery Bank, then take one to Life Support and one to the Rocket Workshop. Move with the joystick and tap USE nearby.'
+            : 'First mission: pick up batteries at the Battery Bank, then take one to Life Support and one to the Rocket Workshop. Click a building or press E nearby.',
           'Complete each room\'s task to deliver its first battery. Rocket parts appear as you deliver batteries. Oxygen updates overnight. Choose where the rest go, then press "End day".',
         ] : []),
         ...(sessao.mundo === 'lua' && d.nivel >= 3 ? [{ texto: `Emergency: ${PRAZO_TEMPESTADE_MS / 1000} seconds to deliver ${d.nivel} batteries to the Radiation Shield. The countdown starts when you press Go and continues during tasks. The pause menu stops it.`, cor: '#fde68a', negrito: true }] : []),
@@ -708,7 +754,7 @@ export class Interface extends Phaser.Scene {
   // told as a chat: the messages arrive one by one, each after a moment of "typing...". A click or
   // ENTER shows them all at once; the buttons appear after the last one. The window is sized for
   // every message from the start, so it never jumps. It shrinks on small screens so it always fits.
-  private abrirPainel(titulo: string, quem: Remetente, partes: Parte[], botoes: Botao[]) {
+  private abrirPainel(titulo: string, quem: Remetente, partes: Parte[], botoes: Botao[], opcoes: { imediato?: boolean } = {}) {
     this.fecharPainel();
     if (quem===CONTROLE) tocarSfx('radio');
     this.aviso?.destroy();   // an old notice would sit on top of the panel
@@ -835,7 +881,7 @@ export class Interface extends Phaser.Scene {
       }));
     };
     nome.setAlpha(1); avatar.setAlpha(1);
-    if (reduzido) terminar();
+    if (reduzido || opcoes.imediato) terminar();
     else {
       this.acaoPrincipal = terminar;     // ENTER first shows every message
       fundo.on('pointerdown', terminar);

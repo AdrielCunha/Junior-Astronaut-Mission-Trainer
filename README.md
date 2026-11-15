@@ -70,9 +70,14 @@ To run it locally (Node 24; the tests run TypeScript directly in Node):
 ```bash
 npm install
 npm run dev     # play at http://localhost:5173
+npm run dev:mobile # test on a phone connected to the same Wi-Fi
 npm test        # game rules + engine (physics, building, map projection, planet positions)
 npm test        # game balance, checked against the real May 2024 storm in all three chapters
 ```
+
+To test on a phone, run `npm run dev:mobile` on the computer and leave the terminal open. Open the **Network** URL printed by Vite (for example, `http://192.168.1.5:5173`) in the phone's browser; `localhost` on the phone points to the phone itself. The phone and computer must be on the same Wi-Fi/network. If the page does not load, check the Windows firewall permission for Node.js, disable VPN/client isolation if applicable, and ensure port 5173 is reachable. If Vite selects another port, use the one shown in the terminal.
+
+On phones and tablets, turn the device sideways to play. The landscape prompt offers fullscreen/orientation lock where supported; browsers that block orientation lock (notably iOS Safari) require rotating the device manually. The on-screen joystick moves the astronaut or rover; **USE** interacts with a nearby module or rover, and **JUMP** jumps. Touch controls are hidden on desktop and while the map is covered by menus or tasks.
 
 How the game is built (engine, scenes, zoom, art pipeline in Blender): see [ARCHITECTURE.md](ARCHITECTURE.md).
 

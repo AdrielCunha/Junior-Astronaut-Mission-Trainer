@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mobile": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "node --test src/engine/rover.test.ts src/cenas/tempestadeSolar.test.ts src/regras.test.ts src/engine/engine.test.ts src/test-harness.test.ts src/nave-tarefa.test.ts src/filtro-o2-tarefa.test.ts src/task-batch.test.ts src/trocar-filtro-co2-tarefa.test.ts src/equilibrar-valvulas-tarefa.test.ts src/tapar-tempestade-tarefa.test.ts src/fechar-escotilhas-tarefa.test.ts src/reator-tarefa.test.ts src/colapso-reator-tarefa.test.ts src/desviar-energia-tarefa.test.ts src/fiacao-tarefa.test.ts src/potencia-motor-tarefa.test.ts src/direcao-tarefa.test.ts src/mapear-rota-tarefa.test.ts src/transferir-dados-tarefa.test.ts src/comunicacoes-tarefa.test.ts src/iluminacao-tarefa.test.ts src/cenas/dicasControles.test.ts src/cenas/tutorial.test.ts src/engine/eventos.test.ts src/tarefas/escolha.test.ts src/paineis-solares-tarefa.test.ts",

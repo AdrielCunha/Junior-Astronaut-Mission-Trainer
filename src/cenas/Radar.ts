@@ -9,6 +9,7 @@
 // Graphics. Shapes are drawn once into textures and shown as images; only the windows, which are
 // open for a moment, keep live Graphics.
 import Phaser from 'phaser';
+import { dispositivoMovel, escalaInterface } from '../mobile';
 import paletaLua from '../dados/paleta_lua.json';
 const LUA_COR=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
 const LUA_CRATERA=Number.parseInt(paletaLua.rocha.slice(1),16);
@@ -55,7 +56,8 @@ export class Radar extends Phaser.Scene {
 
   create(d: DadosRadar) {
     const W = this.scale.width, H = this.scale.height;
-    const u = (this.u = Phaser.Math.Clamp(Math.min(W / 1100, H / 650), 0.5, 1.4));
+    const movel = dispositivoMovel() && W > H;
+    const u = (this.u = escalaInterface(W, H, 0.5));
     this.travado = false;
     this.janelaAberta = false;
     this.chaves = [];
@@ -79,43 +81,68 @@ export class Radar extends Phaser.Scene {
     const j = this.pontosJornada(W, H);
     this.fundo(W, H, j.rota);
     this.jornada(j);
+    const inicioMenu = this.children.list.length;
 
     // ----- center column: logo, ribbon, buttons -----
     const cx = W / 2;
-    const tam = Math.min(92 * u, W / 9.5);
-    const yLogo = H * 0.2;
+    const tam = movel ? Math.min(37 * u, W / 13) : Math.min(92 * u, W / 9.5);
+    // The mobile title is a single measured block, not separate percentages of screen height:
+    // Safari's address bar changes H while the phone stays in landscape.
+    const yLogo = movel ? 0 : H * 0.2;
     const sombra = this.add.text(cx + 5 * u, yLogo + 7 * u, 'LUNAR ODYSSEY', letra(tam, '#0b1a4a', { stroke: '#0b1a4a', strokeThickness: tam / 4.5 })).setOrigin(0.5);
     const logo = this.add.text(cx, yLogo, 'LUNAR ODYSSEY', letra(tam, '#fde047', { stroke: '#1e293b', strokeThickness: tam / 4.5 })).setOrigin(0.5);
-    this.tweens.add({ targets: [logo, sombra], y: '-=6', duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    if (!movel) this.tweens.add({ targets: [logo, sombra], y: '-=6', duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
     const fita = this.make.text({ x: cx, y: yLogo + tam * 0.85, text: 'JUNIOR ASTRONAUT MISSION TRAINER',
-      style: letra(15 * u, '#ffffff', { letterSpacing: 2 * u } as Phaser.Types.GameObjects.Text.TextStyle) }, false).setOrigin(0.5);
-    const fw = fita.width + 44 * u, fh = fita.height + 14 * u;
+      style: letra((movel ? 12 : 15) * u, '#ffffff', { letterSpacing: (movel ? 1 : 2) * u } as Phaser.Types.GameObjects.Text.TextStyle) }, false).setOrigin(0.5);
+    const fw = fita.width + 44 * u, fh = fita.height + (movel ? 6 : 14) * u;
     this.imagem(cx, fita.y, fw, fh, (g) => g.fillStyle(CONTORNO, 0.95).fillRoundedRect(-fw / 2, -fh / 2, fw, fh, fh / 2));
     this.add.existing(fita);
 
     // LAUNCH and EXPLORE full width; HOW TO PLAY and CREDITS share the last row.
-    const bw = Math.min(340 * u, W - 60 * u), bh = 58 * u, gap = 16 * u;
-    const y1 = Math.max(fita.y + fh / 2 + 54 * u, H * 0.5);
-    const play = this.botao(cx, y1, bw, bh + 8 * u, d.continuar ? 'CONTINUE MISSION  \u25b6' : 'LAUNCH MISSION  \u25b6', 0x22c55e, 24 * u, lancar);
-    this.tweens.add({ targets: play, scale: 1.05, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const bw = Math.min((movel ? 310 : 340) * u, W - 60 * u), bh = (movel ? 37 : 58) * u, gap = (movel ? 12 : 16) * u;
+    const linhas = d.continuar && d.aoNovoJogo ? 4 : 3;
+    const alturaBotoes = linhas * bh + (linhas - 1) * gap + 8 * u;
+    const topoLogo = yLogo - logo.height / 2;
+    const topoFita = fita.y - fh / 2;
+    const topoConteudo = Math.min(topoLogo, topoFita);
+    const altoTitulo = Math.max(logo.y + logo.height / 2, fita.y + fh / 2) - topoConteudo;
+    const espacoTitulo = (movel ? 20 : 8) * u;
+    const alturaBloco = altoTitulo + espacoTitulo + alturaBotoes;
+    const escalaBloco = movel ? Math.min(1, (H - 16 * u) / alturaBloco) : 1;
+    const topoBloco = (H - alturaBloco * escalaBloco) / 2 - (movel ? Math.min(8 * u, Math.max(0, (H - alturaBloco * escalaBloco) / 4)) : 0);
+    const y1 = movel ? topoConteudo + altoTitulo + espacoTitulo + (bh + 8 * u) / 2
+      : Math.max(fita.y + fh / 2 + 54 * u, H * 0.5);
+    const play = this.botao(cx, y1, bw, bh + 8 * u, d.continuar ? 'CONTINUE MISSION  \u25b6' : 'LAUNCH MISSION  \u25b6', 0x22c55e, (movel ? 20 : 24) * u, lancar);
+    if (!movel) this.tweens.add({ targets: play, scale: 1.05, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     play.setData('acao', d.continuar ? 'continue' : 'launch');
     let proximaLinha = y1 + (bh + 8 * u) / 2 + gap + bh / 2;
     if (d.continuar && d.aoNovoJogo) {
-      this.botao(cx, proximaLinha, bw, bh, 'NEW GAME', 0x2563eb, 20 * u, () => this.confirmarNovoJogo(d.aoNovoJogo!)).setData('acao', 'new-game');
+      this.botao(cx, proximaLinha, bw, bh, 'NEW GAME', 0x2563eb, (movel ? 17 : 20) * u, () => this.confirmarNovoJogo(d.aoNovoJogo!)).setData('acao', 'new-game');
       proximaLinha += bh + gap;
     }
-    this.botao(cx, proximaLinha, bw, bh, 'EXPLORE A BASE', 0x2563eb, 20 * u, () => this.escolherBase(explorar));
+    this.botao(cx, proximaLinha, bw, bh, 'EXPLORE A BASE', 0x2563eb, (movel ? 17 : 20) * u, () => this.escolherBase(explorar));
     const y3 = proximaLinha + bh + gap, meia = (bw - gap) / 2;
-    this.botao(cx - (meia + gap) / 2, y3, meia, bh, 'HOW TO PLAY', 0x475569, 18 * u, () => this.comoJogar());
-    this.botao(cx + (meia + gap) / 2, y3, meia, bh, 'CREDITS', 0x475569, 18 * u, () => this.creditos());
+    this.botao(cx - (meia + gap) / 2, y3, meia, bh, 'HOW TO PLAY', 0x475569, (movel ? 14 : 18) * u, () => this.comoJogar());
+    this.botao(cx + (meia + gap) / 2, y3, meia, bh, 'CREDITS', 0x475569, (movel ? 14 : 18) * u, () => this.creditos());
+
+    if (movel) {
+      for (const objeto of this.children.list.slice(inicioMenu)) {
+        const item = objeto as Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform;
+        item.x = cx + (item.x - cx) * escalaBloco;
+        item.y = topoBloco + (item.y - topoConteudo) * escalaBloco;
+        item.setScale(escalaBloco);
+      }
+    }
 
     // ----- corners -----
     this.botaoConfiguracoes(W - 40 * u, 40 * u);
-    const rodape = H - 22 * u;
-    this.add.text(24 * u, rodape, 'Real NASA data · the May 2024 solar storm', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
-    const enter = this.add.text(W - 24 * u, rodape, d.continuar ? 'Press ENTER to continue' : 'Press ENTER to launch', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(1, 0.5);
-    this.tweens.add({ targets: enter, alpha: 0.35, duration: 900, yoyo: true, repeat: -1 });
+    if (!movel) {
+      const rodape = H - 22 * u;
+      this.add.text(24 * u, rodape, 'Real NASA data · the May 2024 solar storm', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
+      const enter = this.add.text(W - 24 * u, rodape, d.continuar ? 'Press ENTER to continue' : 'Press ENTER to launch', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(1, 0.5);
+      this.tweens.add({ targets: enter, alpha: 0.35, duration: 900, yoyo: true, repeat: -1 });
+    }
 
     this.input.keyboard?.on('keydown-ENTER', lancar);
   }
@@ -306,7 +333,7 @@ export class Radar extends Phaser.Scene {
       conteudo.push(this.add.text(0, 0, texto, letra(tamanho, '#ffffff', { stroke: '#1e293b', strokeThickness: 4 * u })).setOrigin(0.5));
     }
     const c = this.add.container(x, y, conteudo).setSize(w, h).setInteractive({ useHandCursor: true });
-    c.on('pointerover', () => { c.setScale(1.06); tocarSfx('suave'); }).on('pointerout', () => c.setScale(1)).on('pointerdown', () => { if (!this.travado) { if (!texto.startsWith('LAUNCH')) tocarSfx('clique'); acao(); } });
+    c.on('pointerover', () => { if (!dispositivoMovel()) c.setScale(1.06); tocarSfx('suave'); }).on('pointerout', () => c.setScale(1)).on('pointerdown', () => { if (!this.travado) { if (!texto.startsWith('LAUNCH')) tocarSfx('clique'); acao(); } });
     return c;
   }
 
@@ -393,7 +420,9 @@ export class Radar extends Phaser.Scene {
       this.add.text(cx, tela.y + tela.h * 0.25, 'Start a new mission?\nYour current mission will be reset.',
         letra(18 * u, '#ffffff', { align: 'center', wordWrap: { width: tela.w - 24 * u } })).setOrigin(0.5);
       botaoVerde(this, cx, tela.y + tela.h * 0.77, 'START NEW GAME', 19 * u, 44 * u, u, () => {
-        fechar(); this.travado = true; this.scene.stop(); comecar();
+        // Interface resets the run and calls lancarNovoJogo() below, which keeps this scene alive
+        // for the countdown and the flight to the Moon.
+        fechar(); this.travado = true; comecar();
       }).setData('acao', 'confirm-new-game');
     }, 'CANCEL');
   }
@@ -528,26 +557,38 @@ export class Radar extends Phaser.Scene {
     }, 'CLOSE');
   }
 
+  // NEW GAME resets the run in Interface and comes back here, so it plays the same launch film as
+  // LAUNCH MISSION: countdown, flight to the Moon and landing on the pad.
+  lancarNovoJogo(fim: () => void) {
+    this.travado = true;
+    tocarSfx('ligar');
+    this.contagem(fim);
+  }
+
   // 3, 2, 1, LIFT OFF! then the mission starts.
   private contagem(fim: () => void) {
-    if(movimentoReduzido()){this.scene.stop();fim();return;}
     const u = this.u;
     const W = this.scale.width, H = this.scale.height;
-    this.add.rectangle(0, 0, W, H, 0x020617, 0.55).setOrigin(0).setDepth(10);
+    const reduzido = movimentoReduzido();
     const passos = ['3', '2', '1', 'LIFT OFF!'];
-    passos.forEach((s, i) => {
-      this.time.delayedCall(i * 650, () => {
-        tocarSfx(i < 3 ? 'bip' : 'whoosh');
-        const t = this.add.text(W / 2, H / 2, s, letra((i < 3 ? 140 : 80) * u, i < 3 ? '#ffffff' : '#fde047', { stroke: '#1e293b', strokeThickness: 14 * u }))
-          .setOrigin(0.5).setDepth(11).setScale(0.2);
-        this.tweens.add({ targets: t, scale: 1, duration: 300, ease: 'Back.easeOut' });
-        this.tweens.add({ targets: t, alpha: 0, duration: 250, delay: 420, onComplete: () => t.destroy() });
+    // Reduced motion skips the numbers, but not the arrival itself: Chegada.ts shows a short,
+    // static version of it instead of the full flight.
+    if (!reduzido) {
+      this.add.rectangle(0, 0, W, H, 0x020617, 0.55).setOrigin(0).setDepth(10);
+      passos.forEach((s, i) => {
+        this.time.delayedCall(i * 650, () => {
+          tocarSfx(i < 3 ? 'bip' : 'whoosh');
+          const t = this.add.text(W / 2, H / 2, s, letra((i < 3 ? 140 : 80) * u, i < 3 ? '#ffffff' : '#fde047', { stroke: '#1e293b', strokeThickness: 14 * u }))
+            .setOrigin(0.5).setDepth(11).setScale(0.2);
+          this.tweens.add({ targets: t, scale: 1, duration: 300, ease: 'Back.easeOut' });
+          this.tweens.add({ targets: t, alpha: 0, duration: 250, delay: 420, onComplete: () => t.destroy() });
+        });
       });
-    });
+    }
     // After LIFT OFF the rocket flies to the Moon (Chegada.ts), lands on the pad in the game view
     // and goes up in smoke (Superficie.ts), then the first morning opens.
     const pousar = this.scene.isActive('Superficie');
-    this.time.delayedCall(passos.length * 650 + 150, () => {
+    this.time.delayedCall(reduzido ? 250 : passos.length * 650 + 150, () => {
       const dados: DadosChegada = { aoTerminar: pousar ? () => sessao.emitir('pousoFoguete', fim) : fim };
       this.scene.launch('Chegada', dados);
       this.scene.bringToTop('Chegada');
