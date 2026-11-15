@@ -6,7 +6,6 @@
 import Phaser from 'phaser';
 import { movimentoReduzido } from '../video';
 import { fonte, dadosTerreno } from './sessao';
-import { LEVE } from './qualidade';
 import { carregarLua, criarLua, LADO } from './luaShader';
 import { giroEm } from './globo';
 import modelos from '../dados/modulos.json';

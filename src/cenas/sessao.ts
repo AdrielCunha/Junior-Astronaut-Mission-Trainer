@@ -162,6 +162,7 @@ class Sessao {
     if (destino === this.vista) return;
     this.ancora = null;
     if (movimentoReduzido()) {
+      this.pendente = null;
       this.voo = null;
       this.transicao = { t: 0, destino, mudou: false };
       return;
@@ -194,7 +195,8 @@ class Sessao {
   passo(dt: number) {
     if (configuracoesAbertas) return;
     if (movimentoReduzido() && this.voo) {
-      const destino = this.voo.destino;
+      const destino = this.pendente ?? this.voo.destino;
+      this.pendente = null;
       this.voo = null;
       this.transicao = { t: 0, destino, mudou: false };
     }
@@ -280,8 +282,10 @@ export const fonte = (tamanho: number, cor = COR.texto, extra: Phaser.Types.Game
   ...extra,
 });
 
-export const dataBonita = (t: number) =>
-  new Date(t).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+// One formatter for the whole game: toLocaleDateString builds a new one on every call, which
+// cost ~7% of each frame in the solar system view (it runs every frame for the caption).
+const FORMATO_DATA = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+export const dataBonita = (t: number) => FORMATO_DATA.format(t);
 
 export const suave = (a: number, b: number, x: number) => {
   const t = Phaser.Math.Clamp((x - a) / (b - a), 0, 1);

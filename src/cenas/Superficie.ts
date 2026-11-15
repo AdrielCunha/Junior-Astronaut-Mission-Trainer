@@ -74,8 +74,8 @@ export class Superficie extends Phaser.Scene {
   }
 
   create() {
-    // Dev server only: lets browser tests drive the game. Removed from the production build.
-    if (import.meta.env.DEV) Object.assign(window, { superficie: this, sessao });
+    // Scene inspection is available in development or explicitly opted-in benchmark builds.
+    if (import.meta.env.DEV || import.meta.env.VITE_MEDIR === '1') Object.assign(window, { superficie: this, sessao });
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
     this.desenhos.clear();
     this.pouso = null;

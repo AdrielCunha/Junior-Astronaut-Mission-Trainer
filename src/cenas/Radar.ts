@@ -9,6 +9,7 @@
 // Graphics. Shapes are drawn once into textures and shown as images; only the windows, which are
 // open for a moment, keep live Graphics.
 import Phaser from 'phaser';
+import { abrirVideo, movimentoReduzido, configuracoesAbertas } from '../video';
 import { sessao } from './sessao';
 import { CONTORNO, botaoFechar, botaoVerde, letra, moldura, pilulaEscura } from '../tarefas/estilo';
 import { alternarMudo, estaMudo } from '../audio';
@@ -63,7 +64,7 @@ export class Radar extends Phaser.Scene {
       for (const k of this.chaves) if (this.textures.exists(k)) this.textures.remove(k);
     });
 
-    const lancar = () => { if (this.travado) return; this.travado = true; this.contagem(d.aoComecar); };
+    const lancar = () => { if (this.travado || configuracoesAbertas) return; this.travado = true; this.contagem(d.aoComecar); };
     const explorar = () => { if (this.travado) return; this.travado = true; this.scene.stop(); d.aoExplorar(); };
 
     const j = this.pontosJornada(W, H);
@@ -97,12 +98,19 @@ export class Radar extends Phaser.Scene {
 
     // ----- corners -----
     this.botaoMusica(W - 40 * u, 40 * u);
+    const vw=Math.max(140*u,132);
+    this.botao(W-80*u-vw/2,40*u,vw,Math.max(30,34*u),'VIDEO & COMFORT',0x334155,Math.max(11,12*u),()=>abrirVideo());
     const rodape = H - 22 * u;
     this.add.text(24 * u, rodape, 'Real NASA data · the May 2024 solar storm', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
     const enter = this.add.text(W - 24 * u, rodape, 'Press ENTER to launch', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(1, 0.5);
     this.tweens.add({ targets: enter, alpha: 0.35, duration: 900, yoyo: true, repeat: -1 });
 
     this.input.keyboard?.on('keydown-ENTER', lancar);
+  }
+
+  update() {
+    const paused=movimentoReduzido() || configuracoesAbertas;
+    this.tweens.getTweens().forEach(t=>{t.paused=paused;});
   }
 
   // ---------- drawing once ----------
@@ -193,6 +201,7 @@ export class Radar extends Phaser.Scene {
     // A little rocket flies the route from the Moon to Mars.
     const foguete = this.foguete(s);
     const voo = { t: 0.26 };
+    const initial=rota.getPoint(voo.t);foguete.setPosition(initial.x,initial.y);
     this.tweens.add({
       targets: voo, t: 0.98, duration: 7000, repeat: -1, repeatDelay: 600, ease: 'Sine.easeInOut',
       onUpdate: () => {
@@ -431,6 +440,7 @@ export class Radar extends Phaser.Scene {
 
   // 3, 2, 1, LIFT OFF! then the mission starts.
   private contagem(fim: () => void) {
+    if(movimentoReduzido()){this.scene.stop();fim();return;}
     const u = this.u;
     const W = this.scale.width, H = this.scale.height;
     this.add.rectangle(0, 0, W, H, 0x020617, 0.55).setOrigin(0).setDepth(10);

@@ -320,3 +320,17 @@ the standard animation settles from the undepressed surface toward the floor; re
 places it directly. A contact shadow is projected onto the sampled ground, and a geometry
 mask samples the foreground terrain horizon per sprite column so crater rims can occlude the
 mast base. The marker retains its foreground ordering relative to buildings.
+
+
+## Constellation visibility and measurements
+
+Constellation textures load in both quality modes. The sky is at depth -100 and constellation
+figures at -90, underneath the Moon, planets and ground. Low quality draws less often, rather
+than removing the feature. Reduced motion shows one static figure; full motion traces and fades
+one figure at a time. Replacing it or restarting the scene also removes its tween and mask.
+
+Production builds normally omit the scene inspection globals. Set `VITE_MEDIR=1` only for an
+explicit benchmark build to expose them to `tools/dev/medir_missao.mjs`. The script uses fresh
+Chrome profiles, CDP CPU throttling and real requestAnimationFrame timestamps, verifies that
+walking moves the character and waits for each destination view before measuring it. See
+`PERFORMANCE.md` for the recorded environment, raw JSON and reproduction commands.
