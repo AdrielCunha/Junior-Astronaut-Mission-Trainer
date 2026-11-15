@@ -102,6 +102,9 @@ export class Interface extends Phaser.Scene {
     sessao.tela = { w: W, h: H };
     this.textos = {};
     this.painel = [];
+    // A restart (resize, new game) destroys every object: the notices are made again on the next update.
+    this.avisoEvento = undefined;
+    this.avisoExpedicao = undefined;
 
     // Redraw every layer at the new size. The first resize event Phaser emits often repeats the
     // size create() already used; restarting for it would only throw away and rebuild everything.

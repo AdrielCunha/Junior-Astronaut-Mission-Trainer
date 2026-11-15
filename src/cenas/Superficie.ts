@@ -42,7 +42,8 @@ import foguetevoo from '../dados/foguete_voo.json';
 import { tocarMotor, tocarSfx, criarAmbienteSonoro } from '../sfx';
 import { dirigirRover, estacionarRover, desembarcar, pontoLivre, RAIO_ROVER } from '../engine/rover';
 import { deveQuebrar } from '../paralama-tarefa';
-import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto } from '../engine/expedicao';
+import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto, alvoDaSeta, pista, type Expedicao, type TipoExpedicao } from '../engine/expedicao';
+import { criarExploracao, sortearTipo, AVISOS, type Contexto } from '../engine/exploracao';
 import { desenharRover, esconderRover, LINHA_QUADRIL_SENTADO, type PecasRover } from './desenharRover';
 
 const P = dadosTerreno.imagem;
@@ -136,6 +137,8 @@ export class Superficie extends Phaser.Scene {
   private bandeirasExp: Phaser.GameObjects.Container[] = [];   // flags of the current expedition
   private chaveExp = '';
   private avisoAPe = 0;
+  private bloqueioExp = 0;      // seconds before a closed expedition task may open again
+  private proxBip = 0;          // seconds until the next hot/cold beep
   private pecasRover!: PecasRover;
   private dicaRover!: Phaser.GameObjects.Text;
   private fundoDicaRover!: Phaser.GameObjects.Graphics;
@@ -740,7 +743,7 @@ export class Superficie extends Phaser.Scene {
     else if (r.dirigindo) this.iniciarCorrida();
   }
 
-  // ---------- expeditions (engine/expedicao.ts) ----------
+  // ---------- expeditions (engine/expedicao.ts, engine/exploracao.ts) ----------
   // Once a day, getting into the charged rover starts a delivery run: drive through the flags to the module
   // farthest away. Nothing is won or lost; it is a reason to explore the map.
   private iniciarCorrida() {
@@ -761,55 +764,171 @@ export class Superficie extends Phaser.Scene {
     sessao.emitir('mensagem', `🚩 Delivery run! Drive through the flags to bring parts to the ${exp.destino}.`, '#93c5fd');
   }
 
-  private passarExpedicao(dt: number) {
-    const exp = sessao.expedicao;
-    this.desenharExpedicao(dt);
-    if (!exp || sessao.fase !== 'dia' || sessao.emTarefa || sessao.transicao) return;
-    this.avisoAPe = Math.max(0, this.avisoAPe - dt);
-    const { e, passou, aPe } = avancar(exp, this.corpo.x, this.corpo.y, !!sessao.rover?.dirigindo);
-    if (aPe && !this.avisoAPe) { this.avisoAPe = 6; sessao.emitir('mensagem', '🚙 Get in the rover and drive through the flag!', '#fde68a'); }
-    if (!passou) return;
-    sessao.expedicao = e;
-    if (terminada(e)) {
-      sessao.expedicao = null;
-      tocarSfx('sucesso');
-      sessao.emitir('mensagem', `📦 Parts delivered to the ${e.destino}! ${e.fato}`, '#86efac');
-      return;
-    }
-    tocarSfx('encaixe');
-    sessao.emitir('mensagem', `🚩 Flag ${e.atual} of ${e.pontos.length}! Next flag!`, '#86efac');
+  // Exploration events: a little while after the morning (from day 2), something sends the commander out of
+  // the base. It waits if another expedition or a task is open.
+  private passarExploracao(dt: number) {
+    if (sessao.exploracaoEm === null || sessao.fase !== 'dia' || sessao.emTarefa || sessao.transicao || this.pouso || sessao.vista !== 'chao' || sessao.expedicao) return;
+    sessao.exploracaoEm = Math.max(0, sessao.exploracaoEm - dt);
+    if (sessao.exploracaoEm > 0) return;
+    sessao.exploracaoEm = null;
+    this.iniciarExploracao();
   }
 
-  // Flags on the ground: the next one yellow and bouncing, the last one orange (the delivery spot).
-  private desenharExpedicao(dt: number) {
+  // Also used by the ?debug=1 buttons, with a chosen kind.
+  iniciarExploracao(tipo?: TipoExpedicao) {
+    const t = tipo ?? sortearTipo(sessao.mundo, sessao.ultimaExploracao);
+    if (!t || sessao.expedicao) return false;
+    const exp = criarExploracao(t, this.contextoExploracao());
+    if (!exp) return false;
+    sessao.expedicao = exp;
+    sessao.ultimaExploracao = t;
+    this.bloqueioExp = 0;
+    tocarSfx('aviso');
+    sessao.emitir('mensagem', AVISOS[t], '#93c5fd');
+    return true;
+  }
+
+  private contextoExploracao(): Contexto {
+    const caixas = sessao.grade.caixas(), lista = sessao.grade.lista, n = sessao.terreno.n;
+    const livre = (x: number, y: number) => pontoLivre(sessao.terreno, caixas, x, y, 0.5);
+    const centro = lista.length
+      ? { x: lista.reduce((s, c) => s + c.gx + c.tipo.w / 2, 0) / lista.length, y: lista.reduce((s, c) => s + c.gy + c.tipo.h / 2, 0) / lista.length }
+      : { x: n / 2, y: n / 2 };
+    const casa = lista.find((c) => c.tipo.id === 'habitat') ?? lista[0];
+    const cx = casa ? casa.gx + casa.tipo.w / 2 : centro.x, cy = casa ? casa.gy + casa.tipo.h + 1 : centro.y;
+    const porta = pontoLivrePerto(cx, cy, livre, 6) ?? { x: cx, y: cy };
+    return { centro, n, livre, crateras: [...sessao.terreno.crateras], casa: { ...porta, nome: casa?.tipo.nome ?? 'base' } };
+  }
+
+  private passarExpedicao(dt: number) {
     const exp = sessao.expedicao;
-    const chave = exp ? `${exp.id}:${exp.atual}:${exp.pontos.length}` : '';
+    this.bloqueioExp = Math.max(0, this.bloqueioExp - dt);
+    this.desenharExpedicao();
+    if (!exp) { sessao.pistaExpedicao = null; sessao.alvoExpedicao = null; sessao.progressoExpedicao = 0; return; }
+    const x = this.corpo.x, y = this.corpo.y;
+    const dica = pista(exp, x, y);
+    sessao.pistaExpedicao = dica;
+    sessao.alvoExpedicao = alvoDaSeta(exp, x, y);
+    if (sessao.fase !== 'dia' || sessao.emTarefa || sessao.transicao || this.bloqueioExp > 0) return;
+    // Hot/cold beeps: the closer, the faster.
+    this.proxBip -= dt;
+    if (dica && this.proxBip <= 0) { tocarSfx('bip'); this.proxBip = [1.8, 1.2, 0.75, 0.42, 0.2][dica.nivel]; }
+    this.avisoAPe = Math.max(0, this.avisoAPe - dt);
+    const { e, passou, aPe, progresso, indice } = avancar(exp, x, y, !!sessao.rover?.dirigindo, dt);
+    sessao.progressoExpedicao = progresso;
+    if (aPe && !this.avisoAPe) { this.avisoAPe = 6; sessao.emitir('mensagem', '🚙 Get in the rover and drive through the flag!', '#fde68a'); }
+    if (e !== exp) sessao.expedicao = e;
+    if (!passou) return;
+    sessao.progressoExpedicao = 0;
+    if (terminada(e)) { if (e.cena) this.abrirCenaExpedicao(exp, e); else this.concluirExpedicao(e); return; }
+    tocarSfx('encaixe');
+    const msgs: Record<string, string> = {
+      corrida: `🚩 Flag ${e.atual} of ${e.pontos.length}! Next flag!`,
+      amostra: `🧪 You found the sample case! Now bring it back to the ${e.destino}.`,
+      balizas: `🔦 Beacon lit! ${e.atual} of ${e.pontos.length}.`,
+      tubos: `🧪 Tube ${e.atual} of ${e.pontos.length} collected!`,
+    };
+    sessao.emitir('mensagem', msgs[e.tipo] ?? '', '#86efac');
+    void indice;
+  }
+
+  private concluirExpedicao(e: Expedicao) {
+    sessao.expedicao = null;
+    tocarSfx('sucesso');
+    const msgs: Record<string, string> = {
+      corrida: `📦 Parts delivered to the ${e.destino}!`,
+      amostra: `🧪 Sample delivered to the ${e.destino}!`,
+      balizas: '🔦 All the beacons are on!',
+      gelo: '❄ Ice found!',
+      tubos: '🧪 All the tubes are collected!',
+    };
+    sessao.emitir('mensagem', `${msgs[e.tipo] ?? ''} ${e.fato}`, '#86efac');
+  }
+
+  // The last spot opens a task (the ice scanner). Closing it early puts the expedition back one step, and the
+  // task only opens again after a few seconds, so walking away is easy.
+  private abrirCenaExpedicao(antes: Expedicao, e: Expedicao) {
+    sessao.emTarefa = true;
+    let feito = false;
+    this.scene.get(e.cena!).events.once('shutdown', () => this.time.delayedCall(0, () => {
+      if (feito) return;
+      sessao.emTarefa = false;
+      sessao.expedicao = antes;
+      this.bloqueioExp = 6;
+      sessao.emitir('mensagem', '❄ The scan was not finished. Walk back to the spot any time to scan again.', '#fde68a');
+    }));
+    this.scene.launch(e.cena!, { aoConcluir: () => { feito = true; sessao.emTarefa = false; this.concluirExpedicao(e); } });
+    this.scene.bringToTop(e.cena!);
+  }
+
+  // The markers on the ground. Spots with no arrow (hot/cold) only show up when the player is near.
+  private desenharExpedicao() {
+    const exp = sessao.expedicao;
+    const chave = exp ? `${exp.id}:${exp.feitos.map((f) => (f ? 1 : 0)).join('')}` : '';
     if (chave !== this.chaveExp) {
       this.chaveExp = chave;
       this.bandeirasExp.forEach((b) => b.destroy());
       this.bandeirasExp = [];
-      if (exp) exp.pontos.forEach((p, i) => {
-        if (i < exp.atual) return;
-        const ultima = i === exp.pontos.length - 1, proxima = i === exp.atual;
-        const cor = proxima ? 0xfde047 : ultima ? 0xf97316 : 0xffffff;
-        const t = paraTela(P, p.x, p.y, sessao.terreno.altura(p.x, p.y));
-        const g = this.add.graphics()
-          .fillStyle(0x000000, 0.25).fillEllipse(0, 0, 22, 8)
-          .fillStyle(0x1e293b, 1).fillRect(-2.5, -46, 5, 46).fillStyle(0xe2e8f0, 1).fillRect(-1, -45, 2, 44)
-          .fillStyle(cor, 1).fillTriangle(1, -46, 30, -38, 1, -29).lineStyle(2.5, 0x1e293b, 1).strokeTriangle(1, -46, 30, -38, 1, -29)
-          .fillStyle(0xef4444, 1).fillCircle(0, -48, 3.5);
-        const n = this.add.text(11, -38, ultima ? '📦' : String(i + 1), letra(ultima ? 9 : 10, '#1e293b')).setOrigin(0.5);
-        const anel = this.add.ellipse(0, 0, 46, 18).setStrokeStyle(3, cor, 0.9).setVisible(proxima);
-        const c = this.add.container(t.x, t.y, [anel, g, n]).setDepth(profundidade(p.x + 0.5, p.y + 0.5));
-        c.setData('proxima', proxima);
+      if (exp) exp.pontos.forEach((_p, i) => {
+        if (exp.feitos[i] && exp.tipo !== 'balizas') return;
+        const c = this.criarMarcador(exp, i);
         this.mapa.add(c);
         this.bandeirasExp.push(c);
       });
     }
-    if (movimentoReduzido()) return;
-    const k = 1 + 0.12 * Math.sin(this.time.now / 180);
-    for (const c of this.bandeirasExp) if (c.getData('proxima')) (c.list[0] as Phaser.GameObjects.Ellipse).setScale(k);
-    void dt;
+    if (!exp) return;
+    const k = movimentoReduzido() ? 1 : 1 + 0.12 * Math.sin(this.time.now / 180);
+    const proximo = alvoDaSeta(exp, this.corpo.x, this.corpo.y);
+    for (const c of this.bandeirasExp) {
+      const i = c.getData('i') as number, p = exp.pontos[i];
+      const d = Math.hypot(this.corpo.x - p.x, this.corpo.y - p.y);
+      if (c.getData('oculto')) c.setAlpha(Phaser.Math.Clamp((7 - d) / 3, 0, 1));
+      const anel = c.getData('anel') as Phaser.GameObjects.Ellipse | undefined;
+      if (anel) anel.setVisible(!exp.feitos[i] && (exp.livre || (proximo !== null && proximo === p))).setScale(k);
+    }
+  }
+
+  private criarMarcador(exp: Expedicao, i: number): Phaser.GameObjects.Container {
+    const p = exp.pontos[i], feito = exp.feitos[i];
+    const t = paraTela(P, p.x, p.y, sessao.terreno.altura(p.x, p.y));
+    const ultima = i === exp.pontos.length - 1;
+    const oculto = i < exp.escondidoAte;
+    const cor = exp.tipo === 'corrida' ? (ultima ? 0xf97316 : 0xffffff) : 0xfde047;
+    const anel = this.add.ellipse(0, 0, 46, 18).setStrokeStyle(3, 0xfde047, 0.9).setVisible(false);
+    const itens: Phaser.GameObjects.GameObject[] = [anel];
+    const g = this.add.graphics().fillStyle(0x000000, 0.25).fillEllipse(0, 0, 22, 8);
+    itens.push(g);
+    const contorno = 0x1e293b;
+    if (exp.tipo === 'corrida' || (exp.tipo === 'amostra' && ultima)) {
+      // A flag; the last one of a run carries a box.
+      g.fillStyle(contorno, 1).fillRect(-2.5, -46, 5, 46).fillStyle(0xe2e8f0, 1).fillRect(-1, -45, 2, 44)
+        .fillStyle(cor, 1).fillTriangle(1, -46, 30, -38, 1, -29).lineStyle(2.5, contorno, 1).strokeTriangle(1, -46, 30, -38, 1, -29)
+        .fillStyle(0xef4444, 1).fillCircle(0, -48, 3.5);
+      itens.push(this.add.text(11, -38, ultima ? '📦' : String(i + 1), letra(ultima ? 9 : 10, '#1e293b')).setOrigin(0.5));
+    } else if (exp.tipo === 'amostra') {
+      g.fillStyle(0xe2e8f0, 1).fillRoundedRect(-14, -18, 28, 16, 4).lineStyle(2.5, contorno, 1).strokeRoundedRect(-14, -18, 28, 16, 4)
+        .fillStyle(0xf97316, 1).fillRect(-14, -11, 28, 4).lineStyle(2.5, contorno, 1).strokeRoundedRect(-5, -23, 10, 6, 2);
+      itens.push(this.add.star(0, -36, 4, 2, 7, 0xfde047).setStrokeStyle(1.5, contorno));
+    } else if (exp.tipo === 'gelo') {
+      const cristal = (x: number, h: number, w: number, c: number) => g.fillStyle(c, 1)
+        .fillPoints([{ x, y: -h }, { x: x + w, y: -h * 0.45 }, { x, y: 0 }, { x: x - w, y: -h * 0.45 }] as Phaser.Types.Math.Vector2Like[], true)
+        .lineStyle(2, contorno, 1).strokePoints([{ x, y: -h }, { x: x + w, y: -h * 0.45 }, { x, y: 0 }, { x: x - w, y: -h * 0.45 }] as Phaser.Types.Math.Vector2Like[], true);
+      cristal(-9, 20, 6, 0xbae6fd); cristal(9, 24, 7, 0x7dd3fc); cristal(0, 32, 9, 0xe0f2fe);
+      itens.push(this.add.star(12, -34, 4, 1.5, 6, 0xffffff));
+    } else if (exp.tipo === 'balizas') {
+      g.fillStyle(contorno, 1).fillRect(-2.5, -40, 5, 40).fillStyle(0x94a3b8, 1).fillRect(-1, -39, 2, 38)
+        .fillStyle(contorno, 1).fillRoundedRect(-8, -3, 16, 5, 2);
+      if (feito) g.fillStyle(0xfde047, 0.3).fillCircle(0, -44, 17);
+      g.fillStyle(feito ? 0xfde047 : 0x475569, 1).fillCircle(0, -44, 8).lineStyle(2.5, contorno, 1).strokeCircle(0, -44, 8);
+    } else {
+      g.fillStyle(0xf8fafc, 1).fillRoundedRect(-4.5, -26, 9, 24, 4).lineStyle(2.5, contorno, 1).strokeRoundedRect(-4.5, -26, 9, 24, 4)
+        .fillStyle(0xf97316, 1).fillRoundedRect(-5.5, -30, 11, 7, 3).lineStyle(2, contorno, 1).strokeRoundedRect(-5.5, -30, 11, 7, 3);
+      itens.push(this.add.text(13, -16, String(i + 1), letra(11, '#ffffff', { stroke: '#1e293b', strokeThickness: 3 })).setOrigin(0.5));
+    }
+    const c = this.add.container(t.x, t.y, itens).setDepth(profundidade(p.x + 0.5, p.y + 0.5));
+    c.setData('i', i).setData('oculto', oculto && !feito).setData('anel', anel);
+    if (oculto && !feito) c.setAlpha(0);
+    return c;
   }
 
   // Driving a while breaks a fender (paralama-tarefa.ts): the rover stops until the child fixes it.
@@ -1288,6 +1407,7 @@ export class Superficie extends Phaser.Scene {
       ? dirigirRover(sessao.rover, sessao.roverCarregado ? e : null, sessao.terreno, caixas, dt)
       : passo(this.corpo, e, sessao.terreno, caixas, dt);
     if (sessao.rover?.dirigindo) this.contarOdometro(Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY));
+    this.passarExploracao(dt);
     this.passarExpedicao(dt);
     // Observe successful controls for the tutorial, without changing movement or physics.
     if (e && (e.dx || e.dy) && Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY) > 0.001 && !this.controlesObservados.has('movimento')) {

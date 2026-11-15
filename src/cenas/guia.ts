@@ -9,6 +9,7 @@ import { origemBaterias } from '../engine/estacaoSolar';
 import { CONTORNO, criarPilula, criarTecla, criarIconeJogo, letra } from '../tarefas/estilo';
 import { descrever, passoAtual, marcarTutorialVisto, type Descricao } from './tutorial';
 import type { Construcao } from '../engine/construcao';
+import { linha } from '../engine/expedicao';
 import type { calcularLayoutHud } from './layoutHud';
 
 type Layout = ReturnType<typeof calcularLayoutHud>;
@@ -183,8 +184,12 @@ export class AvisoEvento {
   }
 }
 
-// The current expedition (engine/expedicao.ts): a blue arrow over the next flag (or at the screen edge
-// pointing to it) and a short line saying how many flags are left. Hidden while a fix-it event is shown.
+// The current expedition (engine/expedicao.ts): a blue arrow over the next spot (or at the screen edge pointing
+// to it) and a short line saying what is going on. Spots with no arrow show a hot/cold hint in the line instead.
+// Hidden while a fix-it event is shown.
+const CORES_QUENTE = ['#bae6fd', '#93c5fd', '#fde68a', '#fdba74', '#fca5a5'];
+const ICONES_EXP: Record<string, string> = { corrida: 'rover', amostra: 'cargo', balizas: 'idea', gelo: 'cold', tubos: 'goal' };
+
 export class AvisoExpedicao {
   private readonly g: Phaser.GameObjects.Graphics;
   private pilula?: Phaser.GameObjects.Container;
@@ -199,35 +204,32 @@ export class AvisoExpedicao {
     this.t += dtMs / 1000;
     this.g.clear();
     const exp = sessao.expedicao;
-    const chave = exp ? `${exp.id}:${exp.atual}` : '';
-    if (chave !== this.chave) { this.chave = chave; this.montar(); }
+    const texto = exp ? linha(exp, sessao.pistaExpedicao, sessao.progressoExpedicao) : '';
+    const nivel = sessao.pistaExpedicao?.nivel ?? -1;
+    const chave = exp ? `${exp.id}|${texto}|${nivel}` : '';
+    if (chave !== this.chave) { this.chave = chave; this.montar(texto, nivel); }
     const visivel = !!exp && !pausado && sessao.fase === 'dia' && sessao.vista === 'chao';
     this.pilula?.setVisible(visivel && !sessao.evento);
-    const p = exp?.pontos[exp.atual];
+    const p = sessao.alvoExpedicao;
     if (!visivel || !p) return;
     const q = pontoDoMundo(this.cena, this.layout, p.x, p.y, sessao.terreno.altura(p.x, p.y) + 1.4);
     desenharSeta(this.g, this.layout.u, this.t, q.x, q.y, q.fora, q.ang, 0x38bdf8);
   }
 
-  private montar() {
+  private montar(linhaTexto: string, nivel: number) {
     this.pilula?.destroy();
     this.pilula = undefined;
     const exp = sessao.expedicao;
     if (!exp) return;
     const { cena, layout: l } = this, u = l.u, px = (n: number) => Math.round(n * u);
     const W = cena.scale.width, pad = px(14);
-    const ultima = exp.atual === exp.pontos.length - 1;
-    const texto = cena.add.text(0, 0, ultima ? `${exp.titulo} · last flag: the ${exp.destino}!` : `${exp.titulo} · flag ${exp.atual + 1} of ${exp.pontos.length}`,
-      letra(px(15), '#bae6fd')).setOrigin(0, 0.5);
+    const cor = nivel >= 0 ? CORES_QUENTE[nivel] : '#bae6fd';
+    const texto = cena.add.text(0, 0, linhaTexto, letra(px(15), cor)).setOrigin(0, 0.5);
     const w = Math.round(pad + px(30) + texto.width + pad), h = px(40);
     const caixa = criarPilula(cena, (W - w) / 2, l.capsula.y + l.capsula.h + px(10), w, h, u, CONTORNO, 0x38bdf8).setDepth(40);
-    const icone = criarIconeJogo(cena, pad + px(12), h / 2, 'rover', px(27));
+    const icone = criarIconeJogo(cena, pad + px(12), h / 2, ICONES_EXP[exp.tipo] ?? 'goal', px(27));
     texto.setPosition(pad + px(30), h / 2);
     caixa.add([icone, texto]);
     this.pilula = caixa;
-    if (!movimentoReduzido()) {
-      caixa.setScale(0.9).setAlpha(0);
-      cena.tweens.add({ targets: caixa, scale: 1, alpha: 1, duration: 220, ease: 'Back.easeOut' });
-    }
   }
 }

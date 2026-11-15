@@ -10,6 +10,7 @@ import { definirGravidade, G_LUA, G_MARTE, G_TERRA, type Corpo } from '../engine
 import { Terreno, type DadosTerreno } from '../engine/terreno';
 import { EVENTOS, haEventoHoje, esperaDoEvento, esperaDoAlarme, alarmeDoDia, type EventoDef } from '../engine/eventos';
 import type { Expedicao } from '../engine/expedicao';
+import { haExploracaoHoje, esperaDaExploracao } from '../engine/exploracao';
 import { lerPartida, gravarPartida } from '../salvamento';
 import { LAYOUT, LAYOUT_VERSAO } from '../dados/layout';
 import { Grade, TIPOS, type Construcao, type TipoId } from '../engine/construcao';
@@ -192,6 +193,11 @@ class Sessao {
   paralamaHoje = false;     // the fender already broke (and was fixed) today
   expedicao: Expedicao | null = null;   // flags to drive or walk through (engine/expedicao.ts)
   corridaHoje = false;      // the rover delivery run was already offered today
+  exploracaoEm: number | null = null;   // seconds of play until today's exploration event (null: none today)
+  ultimaExploracao?: string;
+  pistaExpedicao: { nivel: number; texto: string } | null = null;   // hot/cold hint, set by Superficie every frame
+  alvoExpedicao: { x: number; y: number } | null = null;            // where the HUD arrow points
+  progressoExpedicao = 0;                                           // 0..1 while staying at a spot
   ultimoEvento?: string;
   diasCalmos = 0;
   tempoCalmo = 0;           // seconds of play today with no event waiting or open (engine/eventos.ts chanceDaDemora)
@@ -276,7 +282,7 @@ class Sessao {
     this.tarefasHoje.clear();
     this.ultimaTarefa = {};
     this.evento = null; this.eventoEm = null; this.alarmeHoje = null; this.energiaHoje = false; this.ultimoEvento = undefined; this.diasCalmos = 0; this.tempoCalmo = 0;
-    this.odometroRover = 0; this.paralamaHoje = false; this.expedicao = null; this.corridaHoje = false;
+    this.odometroRover = 0; this.paralamaHoje = false; this.expedicao = null; this.corridaHoje = false; this.exploracaoEm = null;
     this.emTarefa = false;
     this.vista = 'chao';
     this.u = this.alvo = U_INICIAL;
@@ -466,6 +472,7 @@ class Sessao {
     this.odometroRover = 0; this.paralamaHoje = false; this.expedicao = null; this.corridaHoje = false;
     // Events and alarms are the Moon's (real May 2024 space weather, the lunar base modules).
     const lua = this.mundo === 'lua';
+    this.exploracaoEm = haExploracaoHoje(this.estado.dia, this.mundo) ? esperaDaExploracao() : null;
     this.alarmeHoje = lua ? alarmeDoDia(this.estado.dia) ?? null : null;
     const hoje = lua && (!!this.alarmeHoje || haEventoHoje(this.estado.dia, this.diasCalmos));
     this.eventoEm = this.alarmeHoje ? esperaDoAlarme() : hoje ? esperaDoEvento() : null;
