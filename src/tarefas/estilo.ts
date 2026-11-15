@@ -78,10 +78,11 @@ export function botaoFechar(cena: Phaser.Scene, x: number, y: number, u: number,
 }
 
 // Big green pill button that gently pulses, centered on (x, y).
-export function botaoVerde(cena: Phaser.Scene, x: number, y: number, texto: string, tamanho: number, alturaMax: number, u: number, acao: () => void, opcoes: { largura?: number; altura?: number; pulsar?: boolean; pararPropagacao?: boolean; animarHover?: boolean; cor?: number; corHover?: number } = {}) {
+export function botaoVerde(cena: Phaser.Scene, x: number, y: number, texto: string, tamanho: number, alturaMax: number, u: number, acao: () => void, opcoes: { largura?: number; altura?: number; pulsar?: boolean; pararPropagacao?: boolean; animarHover?: boolean; cor?: number; corHover?: number; setaBranca?: boolean } = {}) {
   const cor = opcoes.cor ?? 0x22c55e, corHover = opcoes.corHover ?? (opcoes.cor === undefined ? 0x4ade80 : 0x64748b);
-  const t = cena.add.text(0, 0, texto, letra(tamanho)).setOrigin(0.5);
-  const bw = opcoes.largura ?? t.width + 2.2 * tamanho, bh = opcoes.altura ?? Math.min(alturaMax, t.height + 0.9 * tamanho);
+  const seta = !!opcoes.setaBranca && /\s+▶$/.test(texto);
+  const t = cena.add.text(0, 0, seta ? texto.replace(/\s+▶$/, '') : texto, letra(tamanho)).setOrigin(0.5);
+  const bw = opcoes.largura ?? t.width + 2.2 * tamanho + (seta ? 14 * u : 0), bh = opcoes.altura ?? Math.min(alturaMax, t.height + 0.9 * tamanho);
   // Same look as the title screen's buttons (shine, white rim, dark outline), centred on (0, 0).
   const g = desenharBotao(cena.add.graphics(), bw, bh, u, cor).setPosition(-bw / 2, -bh / 2);
   const c = cena.add.container(x, y, [g, t]).setSize(bw, bh).setData('texto', t).setInteractive({ useHandCursor: true })
@@ -100,6 +101,12 @@ export function botaoVerde(cena: Phaser.Scene, x: number, y: number, texto: stri
       cena.tweens.add({ targets: brilho, alpha: ativo ? 1 : 0, duration: 160 });
     };
     c.on('pointerover', () => animar(true)).on('pointerout', () => animar(false));
+  }
+  if (seta) {
+    const lado = 8 * u, centro = (t.width + lado + 8 * u) / 2;
+    t.setX(-6 * u);
+    const icone = cena.add.graphics().fillStyle(0xffffff).fillTriangle(centro-lado/2,-lado/2,centro-lado/2,lado/2,centro+lado/2,0);
+    (t.parentContainer ?? c).add(icone);
   }
   if (opcoes.pulsar !== false && !movimentoReduzido()) cena.tweens.add({ targets: c, scale: 1.08, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   return c;

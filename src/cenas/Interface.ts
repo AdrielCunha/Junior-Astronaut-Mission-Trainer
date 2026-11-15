@@ -590,6 +590,8 @@ export class Interface extends Phaser.Scene {
     this.btFim.setVisible(sessao.fase === 'dia' || sessao.fase === 'inicio');
   }
 
+  painelAberto() { return this.painel.length > 0; }
+
   private atualizarVisibilidadeContadores() {
     const movel=dispositivoMovel() && this.scale.width > this.scale.height;
     const visivel=mostrarHudNaSuperficie(movel,sessao.mundo,sessao.vista,sessao.voo,sessao.transicao);
@@ -971,8 +973,9 @@ export class Interface extends Phaser.Scene {
       });
       let x = x0 + largura / 2 - (larguras.reduce((a, b) => a + b, 0) + gap * (lista.length - 1)) / 2;
       return lista.map((b, i) => {
+        const setaBranca = /^(NEXT|GO!|GOT IT)\s+▶$/.test(b.texto);
         const bt = botaoVerde(this, x + larguras[i] / 2, rodape.y + rodape.h / 2, b.texto, tam, alturaBt, k, () => { tocarSfx('clique'); b.acao(); },
-          { pulsar: false, pararPropagacao: true, animarHover: true, ...(b.principal ? {} : { cor: 0x475569 }) });
+          { pulsar: false, pararPropagacao: true, animarHover: true, setaBranca, ...(b.principal ? {} : { cor: 0x475569 }) });
         x += larguras[i] + gap;
         return bt.setVisible(false);
       });

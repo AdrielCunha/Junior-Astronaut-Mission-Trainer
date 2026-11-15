@@ -491,7 +491,7 @@ export class Radar extends Phaser.Scene {
     // A resize restarts the scene with the window open: clean up then too.
     this.events.once('shutdown', () => limpar?.());
     borda();
-    botaoVerde(this, x0 + largura / 2, rodape.y + rodape.h / 2, rodapeOk, 20 * u, Math.min(rodape.h, 50 * u), u, () => { tocarSfx('clique'); fechar(); }).setData('acao', 'close-window');
+    botaoVerde(this, x0 + largura / 2, rodape.y + rodape.h / 2, rodapeOk, 20 * u, Math.min(rodape.h, 50 * u), u, () => { tocarSfx('clique'); fechar(); }, { setaBranca: rodapeOk.endsWith('▶') }).setData('acao', 'close-window');
     botaoFechar(this, x0 + 4 * u, y0 + 4 * u, u, () => { tocarSfx('fechar'); fechar(); });
   }
 
