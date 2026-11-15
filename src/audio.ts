@@ -6,7 +6,13 @@ const CHAVE_MUDO = 'lunar-odyssey-mudo';
 const CHAVE_VOLUME = 'lunar-odyssey-volume-musica';
 const BASE = import.meta.env.BASE_URL;
 
+const FAIXAS = [
+  'lunar-odyssey-theme',
+  'Beneath_the_Silver_Tide',
+];
+
 let audio: HTMLAudioElement | null = null;
+let faixaAtual = 0;
 let iniciado = false;
 let mudo = lerMudo();
 let volume = (() => { try { const salvo = localStorage.getItem(CHAVE_VOLUME); if (salvo === null) return 0.7; const n = Number(salvo); return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.7; } catch { return 0.7; } })();
@@ -19,22 +25,39 @@ function salvarMudo() {
   try { localStorage.setItem(CHAVE_MUDO, mudo ? '1' : '0'); } catch { /* private mode */ }
 }
 
+function carregarFaixa(el: HTMLAudioElement, indice: number) {
+  const nome = FAIXAS[indice];
+  el.replaceChildren();
+
+  const ogg = document.createElement('source');
+  ogg.src = `${BASE}audio/${nome}.ogg`;
+  ogg.type = 'audio/ogg; codecs="opus"';
+  const m4a = document.createElement('source');
+  m4a.src = `${BASE}audio/${nome}.m4a`;
+  m4a.type = 'audio/mp4; codecs="mp4a.40.2"';
+
+  el.append(ogg, m4a);
+  el.load();
+}
+
 function criarAudio() {
   if (audio) return audio;
   audio = new Audio();
-  audio.loop = true;
   audio.preload = 'none';
   audio.volume = VOLUME * volume * volume;
   audio.style.display = 'none';
 
-  const ogg = document.createElement('source');
-  ogg.src = `${BASE}audio/lunar-odyssey-theme.ogg`;
-  ogg.type = 'audio/ogg; codecs="opus"';
-  const m4a = document.createElement('source');
-  m4a.src = `${BASE}audio/lunar-odyssey-theme.m4a`;
-  m4a.type = 'audio/mp4; codecs="mp4a.40.2"';
+  carregarFaixa(audio, faixaAtual);
 
-  audio.append(ogg, m4a);
+  audio.addEventListener('ended', () => {
+    if (!audio) return;
+    faixaAtual = (faixaAtual + 1) % FAIXAS.length;
+    carregarFaixa(audio, faixaAtual);
+    if (!mudo) {
+      audio.play().catch(() => {});
+    }
+  });
+
   document.body.append(audio);
   return audio;
 }

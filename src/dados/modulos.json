@@ -528,5 +528,19 @@
    294.77,
    78.36
   ]
+ },
+ "aquecedor": {
+  "arquivo": "lua/modulos/aquecedor.png",
+  "w": 373,
+  "h": 315,
+  "escala": 0.5,
+  "ancora": [
+   186.21,
+   120.04
+  ],
+  "pegada": [
+   3,
+   3
+  ]
  }
 }
