@@ -47,9 +47,17 @@ export const U_INICIAL = Math.log(ZOOM_MAX / 1.1);
 export const RAIO_LUA = 1737.4;             // km
 const AU = 149597870.7;
 export const sDeU = (u: number) => S_MAX * Math.exp(-u);
-export const DURACAO_FILME = 3.8;           // s, ground <-> Moon
-// Timing of the flight frames (they are spaced evenly in log distance): ease in and out.
-const suaveFilme = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t);
+export const DURACAO_FILME = 4.6;           // s for the film part, ground <-> Moon
+// Timing of the flight (its frames are spaced evenly in log distance, so a constant rate looks
+// like a steady zoom): a short soft start and stop, and an even speed in between. The old
+// cosine ease reached 1.6 times the average speed in the middle; this one only 1.25 times.
+const RAMPA = 0.2;
+const suaveFilme = (t: number) => {
+  const v = 1 / (1 - RAMPA);                       // top speed
+  if (t < RAMPA) return (v / (2 * RAMPA)) * t * t;
+  if (t > 1 - RAMPA) return 1 - (v / (2 * RAMPA)) * (1 - t) ** 2;
+  return v * (t - RAMPA / 2);
+};
 export const uDeS = (s: number) => Math.log(S_MAX / s);
 // iOS-like motion: cubic-bezier(0.7, 0, 0.2, 1): slow start, quick middle, long soft landing.
 export function curva(t: number) {
@@ -177,7 +185,13 @@ class Sessao {
   // A flight between views. 'zoom': u eases from one view to the next (Moon <-> planets).
   // 'filme': the Blender flight (public/lua/voo) plays between the ground and the Moon:
   //   'prep' glides the ground camera to the frame-0 framing, 'filme' plays the frames.
-  voo: { tipo: 'zoom' | 'filme'; fase: 'prep' | 'filme'; de: number; para: number; t: number; dur: number; destino: Vista; sentido: 1 | -1 } | null = null;
+  // The film flight is ONE motion with one start and one stop (it used to glide, stop, then play
+  // the film, and on the way back stop and glide in again: a lurch that made players queasy).
+  // Its path is measured in zoom (u, log scale, the axis the frames are spaced on): Lg the ground
+  // glide (out: to the first frame's framing; back: in to the usual view), Lf the film. T runs
+  // 0..1 over the whole; fase and t are where it is now ('pouso' = the glide in after the film).
+  voo: { tipo: 'zoom' | 'filme'; fase: 'prep' | 'filme' | 'pouso'; de: number; para: number; t: number; dur: number; destino: Vista; sentido: 1 | -1;
+    T?: number; Lg?: number; Lf?: number } | null = null;
   filmePronto = false;      // Espaco sets it when every frame is loaded
   filmeFalhou = false;      // a frame failed after every retry: hold the last good one
   tela = { w: 1280, h: 720 };
@@ -265,8 +279,8 @@ class Sessao {
     const v = this.voo;
     if (!v || v.tipo !== 'filme') return null;
     if (v.fase === 'prep') return v.sentido > 0 ? null : 1;
-    const k = suaveFilme(v.t);
-    return v.sentido > 0 ? k : 1 - k;
+    if (v.fase === 'pouso') return null;
+    return v.sentido > 0 ? v.t : 1 - v.t;           // the easing is on the whole flight (passo)
   }
   // Farthest view: out to Mars's orbit, the next chapter's destination (the rest is for later).
   get uSistema() { return uDeS((0.46 * Math.min(this.tela.w, this.tela.h)) / (1.75 * AU)); }
@@ -323,9 +337,13 @@ class Sessao {
     if (filme) {
       // Both ways start with a short 'prep': going out, the ground camera glides to the first
       // frame's framing; coming back, the live Moon turns to the angle the film was rendered at.
+      // Out: the glide to the first frame's framing and the film are one motion. Back: the live
+      // Moon first turns to the film's angle (0.7 s), then the film and the glide in are one motion.
       const ida = destino === 'lua';
+      const Lf = Math.log(voo.razao);
+      const Lg = ida ? Math.abs(this.uFilme - this.u) : Math.abs(this.uFilme - U_INICIAL);
       this.voo = { tipo: 'filme', fase: 'prep', de: this.u, para: ida ? this.uFilme : this.u, t: 0,
-        dur: ida ? 0.35 : 0.7, destino, sentido: ida ? 1 : -1 };
+        dur: ida ? (DURACAO_FILME * (Lg + Lf)) / Lf : 0.7, destino, sentido: ida ? 1 : -1, T: 0, Lg, Lf };
       return;
     }
     const para = destino === 'lua' ? this.uGlobo : this.uSistema;
@@ -362,16 +380,31 @@ class Sessao {
     }
     if (this.voo) {
       const v = this.voo;
-      if (v.tipo === 'filme' && v.fase === 'filme' && !this.filmePronto) return;   // frames still loading
-      v.t = Math.min(1, v.t + dt / v.dur);
-      if (v.tipo === 'zoom') this.u = v.de + (v.para - v.de) * curva(v.t);
-      else if (v.fase === 'prep') this.u = v.de + (v.para - v.de) * curva(v.t);
-      if (v.t < 1) return;
-      if (v.tipo === 'filme' && v.fase === 'prep') { v.fase = 'filme'; v.t = 0; v.dur = DURACAO_FILME; return; }
+      if (v.tipo === 'zoom') {
+        v.t = Math.min(1, v.t + dt / v.dur);
+        this.u = v.de + (v.para - v.de) * curva(v.t);
+        if (v.t < 1) return;
+      } else {
+        if (!this.filmePronto) return;                                          // frames still loading
+        const Lg = v.Lg ?? 0, Lf = v.Lf ?? 1;
+        if (v.sentido < 0 && v.fase === 'prep') {                               // the Moon turns first
+          v.t = Math.min(1, v.t + dt / v.dur);
+          if (v.t < 1) return;
+          v.fase = 'filme'; v.t = 0; v.T = 0; v.dur = (DURACAO_FILME * (Lg + Lf)) / Lf;
+          return;
+        }
+        v.T = Math.min(1, (v.T ?? 0) + dt / v.dur);
+        const X = suaveFilme(v.T) * (Lg + Lf);                                  // distance along the path
+        if (v.sentido > 0) {
+          if (Lg > 1e-6 && X < Lg) { v.fase = 'prep'; v.t = X / Lg; this.u = v.de + (v.para - v.de) * v.t; }
+          else { v.fase = 'filme'; v.t = Math.min(1, (X - Lg) / Lf); }
+        } else if (X < Lf) { v.fase = 'filme'; v.t = X / Lf; }
+        else { v.fase = 'pouso'; v.t = Lg > 1e-6 ? Math.min(1, (X - Lf) / Lg) : 1; this.u = this.uFilme + (U_INICIAL - this.uFilme) * v.t; }
+        if (v.T < 1) return;
+      }
       this.vista = v.destino;
-      this.u = this.alvo = v.tipo === 'zoom' ? v.para : v.destino === 'lua' ? this.uGlobo : this.uFilme;
-      // Back on the ground the film leaves the camera at its widest; glide in to the usual view.
-      if (this.vista === 'chao') this.alvo = U_INICIAL;
+      // Back on the ground the glide in is already part of the flight: it ends at the usual view.
+      this.u = this.alvo = v.tipo === 'zoom' ? v.para : v.destino === 'lua' ? this.uGlobo : U_INICIAL;
       this.voo = null;
       const proximo = this.pendente;
       this.pendente = null;

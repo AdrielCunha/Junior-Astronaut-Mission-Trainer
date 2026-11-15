@@ -121,14 +121,33 @@ RUIDO = 0.08 / 0.075
 sub = 4; grid = n * sub
 v = [ponto_mapa(i / sub, j / sub) for j in range(grid + 1) for i in range(grid + 1)]
 f = [(j * (grid + 1) + i, (j + 1) * (grid + 1) + i, (j + 1) * (grid + 1) + i + 1, j * (grid + 1) + i + 1) for j in range(grid) for i in range(grid)]
-malha('mapa', v, f, C.toon(bpy, 'mapa', C.albedo_chao(RUIDO)))
+# Detail smaller than a few pixels crawls and flickers from one frame to the next as the camera
+# backs away (it made players queasy). The regolith's patches (1 km, and 0.5 km in its finer
+# octave) fade to the middle tone between 16 and 5 px wide, and the illustrated crater rims (about 8 m wide lines) fade out
+# from the first frame on, before they are thinner than a pixel. Distances from the frame's
+# width and the lens, so the light set (half the pixels) fades sooner.
+PX_POR_KM_A_1KM = round(args.w * 1.12) / (2 * math.tan(math.radians(10) / 2))   # px per km at 1 km away
+# The noise has a second octave half the size (Detail 1): the limits are set on that one.
+LOD_CHAO = (RUIDO / 2 * PX_POR_KM_A_1KM / 16, RUIDO / 2 * PX_POR_KM_A_1KM / 5)
+def sumir_aros(perto, longe):
+    for nome in ('Crater illustrated outline', 'Crater chalk edge'):
+        m = bpy.data.materials.get(nome)
+        if not m: continue
+        N, L = m.node_tree.nodes, m.node_tree.links
+        em = next(n for n in N if n.type == 'EMISSION'); out = next(n for n in N if n.type == 'OUTPUT_MATERIAL')
+        tr = N.new('ShaderNodeBsdfTransparent'); mx = N.new('ShaderNodeMixShader')
+        L.new(C.sumir_longe(N, L, perto, longe), mx.inputs['Fac'])
+        L.new(em.outputs[0], mx.inputs[1]); L.new(tr.outputs[0], mx.inputs[2]); L.new(mx.outputs[0], out.inputs['Surface'])
+        m.surface_render_method = 'BLENDED'
+malha('mapa', v, f, C.toon(bpy, 'mapa', C.albedo_chao(RUIDO, lod=LOD_CHAO)))
 contornos_crateras(bpy, sc, crateras, lambda x, y: ponto_mapa(x, y, .022 * .08))
+sumir_aros(0.0084 * PX_POR_KM_A_1KM / 1.6, 0.0084 * PX_POR_KM_A_1KM / 0.5)
 CENTRO = Vector(ponto_mapa(n / 2, n / 2))
 
 # ---------- CTX 18 km, MOLA 64 km and 800 km, each with a hole where the finer one sits ----------
 a, xa, ya = C.janela('ctx20', 9, 4)                        # 80 m
 v, f = remendo(a, xa, ya, lambda x, y: disco(8.6)(x, y) and not quad(2.45)(x, y), sobe=0.35)
-malha('regiao18', v, f, C.toon(bpy, 'r18', C.albedo_chao(RUIDO)))
+malha('regiao18', v, f, C.toon(bpy, 'r18', C.albedo_chao(RUIDO, lod=LOD_CHAO)))
 b, xb, yb = C.janela('mola128', 32, 1)                     # 463 m
 
 # ---------- the globe: MOLA 16 px/deg relief + Viking color, hole under the 800 km patch ----------

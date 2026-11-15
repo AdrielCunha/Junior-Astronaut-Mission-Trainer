@@ -21,6 +21,65 @@ direction = Vector((math.cos(elev) / math.sqrt(2), -math.cos(elev) / math.sqrt(2
 rotation = (-direction).to_track_quat('-Z', 'Y')
 right, up = rotation.to_matrix().col[0], rotation.to_matrix().col[1]
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from estilo_lua import PALETA
+
+def srgb_to_linear(h):
+    h = h.lstrip('#')
+    return [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+            for c in (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))]
+
+# Same toon look as the other base modules (make_modules.py): stepped light ramp times the
+# model's own color, and a dark inverted-hull outline. The approved .blend keeps its materials.
+_toon = {}
+def toon(src):
+    if src is None or src.name in _toon:
+        return _toon.get(src.name) if src else None
+    bs = src.node_tree.nodes.get('Principled BSDF') if src.use_nodes else None
+    cor = list(bs.inputs['Base Color'].default_value) if bs else list(src.diffuse_color)
+    brilho = bs.inputs['Emission Strength'].default_value if bs else 0
+    m = bpy.data.materials.new('Toon | ' + src.name); m.use_nodes = True
+    N = m.node_tree.nodes; L = m.node_tree.links; N.clear()
+    em = N.new('ShaderNodeEmission'); out = N.new('ShaderNodeOutputMaterial')
+    L.new(em.outputs[0], out.inputs['Surface'])
+    if brilho > 0:
+        em.inputs['Color'].default_value = cor   # screens and lamps stay lit
+    else:
+        dif = N.new('ShaderNodeBsdfDiffuse'); s2r = N.new('ShaderNodeShaderToRGB')
+        L.new(dif.outputs['BSDF'], s2r.inputs['Shader'])
+        r = N.new('ShaderNodeValToRGB'); cr = r.color_ramp; cr.interpolation = 'CONSTANT'
+        while len(cr.elements) < len(PALETA['luzSolo']): cr.elements.new(0.99)
+        for e, (pos, c) in zip(cr.elements, PALETA['luzSolo']): e.position = pos; e.color = (*srgb_to_linear(c), 1)
+        L.new(s2r.outputs['Color'], r.inputs['Fac'])
+        mix = N.new('ShaderNodeMix'); mix.data_type = 'RGBA'; mix.blend_type = 'MULTIPLY'
+        mix.inputs['Factor'].default_value = 1; mix.inputs[6].default_value = cor
+        L.new(r.outputs['Color'], mix.inputs[7]); L.new(mix.outputs[2], em.inputs['Color'])
+    _toon[src.name] = m
+    return m
+
+contorno = bpy.data.materials.new('Toon | contorno'); contorno.use_nodes = True; contorno.use_backface_culling = True
+_n = contorno.node_tree.nodes; _n.clear()
+_e = _n.new('ShaderNodeEmission'); _e.inputs['Color'].default_value = (*srgb_to_linear('#17130f'), 1)
+contorno.node_tree.links.new(_e.outputs[0], _n.new('ShaderNodeOutputMaterial').inputs['Surface'])
+
+def cartoon(clone):
+    if clone.type != 'MESH':
+        return
+    clone.data = clone.data.copy()
+    mats = clone.data.materials
+    for i, m in enumerate(mats):
+        mats[i] = toon(m)
+    menor = min(clone.dimensions)
+    if menor < 0.005:
+        return   # flat decals (battery bolts): a hull would cover them
+    mats.append(contorno)
+    escala = sum(clone.matrix_world.to_scale()) / 3
+    # Thin parts (cells, cables) get a thinner line so the panel grid does not turn black.
+    linha = min(0.03, 0.2 * menor) / escala
+    s = clone.modifiers.new('contorno', 'SOLIDIFY')
+    s.thickness = linha; s.offset = 1; s.use_flip_normals = True; s.use_rim = False
+    s.material_offset = len(mats) - 1
+
 def children(o):
     return [o] + [child for c in o.children for child in children(c)]
 
@@ -42,7 +101,8 @@ def export(root_name, stem, transform, bank=False):
     sc.render.image_settings.file_format = 'PNG'
     sc.render.image_settings.color_mode = 'RGBA'
     sc.render.film_transparent = True
-    sc.view_settings.view_transform = 'AgX'
+    sc.view_settings.view_transform = 'Standard'; sc.view_settings.look = 'None'
+    sc.render.filter_size = 1.0
     sc.world = source.world
     copies = []
     for o in selected:
@@ -56,6 +116,7 @@ def export(root_name, stem, transform, bank=False):
             # The bank faces the map camera; keep lettering readable after the X reflection.
             clone.matrix_world = clone.matrix_world @ Matrix.Diagonal((-1, 1, 1, 1))
         index = next((i for i in range(1, 6) if any(p.name.startswith('Bateria %02d |' % i) for p in ancestors(o))), 0)
+        cartoon(clone)
         copies.append((clone, index))
     camdata = bpy.data.cameras.new('Camera de exportacao')
     camdata.type = 'ORTHO'
@@ -64,14 +125,14 @@ def export(root_name, stem, transform, bank=False):
     camera.rotation_mode = 'QUATERNION'
     camera.rotation_quaternion = rotation
     sc.camera = camera
-    light = bpy.data.lights.new('Sol de exportacao', 'AREA')
-    light.energy = 1500
-    light.shape = 'DISK'
-    light.size = 7
+    # The modules' sun (make_modules.py): from the camera side, a little from the left and above.
+    light = bpy.data.lights.new('Sol de exportacao', 'SUN')
+    light.energy = 4.0
+    light.use_shadow = False
     lamp = bpy.data.objects.new('Sol de exportacao', light)
     sc.collection.objects.link(lamp)
-    lamp.location = (3, -6, 9)
-    lamp.rotation_euler = (-lamp.location).to_track_quat('-Z', 'Y').to_euler()
+    to_sun = (direction * 0.5 - right * 1.0 + Vector((0, 0, 0.45))).normalized()
+    lamp.rotation_euler = (-to_sun).to_track_quat('-Z', 'Y').to_euler()
     bpy.context.view_layer.update()
     points = [o.matrix_world @ Vector(p) for o, _ in copies for p in o.bound_box]
     xs, ys = [p.dot(right) for p in points], [p.dot(up) for p in points]

@@ -1,22 +1,22 @@
 {
  "habitat": {
   "arquivo": "lua/modulos/habitat.png",
-  "w": 392,
-  "h": 295,
+  "w": 396,
+  "h": 333,
   "escala": 0.5,
   "ancora": [
-   196.0,
-   98.14
+   198.0,
+   133.37
   ]
  },
  "suporte": {
   "arquivo": "lua/modulos/suporte.png",
-  "w": 332,
-  "h": 242,
+  "w": 336,
+  "h": 248,
   "escala": 0.5,
   "ancora": [
-   136.0,
-   74.91
+   138.0,
+   78.19
   ]
  },
  "blindagem": {
@@ -31,82 +31,82 @@
  },
  "oficina": {
   "arquivo": "lua/modulos/oficina.png",
-  "w": 392,
-  "h": 350,
+  "w": 396,
+  "h": 359,
   "escala": 0.5,
   "ancora": [
-   196.0,
-   153.08
+   198.0,
+   159.17
   ]
  },
  "painel": {
   "arquivo": "lua/modulos/painel.png",
-  "w": 228,
-  "h": 215,
+  "w": 233,
+  "h": 220,
   "escala": 0.5,
   "ancora": [
-   80.53,
-   115.54
+   82.85,
+   117.31
   ]
  },
  "plataforma": {
   "arquivo": "lua/modulos/plataforma.png",
-  "w": 372,
-  "h": 412,
+  "w": 380,
+  "h": 422,
   "escala": 0.5,
   "ancora": [
-   186.0,
-   219.66
+   190.0,
+   225.88
   ]
  },
  "antena": {
   "arquivo": "lua/modulos/antena.png",
-  "w": 272,
-  "h": 238,
+  "w": 276,
+  "h": 247,
   "escala": 0.5,
   "ancora": [
-   136.0,
-   101.01
+   138.0,
+   107.54
   ]
  },
  "estufa": {
   "arquivo": "lua/modulos/estufa.png",
-  "w": 332,
-  "h": 259,
+  "w": 336,
+  "h": 267,
   "escala": 0.5,
   "ancora": [
-   136.0,
-   92.16
+   138.0,
+   97.44
   ]
  },
  "perfuratriz": {
   "arquivo": "lua/modulos/perfuratriz.png",
-  "w": 272,
-  "h": 265,
+  "w": 276,
+  "h": 272,
   "escala": 0.5,
   "ancora": [
-   136.0,
-   127.92
+   138.0,
+   132.1
   ]
  },
  "rover": {
   "arquivo": "lua/modulos/rover.png",
-  "w": 193,
-  "h": 194,
+  "w": 200,
+  "h": 204,
   "escala": 0.5,
   "ancora": [
-   66.5,
-   91.58
+   70.0,
+   97.88
   ]
  },
  "pouso": {
   "arquivo": "lua/modulos/pouso.png",
-  "w": 274,
-  "h": 245,
+  "w": 278,
+  "h": 254,
   "escala": 0.5,
   "ancora": [
-   137.0,
-   107.6
+   139.0,
+   114.42
   ]
  },
  "chama": {
@@ -121,122 +121,122 @@
  },
  "foguete0": {
   "arquivo": "lua/modulos/foguete0.png",
-  "w": 372,
-  "h": 412,
+  "w": 380,
+  "h": 422,
   "escala": 0.5,
   "ancora": [
-   186.0,
-   219.66
+   190.0,
+   225.88
   ]
  },
  "foguete1": {
   "arquivo": "lua/modulos/foguete1.png",
-  "w": 372,
-  "h": 412,
+  "w": 380,
+  "h": 422,
   "escala": 0.5,
   "ancora": [
-   186.0,
-   219.66
+   190.0,
+   225.88
   ]
  },
  "foguete2": {
   "arquivo": "lua/modulos/foguete2.png",
-  "w": 372,
-  "h": 412,
+  "w": 380,
+  "h": 422,
   "escala": 0.5,
   "ancora": [
-   186.0,
-   219.66
+   190.0,
+   225.88
   ]
  },
  "foguete3": {
   "arquivo": "lua/modulos/foguete3.png",
-  "w": 372,
-  "h": 412,
+  "w": 380,
+  "h": 422,
   "escala": 0.5,
   "ancora": [
-   186.0,
-   219.66
+   190.0,
+   225.88
   ]
  },
  "foguete4": {
   "arquivo": "lua/modulos/foguete4.png",
-  "w": 372,
-  "h": 458,
+  "w": 380,
+  "h": 468,
   "escala": 0.5,
   "ancora": [
-   186.0,
-   265.8
+   190.0,
+   271.94
   ]
  },
  "suporte_anim1": {
   "arquivo": "lua/modulos/suporte_anim1.png",
-  "w": 332,
-  "h": 242,
+  "w": 336,
+  "h": 248,
   "escala": 0.5,
   "ancora": [
-   136.0,
-   74.91
+   138.0,
+   78.19
   ]
  },
  "suporte_anim2": {
   "arquivo": "lua/modulos/suporte_anim2.png",
-  "w": 332,
-  "h": 242,
+  "w": 336,
+  "h": 248,
   "escala": 0.5,
   "ancora": [
-   136.0,
-   74.91
+   138.0,
+   78.19
   ]
  },
  "oficina_anim1": {
   "arquivo": "lua/modulos/oficina_anim1.png",
-  "w": 392,
-  "h": 350,
+  "w": 396,
+  "h": 359,
   "escala": 0.5,
   "ancora": [
-   196.0,
-   153.08
+   198.0,
+   159.17
   ]
  },
  "oficina_anim2": {
   "arquivo": "lua/modulos/oficina_anim2.png",
-  "w": 392,
-  "h": 350,
+  "w": 396,
+  "h": 359,
   "escala": 0.5,
   "ancora": [
-   196.0,
-   153.08
+   198.0,
+   159.17
   ]
  },
  "usina": {
   "arquivo": "lua/modulos/usina.png",
-  "w": 332,
-  "h": 264,
+  "w": 336,
+  "h": 271,
   "escala": 0.5,
   "ancora": [
-   136.0,
-   97.19
+   138.0,
+   101.12
   ]
  },
  "reciclador": {
   "arquivo": "lua/modulos/reciclador.png",
-  "w": 272,
-  "h": 263,
+  "w": 276,
+  "h": 272,
   "escala": 0.5,
   "ancora": [
-   136.0,
-   126.08
+   138.0,
+   132.47
   ]
  },
  "eclusa": {
   "arquivo": "lua/modulos/eclusa.png",
-  "w": 212,
-  "h": 208,
+  "w": 216,
+  "h": 217,
   "escala": 0.5,
   "ancora": [
-   76.0,
-   101.06
+   78.0,
+   107.45
   ]
  },
  "bateria": {
@@ -251,182 +251,182 @@
  },
  "impressora": {
   "arquivo": "lua/modulos/impressora.png",
-  "w": 332,
-  "h": 290,
+  "w": 336,
+  "h": 299,
   "escala": 0.5,
   "ancora": [
-   136.0,
-   122.92
+   138.0,
+   129.42
   ]
  },
  "radiotelescopio": {
   "arquivo": "lua/modulos/radiotelescopio.png",
-  "w": 392,
-  "h": 350,
+  "w": 396,
+  "h": 358,
   "escala": 0.5,
   "ancora": [
-   196.0,
-   152.72
+   198.0,
+   158.22
   ]
  },
  "deco_rover_velho": {
   "arquivo": "lua/modulos/deco_rover_velho.png",
-  "w": 189,
-  "h": 182,
+  "w": 196,
+  "h": 191,
   "escala": 0.5,
   "ancora": [
-   64.5,
-   72.37
+   68.0,
+   77.3
   ]
  },
  "deco_modulo_descida": {
   "arquivo": "lua/modulos/deco_modulo_descida.png",
-  "w": 284,
-  "h": 208,
+  "w": 286,
+  "h": 212,
   "escala": 0.5,
   "ancora": [
-   142.0,
-   67.78
+   143.0,
+   70.72
   ]
  },
  "deco_sonda": {
   "arquivo": "lua/modulos/deco_sonda.png",
-  "w": 144,
-  "h": 145,
+  "w": 153,
+  "h": 151,
   "escala": 0.5,
   "ancora": [
-   72.0,
-   66.51
+   76.5,
+   70.5
   ]
  },
  "deco_caixas": {
   "arquivo": "lua/modulos/deco_caixas.png",
-  "w": 136,
-  "h": 132,
+  "w": 148,
+  "h": 146,
   "escala": 0.5,
   "ancora": [
-   65.43,
-   66.07
+   71.65,
+   73.01
   ]
  },
  "deco_sismografo": {
   "arquivo": "lua/modulos/deco_sismografo.png",
-  "w": 118,
-  "h": 136,
+  "w": 122,
+  "h": 143,
   "escala": 0.5,
   "ancora": [
-   59.0,
-   67.48
+   61.0,
+   72.06
   ]
  },
  "deco_refletor": {
   "arquivo": "lua/modulos/deco_refletor.png",
-  "w": 132,
-  "h": 116,
+  "w": 139,
+  "h": 120,
   "escala": 0.5,
   "ancora": [
-   66.0,
-   43.88
+   69.5,
+   46.2
   ]
  },
  "deco_baliza": {
   "arquivo": "lua/modulos/deco_baliza.png",
-  "w": 84,
-  "h": 154,
+  "w": 89,
+  "h": 163,
   "escala": 0.5,
   "ancora": [
-   42.0,
-   93.97
+   44.5,
+   100.69
   ]
  },
  "deco_barris": {
   "arquivo": "lua/modulos/deco_barris.png",
-  "w": 128,
-  "h": 118,
+  "w": 135,
+  "h": 128,
   "escala": 0.5,
   "ancora": [
-   60.4,
-   48.87
+   64.38,
+   53.78
   ]
  },
  "deco_bandeira": {
   "arquivo": "lua/modulos/deco_bandeira.png",
-  "w": 91,
-  "h": 143,
+  "w": 94,
+  "h": 147,
   "escala": 0.5,
   "ancora": [
-   43.25,
-   80.29
+   45.07,
+   83.74
   ]
  },
  "deco_pedras": {
   "arquivo": "lua/modulos/deco_pedras.png",
-  "w": 126,
-  "h": 100,
+  "w": 137,
+  "h": 110,
   "escala": 0.5,
   "ancora": [
-   63.57,
-   28.37
+   68.23,
+   35.21
   ]
  },
  "deco_camera": {
   "arquivo": "lua/modulos/deco_camera.png",
-  "w": 79,
-  "h": 127,
+  "w": 84,
+  "h": 131,
   "escala": 0.5,
   "ancora": [
-   35.14,
-   68.5
+   38.83,
+   71.63
   ]
  },
  "deco_amostras": {
   "arquivo": "lua/modulos/deco_amostras.png",
-  "w": 130,
-  "h": 92,
+  "w": 135,
+  "h": 102,
   "escala": 0.5,
   "ancora": [
-   69.13,
-   28.7
+   71.38,
+   31.99
   ]
  },
  "deco_lanterna": {
   "arquivo": "lua/modulos/deco_lanterna.png",
-  "w": 81,
-  "h": 134,
+  "w": 86,
+  "h": 137,
   "escala": 0.5,
   "ancora": [
-   37.2,
-   77.46
+   39.09,
+   78.79
   ]
  },
  "deco_ferramentas": {
   "arquivo": "lua/modulos/deco_ferramentas.png",
-  "w": 93,
-  "h": 120,
+  "w": 98,
+  "h": 128,
   "escala": 0.5,
   "ancora": [
-   47.7,
-   56.81
+   51.27,
+   58.2
   ]
  },
  "deco_carretel": {
   "arquivo": "lua/modulos/deco_carretel.png",
-  "w": 116,
-  "h": 140,
+  "w": 119,
+  "h": 144,
   "escala": 0.5,
   "ancora": [
-   58.0,
-   69.7
+   59.5,
+   71.81
   ]
  },
  "deco_mochila": {
   "arquivo": "lua/modulos/deco_mochila.png",
-  "w": 98,
-  "h": 96,
+  "w": 107,
+  "h": 110,
   "escala": 0.5,
   "ancora": [
-   52.9,
-   23.67
+   55.63,
+   30.63
   ]
  },
  "blindagem_agua0": {

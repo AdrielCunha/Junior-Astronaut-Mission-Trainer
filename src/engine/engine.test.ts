@@ -86,24 +86,28 @@ test('the default base fits on the real map, every room within a short walk of t
   }
 });
 
-test('six solar panels form two vertical rows with a reachable five-slot bank on their right', () => {
+test('six solar panels stand in two columns of three behind the Habitat, with a reachable five-slot bank on their right', () => {
   const g = new Grade(real);
   montarBasePadrao(g);
   const panels = g.lista.filter(c => c.tipo.id === 'painel');
   const bank = g.lista.find(c => c.tipo.id === 'bateria')!;
-  assert.equal(panels.length, 6);
-  const screenX = (c: typeof bank) => paraTela(dados.imagem, c.gx+c.tipo.w/2, c.gy+c.tipo.h/2, c.z).x;
-  const columns = [...new Set(panels.map(screenX))];
-  assert.equal(columns.length, 2);
-  for (const x of columns) assert.equal(panels.filter(c => screenX(c) === x).length, 3);
-  assert.ok(screenX(bank) > Math.max(...columns), 'bank is to the right of both rows');
-  assert.equal(bank.tipo.h, 5);
   const hab = g.lista.find(c => c.tipo.id === 'habitat')!;
+  assert.equal(panels.length, 6);
+  // Columns run along the iso diagonal (+gy): two columns of three (same gx), three rows of two (same gy).
+  const conta = (f: (c: typeof hab) => number) => {
+    const m = new Map<number, number>();
+    for (const c of panels) m.set(f(c), (m.get(f(c)) ?? 0) + 1);
+    return [...m.values()];
+  };
+  assert.deepEqual(conta(c => c.gx), [3, 3]);
+  assert.deepEqual(conta(c => c.gy), [2, 2, 2]);
+  // Isometric depth grows with gx + gy: every panel is farther away than the Habitat.
+  for (const c of panels) assert.ok(c.gx + c.gy < hab.gx + hab.gy, `${c.gx},${c.gy} is behind the Habitat`);
+  const screenX = (c: typeof bank) => paraTela(dados.imagem, c.gx+c.tipo.w/2, c.gy+c.tipo.h/2, c.z).x;
+  assert.ok(screenX(bank) > Math.max(...panels.map(screenX)), 'bank is to the right of both rows');
+  assert.equal(bank.tipo.h, 5);
   const start = {x: hab.gx+hab.tipo.w+0.7, y: hab.gy+hab.tipo.h/2};
   assert.ok(encontrarCaminho(real,g.caixas(),0.22,start.x,start.y,bank.gx-0.65,bank.gy+2.5));
-  const support = g.lista.find(c => c.tipo.id === 'suporte')!;
-  const screenY = (c: typeof bank) => paraTela(dados.imagem, c.gx+c.tipo.w/2, c.gy+c.tipo.h/2, c.z).y;
-  for (const c of [...panels, bank]) assert.ok(screenY(c) < screenY(support), `${c.tipo.nome} stays behind Life Support`);
 });
 
 test('battery pickup uses the Moon bank, preserves the Mars lander, and displays remaining cartridges', () => {

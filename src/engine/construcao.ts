@@ -15,6 +15,7 @@ export type Tipo = {
   nome: string;
   w: number; h: number;          // footprint, tiles
   altura: number;                // drawn height, tiles
+  inclinacaoMax?: number;        // steeper ground this module still accepts, degrees (default: the map limit)
   cor: number;
   sala?: keyof Alocacao;         // rooms that take batteries (game rules, regras.ts)
   unico: boolean;                // only one allowed
@@ -31,7 +32,9 @@ export const TIPOS: Record<TipoId, Tipo> = {
   oficina:    { id: 'oficina', nome: 'Rocket Workshop', w: 3, h: 3, altura: 2.0, cor: 0xf97316, sala: 'meta', unico: true,
                 papel: 'Builds the rocket to Mars.' },
   // Only the narrow foundation occupies the ground; the tilted panel overhangs its supports.
-  painel:     { id: 'painel', nome: 'Solar Panel', w: 2, h: 1, altura: 1.4, cor: 0x1e3a8a, unico: false,
+  // It stands on short piles, so it accepts the 12-15 degree bank behind the Habitat where the
+  // pressurised modules cannot go.
+  painel:     { id: 'painel', nome: 'Solar Panel', w: 2, h: 1, altura: 1.4, inclinacaoMax: 15, cor: 0x1e3a8a, unico: false,
                 papel: 'Catches sunlight and charges the batteries at the nearby Battery Bank.' },
   plataforma: { id: 'plataforma', nome: 'Launch Pad', w: 3, h: 3, altura: 0.25, cor: 0x64748b, unico: true,
                 papel: 'Where the rocket will lift off.' },
@@ -104,7 +107,8 @@ export class Grade {
     }
     if (this.t.bloqueiaConstrucao(gx, gy, tipo.w, tipo.h)) return { motivo: 'ocupado', inclinacao: 0 };
     const inc = this.t.inclinacaoMax(gx, gy, tipo.w, tipo.h);
-    return { motivo: inc > this.t.maxConstruir ? 'ingreme' : 'ok', inclinacao: inc };
+    const teto = tipo.inclinacaoMax ?? this.t.maxConstruir;
+    return { motivo: inc > teto ? 'ingreme' : 'ok', inclinacao: inc };
   }
 
   construir(tipo: Tipo, gx: number, gy: number): Construcao | null {
@@ -222,18 +226,19 @@ export class Grade {
   }
 }
 
+// The solar field: two columns of three panels, standing on the bank behind the Habitat. A column
+// runs along +gy (up-right to down-left on screen, the iso diagonal); the second column, +3 gx,
+// sits down-right of it. One free tile between neighbours, to walk between them. The slope tolerance of the panel
+// (TIPOS.painel) is what makes this bank buildable. montarEstacaoSolar centres it.
+export const ESTACAO_SOLAR: [TipoId, number, number][] = [
+  ['painel', 0, 0], ['painel', 0, 2], ['painel', 0, 4],
+  ['painel', 3, 0], ['painel', 3, 2], ['painel', 3, 4],
+];
+
 // The base the crew already has when the game starts (players do not build; they run it).
 // Offsets in tiles from the map center; each module goes to the nearest flat, free spot, so the
 // layout follows the real ground. The rooms ring the habitat: short walks with the batteries.
-// Habitation at the center, solar power behind Life Support, fabrication farther back/right.
-// Advancing gx and gy together draws vertical rows in the isometric view.
-export const ESTACAO_SOLAR: [TipoId, number, number][] = [
-  ['painel', 0, 0], ['painel', 2, 2], ['painel', 4, 4],
-  ['painel', 3, -3], ['painel', 5, -1], ['painel', 7, 1],
-  ['bateria', 10, -4],
-];
-const POSICAO_SOLAR = [-3, -10] as const;
-
+// Habitation at the center, fabrication farther back/right.
 export const BASE_PADRAO: [TipoId, number, number][] = [
   ['habitat', -2, -4],
   ['suporte', 4, -3],
@@ -245,7 +250,11 @@ export const BASE_PADRAO: [TipoId, number, number][] = [
   ['eclusa', -2, 3],
   ['impressora', 9, -18],
   ['radiotelescopio', -10, -9],
-  ...ESTACAO_SOLAR.map(([id, x, y]): [TipoId, number, number] => [id, x + POSICAO_SOLAR[0], y + POSICAO_SOLAR[1]]),
+  // The field and the Battery Bank are placed last, by montarEstacaoSolar, so no other module
+  // takes the ground behind the Habitat first. These offsets are only a hint of where they land:
+  // the field is positioned from the Habitat, not from the map center.
+  ...ESTACAO_SOLAR.map(([id, x, y]): [TipoId, number, number] => [id, x - 8, y - 14]),
+  ['bateria', 2, -12],
 ];
 
 export const SETORES_SUPRIMENTOS: Partial<Record<TipoId, [number, number]>> = {
@@ -284,8 +293,8 @@ export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BA
     if (c) feitas.push(c);
   }
   if (base === BASE_PADRAO) {
-    // Reserve the solar field first: fabrication must not push it to the front of the colony.
-    feitas.push(...montarEstacaoSolar(g, c0 + POSICAO_SOLAR[0], c0 + POSICAO_SOLAR[1]));
+    // Reserve the solar field first: nothing may push it off the ground behind the Habitat.
+    feitas.push(...montarEstacaoSolar(g));
     const [, dx, dy] = base.find(([id]) => id === 'impressora')!;
     const p = g.procurarComEspaco(TIPOS.impressora, c0 + dx, c0 + dy);
     const c = p && g.construir(TIPOS.impressora, p.gx, p.gy);
@@ -294,17 +303,25 @@ export function montarBasePadrao(g: Grade, base: [TipoId, number, number][] = BA
   return feitas;
 }
 
-function montarEstacaoSolar(g: Grade, desejadoX: number, desejadoY: number): Construcao[] {
-  let melhor: { x: number; y: number; custo: number } | undefined;
-  const suporte = g.lista.find(c => c.tipo.id === 'suporte');
+function montarEstacaoSolar(g: Grade): Construcao[] {
+  const hab = g.lista.find(c => c.tipo.id === 'habitat');
+  if (!hab) throw new Error('The solar field must sit behind the Habitat.');
   const minX = Math.min(...ESTACAO_SOLAR.map(([, x]) => x));
   const minY = Math.min(...ESTACAO_SOLAR.map(([, , y]) => y));
   const maxX = Math.max(...ESTACAO_SOLAR.map(([id, x]) => x + TIPOS[id].w));
   const maxY = Math.max(...ESTACAO_SOLAR.map(([id, , y]) => y + TIPOS[id].h));
-  const frente = Math.max(...ESTACAO_SOLAR.map(([id, x, y]) => x + y + (TIPOS[id].w + TIPOS[id].h) / 2));
+  const centroX = (minX + maxX) / 2, centroY = (minY + maxY) / 2;
+  // Wanted: the field centre a little up-screen of the Habitat (-gx -gy is straight up) and a bit
+  // to its right (+gx -gy), like the strokes of the layout sketch. Screen offset = (dx - dy, dx + dy).
+  const desejadoX = hab.gx + hab.tipo.w / 2 - 4 - centroX;
+  const desejadoY = hab.gy + hab.tipo.h / 2 - 8 - centroY;
+  // Isometric depth grows with gx + gy: the front corner of the field stays behind the Habitat's
+  // back corner, with a small gap.
+  const frente = Math.max(...ESTACAO_SOLAR.map(([id, x, y]) => x + y + TIPOS[id].w + TIPOS[id].h));
+  const atrasDoHabitat = hab.gx + hab.gy - 2;
+  let melhor: { x: number; y: number; custo: number } | undefined;
   for (let y = 1 - minY; y < g.n - maxY; y++) for (let x = 1 - minX; x < g.n - maxX; x++) {
-    // Isometric depth grows with gx + gy. Keep even the bank behind Life Support.
-    if (suporte && x + y + frente > suporte.gx + suporte.gy + (suporte.tipo.w + suporte.tipo.h) / 2 - 2) continue;
+    if (x + y + frente > atrasDoHabitat) continue;
     const custo = (x - desejadoX) ** 2 + (y - desejadoY) ** 2;
     if (melhor && custo >= melhor.custo) continue;
     const cabe = ESTACAO_SOLAR.every(([id, dx, dy]) => {
@@ -319,5 +336,21 @@ function montarEstacaoSolar(g: Grade, desejadoX: number, desejadoY: number): Con
     if (cabe) melhor = { x, y, custo };
   }
   if (!melhor) throw new Error('No walkable location for the complete solar station.');
-  return ESTACAO_SOLAR.map(([id, dx, dy]) => g.construir(TIPOS[id], melhor.x + dx, melhor.y + dy)!);
+  const campo = ESTACAO_SOLAR.map(([id, dx, dy]) => g.construir(TIPOS[id], melhor.x + dx, melhor.y + dy)!);
+  // The bank charges from the field and is picked up on the way out of the Habitat: on the field's
+  // right (+gx), parallel to the columns and level with them: the first free flat spot stepping
+  // away from the field, else the general search.
+  const direita = Math.max(...campo.map(c => c.gx + c.tipo.w)) + 2;   // its sprite overhangs the panels at +1
+  const topo = Math.min(...campo.map(c => c.gy));
+  const livre = (x: number, y: number) => g.pode(TIPOS.bateria, x, y).motivo === 'ok' &&
+    !g.lista.some(c => x < c.gx + c.tipo.w + 1 && x + TIPOS.bateria.w + 1 > c.gx &&
+      y < c.gy + c.tipo.h + 1 && y + TIPOS.bateria.h + 1 > c.gy);
+  let banco: { gx: number; gy: number } | null = null;
+  for (let d = 0; d < 4 && !banco; d++) for (const dy of [0, 1, -1]) {
+    if (livre(direita + d, topo + dy)) { banco = { gx: direita + d, gy: topo + dy }; break; }
+  }
+  banco ??= g.procurarComEspaco(TIPOS.bateria, direita, topo);
+  const c = banco && g.construir(TIPOS.bateria, banco.gx, banco.gy);
+  if (c) campo.push(c);
+  return campo;
 }
