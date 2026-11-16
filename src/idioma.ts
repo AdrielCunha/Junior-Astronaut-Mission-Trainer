@@ -1,24 +1,17 @@
 // Generated with AI assistance. See README, "Use of AI tools".
-// Game language. Browser preferences choose the initial language; a saved choice wins.
+// Game language. English is the default; an explicit saved choice wins.
 // English is the fallback and source text; Portuguese comes from a table
 // keyed by the English text, so the scenes keep their strings as they are.
 import { PT, type Traducao } from './textosPt.ts';
 
 export type Idioma = 'en' | 'pt';
 const KEY = 'lunar-odyssey-idioma';
-export function detectarIdioma(salvo: unknown, preferencias: readonly string[]): Idioma {
-  if (salvo === 'pt' || salvo === 'en') return salvo;
-  for (const preferencia of preferencias) {
-    const base = preferencia.toLowerCase().split(/[-_]/)[0];
-    if (base === 'pt' || base === 'en') return base;
-  }
-  return 'en';
+export function idiomaInicial(salvo: unknown): Idioma {
+  return salvo === 'pt' ? 'pt' : 'en';
 }
 let salvo: unknown;
 try { salvo = localStorage.getItem(KEY); } catch { /* Storage is optional. */ }
-const preferencias = typeof navigator === 'undefined' ? []
-  : navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : [];
-export let idioma: Idioma = detectarIdioma(salvo, preferencias);
+export let idioma: Idioma = idiomaInicial(salvo);
 
 // Keys with {} are patterns: "Day {} of {}" matches "Day 3 of 10" and the parts are translated too.
 const exatos = new Map<string, Traducao>();
