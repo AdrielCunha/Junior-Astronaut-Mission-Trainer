@@ -211,7 +211,10 @@ export class Interface extends Phaser.Scene {
       // Arriving on Mars: the lander comes down on the map first, then the first morning opens.
       sessao.pousoChegada = false;
       this.events.once('update', () => sessao.emitir('pousoFoguete', () => this.mostrarFase()));
-    } else this.mostrarFase();
+    } else if (!this.scene.isActive('Radar') && !this.scene.isActive('Chegada')) this.mostrarFase();
+    // A resize restart under the title screen, its countdown or the rocket flight leaves them be:
+    // mostrarFase() would launch the title screen again on top of them (turning the phone brought
+    // back the title, or drew it over the flight). They call irPara() when they end.
   }
 
   private abrirMenu() {

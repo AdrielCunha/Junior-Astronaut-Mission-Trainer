@@ -193,5 +193,13 @@ export class Chegada extends Phaser.Scene {
     // skip
     this.input.once('pointerdown', terminar);
     this.input.keyboard?.once('keydown', terminar);
+
+    // The flight is drawn for one screen size. A real change of size (turning the phone) skips to
+    // the end: the game underneath redraws itself at the new size. Small iOS toolbar jitter is ignored.
+    const redimensionar = () => {
+      if (Math.abs(this.scale.width - W) >= 2 || Math.abs(this.scale.height - H) >= 2) terminar();
+    };
+    this.scale.on('resize', redimensionar);
+    this.events.once('shutdown', () => this.scale.off('resize', redimensionar));
   }
 }

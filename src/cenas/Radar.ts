@@ -113,12 +113,27 @@ export class Radar extends Phaser.Scene {
     const redimensionar = () => this.scene.restart(d);
     // A language change redraws the screen (the pills fit their texts) with the settings open.
     this.events.once('idioma', () => { this.reabrirConfiguracoes = true; redimensionar(); });
-    this.scale.on('resize', redimensionar);
+    // On iOS (Safari and Chrome are both WebKit) the toolbar grows and shrinks on a tap, so resize
+    // fires with the size create() already used, or flips back and forth: restarting for each one
+    // threw away the countdown and showed the title again, in a loop. So: only a real change of
+    // size, settled for 250 ms, and never once LAUNCH was pressed.
+    let telaAtual = { w: W, h: H };
+    let espera: Phaser.Time.TimerEvent | undefined;
+    const aoRedimensionar = () => {
+      espera?.remove();
+      espera = this.time.delayedCall(250, () => {
+        const w = this.scale.width, h = this.scale.height;
+        if (this.travado || (Math.abs(w - telaAtual.w) < 2 && Math.abs(h - telaAtual.h) < 2)) return;
+        telaAtual = { w, h };
+        redimensionar();
+      });
+    };
+    this.scale.on('resize', aoRedimensionar);
     this.events.once('shutdown', () => {
       definirAmbienteMusica(sessao.mundo);
       sessao.emTarefa = false;
       for (const k of jogo) this.scene.setVisible(true, k);
-      this.scale.off('resize', redimensionar);
+      this.scale.off('resize', aoRedimensionar);
       this.events.off('idioma');
       for (const k of this.chaves) if (this.textures.exists(k)) this.textures.remove(k);
     });
