@@ -47,3 +47,14 @@ altura ao terreno. A rota anterior é cancelada; o deslocamento corretivo não e
 no odômetro nem no giro das rodas. Funciona também sem bateria. Se as laterais
 estiverem bloqueadas, tenta a última posição livre e uma busca no mapa. Sem destino
 seguro, não coloca o veículo em outra colisão e limita a busca a uma vez por segundo.
+
+## Astronauta e entrega de suprimentos
+
+O astronauta também é retirado automaticamente de sólidos que surgirem sobre ele.
+A recuperação respeita altura e mantém válidos os pousos e a caminhada sobre telhados.
+Astronauta e rover compartilham a busca por uma saída, com os respectivos raios.
+
+Durante toda a entrega, a área do módulo e a pegada central de 2 × 2 do foguete ficam
+reservadas para colisão e navegação. Assim, o jogador não consegue voltar a caminhar
+embaixo do veículo durante a descida ou a decolagem. A reserva termina quando o
+foguete sai; as colisões do equipamento entregue continuam ativas.

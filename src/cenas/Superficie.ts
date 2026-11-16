@@ -23,7 +23,7 @@ import { encontrarCaminho, type Ponto } from '../engine/caminho';
 import naveProps from '../dados/nave_props.json';
 import { TIPOS, tipoOrientado, montarBasePadrao, montarLayout, ROTACAO_LAYOUT, BASE_MARTE, BASE_NAVE, SETORES_SUPRIMENTOS, type Construcao, type TipoId } from '../engine/construcao';
 import { entregar as entregarRegra, custo, pronto, type Efeito } from '../regras';
-import { empuxoDePouso, suprimentoDoDia, SUPRIMENTOS } from '../engine/suprimentos';
+import { caixaDaEntrega, empuxoDePouso, suprimentoDoDia, SUPRIMENTOS } from '../engine/suprimentos';
 import { sortearEvento, eventoPorDemora, DOSE_ALARME, DEMORA_PASSO } from '../engine/eventos';
 import { sessao, dadosTerreno, suave, sDeU, S_MAPA, fonte, ZOOM_MAX } from './sessao';
 import { fundacao, sombraAstronauta } from './desenho';
@@ -408,7 +408,7 @@ export class Superficie extends Phaser.Scene {
     if (sessao.posicaoAstronauta && sessao.posicaoAstronauta.x<sessao.terreno.n && sessao.posicaoAstronauta.y<sessao.terreno.n) this.corpo={...sessao.posicaoAstronauta};
     this.rota = []; this.alvoUsar = null; this.alvoRover = false;
     // The rover drives on the Moon and on Mars (the same LRV, dusty red there); not inside the ship.
-    if (sessao.mundo !== 'nave') sessao.rover ??= estacionarRover(sessao.terreno, sessao.grade.caixas(), sx + 1, sy + 1);
+    if (sessao.mundo !== 'nave') sessao.rover ??= estacionarRover(sessao.terreno, this.caixasDeColisao(), sx + 1, sy + 1);
     if (sessao.rover?.dirigindo) this.corpo = sessao.rover.corpo;
     sessao.posicaoAstronauta=this.corpo;
     this.progressoAnterior=sessao.progressoFoguete;
@@ -584,7 +584,7 @@ export class Superficie extends Phaser.Scene {
   // The A* route to a spot. Driving, it uses the rover's own free test (its whole footprint, like
   // its physics), so the route never squeezes it past a crater rim it cannot cross.
   private tracarRota(gx: number, gy: number) {
-    const caixas = sessao.grade.caixas(), t = sessao.terreno;
+    const caixas = this.caixasDeColisao(), t = sessao.terreno;
     const livre = sessao.rover?.dirigindo ? (x: number, y: number) => pontoLivre(t, caixas, x, y, RAIO_ROVER) : undefined;
     return encontrarCaminho(t, caixas, this.corpo.raio, this.corpo.x, this.corpo.y, gx, gy, livre) ?? [];
   }
@@ -665,7 +665,7 @@ export class Superficie extends Phaser.Scene {
   /** Picks the best approach point for a module: the nearest edge midpoint that is accessible. */
   private pontoDeAcesso(c: Construcao): { gx: number; gy: number } {
     const k = this.corpo;
-    const caixas = sessao.grade.caixas();
+    const caixas = this.caixasDeColisao();
     const mx = c.gx + c.tipo.w / 2, my = c.gy + c.tipo.h / 2;
     const margem = 0.7;
     // Four edge midpoints (N, S, E, W), sorted by distance to the commander.
@@ -1035,7 +1035,7 @@ export class Superficie extends Phaser.Scene {
   private caminharAoRover() {
     const r = sessao.rover;
     if (!r) return;
-    const caixas = sessao.grade.caixas();
+    const caixas = this.caixasDeColisao();
     for (let i = 0; i < 8; i++) {
       const a = i * Math.PI / 4;
       const gx = r.corpo.x + Math.cos(a) * 1.4, gy = r.corpo.y + Math.sin(a) * 1.4;
@@ -1053,7 +1053,7 @@ export class Superficie extends Phaser.Scene {
     const r = sessao.rover;
     if (!r || !this.podeUsarRover()) return;
     if (r.dirigindo) {
-      const astronauta = desembarcar(r, sessao.terreno, sessao.grade.caixas());
+      const astronauta = desembarcar(r, sessao.terreno, this.caixasDeColisao());
       if (!astronauta) { sessao.emitir('mensagem', '🚙 No room to get out. Drive to an open spot.', '#fde68a'); return; }
       this.corpo = astronauta;
     } else {
@@ -1092,7 +1092,7 @@ export class Superficie extends Phaser.Scene {
     const r = sessao.rover;
     if (!r?.dirigindo || sessao.mundo === 'nave' || sessao.fase !== 'dia' || !sessao.roverCarregado || sessao.corridaHoje || !sessao.podeMissaoSecundaria) return;
     sessao.corridaHoje = true;
-    const caixas = sessao.grade.caixas();
+    const caixas = this.caixasDeColisao();
     const livre = (x: number, y: number) => pontoLivre(sessao.terreno, caixas, x, y, RAIO_ROVER + 0.2);
     const inicio = { x: r.corpo.x, y: r.corpo.y };
     // The props far from the rover (the farthest few, one at random); the base modules if there are none.
@@ -1136,7 +1136,7 @@ export class Superficie extends Phaser.Scene {
   }
 
   private contextoExploracao(): Contexto {
-    const caixas = sessao.grade.caixas(), lista = sessao.grade.lista, n = sessao.terreno.n;
+    const caixas = this.caixasDeColisao(), lista = sessao.grade.lista, n = sessao.terreno.n;
     const livre = (x: number, y: number) => pontoLivre(sessao.terreno, caixas, x, y, 0.5);
     const centro = lista.length
       ? { x: lista.reduce((s, c) => s + c.gx + c.tipo.w / 2, 0) / lista.length, y: lista.reduce((s, c) => s + c.gy + c.tipo.h / 2, 0) / lista.length }
@@ -1575,6 +1575,13 @@ export class Superficie extends Phaser.Scene {
     return !!sala && custo(sala, sessao.C) > 0 && !pronto(sessao.estado, sala, sessao.C);
   }
 
+  private caixasDeColisao() {
+    const caixas = sessao.grade.caixas(), L = this.pouso;
+    if (!L) return caixas;
+    const t = TIPOS[L.tipo];
+    return [...caixas, caixaDaEntrega(L.gx, L.gy, t.w, t.h, L.chao, t.altura)];
+  }
+
   // ---------- cargo lander ----------
   // Picks a flat, free spot near the base, then the lander comes down on it with its engine.
   private chegar(tipo: TipoId) {
@@ -1890,7 +1897,7 @@ export class Superficie extends Phaser.Scene {
     }
     this.sombraBandeira.setVisible(this.bandeira.visible).setAlpha(this.bandeira.alpha);
     if(configuracoesAbertas || sessao.transicao) {this.input.keyboard?.resetKeys();this.sons.silenciar();this.passada.reiniciar();return;}
-    const caixas = sessao.grade.caixas();
+    const caixas = this.caixasDeColisao();
     const e = this.input.enabled && (sessao.fase === 'dia' || sessao.fase === 'inicio') ? this.entrada() : null;
     if (sessao.rover && !sessao.rover.dirigindo) desprenderRover(sessao.rover, sessao.terreno, caixas, dt);
     const antesNoChao = this.corpo.noChao;
@@ -1913,7 +1920,7 @@ export class Superficie extends Phaser.Scene {
     this.passarExploracao(dt);
     this.passarExpedicao(dt);
     // Observe successful controls for the tutorial, without changing movement or physics.
-    if (e && (e.dx || e.dy) && Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY) > 0.001 && !this.controlesObservados.has('movimento')) {
+    if (!recuperado && e && (e.dx || e.dy) && Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY) > 0.001 && !this.controlesObservados.has('movimento')) {
       this.controlesObservados.add('movimento'); sessao.emitir('controleUsado', 'movimento');
     }
     if (e?.pular && antesNoChao && !this.corpo.noChao && this.corpo.vz > 0 && !this.controlesObservados.has('pulo')) {
@@ -2233,7 +2240,7 @@ export class Superficie extends Phaser.Scene {
     const hab = sessao.grade.lista.find(c => c.tipo.id === 'habitat');
     if (!hab) return;
     const start = { gx: hab.gx+hab.tipo.w/2, gy: hab.gy+hab.tipo.h+0.65 };
-    const boxes = sessao.grade.caixas();
+    const boxes = this.caixasDeColisao();
     for (const c of sessao.grade.lista) {
       if (c === hab || c.tipo.id === 'painel') continue;
       const candidates = [
