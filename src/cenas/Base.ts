@@ -1272,7 +1272,11 @@ export class Base extends Phaser.Scene {
       });
       if (p.link) {
         const url = p.link;
-        linha.setInteractive({ useHandCursor: true }).on('pointerdown', () => window.open(url, '_blank', 'noopener'));
+        // Touch browsers recognize the user gesture on release, allowing the new tab to open.
+        linha.setPadding(6 * u, 4 * u).setInteractive({ useHandCursor: true })
+          .on('pointerover', () => linha.setColor('#bfdbfe').setBackgroundColor('#1e3a5f'))
+          .on('pointerout', () => linha.setColor(p.cor ?? '#93c5fd').setBackgroundColor('transparent'))
+          .on('pointerup', () => window.open(url, '_blank', 'noopener,noreferrer'));
       }
       itens.push(linha);
       y += linha.height + 9 * u;
