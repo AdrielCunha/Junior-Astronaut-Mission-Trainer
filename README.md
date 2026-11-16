@@ -9,6 +9,12 @@ A browser game for kids ages 7 to 12, built for the NASA Space Apps Challenge 20
 GitHub Pages deployment and the custom domain `lunarodyssey.earth` are prepared;
 publication and DNS setup are pending. See [the deployment guide](docs/github-pages.md).
 
+## Language
+
+On the first visit, the game uses the browser’s preferred supported language
+(Portuguese or English), with English as the fallback. A language chosen in Settings
+is saved and takes precedence on later visits.
+
 ## The idea
 
 You lead a crew from a base on the Moon, across the trip to Mars, to a new base on Mars. Every day you have fewer batteries than the mission needs, so every choice has a cost: a battery spent on building the rocket is a battery that does not make oxygen or power the radiation shield.
