@@ -72,7 +72,11 @@ export class Guia {
     const maxTexto = W - 2 * l.margem - 2 * pad - wTeclas - pular.width - px(16);
     if (texto.width > maxTexto) texto.setWordWrapWidth(maxTexto);
     const w = Math.round(pad + wTeclas + texto.width + px(16) + pular.width + pad), h = Math.max(px(40), Math.round(texto.height + px(16)));
-    const caixa = criarPilula(cena, (W - w) / 2, l.avisoY, w, h, u).setDepth(40);
+    // On phones keep the tutorial instruction directly below the yellow objective.
+    const y = dispositivoMovel() && W > cena.scale.height
+      ? l.objetivo.y + l.objetivo.h + Math.max(2, px(2))
+      : l.avisoY;
+    const caixa = criarPilula(cena, (W - w) / 2, y, w, h, u).setDepth(40);
     let x = pad;
     teclas.forEach((k) => { k.setPosition(x, h / 2); x += k.width + gap; caixa.add(k); });
     texto.setPosition(x, h / 2); x += texto.width + px(16);
@@ -224,17 +228,20 @@ export class AvisoEvento {
     const { cena, layout: l } = this, u = l.u, px = (n: number) => Math.round(n * u);
     const W = cena.scale.width, pad = px(14);
     const nome = sessao.grade.lista.find((m) => m.id === ev.construcaoId)?.tipo.nome ?? '';
-    const tecla = criarTecla(cena, 0, 0, 'E', u);
+    const movel = dispositivoMovel() && W > cena.scale.height;
+    const tecla = movel ? null : criarTecla(cena, 0, 0, 'E', u);
     // The alarm is the real main event; a breakdown is an optional side mission.
     const texto = cena.add.text(0, 0, ev.def.alarme ? `Fix the ${nome} now!` : `Side mission (optional): fix the ${nome}`, letra(px(15), '#fed7aa')).setOrigin(0, 0.5);
-    const maxTexto = W - 2 * l.margem - 2 * pad - px(30) - tecla.width - px(8);
+    const larguraTecla = tecla ? tecla.width + px(8) : 0;
+    const maxTexto = W - 2 * l.margem - 2 * pad - px(30) - larguraTecla;
     if (texto.width > maxTexto) texto.setWordWrapWidth(maxTexto);
-    const w = Math.round(pad + px(30) + tecla.width + px(8) + texto.width + pad), h = Math.max(px(40), Math.round(texto.height + px(16)));
-    const caixa = criarPilula(cena, (W - w) / 2, l.avisoY, w, h, u, CONTORNO, 0xfb923c).setDepth(40);
+    const w = Math.round(pad + px(30) + larguraTecla + texto.width + pad), h = Math.max(px(40), Math.round(texto.height + px(16)));
+    const y = movel ? l.objetivo.y + l.objetivo.h + Math.max(2, px(2)) : l.avisoY;
+    const caixa = criarPilula(cena, (W - w) / 2, y, w, h, u, CONTORNO, 0xfb923c).setDepth(40);
     const icone = criarIconeJogo(cena,pad+px(12),h/2,'warning',px(27));
-    tecla.setPosition(pad+px(30), h / 2);
-    texto.setPosition(pad + px(30) + tecla.width + px(8), h / 2);
-    caixa.add([icone, tecla, texto]);
+    if (tecla) { tecla.setPosition(pad+px(30), h / 2); caixa.add(tecla); }
+    texto.setPosition(pad + px(30) + larguraTecla, h / 2);
+    caixa.add([icone, texto]);
     this.pilula = caixa;
     if (!movimentoReduzido()) {
       caixa.setScale(0.7).setAlpha(0);

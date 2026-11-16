@@ -694,7 +694,10 @@ export class Interface extends Phaser.Scene {
       .fillStyle(0x0b1a4a, 0.7).fillRoundedRect(-w / 2 + 2 * u, -h / 2 + 4 * u, w, h, r)
       .fillStyle(CONTORNO, 0.96).fillRoundedRect(-w / 2, -h / 2, w, h, r)
       .lineStyle(3 * u, 0xffffff).strokeRoundedRect(-w / 2, -h / 2, w, h, r);
-    const c = this.add.container(W / 2, H - 70 * u - h / 2, [g, icone, t]).setDepth(20);
+    // On touch, keep notices above the bottom resource icons, regardless of text height.
+    const movel = dispositivoMovel() && W > H;
+    const baseAviso = movel ? this.layout.capsula.y - Math.max(6, Math.round(8 * u)) : H - 70 * u;
+    const c = this.add.container(W / 2, baseAviso - h / 2, [g, icone, t]).setDepth(20);
     this.aviso = c;
     if (!movimentoReduzido()) {
       c.setScale(0.6).setAlpha(0);
