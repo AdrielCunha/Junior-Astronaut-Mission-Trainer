@@ -1,8 +1,8 @@
 // Generated with AI assistance. See README, "Use of AI tools".
-// Run: npm test. Browser locale and saved choices select the language; Portuguese uses textosPt.ts.
+// Run: npm test. English is the default, with explicit saved language choices; Portuguese uses textosPt.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { t, idioma, escolherIdioma, detectarIdioma } from './idioma.ts';
+import { t, idioma, escolherIdioma, idiomaInicial } from './idioma.ts';
 
 test('English leaves source texts unchanged', () => {
   escolherIdioma('en');   // the default follows the machine's locale (detectarIdioma), so set it here
@@ -40,19 +40,12 @@ test('Portuguese: exact texts, patterns and their parts', () => {
 });
 
 
-test('browser language preferences select Portuguese or English in order, unless explicitly saved',()=>{
-  assert.equal(detectarIdioma(null,['pt-BR','en-US']),'pt');
-  assert.equal(detectarIdioma(undefined,['pt-PT']),'pt');
-  assert.equal(detectarIdioma(null,['en-GB','pt-BR']),'en');
-  assert.equal(detectarIdioma(null,['fr-FR','pt-BR','en-US']),'pt');
-  assert.equal(detectarIdioma(null,['fr-FR']),'en');
-  assert.equal(detectarIdioma(null,[]),'en');
-  assert.equal(detectarIdioma('en',['pt-BR']),'en');
-  assert.equal(detectarIdioma('pt',['en-US']),'pt');
-  assert.equal(detectarIdioma('invalid',['PT-BR']),'pt');
+test('English is the default unless Portuguese was explicitly saved',()=>{
+  for(const saved of [null,undefined,'invalid','en','pt-BR'])assert.equal(idiomaInicial(saved),'en');
+  assert.equal(idiomaInicial('pt'),'pt');
 });
 
-test('startup uses browser locale without storage and preserves an explicit saved English choice',async()=>{
+test('a Portuguese browser starts in English and manual language choices remain saved',async()=>{
   const nav=Object.getOwnPropertyDescriptor(globalThis,'navigator');
   const storage=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
   const values=new Map<string,string>();
@@ -60,15 +53,17 @@ test('startup uses browser locale without storage and preserves an explicit save
     Object.defineProperty(globalThis,'navigator',{configurable:true,value:{languages:['pt-BR','en-US'],language:'pt-BR'}});
     Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>values.set(k,v)}});
     const first=await import(new URL('./idioma.ts?browser-pt',import.meta.url).href);
-    assert.equal(first.idioma,'pt');assert.equal(first.t('Heating'),'Aquecimento');
-    assert.equal(values.size,0,'automatic detection does not become a permanent override');
+    assert.equal(first.idioma,'en');assert.equal(first.t('Heating'),'Heating');
+    assert.equal(values.size,0,'the default does not create a saved preference');
     first.escolherIdioma('pt');assert.equal(values.get('lunar-odyssey-idioma'),'pt');
+    const portuguese=await import(new URL('./idioma.ts?saved-pt',import.meta.url).href);
+    assert.equal(portuguese.idioma,'pt');
     values.set('lunar-odyssey-idioma','en');
     const saved=await import(new URL('./idioma.ts?saved-en',import.meta.url).href);
     assert.equal(saved.idioma,'en');
     Object.defineProperty(globalThis,'localStorage',{configurable:true,get(){throw new Error('blocked');}});
     const blocked=await import(new URL('./idioma.ts?blocked-storage',import.meta.url).href);
-    assert.equal(blocked.idioma,'pt');
+    assert.equal(blocked.idioma,'en');
   } finally {
     if(nav)Object.defineProperty(globalThis,'navigator',nav);else Reflect.deleteProperty(globalThis,'navigator');
     if(storage)Object.defineProperty(globalThis,'localStorage',storage);else Reflect.deleteProperty(globalThis,'localStorage');

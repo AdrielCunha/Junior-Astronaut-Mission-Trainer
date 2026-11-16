@@ -11,9 +11,9 @@ publication and DNS setup are pending. See [the deployment guide](docs/github-pa
 
 ## Language
 
-On the first visit, the game uses the browser’s preferred supported language
-(Portuguese or English), with English as the fallback. A language chosen in Settings
-is saved and takes precedence on later visits.
+The game starts in English, regardless of the browser language. Players can switch
+to Portuguese in Settings. An explicit language choice is saved and takes precedence
+on later visits.
 
 ## The idea
 
