@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { t, idioma, escolherIdioma, detectarIdioma } from './idioma.ts';
 
 test('English leaves source texts unchanged', () => {
+  escolherIdioma('en');   // the default follows the machine's locale (detectarIdioma), so set it here
   assert.equal(idioma, 'en');
   assert.equal(t('Heating'), 'Heating');
   assert.equal(t('EXPLORE THE BASE'), 'EXPLORE THE BASE');
