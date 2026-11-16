@@ -237,7 +237,9 @@ class Sessao {
   corridaHoje = false;      // the rover delivery run was already offered today
   // Side missions (breakdowns, expeditions, the delivery run) wait while a main real-data event is pending or
   // open, and only one mission at a time.
-  get podeMissaoSecundaria() { return !this.evento && !this.expedicao && this.tempestade.status !== 'alerta' && !this.alarmeHoje; }
+  // Kids lost the main goal among side missions: these also wait until today's batteries are delivered.
+  get podeMissaoSecundaria() { return !this.evento && !this.expedicao && this.tempestade.status !== 'alerta' && !this.alarmeHoje && !this.bateriasPendentes; }
+  get bateriasPendentes() { return this.noHabitat > 0 || this.carregando > 0; }
   estacoesHoje = new Set<string>();   // ship stations already used today (engine/estacoes.ts)
   itemHoje = false;                   // a customization item was already won today: at most one a day
   exploracaoEm: number | null = null;   // seconds of play until today's exploration event (null: none today)

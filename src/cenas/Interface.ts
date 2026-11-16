@@ -9,7 +9,7 @@ import { LEVE } from './qualidade';
 import { CAPITULOS } from '../capitulos';
 import { calcularLayoutHud } from './layoutHud';
 import { PreferenciaDicas } from './dicasControles';
-import { Guia, AvisoEvento, AvisoExpedicao } from './guia';
+import { Guia, AvisoEvento, AvisoExpedicao, SetaMissao } from './guia';
 import { tutorialJaVisto } from './tutorial';
 import type { DadosRadar } from './Radar';
 import { fimDoDia, resultado, pontuacao, bateriasDoDia, naEnfermaria, DESCANSO, type Estado } from '../regras';
@@ -94,6 +94,7 @@ export class Interface extends Phaser.Scene {
   private guia?: Guia;
   private avisoEvento?: AvisoEvento;
   private avisoExpedicao?: AvisoExpedicao;
+  private setaMissao?: SetaMissao;
   private cortina!: Phaser.GameObjects.Rectangle;
 
   constructor() {
@@ -120,6 +121,7 @@ export class Interface extends Phaser.Scene {
     // A restart (resize, new game) destroys every object: the notices are made again on the next update.
     this.avisoEvento = undefined;
     this.avisoExpedicao = undefined;
+    this.setaMissao = undefined;
     if (sessao.fase !== 'fim') this.comemorou = false;   // a new game can celebrate again
 
     // Redraw every layer at the new size. The first resize event Phaser emits often repeats the
@@ -283,6 +285,7 @@ export class Interface extends Phaser.Scene {
     }
     const pausado = sessao.emTarefa || configuracoesAbertas || !!sessao.transicao || this.scene.isActive('MenuJogo');
     this.guia?.atualizar(dt, pausado);
+    (this.setaMissao ??= new SetaMissao(this, this.layout)).atualizar(dt, pausado || !!this.guia);
     (this.avisoEvento ??= new AvisoEvento(this, this.layout)).atualizar(dt, pausado);
     (this.avisoExpedicao ??= new AvisoExpedicao(this, this.layout, () => !!this.guia)).atualizar(dt, pausado);
   }
@@ -562,8 +565,8 @@ export class Interface extends Phaser.Scene {
     this.capsula.atualizar(contadores);
     // One short order at a time: where to go, what to do there.
     const origem = sessao.mundo === 'lua' ? 'Battery Bank' : marte ? 'Lander' : 'Power Room';
-    let objetivo = sessao.noHabitat ? `Get today's batteries at the ${origem}`
-      : sessao.carregando ? 'Give batteries to the rooms (E)' : 'All done! Press END DAY';
+    let objetivo = sessao.noHabitat ? `MISSION: get today's batteries at the ${origem}`
+      : sessao.carregando ? 'MISSION: give batteries to the rooms (E)' : 'Mission done! Press END DAY';
     if (sessao.tempestade.status === 'alerta') {
       objetivo = sessao.noHabitat ? 'STORM! Get batteries at the Battery Bank'
         : sessao.carregando ? 'STORM! Batteries to the Radiation Shield'

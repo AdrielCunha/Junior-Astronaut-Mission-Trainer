@@ -34,3 +34,6 @@ __pycache__/
 # Concept images kept locally, not used by the game
 /habitat_conceitos.png
 /paineis.png
+
+# Promo video work files
+/video/

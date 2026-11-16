@@ -137,14 +137,50 @@ export function pontoDoMundo(cena: Phaser.Scene, l: Layout, gx: number, gy: numb
 }
 
 // Arrow whose tip is at (x, y). Pointing down over a target, or along `ang` at the screen edge.
-export function desenharSeta(g: Phaser.GameObjects.Graphics, u: number, t: number, x: number, y: number, fora: boolean, ang: number, cor = 0xfde047) {
-  const s = 15 * u, c = fora ? ang : Math.PI / 2;
+export function desenharSeta(g: Phaser.GameObjects.Graphics, u: number, t: number, x: number, y: number, fora: boolean, ang: number, cor = 0xfde047, escala = 1) {
+  const s = 15 * u * escala, c = fora ? ang : Math.PI / 2;
   const bob = movimentoReduzido() ? 0 : Math.sin(t * 6) * s * 0.35;
   const cos = Math.cos(c), sin = Math.sin(c);
   const tx = x - cos * bob, ty = y - sin * bob;
   const pts = [[0, 0], [-0.9, -0.75], [-0.9, -0.3], [-2.3, -0.3], [-2.3, 0.3], [-0.9, 0.3], [-0.9, 0.75]]
     .map(([a, b]) => new Phaser.Math.Vector2(tx + (a * cos - b * sin) * s, ty + (a * sin + b * cos) * s));
   g.fillStyle(cor).fillPoints(pts, true).lineStyle(Math.max(2, s * 0.22), CONTORNO).strokePoints(pts, true);
+}
+
+// The main mission, every day and in every chapter (after the first-run guide): a big yellow arrow to the
+// next battery step. Batteries waiting: the Battery Bank / Power Room / Lander. Batteries in hand: the
+// nearest room (the Radiation Shield during the storm alert). All delivered: the END DAY button, unless a
+// side mission is open. Bigger than the side-mission arrows so it always reads as the thing to do.
+export class SetaMissao {
+  private readonly g: Phaser.GameObjects.Graphics;
+  private t = 0;
+  constructor(private readonly cena: Phaser.Scene, private readonly layout: Layout) {
+    this.g = cena.add.graphics().setDepth(41);
+  }
+
+  atualizar(dtMs: number, oculto: boolean) {
+    this.t += dtMs / 1000;
+    this.g.clear();
+    // Projected through the ground camera: only on the surface, never during the flight.
+    if (oculto || sessao.fase !== 'dia' || sessao.vista !== 'chao' || sessao.voo) return;
+    for (const p of this.alvos()) desenharSeta(this.g, this.layout.u, this.t, p.x, p.y, p.fora, p.ang, 0xfde047, 1.5);
+  }
+
+  private alvos() {
+    const { cena, layout: l } = this;
+    const tempestade = sessao.tempestade.status === 'alerta';
+    if (!sessao.noHabitat && !sessao.carregando) {
+      if (tempestade || sessao.expedicao || sessao.evento) return [];
+      return [{ x: l.fimDia.x + l.fimDia.w / 2, y: l.fimDia.y - Math.round(8 * l.u), fora: false, ang: Math.PI / 2 }];
+    }
+    const quais = (c: Construcao) => sessao.noHabitat && !sessao.carregando ? c.tipo.id === origemBaterias(sessao.mundo)
+      : tempestade ? c.tipo.sala === 'blindagem' : !!c.tipo.sala;
+    const lista = sessao.grade.lista.filter(quais);
+    if (!lista.length) return [];
+    const ap = sessao.posicaoAstronauta;
+    const perto = (c: Construcao) => ap ? Math.hypot(c.gx + c.tipo.w / 2 - ap.x, c.gy + c.tipo.h / 2 - ap.y) : 0;
+    return [pontoDoModulo(cena, l, lista.reduce((a, b) => (perto(b) < perto(a) ? b : a)))];
+  }
 }
 
 // The day's random event (engine/eventos.ts): an orange arrow over the module that needs fixing, and a

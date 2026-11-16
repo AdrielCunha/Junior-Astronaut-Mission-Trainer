@@ -864,6 +864,7 @@ export class Superficie extends Phaser.Scene {
     const d = { id, nome };
     if (sessao.fase !== 'dia') { sessao.emitir('mensagem', sessao.fase === 'inicio' ? '🚀 Press MENU, then LAUNCH MISSION!' : '🌙 Night time. Wait for morning!'); return; }
     if (!estacaoDisponivel(d.id, sessao.estacoesHoje, sessao.fase)) { sessao.emitir('mensagem', `✅ ${d.nome}: done for today. Come back tomorrow!`, '#86efac'); return; }
+    if (sessao.bateriasPendentes) { sessao.emitir('mensagem', "🔋 Main mission first: deliver today's batteries! Follow the yellow arrow.", '#fde047'); return; }
     sessao.emTarefa = true;
     let feito = false;
     this.scene.get(e.cena).events.once('shutdown', () => this.time.delayedCall(0, () => { if (!feito) sessao.emTarefa = false; }));
@@ -968,12 +969,12 @@ export class Superficie extends Phaser.Scene {
         this.mapa.add(m);
         this.marcasEquip.set(c.id, m);
       }
-      const ver = this.mapa.visible && !sessao.evento && estacaoDisponivel(chaveModulo(c.tipo.id), sessao.estacoesHoje, sessao.fase);
+      const ver = this.mapa.visible && !sessao.evento && !sessao.bateriasPendentes && estacaoDisponivel(chaveModulo(c.tipo.id), sessao.estacoesHoje, sessao.fase);
       m.setVisible(ver);
       if (ver) m.setY((m.getData('y0') as number) + k);
     }
     for (const m of this.marcasEstacao) {
-      const ver = this.mapa.visible && estacaoDisponivel(m.d.id, sessao.estacoesHoje, sessao.fase);
+      const ver = this.mapa.visible && !sessao.bateriasPendentes && estacaoDisponivel(m.d.id, sessao.estacoesHoje, sessao.fase);
       m.c.setVisible(ver);
       if (ver) m.c.setY((m.c.getData('y0') as number) + k);
     }
@@ -1541,8 +1542,9 @@ export class Superficie extends Phaser.Scene {
     const presentes = sessao.grade.lista.map((c) => c.tipo.id);
     const alarme = sessao.alarmeHoje && presentes.includes(sessao.alarmeHoje.modulo) ? sessao.alarmeHoje : null;
     sessao.alarmeHoje = null;   // also drops an alarm whose module is gone, so it cannot block side missions
-    // A side breakdown waits (countdown held at 0) while a side mission runs or the storm alert is on. The alarm never waits.
-    if (!alarme && (sessao.expedicao || sessao.tempestade.status === 'alerta')) { sessao.eventoEm = 0; return; }
+    // A side breakdown waits (countdown held at 0) while a side mission runs, the storm alert is on or today's
+    // batteries are not delivered yet. The alarm never waits.
+    if (!alarme && (sessao.expedicao || sessao.tempestade.status === 'alerta' || sessao.bateriasPendentes)) { sessao.eventoEm = 0; return; }
     sessao.eventoEm = null;
     const def = alarme ?? sortearEvento(presentes, sessao.ultimoEvento);
     const modulos = def ? sessao.grade.lista.filter((c) => c.tipo.id === def.modulo) : [];
