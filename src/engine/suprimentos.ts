@@ -3,6 +3,14 @@
 // Facts are real; the equipment does not change the rules yet (regras.ts), it is the hook for
 // that when the team decides the numbers. No Phaser.
 import type { TipoId } from './construcao.ts';
+import type { Caixa } from './fisica.ts';
+
+// Reserve both the equipment footprint and the centered 2x2 cargo lander throughout delivery.
+export function caixaDaEntrega(gx: number, gy: number, w: number, h: number, chao: number, altura: number): Caixa {
+  const cx = gx + w / 2, cy = gy + h / 2;
+  return { x0: Math.min(gx, cx - 1), y0: Math.min(gy, cy - 1),
+    x1: Math.max(gx + w, cx + 1), y1: Math.max(gy + h, cy + 1), topo: chao + Math.max(2, altura) };
+}
 
 export type Suprimento = { dia: number; tipo: TipoId; aviso: string; fato: string };
 

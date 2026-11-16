@@ -1,12 +1,24 @@
 // Generated with AI assistance. See README, "Use of AI tools".
-// Game language. English is the source text and the default; Portuguese comes from a table
+// Game language. Browser preferences choose the initial language; a saved choice wins.
+// English is the fallback and source text; Portuguese comes from a table
 // keyed by the English text, so the scenes keep their strings as they are.
 import { PT, type Traducao } from './textosPt.ts';
 
 export type Idioma = 'en' | 'pt';
 const KEY = 'lunar-odyssey-idioma';
-export let idioma: Idioma = 'en';
-try { if (localStorage.getItem(KEY) === 'pt') idioma = 'pt'; } catch { /* Storage is optional. */ }
+export function detectarIdioma(salvo: unknown, preferencias: readonly string[]): Idioma {
+  if (salvo === 'pt' || salvo === 'en') return salvo;
+  for (const preferencia of preferencias) {
+    const base = preferencia.toLowerCase().split(/[-_]/)[0];
+    if (base === 'pt' || base === 'en') return base;
+  }
+  return 'en';
+}
+let salvo: unknown;
+try { salvo = localStorage.getItem(KEY); } catch { /* Storage is optional. */ }
+const preferencias = typeof navigator === 'undefined' ? []
+  : navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : [];
+export let idioma: Idioma = detectarIdioma(salvo, preferencias);
 
 // Keys with {} are patterns: "Day {} of {}" matches "Day 3 of 10" and the parts are translated too.
 const exatos = new Map<string, Traducao>();
@@ -78,9 +90,9 @@ export const localeData = () => idioma === 'pt' ? 'pt-BR' : 'en-US';
 const ouvintes = new Set<() => void>();
 export function aoMudarIdioma(f: () => void) { ouvintes.add(f); return () => { ouvintes.delete(f); }; }
 export function escolherIdioma(novo: Idioma) {
+  try { localStorage.setItem(KEY, novo); } catch { /* Storage is optional. */ }
   if (novo === idioma) return;
   idioma = novo;
   cache.clear();
-  try { localStorage.setItem(KEY, novo); } catch { /* Storage is optional. */ }
   for (const f of ouvintes) f();
 }

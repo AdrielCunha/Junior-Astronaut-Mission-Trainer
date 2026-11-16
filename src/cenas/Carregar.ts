@@ -17,7 +17,7 @@ import sprite from '../dados/astronauta.json';
 import dadosViagem from '../dados/viagem.json';
 import planetas3d from '../dados/planetas3d.json';
 import { ACESSORIOS, chaveAcessorio } from '../dados/acessorios';
-import { SKINS, chaveSkin, chaveSkinSentado, arquivoSentado, chaveSkinCarga, arquivoSkinCarga } from '../dados/skins';
+import { SKINS_SPRITES, chaveSkin, chaveSkinSentado, arquivoSentado, chaveSkinCarga, arquivoSkinCarga } from '../dados/skins';
 import constelacoes from '../dados/constelacoes.json';
 import { ICONES, chaveIcone } from '../dados/icones';
 import { soltarTeclasAoPerderFoco } from '../foco';
@@ -154,13 +154,15 @@ export class Carregar extends Phaser.Scene {
     this.load.image('terreno', dadosTerreno.imagem.arquivo);
     for (const [id, m] of Object.entries(modelos)) this.load.image(`mod_${id}`, m.arquivo);
     for (const [id, m] of Object.entries(rotacoesModulos) as [string,{arquivo:string}][]) this.load.image(`mod_${id}`, m.arquivo);
-    for (const sk of SKINS) this.load.spritesheet(chaveSkinCarga(sk.id), arquivoSkinCarga(sk.id), { frameWidth: sprite.frame, frameHeight: sprite.frame });
+    for (const sk of SKINS_SPRITES) this.load.spritesheet(chaveSkinCarga(sk.id), arquivoSkinCarga(sk.id), { frameWidth: sprite.frame, frameHeight: sprite.frame });
     this.load.image('foguete_voo', 'lua/modulos/foguete_voo.png');   // launch film and landing (Chegada.ts)
     carregarRover(this.load);   // the Apollo LRV in 16 headings (desenharRover.ts)
     for (const [id, b] of Object.entries(bandeiras)) this.load.image(`bandeira_${id}`, b.arquivo);
     for (const a of ACESSORIOS) this.load.spritesheet(chaveAcessorio(a.id), a.arquivo, { frameWidth: sprite.frame, frameHeight: sprite.frame });
-    for (const sk of SKINS) this.load.spritesheet(chaveSkin(sk.id), sk.arquivo, { frameWidth: sprite.frame, frameHeight: sprite.frame });
-    for (const sk of SKINS) this.load.spritesheet(chaveSkinSentado(sk.id), arquivoSentado(sk.arquivo), { frameWidth: sprite.frame, frameHeight: sprite.frame });
+    // Explorer 3D has no sheets of its own: it uses the commander's (SKINS_SPRITES leaves it out).
+    for (const sk of SKINS_SPRITES) this.load.spritesheet(chaveSkin(sk.id), sk.arquivo, { frameWidth: sprite.frame, frameHeight: sprite.frame });
+    for (const sk of SKINS_SPRITES) this.load.spritesheet(chaveSkinSentado(sk.id), arquivoSentado(sk.arquivo), { frameWidth: sprite.frame, frameHeight: sprite.frame });
+    this.load.image('viagem_foguete', dadosViagem.foguete.arquivo);
     // The Mars ship, 16 headings (128 KB in all): it waits in lunar orbit after liftoff (Espaco).
     dadosViagem.nave.direcoes.forEach((n, k) => this.load.image(`nave_d${k}`, n.arquivo));
     this.load.image('planeta_marte', 'lua/planetas/marte.png');   // live Mars in the solar system view

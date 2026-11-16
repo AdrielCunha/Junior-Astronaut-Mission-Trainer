@@ -1,3 +1,4 @@
+import { pontoLivre } from './rover.ts';
 // Generated with AI assistance (Claude). See README, "Use of AI tools".
 // Engine checks: projection round trip, physics (gravity, landing, walls, slopes), building
 // rules and the planet positions. Run: npm test
@@ -9,7 +10,7 @@ import { paraTela, paraChao, type Projecao } from './iso.ts';
 import { passo, novoCorpo, G, G_LUA, G_MARTE, G_TERRA, pulo, definirGravidade, METROS_POR_TILE_CORPO, type Chao } from './fisica.ts';
 import { Grade, TIPOS, BASE_PADRAO, BASE_MARTE, SETORES_SUPRIMENTOS, montarBasePadrao } from './construcao.ts';
 import { posicao, PLANETAS, lua } from './astro.ts';
-import { SUPRIMENTOS, empuxoDePouso } from './suprimentos.ts';
+import { caixaDaEntrega, SUPRIMENTOS, empuxoDePouso } from './suprimentos.ts';
 import { encontrarCaminho } from './caminho.ts';
 import { origemBaterias, modeloBancoBaterias } from './estacaoSolar.ts';
 
@@ -348,4 +349,53 @@ test('the service court remains clear as supply equipment joins the colony', () 
     const others = g.lista.filter(o=>o!==c);
     assert.ok(!others.some(o=>c.gx<o.gx+o.tipo.w+1 && c.gx+c.tipo.w+1>o.gx && c.gy<o.gy+o.tipo.h+1 && c.gy+c.tipo.h+1>o.gy), `${c.tipo.id} keeps its circulation space`);
   }
+});
+
+
+test('a supply module appearing over the astronaut automatically frees them on ground',()=>{
+  const n=24;
+  const t=new Terreno({n,metrosPorTile:80,inclinacaoMaxAndar:20,inclinacaoMaxConstruir:10,
+    alturas:Array.from({length:n+1},()=>Array(n+1).fill(0)),inclinacao:Array.from({length:n},()=>Array(n).fill(0))});
+  const grade=new Grade(t),tipo=TIPOS.antena;
+  const k=novoCorpo(8+tipo.w/2,8+tipo.h/2,0);k.noChao=true;
+  assert.equal(passo(k,null,t,grade.caixas(),1/60).recuperado,false);
+  assert.ok(grade.construir(tipo,8,8));
+  k.vx=2;
+  const result=passo(k,{dx:1,dy:0,pular:false},t,grade.caixas(),1/60);
+  assert.equal(result.recuperado,true);assert.equal(result.pousou,false);
+  assert.ok(pontoLivre(t,grade.caixas(),k.x,k.y,k.raio));
+  assert.equal(k.z,0);assert.equal(k.noChao,true);assert.equal(k.vx,0);assert.equal(k.vy,0);
+  const position={x:k.x,y:k.y};
+  for(let i=0;i<60;i++)assert.equal(passo(k,null,t,grade.caixas(),1/60).recuperado,false);
+  assert.equal(k.x,position.x);assert.equal(k.y,position.y);
+});
+
+test('the reserved cargo zone covers the lander beyond narrow equipment and stays impassable',()=>{
+  const t:Chao={n:24,maxAndar:20,altura:()=>0,inclinacaoEm:()=>0};
+  const zone=caixaDaEntrega(8,8,1,3,0,1);
+  assert.deepEqual(zone,{x0:7.5,y0:8,x1:9.5,y1:11,topo:2});
+  const k=novoCorpo(7.8,9,0);k.noChao=true;
+  assert.equal(passo(k,null,t,[zone],1/60).recuperado,true);
+  assert.ok(pontoLivre(t,[zone],k.x,k.y,k.raio));
+  for(let i=0;i<180;i++)passo(k,{dx:1,dy:0,pular:false},t,[zone],1/60);
+  assert.ok(k.x+k.raio<=zone.x0+1e-9,'cannot walk back under the lander');
+});
+
+test('astronaut recovery respects neighboring solids and also handles slow frames',()=>{
+  const t:Chao={n:24,maxAndar:20,altura:()=>.1,inclinacaoEm:()=>0};
+  const boxes=[{x0:0,y0:4,x1:2,y1:6,topo:3},{x0:2,y0:4,x1:4,y1:6,topo:3}];
+  const k=novoCorpo(.1,5,.1);k.noChao=true;
+  assert.equal(passo(k,{dx:1,dy:0,pular:true},t,boxes,.1).recuperado,true);
+  assert.ok(pontoLivre(t,boxes,k.x,k.y,k.raio));assert.equal(k.z,.1);assert.equal(k.vz,0);
+});
+
+test('standing on or landing on a rooftop is not treated as being trapped inside it',()=>{
+  const t:Chao={n:24,maxAndar:20,altura:()=>0,inclinacaoEm:()=>0};
+  const boxes=[{x0:4,y0:4,x1:6,y1:6,topo:3}];
+  const k=novoCorpo(5,5,3);k.noChao=true;
+  for(let i=0;i<60;i++)assert.equal(passo(k,null,t,boxes,1/60).recuperado,false);
+  assert.deepEqual([k.x,k.y,k.z],[5,5,3]);
+  k.z=3.2;k.noChao=false;
+  for(let i=0;i<120;i++)assert.equal(passo(k,null,t,boxes,1/60).recuperado,false);
+  assert.equal(k.z,3);assert.equal(k.noChao,true);
 });

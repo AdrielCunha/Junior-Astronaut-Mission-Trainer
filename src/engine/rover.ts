@@ -1,9 +1,12 @@
+import { buscarSaida } from './recuperacao.ts';
 import { novoCorpo, type Corpo, type Caixa, type Chao, type Entrada } from './fisica.ts';
 
-export type Rover = { corpo: Corpo; dirigindo: boolean; angulo: number };
+// rodado: tiles rolled so far (the wheels turn and the suspension bounces by it, desenharRover.ts).
+export type Rover = { corpo: Corpo; dirigindo: boolean; angulo: number; rodado?: number };
 export const RAIO_ROVER = 0.7;
 
 export function pontoLivre(c: Chao, caixas: Caixa[], x: number, y: number, raio: number) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
   if (x < raio || y < raio || x > c.n - raio || y > c.n - raio) return false;
   // Sample the footprint as well as its center so wheels cannot cut across steep rims.
   for (const [dx, dy] of [[0, 0], [raio, 0], [-raio, 0], [0, raio], [0, -raio]]) {
@@ -14,6 +17,29 @@ export function pontoLivre(c: Chao, caixas: Caixa[], x: number, y: number, raio:
     const py = Math.max(b.y0, Math.min(y, b.y1));
     return (x - px) ** 2 + (y - py) ** 2 < raio ** 2;
   });
+}
+
+// A restored save or a moved building can leave the vehicle inside a solid. Ordinary
+// collision only rejects the next step, so recover before trying to drive again.
+const recuperacoes = new WeakMap<Rover, { livre?: { x: number; y: number }; espera: number }>();
+export function desprenderRover(r: Rover, c: Chao, caixas: Caixa[], dt: number) {
+  const k = r.corpo;
+  let estado = recuperacoes.get(r);
+  if (!estado) recuperacoes.set(r, estado = { espera: 0 });
+  if (pontoLivre(c, caixas, k.x, k.y, k.raio)) {
+    estado.livre = { x: k.x, y: k.y }; estado.espera = 0;
+    return false;
+  }
+  k.vx = k.vy = k.vz = 0;
+  estado.espera = Math.max(0, estado.espera - Math.max(0, dt));
+  if (estado.espera > 0) return false;
+  // An entirely blocked map must not trigger a full search on every frame.
+  estado.espera = 1;
+  const destino = buscarSaida(k, c, caixas, (x, y) => pontoLivre(c, caixas, x, y, k.raio), estado.livre);
+  if (!destino) return false;
+  k.x = destino.x; k.y = destino.y; k.z = c.altura(k.x, k.y); k.noChao = true;
+  estado.livre = destino; estado.espera = 0;
+  return true;
 }
 
 export function estacionarRover(c: Chao, caixas: Caixa[], x: number, y: number): Rover | null {
@@ -33,9 +59,12 @@ export function estacionarRover(c: Chao, caixas: Caixa[], x: number, y: number):
 // It stays on the terrain and cannot jump or use a roof as a shortcut.
 export function dirigirRover(r: Rover, e: Entrada | null, c: Chao, caixas: Caixa[], dt: number) {
   const k = r.corpo, tempo = Math.max(0, Math.min(0.05, dt));
+  if (desprenderRover(r, c, caixas, tempo)) return { bloqueado: true, recuperado: true };
   const len = e ? Math.hypot(e.dx, e.dy) : 0;
   const velocidade = 6.4 * (c.fatorVelocidade?.(k.x, k.y) ?? 1);
-  const vx = len ? e!.dx / len * velocidade : 0, vy = len ? e!.dy / len * velocidade : 0;
+  // A short input (the route easing into a waypoint, Superficie) asks for less speed; keys are >= 1.
+  const pedido = velocidade * Math.min(1, len);
+  const vx = len ? e!.dx / len * pedido : 0, vy = len ? e!.dy / len * pedido : 0;
   const ax = vx - k.vx, ay = vy - k.vy, dist = Math.hypot(ax, ay);
   const fator = dist ? Math.min(1, (len ? 9 : 18) * tempo / dist) : 0;
   k.vx += ax * fator; k.vy += ay * fator;
@@ -44,6 +73,7 @@ export function dirigirRover(r: Rover, e: Entrada | null, c: Chao, caixas: Caixa
     const delta = Math.atan2(Math.sin(alvo - r.angulo), Math.cos(alvo - r.angulo));
     r.angulo += delta * (1 - Math.pow(1 - 10 / 60, tempo * 60));
   }
+  const x0 = k.x, y0 = k.y;
   const passos = Math.max(1, Math.ceil(Math.hypot(k.vx, k.vy) * tempo / 0.1));
   let bloqueado = false;
   for (let i = 0; i < passos; i++) {
@@ -55,7 +85,8 @@ export function dirigirRover(r: Rover, e: Entrada | null, c: Chao, caixas: Caixa
     else { k.vy = 0; bloqueado = true; }
   }
   k.z = c.altura(k.x, k.y); k.vz = 0; k.noChao = true;
-  return { bloqueado };
+  r.rodado = (r.rodado ?? 0) + Math.hypot(k.x - x0, k.y - y0);
+  return { bloqueado, recuperado: false };
 }
 
 export function desembarcar(r: Rover, c: Chao, caixas: Caixa[]): Corpo | null {

@@ -4,6 +4,7 @@
 export type Traducao = string | ((...partes: string[]) => string);
 
 export const PT: Record<string, Traducao> = {
+  "Explorer 3D": "Explorador 3D",
   'SCIENCE LOG': 'DIÁRIO CIENTÍFICO',
   'Your discoveries': 'Suas descobertas',
   'Complete a task to save its science fact here. You can read it any time.': 'Conclua uma tarefa para guardar sua curiosidade científica aqui. Leia quando quiser.',

@@ -7,7 +7,7 @@ export type NomeSfx = 'alarme' | 'clique' | 'ok' | 'erro' | 'aviso' | 'sucesso' 
   | 'pouso' | 'fumaca' | 'radio' | 'montagem' | 'bateria'
   | 'passoLua' | 'passoNave' | 'passoMarte'
   | 'puloLua' | 'puloNave' | 'puloMarte'
-  | 'aterrissarLua' | 'aterrissarNave' | 'aterrissarMarte';
+  | 'aterrissarLua' | 'aterrissarNave' | 'aterrissarMarte' | 'botaSoltar' | 'botaFixar';
 
 const VOLUME = 0.55;
 const CHAVE_MUDO = 'lunar-odyssey-efeitos-mudos';
@@ -74,6 +74,17 @@ function ruido(c: AudioContext, inicio: number, dur: number, vol: number, de: nu
 }
 
 const SONS: Record<NomeSfx, (c: AudioContext) => void> = {
+  botaSoltar: (c) => {
+    ruido(c,0,.055,.09,1900,500,.003,'bandpass');
+    nota(c,180,0,.09,'triangle',.07,90);
+  },
+  botaFixar: (c) => {
+    ruido(c,0,.065,.20,2400,400,.003);
+    nota(c,85,0,.16,'sine',.19,42);
+    nota(c,430,.008,.20,'sine',.065);
+    nota(c,713,.012,.13,'sine',.035);
+    ruido(c,.02,.025,.10,3500,1100,.002);
+  },
   passoLua: (c) => passoAstronauta(c, 'lua'),
   passoNave: (c) => passoAstronauta(c, 'nave'),
   passoMarte: (c) => passoAstronauta(c, 'marte'),

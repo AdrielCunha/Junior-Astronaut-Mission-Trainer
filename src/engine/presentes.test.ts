@@ -14,13 +14,16 @@ test('every exploration type has a level', () => {
   for (const t of new Set(Object.values(TIPOS_POR_MUNDO).flat())) assert.ok(NIVEL[t], `no level for ${t}`);
 });
 
-test('the wardrobe has three full pages of 12', () => {
-  assert.equal(SKINS.length, 12);
+test('the wardrobe has three full pages of 12 (the astronauts plus Explorer 3D)', () => {
+  // 12 drawn characters, plus Explorer 3D (procedural, free, on the commander's sheets): the
+  // astronauts page grows a row for it (Guardaroupa.ts).
+  assert.equal(SKINS.filter((s) => s.animacao !== 'procedural').length, 12);
+  assert.equal(SKINS.length, 13);
   assert.equal(daPagina('chapeus').length, 12);
   assert.equal(daPagina('carinhas').length, 12);
   assert.equal(new Set(ACESSORIOS.map((a) => a.id)).size, ACESSORIOS.length);
   assert.ok(doEspaco('cabeca').length >= 7 && doEspaco('rosto').length >= 3);
-  assert.equal(SKINS.filter((s) => !s.premio).length, 1);   // only the commander is free
+  assert.deepEqual(SKINS.filter((s) => !s.premio).map((s) => s.id), ['comandante', 'procedural']);   // only these are free
 });
 
 test('one single prize per mission', () => {

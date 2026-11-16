@@ -5,11 +5,16 @@
 // than that, like on any game map. Vertical physics uses the real lunar gravity at the size the
 // astronaut is drawn (1.8 m tall = half a tile), so a jump looks and lasts like a real Moon jump.
 // Walking speed is not to scale; it is set for play.
+import { buscarSaida } from './recuperacao.ts';
 
 export const G_LUA = 1.62;           // m/s^2, Moon surface gravity
 export const G_MARTE = 3.71;         // m/s^2, Mars surface gravity (chapter 3)
 export const G_TERRA = 9.81;         // m/s^2, for comparison on screen
 export const METROS_POR_TILE_CORPO = 3.6;
+// Magnetic soles hold the ship's deck: deliberate walking and a firm stop instead of coasting.
+export let botasMagneticas = false;
+export const definirBotasMagneticas = (ativas: boolean) => { botasMagneticas = ativas; };
+export const BOTA_MAGNETICA = { velocidade: 3.2, aceleracao: 14, freio: 32 };
 // tiles/s^2 at character scale. `let`: the world sets it (definirGravidade), and every module
 // that imports G sees the new value (ES modules export live bindings).
 export let G = G_LUA / METROS_POR_TILE_CORPO;
@@ -64,6 +69,27 @@ function bate(caixas: Caixa[], x: number, y: number, z: number, r: number): bool
   return false;
 }
 
+const esperaRecuperacao = new WeakMap<Corpo, number>();
+function desprenderAstronauta(k: Corpo, c: Chao, caixas: Caixa[], dt: number) {
+  const dentro = (x: number, y: number) => Number.isFinite(x) && Number.isFinite(y)
+    && x >= k.raio && y >= k.raio && x <= c.n - k.raio && y <= c.n - k.raio;
+  // Being on a roof is valid. Only recover actual penetration below its top.
+  if (dentro(k.x, k.y) && !bate(caixas, k.x, k.y, k.z, k.raio)) {
+    esperaRecuperacao.delete(k); return false;
+  }
+  k.vx = k.vy = k.vz = 0;
+  const espera = Math.max(0, (esperaRecuperacao.get(k) ?? 0) - dt);
+  if (espera > 0) { esperaRecuperacao.set(k, espera); return false; }
+  esperaRecuperacao.set(k, 1);
+  const livre = (x: number, y: number) => dentro(x, y)
+    && c.inclinacaoEm(x, y) <= c.maxAndar && !bate(caixas, x, y, c.altura(x, y), k.raio);
+  const destino = buscarSaida(k, c, caixas, livre);
+  if (!destino) return false;
+  k.x = destino.x; k.y = destino.y; k.z = c.altura(k.x, k.y); k.noChao = true;
+  esperaRecuperacao.delete(k);
+  return true;
+}
+
 // Can the body step from (x, y) to (nx, ny)? Blocked by boxes, map edges and slopes too steep
 // to climb (going downhill is always allowed).
 function podePassar(c: Chao, caixas: Caixa[], k: Corpo, nx: number, ny: number): boolean {
@@ -74,24 +100,27 @@ function podePassar(c: Chao, caixas: Caixa[], k: Corpo, nx: number, ny: number):
 }
 
 // Advances one body by dt seconds. Returns what happened, for sounds and messages.
-export function passo(k: Corpo, e: Entrada | null, c: Chao, caixas: Caixa[], dt: number): { pousou: boolean; bloqueado: boolean } {
+export function passo(k: Corpo, e: Entrada | null, c: Chao, caixas: Caixa[], dt: number): { pousou: boolean; bloqueado: boolean; recuperado: boolean } {
   // Recover slow frames with small collision steps, without repeating a jump on landing.
   if (dt > 1 / 30) {
     const tempo = Math.min(dt, 0.1), passos = Math.ceil(tempo * 60);
     let pousou = false, bloqueado = false;
     for (let i = 0; i < passos; i++) {
       const resultado = passo(k, i && e?.pular ? { ...e, pular: false } : e, c, caixas, tempo / passos);
+      if (resultado.recuperado) return { pousou, bloqueado: true, recuperado: true };
       pousou ||= resultado.pousou; bloqueado ||= resultado.bloqueado;
     }
-    return { pousou, bloqueado };
+    return { pousou, bloqueado, recuperado: false };
   }
+  if (desprenderAstronauta(k, c, caixas, dt)) return { pousou: false, bloqueado: true, recuperado: true };
   // Horizontal: steer toward the wanted velocity; little control in the air (no air on the Moon
   // to push against: once you jump, you mostly keep going).
   const len = e ? Math.hypot(e.dx, e.dy) : 0;
-  const velocidade = AJUSTES.velocidade * (k.noChao ? (c.fatorVelocidade?.(k.x, k.y) ?? 1) : 1);
+  const velocidade = (botasMagneticas ? BOTA_MAGNETICA.velocidade : AJUSTES.velocidade) * (k.noChao ? (c.fatorVelocidade?.(k.x, k.y) ?? 1) : 1);
   const wx = len > 0 ? (e!.dx / len) * velocidade : 0;
   const wy = len > 0 ? (e!.dy / len) * velocidade : 0;
-  const a = AJUSTES.aceleracao * (k.noChao ? 1 : AJUSTES.controleNoAr) * dt;
+  const aceleracao = botasMagneticas ? (len > 0 ? BOTA_MAGNETICA.aceleracao : BOTA_MAGNETICA.freio) : AJUSTES.aceleracao;
+  const a = aceleracao * (k.noChao ? 1 : AJUSTES.controleNoAr) * dt;
   const ax = wx - k.vx, ay = wy - k.vy, al = Math.hypot(ax, ay);
   if (al > 0) { const f = Math.min(1, a / al); k.vx += ax * f; k.vy += ay * f; }
   if (e?.pular && k.noChao) { k.vz = AJUSTES.impulsoPulo; k.noChao = false; }
@@ -117,7 +146,7 @@ export function passo(k: Corpo, e: Entrada | null, c: Chao, caixas: Caixa[], dt:
   } else {
     k.z = nz; k.noChao = false;
   }
-  return { pousou, bloqueado };
+  return { pousou, bloqueado, recuperado: false };
 }
 
 // Time in the air and peak height of a jump, for the "Moon vs Earth" fact.

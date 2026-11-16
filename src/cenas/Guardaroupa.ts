@@ -116,9 +116,11 @@ export class Guardaroupa extends Phaser.Scene {
         .on('pointerdown', () => { tocarSfx('clique'); this.aba = id; this.desenhar(); });
     });
 
-    // The page: 4 x 3 tiles.
+    // The page: 4 tiles a row, 3 rows (one more when a page has more than 12, like the astronauts
+    // with Explorer 3D).
+    const linhas = Math.max(3, Math.ceil(itens.length / 4));
     const gx = tela.x + 16 * u, gy = tela.y + 62 * u, gw = tela.w * 0.64, gh = tela.h - 62 * u - 34 * u, gap = 8 * u;
-    const lado = Math.min((gw - 3 * gap) / 4, (gh - 2 * gap) / 3);
+    const lado = Math.min((gw - 3 * gap) / 4, (gh - (linhas - 1) * gap) / linhas);
     const nomeLinha = this.add.text(gx, tela.y + tela.h - 16 * u, '', letra(14 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(0, 0.5);
     const base = this.skinMostrada();
     itens.forEach((it, i) => {

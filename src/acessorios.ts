@@ -2,8 +2,8 @@
 // What the player has won: astronauts (skins) and accessories (hats, glasses, faces). Kept in the browser
 // apart from the save, like the unlocked bases (salvamento.ts), so losing or starting over does not take
 // them away. Storage is optional. Open the game with ?liberar to see everything unlocked (preview).
-import { ACESSORIOS } from './dados/acessorios';
-import { SKINS } from './dados/skins';
+import { ACESSORIOS } from './dados/acessorios.ts';
+import { SKINS } from './dados/skins.ts';
 
 const CHAVE = 'lunar-odyssey-acessorios-v1';
 const CHAVE_SKINS = 'lunar-odyssey-astronautas-v1';

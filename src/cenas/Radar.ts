@@ -13,7 +13,11 @@ import { dispositivoMovel, escalaInterface } from '../mobile';
 import paletaLua from '../dados/paleta_lua.json';
 const LUA_COR=Number.parseInt(String(paletaLua.solo[2][1]).slice(1),16);
 const LUA_CRATERA=Number.parseInt(paletaLua.rocha.slice(1),16);
-import { abrirVideo, movimentoReduzido, configuracoesAbertas } from '../video';
+import { abrirVideo, movimentoReduzido, configuracoesAbertas, video, escolherSkin } from '../video';
+import { chaveSkin, skinUsaProcedural } from '../dados/skins';
+import { skinsDisponiveis } from '../acessorios';
+import sprite from '../dados/astronauta.json';
+import { chaveIcone } from '../dados/icones';
 import { sessao, type Mundo } from './sessao';
 import { basesLiberadas } from '../salvamento';
 import type { DadosChegada } from './Chegada';
@@ -183,6 +187,7 @@ export class Radar extends Phaser.Scene {
 
     // ----- corners -----
     this.botaoConfiguracoes(W - 40 * u, 40 * u);
+    this.botaoSkins(W - 100 * u, 40 * u);
     if (!movel) {
       const rodape = H - 22 * u;
       this.add.text(24 * u, rodape, 'Real NASA data · the May 2024 solar storm', letra(13 * u, '#bfdbfe', { fontStyle: '500' })).setOrigin(0, 0.5);
@@ -433,6 +438,94 @@ export class Radar extends Phaser.Scene {
     this.events.once('shutdown', aoMudarAudio(mostrarSelo));
     const c = this.add.container(x, y, [imagem, selo]).setSize(52 * u, 52 * u).setInteractive({ useHandCursor: true });
     c.on('pointerover', () => { c.setScale(1.1); tocarSfx('suave'); }).on('pointerout', () => c.setScale(1)).on('pointerdown', () => { tocarSfx('clique'); this.configurarAudio(); });
+  }
+
+  // The suit button: a 3D shirt (rendered in Blender) on the round blue button of the corners.
+  private botaoSkins(x: number, y: number) {
+    const u = this.u, lado = 58 * u;
+    const fundo = this.add.image(0, 0, this.textura(lado, lado, (g) => {
+      g.fillStyle(0x2563eb).fillCircle(0, 0, 23 * u).lineStyle(4 * u, 0xffffff).strokeCircle(0, 0, 23 * u).lineStyle(2 * u, CONTORNO).strokeCircle(0, 0, 26 * u);
+    }));
+    const icone = this.add.image(0, 0, chaveIcone('shirt')).setDisplaySize(38 * u, 38 * u);
+    const c = this.add.container(x, y, [fundo, icone]).setSize(52 * u, 52 * u).setInteractive({ useHandCursor: true });
+    c.on('pointerover', () => { c.setScale(1.1); tocarSfx('suave'); }).on('pointerout', () => c.setScale(1))
+      .on('pointerdown', () => { tocarSfx('clique'); this.personalizar(); });
+  }
+
+  // Suit window: a small square with the astronaut walking in the game's isometric view (its own
+  // Blender sheets, turning through the 8 directions; the arrows turn it by hand), and the
+  // astronauts already won (the Habitat's wardrobe shows the whole collection and how to win the
+  // rest). A pick applies at once: the map reads video.skin every frame. Explorer 3D is drawn by its
+  // procedural model in the game; here it shows its base sheet, marked 3D.
+  private personalizar() {
+    const u = this.u;
+    this.janela('ASTRONAUT SUIT', 640, 420, (tela) => {
+      const lado = Math.min(tela.h - 70 * u, tela.w * 0.48);
+      const qx = tela.x + 20 * u, qy = tela.y + 10 * u;
+      const cx = qx + lado / 2, cy = qy + lado / 2, chao = cy + lado * 0.24;
+      // The square: night sky, a little isometric floor tile (2:1, like the map) and a soft shadow.
+      const piso = lado * 0.7;
+      const losango = [new Phaser.Geom.Point(cx, chao - piso / 4), new Phaser.Geom.Point(cx + piso / 2, chao),
+        new Phaser.Geom.Point(cx, chao + piso / 4), new Phaser.Geom.Point(cx - piso / 2, chao)];
+      this.add.graphics()
+        .fillStyle(0x0b1a4a).fillRoundedRect(qx, qy, lado, lado, 16 * u)
+        .fillStyle(0x1e3a8a, 0.55).fillCircle(cx, cy - lado * 0.08, lado * 0.42)
+        .fillStyle(LUA_COR).fillPoints(losango, true)
+        .lineStyle(3 * u, CONTORNO).strokePoints(losango, true)
+        .fillStyle(LUA_CRATERA, 0.45).fillEllipse(cx - piso * 0.22, chao + piso * 0.04, piso * 0.16, piso * 0.07)
+        .fillStyle(0x000000, 0.28).fillEllipse(cx, chao, lado * 0.26, lado * 0.09)
+        .lineStyle(4 * u, 0xffffff).strokeRoundedRect(qx, qy, lado, lado, 16 * u)
+        .lineStyle(2 * u, CONTORNO).strokeRoundedRect(qx - 3 * u, qy - 3 * u, lado + 6 * u, lado + 6 * u, 19 * u);
+      const astro = this.add.sprite(cx, chao, chaveSkin(video.skin), 0)
+        .setOrigin(sprite.pe[0] / sprite.frame, sprite.pe[1] / sprite.frame).setScale((lado * 0.95) / sprite.frame);
+      // Walk cycle (columns 1..8) on the spot, turning one direction every 1.6 s; the arrows turn it now.
+      let dir = 0, passo = 1, desdeVirada = 0, parado = false;
+      const mostrar = () => astro.setTexture(chaveSkin(video.skin), dir * sprite.colunas + (parado ? 0 : passo));
+      const virar = (d: number) => { dir = (dir + d + sprite.andar) % sprite.andar; desdeVirada = 0; mostrar(); };
+      const relogio = this.time.addEvent({ delay: 90, loop: true, callback: () => {
+        if (movimentoReduzido()) { parado = true; mostrar(); return; }
+        parado = false;
+        passo = passo % (sprite.colunas - 1) + 1;
+        desdeVirada += 90;
+        if (desdeVirada >= 1600) virar(1); else mostrar();
+      } });
+      mostrar();
+      this.botao(cx - lado * 0.3, qy + lado + 32 * u, 54 * u, 38 * u, '◀', COR_BOTAO_TELA, 18 * u, () => { tocarSfx('clique'); virar(1); });
+      this.botao(cx + lado * 0.3, qy + lado + 32 * u, 54 * u, 38 * u, '▶', COR_BOTAO_TELA, 18 * u, () => { tocarSfx('clique'); virar(-1); });
+      // The suits: one swatch each, four a row, with the chosen one's name.
+      const dx = qx + lado + 26 * u, larg = tela.x + tela.w - 20 * u - dx;
+      this.add.text(dx, qy + 4 * u, 'Choose your astronaut', letra(18 * u, '#ffffff', { fontStyle: 'bold' })).setOrigin(0, 0);
+      const ganhos = skinsDisponiveis();
+      const nome = this.add.text(dx, qy + 34 * u, '', letra(20 * u, '#fde047', { fontStyle: 'bold' })).setOrigin(0, 0);
+      const hex = (c: string) => Number.parseInt(c.slice(1), 16);
+      const porLinha = 4, l = Math.min(56 * u, (larg - (porLinha - 1) * 16 * u - 10 * u) / porLinha), raio = 10 * u;
+      const aneis: Phaser.GameObjects.Graphics[] = [];
+      const atualizar = () => {
+        aneis.forEach((a, k) => a.setAlpha(ganhos[k].id === video.skin ? 1 : 0));
+        nome.setText(ganhos.find((s) => s.id === video.skin)?.nome ?? '');
+        mostrar();
+      };
+      ganhos.forEach((s, k) => {
+        const x = dx + l / 2 + 5 * u + (k % porLinha) * (l + 16 * u), y = qy + 96 * u + Math.floor(k / porLinha) * (l + 20 * u);
+        aneis.push(this.add.graphics().lineStyle(4 * u, 0xfde047)
+          .strokeRoundedRect(x - l / 2 - 5 * u, y - l / 2 - 5 * u, l + 10 * u, l + 10 * u, raio + 4 * u));
+        // The swatch: the suit's body color with a band of its accent, like the suit itself.
+        this.add.graphics().fillStyle(hex(s.traje)).fillRoundedRect(x - l / 2, y - l / 2, l, l, raio)
+          .fillStyle(hex(s.cor)).fillRect(x - l / 2, y - l * 0.08, l, l * 0.22)
+          .fillStyle(hex(s.botas)).fillRoundedRect(x - l / 2, y + l * 0.3, l, l * 0.2, { tl: 0, tr: 0, bl: raio, br: raio })
+          .lineStyle(3 * u, CONTORNO).strokeRoundedRect(x - l / 2, y - l / 2, l, l, raio)
+          .setInteractive(new Phaser.Geom.Rectangle(x - l / 2, y - l / 2, l, l), Phaser.Geom.Rectangle.Contains)
+          .on('pointerover', () => tocarSfx('suave'))
+          .on('pointerdown', () => { tocarSfx('clique'); escolherSkin(s.id); atualizar(); });
+        if (skinUsaProcedural(s.id)) this.add.text(x, y - l * 0.3, '3D', letra(13 * u, '#0f172a', { fontStyle: 'bold' })).setOrigin(0.5);
+      });
+      // The rest are prizes: say where they come from.
+      const linhasGrade = Math.ceil(ganhos.length / porLinha);
+      this.add.text(dx, qy + 96 * u + linhasGrade * (l + 20 * u) - l / 2 + 4 * u, 'Win more astronauts in side missions!\nThe wardrobe is in the Habitat.',
+        letra(13 * u, '#bfdbfe', { fontStyle: '500', wordWrap: { width: larg } })).setOrigin(0, 0);
+      atualizar();
+      return () => relogio.remove();
+    }, 'DONE');
   }
 
   private configurarAudio(idiomaMudou = false) {

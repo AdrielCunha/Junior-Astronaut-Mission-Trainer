@@ -1,8 +1,8 @@
 // Generated with AI assistance. See README, "Use of AI tools".
 // Video preferences shared by scenes; storage is optional in private browsing.
-import { SKINS, SKIN_PADRAO } from './dados/skins';
-import { doEspaco, type Espaco } from './dados/acessorios';
-import { acessoriosGanhos, skinsDisponiveis } from './acessorios';
+import { SKINS, SKIN_PADRAO } from './dados/skins.ts';
+import { doEspaco, type Espaco } from './dados/acessorios.ts';
+import { acessoriosGanhos, skinsDisponiveis } from './acessorios.ts';
 // Which video field holds the accessory of each slot.
 const ESPACOS: ['acessorio' | 'rosto' | 'carinha', Espaco][] = [['acessorio', 'cabeca'], ['rosto', 'rosto'], ['carinha', 'carinha']];
 export type Video = { qualidade: 'auto' | 'leve' | 'alta'; movimento: 'sistema' | 'reduzido' | 'completo'; efeitos: boolean; pegadas: boolean; skin: string; acessorio: string; rosto: string; carinha: string };
@@ -15,6 +15,8 @@ try {
   if (['sistema','reduzido','completo'].includes(saved.movimento)) video.movimento = saved.movimento;
   if (SKINS.some((s) => s.id === saved.skin)) video.skin = saved.skin;
   for (const [campo, espaco] of ESPACOS) if (doEspaco(espaco).some((a) => a.id === saved[campo])) video[campo] = saved[campo];
+  // Upgrade the former experimental video toggle into the dedicated skin.
+  if (saved.animacao === 'procedural') video.skin = 'procedural';
   for (const key of ['efeitos','pegadas'] as const) if (typeof saved[key] === 'boolean') video[key] = saved[key];
 } catch { /* Defaults also work without storage. */ }
 export function escolherSkin(id: string) {

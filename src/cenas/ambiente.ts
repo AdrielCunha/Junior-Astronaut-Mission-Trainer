@@ -1,6 +1,7 @@
 // Generated with AI assistance. See README, "Use of AI tools".
 // Grounded footprints and ballistic lunar dust. Building illumination is rendered in Blender.
 import Phaser from 'phaser';
+import { formaPegada, pegadaNoSolo, type ContatoPegada } from '../engine/pegadas';
 import paletaLua from '../dados/paleta_lua.json';
 import paletaMarte from '../dados/paleta_marte.json';
 const cor=(h: string)=>Number.parseInt(h.slice(1),16);
@@ -59,7 +60,7 @@ export class Ambiente {
     mapa.add([this.gPegadas,this.gPoeira]);
   }
 
-  update(dt: number, corpo: Corpo, construcoes: readonly Construcao[], rover?: Rover | null) {
+  update(dt: number, corpo: Corpo, construcoes: readonly Construcao[], rover?: Rover | null,animado?:{ativo:boolean;contato:ContatoPegada|null}) {
     const leve = video.qualidade === 'leve' || (video.qualidade === 'auto' && LEVE);
     this.limiteMarcas=leve ? 480 : 1800;
     const reduzido = movimentoReduzido();
@@ -68,7 +69,7 @@ export class Ambiente {
       this.rastrosRover(rover,leve,reduzido);
     } else {
       this.ultimoRastro = null;
-      this.passos(corpo,construcoes,leve,reduzido);
+      this.passos(corpo,construcoes,leve,reduzido,animado);
     }
     // Prints age normally while idle; quality also bounds the cost of busy rover trails.
     const agora=this.cena.time.now/1000;
@@ -135,9 +136,15 @@ export class Ambiente {
     this.ultimoRastro=atual;
   }
 
-  private passos(k: Corpo, construcoes: readonly Construcao[], leve: boolean, reduzido: boolean) {
+  private passos(k: Corpo, construcoes: readonly Construcao[], leve: boolean, reduzido: boolean,animado?:{ativo:boolean;contato:ContatoPegada|null}) {
     const now={x:k.x,y:k.y};
     const previous=this.ultimo;this.ultimo=now;
+    // Procedural lunar marks come only from the actual supporting sole, never distance travelled.
+    if(animado?.ativo){
+      this.distancia=0;
+      if(animado.contato&&k.noChao&&video.pegadas&&!this.metal)this.marcarContato(animado.contato,construcoes,leve,reduzido);
+      return;
+    }
     if(!previous)return;
     const dx=k.x-previous.x,dy=k.y-previous.y,dist=Math.hypot(dx,dy);
     const soil=k.noChao && Math.abs(k.z-this.terreno.altura(k.x,k.y))<0.08 &&
@@ -161,6 +168,19 @@ export class Ambiente {
     this.desenharMarca(this.gPegadas,marca,1);
     if(video.efeitos && !reduzido) {
       for(let i=0;i<(leve?2:4);i++) this.graos.push({x,y,z:this.terreno.altura(x,y)+0.01,vx:-ux*0.10+(Math.random()-0.5)*0.12,vy:-uy*0.10+(Math.random()-0.5)*0.12,vz:0.10+Math.random()*0.10,t:0});
+      if(this.graos.length>40)this.graos.splice(0,this.graos.length-40);
+    }
+  }
+
+  private marcarContato(contato:ContatoPegada,construcoes:readonly Construcao[],leve:boolean,reduzido:boolean){
+    if(!pegadaNoSolo(contato,(x,y)=>this.terreno.altura(x,y),construcoes))return;
+    const forma=formaPegada(contato);
+    const projetar=(p:P2)=>paraTela(this.p,p.x,p.y,this.terreno.altura(p.x,p.y)+.006);
+    const marca:Marca={nascimento:this.cena.time.now/1000,contorno:forma.contorno.map(projetar),riscos:forma.riscos.map(([a,b])=>[projetar(a),projetar(b)])};
+    this.marcas.push(marca);this.desenharMarca(this.gPegadas,marca,1);
+    if(video.efeitos&&!reduzido){
+      for(let i=0;i<(leve?2:4);i++)this.graos.push({x:contato.x,y:contato.y,z:this.terreno.altura(contato.x,contato.y)+.01,
+        vx:-contato.ux*.10+(Math.random()-.5)*.12,vy:-contato.uy*.10+(Math.random()-.5)*.12,vz:.10+Math.random()*.10,t:0});
       if(this.graos.length>40)this.graos.splice(0,this.graos.length-40);
     }
   }

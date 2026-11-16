@@ -3,6 +3,7 @@ import { CONTORNO, COR_BOTAO_TELA, letra, criarBotaoPilula, botaoVerde, botaoFec
 import { volumeMusica, definirVolumeMusica } from '../audio';
 import { volumeEfeitos, definirVolumeEfeitos, tocarSfx } from '../sfx';
 import { video, atualizarVideo, type Video } from '../video';
+import { skinUsaProcedural } from '../dados/skins';
 import { skinsDisponiveis } from '../acessorios';
 import { sessao, dataBonita } from './sessao';
 import { lerDescobertas } from '../descobertas';
@@ -169,6 +170,7 @@ export class MenuJogo extends Phaser.Scene {
         .setInteractive(new Phaser.Geom.Rectangle(x - lado / 2, y - lado / 2, lado, lado), Phaser.Geom.Rectangle.Contains)
         .on('pointerover', () => tocarSfx('suave'))
         .on('pointerdown', () => { tocarSfx('clique'); atualizarVideo({ skin: s.id }); atualizarSkin(); });
+      if(skinUsaProcedural(s.id))this.add.text(x,y,'3D',letra(12*u,'#0f172a',{fontStyle:'bold'})).setOrigin(.5);
     });
     atualizarSkin();
     this.botao(tela, yLinha(5), 'VIDEO & COMFORT  ›', () => this.abrirPagina('video'), 'video', COR_BOTAO_TELA);

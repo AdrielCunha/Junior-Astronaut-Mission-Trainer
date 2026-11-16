@@ -1,0 +1,25 @@
+{
+  "bones": 16,
+  "riggedObjects": 114,
+  "groups": [
+    "torso",
+    "head",
+    "LupperArm",
+    "Lforearm",
+    "Lthigh",
+    "Lshin",
+    "Lhand",
+    "Lfoot",
+    "RupperArm",
+    "Rforearm",
+    "Rthigh",
+    "Rshin",
+    "Rhand",
+    "Rfoot",
+    "Lmagnet",
+    "Rmagnet",
+    "battery"
+  ],
+  "source": "Original Blender astronaut + articulated limbs",
+  "maxBatteries": 5
+}
