@@ -100,7 +100,16 @@ export class CenaTarefa extends Phaser.Scene {
     };
 
     // shortcut: a resize starts the task over; fine for a task of a few seconds.
-    const redimensionar = () => terminou ? fechar() : this.scene.restart(d);
+    // Only a real change of size, settled for 250 ms: on iOS the toolbar fires resize on a tap.
+    const W0 = this.scale.width, H0 = this.scale.height;
+    let espera: Phaser.Time.TimerEvent | undefined;
+    const redimensionar = () => {
+      espera?.remove();
+      espera = this.time.delayedCall(250, () => {
+        if (Math.abs(this.scale.width - W0) < 2 && Math.abs(this.scale.height - H0) < 2) return;
+        if (terminou) fechar(); else this.scene.restart(d);
+      });
+    };
     this.scale.on('resize', redimensionar);
     this.events.once('shutdown', () => {
       fechado = true;
