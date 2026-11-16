@@ -42,7 +42,7 @@ import { DECORACAO, DECORACAO_MARTE, OBJETOS_CONSTRUCAO, comoTipo, type DecoColo
 import { CHAVE_FOGUETE } from './Chegada';
 import foguetevoo from '../dados/foguete_voo.json';
 import { tocarMotor, tocarSfx, criarAmbienteSonoro } from '../sfx';
-import { dirigirRover, estacionarRover, desembarcar, pontoLivre, RAIO_ROVER } from '../engine/rover';
+import { dirigirRover, desprenderRover, estacionarRover, desembarcar, pontoLivre, RAIO_ROVER } from '../engine/rover';
 import { deveQuebrar } from '../paralama-tarefa';
 import { criarCorridaEntrega, avancar, terminada, maisLonge, pontoLivrePerto, alvoDaSeta, pista, moverExpedicao, type Expedicao, type TipoExpedicao } from '../engine/expedicao';
 import { criarExploracao, sortearTipo, AVISOS, type Contexto } from '../engine/exploracao';
@@ -1892,6 +1892,7 @@ export class Superficie extends Phaser.Scene {
     if(configuracoesAbertas || sessao.transicao) {this.input.keyboard?.resetKeys();this.sons.silenciar();this.passada.reiniciar();return;}
     const caixas = sessao.grade.caixas();
     const e = this.input.enabled && (sessao.fase === 'dia' || sessao.fase === 'inicio') ? this.entrada() : null;
+    if (sessao.rover && !sessao.rover.dirigindo) desprenderRover(sessao.rover, sessao.terreno, caixas, dt);
     const antesNoChao = this.corpo.noChao;
     const antesX = this.corpo.x, antesY = this.corpo.y;
     if (sessao.rover?.dirigindo && !sessao.roverCarregado) {
@@ -1902,8 +1903,13 @@ export class Superficie extends Phaser.Scene {
       ? dirigirRover(sessao.rover, sessao.roverCarregado ? e : null, sessao.terreno, caixas, dt)
       : passo(this.corpo, e, sessao.terreno, caixas, dt);
     const { bloqueado } = movimento;
+    const recuperado = 'recuperado' in movimento && movimento.recuperado;
+    if (recuperado) {
+      this.rota = []; this.destinoRota = null; this.alvoUsar = null; this.alvoRover = false;
+      this.bloqueadoCont = 0; this.recolherBandeira();
+    }
     const pousou = 'pousou' in movimento && movimento.pousou === true;
-    if (sessao.rover?.dirigindo) this.contarOdometro(Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY));
+    if (sessao.rover?.dirigindo && !recuperado) this.contarOdometro(Math.hypot(this.corpo.x - antesX, this.corpo.y - antesY));
     this.passarExploracao(dt);
     this.passarExpedicao(dt);
     // Observe successful controls for the tutorial, without changing movement or physics.

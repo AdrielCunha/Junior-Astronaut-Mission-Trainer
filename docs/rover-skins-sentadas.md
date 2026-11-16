@@ -34,3 +34,16 @@ usam as 16 direções completas.
 node --test src/dados/skins.test.ts src/engine/rover.test.ts
 npm run build
 ```
+
+## Recuperação automática de colisões
+
+Um save restaurado ou uma estrutura movida pode deixar o rover dentro de um sólido.
+Antes de dirigir, e também enquanto está estacionado, o jogo verifica sua posição
+e procura solo livre próximo às laterais dos obstáculos. Cada destino é validado
+contra todas as estruturas, os limites do mapa e a inclinação sob as rodas.
+
+A recuperação mantém o jogador no mesmo veículo, zera as velocidades e ajusta a
+altura ao terreno. A rota anterior é cancelada; o deslocamento corretivo não entra
+no odômetro nem no giro das rodas. Funciona também sem bateria. Se as laterais
+estiverem bloqueadas, tenta a última posição livre e uma busca no mapa. Sem destino
+seguro, não coloca o veículo em outra colisão e limita a busca a uma vez por segundo.

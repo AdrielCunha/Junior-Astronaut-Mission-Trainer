@@ -5,6 +5,7 @@ export type Rover = { corpo: Corpo; dirigindo: boolean; angulo: number; rodado?:
 export const RAIO_ROVER = 0.7;
 
 export function pontoLivre(c: Chao, caixas: Caixa[], x: number, y: number, raio: number) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
   if (x < raio || y < raio || x > c.n - raio || y > c.n - raio) return false;
   // Sample the footprint as well as its center so wheels cannot cut across steep rims.
   for (const [dx, dy] of [[0, 0], [raio, 0], [-raio, 0], [0, raio], [0, -raio]]) {
@@ -15,6 +16,57 @@ export function pontoLivre(c: Chao, caixas: Caixa[], x: number, y: number, raio:
     const py = Math.max(b.y0, Math.min(y, b.y1));
     return (x - px) ** 2 + (y - py) ** 2 < raio ** 2;
   });
+}
+
+// A restored save or a moved building can leave the vehicle inside a solid. Ordinary
+// collision only rejects the next step, so recover before trying to drive again.
+const recuperacoes = new WeakMap<Rover, { livre?: { x: number; y: number }; espera: number }>();
+export function desprenderRover(r: Rover, c: Chao, caixas: Caixa[], dt: number) {
+  const k = r.corpo;
+  let estado = recuperacoes.get(r);
+  if (!estado) recuperacoes.set(r, estado = { espera: 0 });
+  if (pontoLivre(c, caixas, k.x, k.y, k.raio)) {
+    estado.livre = { x: k.x, y: k.y }; estado.espera = 0;
+    return false;
+  }
+  k.vx = k.vy = k.vz = 0;
+  estado.espera = Math.max(0, estado.espera - Math.max(0, dt));
+  if (estado.espera > 0) return false;
+  // An entirely blocked map must not trigger a full search on every frame.
+  estado.espera = 1;
+  const margem = k.raio + 0.02;
+  const x0 = Number.isFinite(k.x) ? k.x : c.n / 2;
+  const y0 = Number.isFinite(k.y) ? k.y : c.n / 2;
+  const limitar = (v: number) => Math.max(margem, Math.min(c.n - margem, v));
+  const candidatos = [{ x: limitar(x0), y: limitar(y0) }];
+  if (estado.livre) candidatos.push(estado.livre);
+  for (const b of caixas) {
+    // Try every side and corner against ALL solids, not just the containing box:
+    // pushing through one wall must not put the driver in the next building.
+    const xs = [b.x0 - margem, b.x1 + margem], ys = [b.y0 - margem, b.y1 + margem];
+    for (const x of xs) candidatos.push({ x, y: limitar(y0) });
+    for (const y of ys) candidatos.push({ x: limitar(x0), y });
+    for (const x of xs) for (const y of ys) candidatos.push({ x, y });
+  }
+  const distancia = (p: { x: number; y: number }) => (p.x - x0) ** 2 + (p.y - y0) ** 2;
+  const seguro = (p: { x: number; y: number }) => pontoLivre(c, caixas, p.x, p.y, k.raio) && Number.isFinite(c.altura(p.x, p.y));
+  candidatos.sort((a, b) => distancia(a) - distancia(b));
+  let destino = candidatos.find(seguro);
+  if (!destino) {
+    // Slopes or several overlapping obstacles may rule out their projected sides.
+    // Search the bounded map, keeping the nearest valid full vehicle footprint.
+    let menor = Infinity;
+    for (let x = margem; x <= c.n - margem; x += 0.25) {
+      for (let y = margem; y <= c.n - margem; y += 0.25) {
+        const p = { x, y }, d = distancia(p);
+        if (d < menor && seguro(p)) { destino = p; menor = d; }
+      }
+    }
+  }
+  if (!destino) return false;
+  k.x = destino.x; k.y = destino.y; k.z = c.altura(k.x, k.y); k.noChao = true;
+  estado.livre = destino; estado.espera = 0;
+  return true;
 }
 
 export function estacionarRover(c: Chao, caixas: Caixa[], x: number, y: number): Rover | null {
@@ -34,6 +86,7 @@ export function estacionarRover(c: Chao, caixas: Caixa[], x: number, y: number):
 // It stays on the terrain and cannot jump or use a roof as a shortcut.
 export function dirigirRover(r: Rover, e: Entrada | null, c: Chao, caixas: Caixa[], dt: number) {
   const k = r.corpo, tempo = Math.max(0, Math.min(0.05, dt));
+  if (desprenderRover(r, c, caixas, tempo)) return { bloqueado: true, recuperado: true };
   const len = e ? Math.hypot(e.dx, e.dy) : 0;
   const velocidade = 6.4 * (c.fatorVelocidade?.(k.x, k.y) ?? 1);
   // A short input (the route easing into a waypoint, Superficie) asks for less speed; keys are >= 1.
@@ -60,7 +113,7 @@ export function dirigirRover(r: Rover, e: Entrada | null, c: Chao, caixas: Caixa
   }
   k.z = c.altura(k.x, k.y); k.vz = 0; k.noChao = true;
   r.rodado = (r.rodado ?? 0) + Math.hypot(k.x - x0, k.y - y0);
-  return { bloqueado };
+  return { bloqueado, recuperado: false };
 }
 
 export function desembarcar(r: Rover, c: Chao, caixas: Caixa[]): Corpo | null {

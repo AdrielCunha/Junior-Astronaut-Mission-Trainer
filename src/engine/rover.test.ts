@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { novoCorpo, type Chao } from './fisica.ts';
-import { dirigirRover, desembarcar, estacionarRover, pontoLivre, RAIO_ROVER, type Rover } from './rover.ts';
+import { dirigirRover, desprenderRover, desembarcar, estacionarRover, pontoLivre, RAIO_ROVER, type Rover } from './rover.ts';
 
 const terreno: Chao = { n: 30, maxAndar: 20, altura: () => 0, inclinacaoEm: () => 0 };
 const rover = (): Rover => ({ corpo: { ...novoCorpo(5,5,0,RAIO_ROVER), noChao: true }, dirigindo: true, angulo: 0 });
@@ -80,4 +80,61 @@ test('a short input asks the rover for less speed (easing into a waypoint)', () 
   const r = rover();
   for (let i = 0; i < 240; i++) dirigirRover(r, { dx: 0.5, dy: 0, pular: false }, terreno, [], 1/120);
   assert.ok(Math.abs(r.corpo.vx - 3.2) < 0.05);
+});
+
+
+test('a driver restored inside a building is pushed onto nearby ground and can drive away', () => {
+  const r = rover(), body = r.corpo;
+  const caixas = [{x0:4,y0:4,x1:6,y1:6,topo:4}];
+  r.corpo.vx=6; r.corpo.vy=2; r.rodado=7;
+  const elevado={...terreno,altura:(x:number,y:number)=>x*.01+y*.02};
+  const result=dirigirRover(r,{dx:1,dy:0,pular:false},elevado,caixas,1/60);
+  assert.equal(result.recuperado,true);assert.equal(result.bloqueado,true);
+  assert.equal(r.corpo,body,'the player keeps the same body reference');
+  assert.equal(r.dirigindo,true);assert.ok(pontoLivre(elevado,caixas,body.x,body.y,body.raio));
+  assert.ok(Math.hypot(body.x-5,body.y-5)<1.8,'use a nearby side, not the map spawn');
+  assert.equal(body.z,elevado.altura(body.x,body.y));assert.equal(body.noChao,true);
+  assert.equal(body.vx,0);assert.equal(body.vy,0);assert.equal(body.vz,0);
+  assert.equal(r.rodado,7,'a recovery is not distance driven');
+  const start=body.x;
+  for(let i=0;i<60;i++)dirigirRover(r,{dx:-1,dy:0,pular:false},elevado,caixas,1/60);
+  assert.ok(body.x<start-.5,'normal controls work after recovery');
+});
+
+test('recovery checks adjacent buildings, boundaries and the complete footprint',()=>{
+  const r=rover();r.corpo.x=.8;
+  const caixas=[{x0:0,y0:4,x1:2,y1:6,topo:3},{x0:2,y0:4,x1:4,y1:6,topo:3},{x0:0,y0:2,x1:4,y1:4,topo:3}];
+  assert.equal(dirigirRover(r,null,terreno,caixas,1/60).recuperado,true);
+  assert.ok(pontoLivre(terreno,caixas,r.corpo.x,r.corpo.y,r.corpo.raio));
+  const position={x:r.corpo.x,y:r.corpo.y};
+  for(let i=0;i<60;i++)assert.equal(dirigirRover(r,null,terreno,caixas,1/60).recuperado,false);
+  assert.equal(r.corpo.x,position.x);assert.equal(r.corpo.y,position.y);
+});
+
+test('a parked or unpowered rover recovers without requiring movement input',()=>{
+  const caixas=[{x0:4,y0:4,x1:6,y1:6,topo:3}];
+  const parked=rover();parked.dirigindo=false;
+  assert.equal(desprenderRover(parked,terreno,caixas,1/60),true);
+  assert.equal(parked.dirigindo,false);assert.ok(pontoLivre(terreno,caixas,parked.corpo.x,parked.corpo.y,RAIO_ROVER));
+  const unpowered=rover();assert.equal(dirigirRover(unpowered,null,terreno,caixas,1/60).recuperado,true);
+});
+
+test('recovery can find ground when slopes block all projected building sides',()=>{
+  const r=rover();
+  const c={...terreno,inclinacaoEm:(x:number,y:number)=>x>=12&&x<=17&&y>=12&&y<=17?0:40};
+  assert.equal(desprenderRover(r,c,[{x0:4,y0:4,x1:6,y1:6,topo:3}],1/60),true);
+  assert.ok(pontoLivre(c,[],r.corpo.x,r.corpo.y,RAIO_ROVER));
+});
+
+test('an entirely blocked map stays finite and retries expensive recovery at most once a second',()=>{
+  const r=rover(),caixas=[{x0:0,y0:0,x1:30,y1:30,topo:3}];
+  let samples=0;
+  const c={...terreno,inclinacaoEm:()=>{samples++;return 0;}};
+  assert.equal(desprenderRover(r,c,caixas,1/60),false);
+  samples=0;
+  for(let i=0;i<20;i++)assert.equal(desprenderRover(r,c,caixas,1/60),false);
+  assert.ok(samples<=100,'do not scan the map every frame when no exit exists');
+  assert.deepEqual([r.corpo.x,r.corpo.y,r.corpo.z],[5,5,0]);
+  for(let i=0;i<60;i++)desprenderRover(r,c,[{x0:4,y0:4,x1:6,y1:6,topo:3}],1/60);
+  assert.ok(pontoLivre(c,[{x0:4,y0:4,x1:6,y1:6,topo:3}],r.corpo.x,r.corpo.y,RAIO_ROVER));
 });
